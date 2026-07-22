@@ -24,6 +24,7 @@ StoxSim is a multi-market paper-trading platform for Indian and United States st
 - Docker Compose
 - GitHub Actions
 - PostgreSQL Testcontainers for migration and concurrency tests
+- Playwright browser acceptance tests
 
 ## Run locally
 
@@ -93,11 +94,12 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Upstox market-data integration](docs/MARKET_DATA.md)
 - [India paper-trading engine](docs/TRADING.md)
 - [Simulated Indian charges](docs/CHARGES.md)
+- [Testing and acceptance](docs/TESTING.md)
 - [Production deployment](docs/DEPLOYMENT.md)
 
 ## Current milestone
 
-The India learning journey now includes persistent watchlists, real-time WebSocket updates and PostgreSQL-backed migration/concurrency coverage. Staging candidate images, deployment Compose configuration, remote smoke checks and an immutable-tag rollback path are also available. Next: deploy the first private staging environment and complete an authenticated browser acceptance test.
+The India learning journey now includes persistent watchlists, real-time WebSocket updates, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. CI boots the complete Docker Compose stack and verifies registration, the ₹5,00,000 opening balance, session restoration, logout and returning-user login. Next: deploy the tested immutable image to the first private staging environment.
 
 ## License
 
