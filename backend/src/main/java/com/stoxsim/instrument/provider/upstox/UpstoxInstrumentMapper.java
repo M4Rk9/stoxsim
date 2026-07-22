@@ -15,7 +15,7 @@ import com.stoxsim.market.domain.MarketRegion;
 @Component
 public class UpstoxInstrumentMapper {
 
-    static final String PROVIDER = "UPSTOX";
+    public static final String PROVIDER = "UPSTOX";
     private static final Set<String> SUPPORTED_SEGMENTS = Set.of(
         "NSE_EQ",
         "BSE_EQ",
