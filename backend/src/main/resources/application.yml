@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: stoxsim-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/stoxsim}
+    username: ${DATABASE_USERNAME:stoxsim}
+    password: ${DATABASE_PASSWORD:stoxsim}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+stoxsim:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  accounts:
+    india-starting-balance: 500000.00
+    united-states-starting-balance: 10000.00
