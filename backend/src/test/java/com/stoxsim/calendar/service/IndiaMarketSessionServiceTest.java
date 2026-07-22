@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -52,7 +53,7 @@ class IndiaMarketSessionServiceTest {
         var status = sessions.at(MarketExchange.NSE, saturday);
 
         assertThat(status.phase()).isEqualTo(MarketPhase.HOLIDAY);
-        assertThat(status.orderDate()).isEqualTo("2026-07-27");
+        assertThat(status.orderDate()).isEqualTo(LocalDate.of(2026, 7, 27));
     }
 
     private void assertPhase(int hour, int minute, MarketPhase expected) {
