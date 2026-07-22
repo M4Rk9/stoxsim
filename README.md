@@ -26,20 +26,7 @@ The accounts are independent. Balances, holdings and performance are never mixed
 - Docker Compose
 - GitHub Actions
 
-## Repository
-
-```text
-stoxsim/
-├── backend/          Spring Boot API
-├── frontend/         Next.js application
-├── docs/             Product and architecture decisions
-├── .github/          CI workflows
-└── docker-compose.yml
-```
-
 ## Run locally
-
-Requirements: Docker Desktop and Docker Compose.
 
 ```bash
 cp .env.example .env
@@ -52,24 +39,25 @@ Then open:
 - API status: http://localhost:8080/api/v1/system/status
 - API health: http://localhost:8080/actuator/health
 
-## Current milestone
+## Authentication API
 
-The initial foundation includes:
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
 
-- dual-market product definition
-- modular-monolith architecture
-- Spring Boot API shell
-- Next.js landing experience
-- PostgreSQL and Redis infrastructure
-- first users/accounts migration
-- CI checks for backend and frontend
-
-Next: authentication and automatic creation of separate INR and USD virtual accounts.
+Registration atomically creates an India account with ₹5,00,000 and a United States account with $10,000.
 
 ## Documentation
 
 - [Product definition](docs/PRODUCT.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Authentication](docs/AUTHENTICATION.md)
+
+## Current milestone
+
+Authentication and virtual-account provisioning are implemented. Next: instrument masters and the provider-independent market-data layer.
 
 ## License
 
