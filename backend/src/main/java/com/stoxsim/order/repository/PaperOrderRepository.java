@@ -29,22 +29,22 @@ public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-        SELECT order
-        FROM PaperOrder order
-        JOIN FETCH order.account
-        JOIN FETCH order.instrument
-        WHERE order.id = :id
+        SELECT paperOrder
+        FROM PaperOrder paperOrder
+        JOIN FETCH paperOrder.account
+        JOIN FETCH paperOrder.instrument
+        WHERE paperOrder.id = :id
         """)
     Optional<PaperOrder> findByIdForUpdate(@Param("id") UUID id);
 
     @Query("""
-        SELECT order.id
-        FROM PaperOrder order
-        WHERE order.status = com.stoxsim.order.domain.OrderStatus.OPEN
-          AND order.instrument.provider = :provider
-          AND order.instrument.instrumentKey = :instrumentKey
-          AND order.submittedForDate <= :tradeDate
-        ORDER BY order.createdAt
+        SELECT paperOrder.id
+        FROM PaperOrder paperOrder
+        WHERE paperOrder.status = com.stoxsim.order.domain.OrderStatus.OPEN
+          AND paperOrder.instrument.provider = :provider
+          AND paperOrder.instrument.instrumentKey = :instrumentKey
+          AND paperOrder.submittedForDate <= :tradeDate
+        ORDER BY paperOrder.createdAt
         """)
     List<UUID> findOpenIdsForTick(
         @Param("provider") String provider,
@@ -55,10 +55,10 @@ public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
     List<PaperOrder> findAllByStatus(OrderStatus status);
 
     @Query("""
-        SELECT order.id
-        FROM PaperOrder order
-        WHERE order.status = com.stoxsim.order.domain.OrderStatus.OPEN
-          AND order.submittedForDate <= :tradeDate
+        SELECT paperOrder.id
+        FROM PaperOrder paperOrder
+        WHERE paperOrder.status = com.stoxsim.order.domain.OrderStatus.OPEN
+          AND paperOrder.submittedForDate <= :tradeDate
         """)
     List<UUID> findOpenIdsDueBy(@Param("tradeDate") LocalDate tradeDate);
 }
