@@ -1,0 +1,121 @@
+name: Staging deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Tested 40-character commit SHA published by Staging candidate
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stoxsim-private-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      STAGING_PORT: ${{ secrets.STAGING_PORT || '22' }}
+      STAGING_USER: ${{ secrets.STAGING_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+      GHCR_USER: ${{ secrets.STAGING_GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.STAGING_GHCR_TOKEN }}
+      REMOTE_DIR: ${{ vars.STAGING_REMOTE_DIR || 'stoxsim-staging' }}
+      STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+      STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        run: |
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STAGING_PORT" =~ ^[0-9]+$ ]]
+          [[ "$REMOTE_DIR" =~ ^[A-Za-z0-9._/-]+$ ]]
+          [[ "$STAGING_API_URL" == https://* ]]
+          [[ "$STAGING_WEB_URL" == https://* ]]
+          : "${STAGING_HOST:?Set the STAGING_HOST environment secret}"
+          : "${STAGING_USER:?Set the STAGING_USER environment secret}"
+          : "${SSH_PRIVATE_KEY:?Set the STAGING_SSH_PRIVATE_KEY environment secret}"
+          : "${SSH_KNOWN_HOSTS:?Set the STAGING_SSH_KNOWN_HOSTS environment secret}"
+          : "${GHCR_USER:?Set the STAGING_GHCR_USERNAME environment secret}"
+          : "${GHCR_TOKEN:?Set the STAGING_GHCR_TOKEN environment secret}"
+
+      - name: Configure pinned SSH host identity
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Upload versioned staging bundle
+        run: |
+          tar -C deploy/staging -czf /tmp/stoxsim-staging.tgz .
+          ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" "mkdir -p '$REMOTE_DIR'"
+          scp -P "$STAGING_PORT" /tmp/stoxsim-staging.tgz "$STAGING_USER@$STAGING_HOST:/tmp/stoxsim-staging.tgz"
+          ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
+            "tar -xzf /tmp/stoxsim-staging.tgz -C '$REMOTE_DIR' && rm /tmp/stoxsim-staging.tgz && chmod +x '$REMOTE_DIR'/*.sh && test -f '$REMOTE_DIR'/.env"
+
+      - name: Authenticate staging host to GHCR
+        run: |
+          printf '%s' "$GHCR_TOKEN" | ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
+            docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+      - name: Deploy immutable candidate
+        id: remote-deploy
+        run: |
+          ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
+            "cd '$REMOTE_DIR' && ./deploy.sh '$IMAGE_TAG'"
+
+      - name: Run HTTPS API smoke checks
+        run: bash scripts/staging-smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Chromium acceptance dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run deployed learner journey
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_WEB_URL }}
+        run: npm run e2e
+
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-browser-diagnostics-${{ inputs.image_tag }}
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
+      - name: Roll back after external verification failure
+        if: failure() && steps.remote-deploy.outcome == 'success'
+        run: |
+          ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
+            "cd '$REMOTE_DIR' && ./rollback.sh"
+
+      - name: Record deployed version
+        if: success()
+        run: |
+          echo "## Private staging deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image tag: \`$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Web: $STAGING_WEB_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API: $STAGING_API_URL" >> "$GITHUB_STEP_SUMMARY"

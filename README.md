@@ -95,11 +95,12 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [India paper-trading engine](docs/TRADING.md)
 - [Simulated Indian charges](docs/CHARGES.md)
 - [Testing and acceptance](docs/TESTING.md)
+- [Private staging operations](deploy/staging/README.md)
 - [Production deployment](docs/DEPLOYMENT.md)
 
 ## Current milestone
 
-The India learning journey now includes persistent watchlists, real-time WebSocket updates, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. CI boots the complete Docker Compose stack and verifies registration, the ₹5,00,000 opening balance, session restoration, logout and returning-user login. Next: deploy the tested immutable image to the first private staging environment.
+The India learning journey now includes persistent watchlists, real-time WebSocket updates, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. A provider-neutral private staging bundle now adds automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, backups, restore, immutable-image deployment and verified rollback. Next: provision the private host and DNS, configure the protected GitHub staging environment and deploy the first tested image.
 
 ## License
 
