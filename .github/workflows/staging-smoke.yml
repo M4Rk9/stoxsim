@@ -1,0 +1,28 @@
+name: Staging smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Staging API HTTPS origin
+        required: true
+        default: https://api.staging.stoxsim.com
+      web_url:
+        description: Staging web HTTPS origin
+        required: true
+        default: https://staging.stoxsim.com
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run user-journey smoke checks
+        env:
+          STAGING_API_URL: ${{ inputs.api_url }}
+          STAGING_WEB_URL: ${{ inputs.web_url }}
+        run: bash scripts/staging-smoke.sh

@@ -58,6 +58,38 @@ Set `FRONTEND_URL` to the exact public browser origin. Spring uses it for REST C
 
 Use rolling deployment with a single active API instance for the MVP. Do not let two instances use the same Upstox token concurrently unless the provider limits and a coordinated subscription design explicitly support it.
 
+## Staging checkpoint
+
+The repository includes two manual GitHub Actions workflows:
+
+1. **Staging candidate** builds the backend and frontend images and publishes both an immutable commit-SHA tag and the movable `staging` tag to GitHub Container Registry.
+2. **Staging smoke** checks readiness, the rendered frontend, registration, both opening balances, authenticated identity and refresh-token rotation against the deployed HTTPS origins.
+
+Deploy only the immutable SHA shown in the candidate workflow summary:
+
+```bash
+cd deploy/staging
+cp .env.example .env
+# Set secrets, managed PostgreSQL/Redis hosts and the tested commit SHA.
+docker compose pull
+docker compose up -d
+```
+
+Terminate HTTPS outside the Compose project and proxy the public API and WebSocket origins to ports `8080` and `3000`. Then run the **Staging smoke** workflow with those public URLs.
+
+### Rollback
+
+Keep the previously healthy commit SHA. If readiness or smoke checks fail:
+
+```bash
+cd deploy/staging
+# Change STOXSIM_IMAGE_TAG in .env to the previous healthy commit SHA.
+docker compose pull
+docker compose up -d
+```
+
+Flyway migrations must remain backward compatible with the previous application image. If a future migration is destructive or not backward compatible, it requires a separately tested database restoration plan before deployment.
+
 ## Monitoring and alerts
 
 Alert on:
