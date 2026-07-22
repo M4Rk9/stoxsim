@@ -16,11 +16,23 @@ import jakarta.persistence.LockModeType;
 
 public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, UUID> {
 
-    List<VirtualAccount> findAllByUserIdOrderByMarketRegion(UUID userId);
+    @Query("""
+        SELECT account
+        FROM VirtualAccount account
+        WHERE account.user.id = :userId
+        ORDER BY account.marketRegion
+        """)
+    List<VirtualAccount> findAllByUserIdOrderByMarketRegion(@Param("userId") UUID userId);
 
+    @Query("""
+        SELECT account
+        FROM VirtualAccount account
+        WHERE account.user.id = :userId
+          AND account.marketRegion = :marketRegion
+        """)
     Optional<VirtualAccount> findByUserIdAndMarketRegion(
-        UUID userId,
-        MarketRegion marketRegion
+        @Param("userId") UUID userId,
+        @Param("marketRegion") MarketRegion marketRegion
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

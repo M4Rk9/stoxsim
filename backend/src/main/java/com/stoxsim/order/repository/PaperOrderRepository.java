@@ -20,12 +20,28 @@ public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
 
     Optional<PaperOrder> findByAccountIdAndIdempotencyKey(UUID accountId, String idempotencyKey);
 
+    @Query("""
+        SELECT paperOrder
+        FROM PaperOrder paperOrder
+        WHERE paperOrder.account.user.id = :userId
+          AND paperOrder.account.marketRegion = :marketRegion
+        ORDER BY paperOrder.createdAt DESC
+        """)
     List<PaperOrder> findAllByAccountUserIdAndAccountMarketRegionOrderByCreatedAtDesc(
-        UUID userId,
-        MarketRegion marketRegion
+        @Param("userId") UUID userId,
+        @Param("marketRegion") MarketRegion marketRegion
     );
 
-    Optional<PaperOrder> findByIdAndAccountUserId(UUID id, UUID userId);
+    @Query("""
+        SELECT paperOrder
+        FROM PaperOrder paperOrder
+        WHERE paperOrder.id = :id
+          AND paperOrder.account.user.id = :userId
+        """)
+    Optional<PaperOrder> findByIdAndAccountUserId(
+        @Param("id") UUID id,
+        @Param("userId") UUID userId
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

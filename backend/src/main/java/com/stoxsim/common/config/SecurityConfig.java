@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/v1/system/status",
                     "/actuator/health",
+                    "/actuator/health/**",
                     "/ws/market",
                     "/ws/market/**"
                 ).permitAll()

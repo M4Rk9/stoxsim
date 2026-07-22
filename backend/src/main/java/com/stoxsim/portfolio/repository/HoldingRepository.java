@@ -30,9 +30,17 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
     );
 
     @EntityGraph(attributePaths = {"account", "instrument"})
+    @Query("""
+        SELECT holding
+        FROM Holding holding
+        WHERE holding.account.user.id = :userId
+          AND holding.account.marketRegion = :marketRegion
+          AND holding.quantity > :minimumQuantity
+        ORDER BY holding.instrument.tradingSymbol
+        """)
     List<Holding> findAllByAccountUserIdAndAccountMarketRegionAndQuantityGreaterThanOrderByInstrumentTradingSymbol(
-        UUID userId,
-        MarketRegion marketRegion,
-        long minimumQuantity
+        @Param("userId") UUID userId,
+        @Param("marketRegion") MarketRegion marketRegion,
+        @Param("minimumQuantity") long minimumQuantity
     );
 }
