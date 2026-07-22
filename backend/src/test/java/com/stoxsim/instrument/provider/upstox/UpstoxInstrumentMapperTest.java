@@ -4,7 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+
 import com.stoxsim.instrument.domain.InstrumentType;
 import com.stoxsim.instrument.domain.MarketExchange;
 
@@ -14,7 +15,7 @@ class UpstoxInstrumentMapperTest {
     private final UpstoxInstrumentMapper mapper = new UpstoxInstrumentMapper();
 
     @Test
-    void mapsSupportedNseEquity() throws Exception {
+    void mapsSupportedNseEquity() {
         var node = objectMapper.readTree("""
             {
               "segment": "NSE_EQ",
@@ -38,7 +39,7 @@ class UpstoxInstrumentMapperTest {
     }
 
     @Test
-    void ignoresDerivativeSegments() throws Exception {
+    void ignoresDerivativeSegments() {
         var node = objectMapper.readTree("""
             {
               "segment": "NSE_FO",
