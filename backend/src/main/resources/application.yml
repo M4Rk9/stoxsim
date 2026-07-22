@@ -32,6 +32,10 @@ management:
 
 stoxsim:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  auth:
+    jwt-secret: ${JWT_SECRET:local-development-only-change-this-secret-2026}
+    access-token-minutes: 15
+    refresh-token-days: 30
   accounts:
     india-starting-balance: 500000.00
     united-states-starting-balance: 10000.00
