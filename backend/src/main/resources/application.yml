@@ -54,3 +54,5 @@ stoxsim:
         - NSE_INDEX|Nifty IT
         - NSE_INDEX|India VIX
         - BSE_INDEX|SENSEX
+  trading:
+    slippage-basis-points: ${SIMULATED_SLIPPAGE_BASIS_POINTS:5}

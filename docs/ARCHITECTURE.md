@@ -65,3 +65,14 @@ com.stoxsim
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
 - `WS /ws/market`
+- `GET /api/v1/market/status`
+- `POST /api/v1/orders`
+- `GET|PUT|DELETE /api/v1/orders/{id}`
+- `GET /api/v1/holdings`
+- `GET /api/v1/trades`
+- `GET /api/v1/account/ledger`
+
+
+## Paper-order transaction
+
+Each execution locks the virtual account and order, then atomically settles reserved cash or shares, updates the holding, creates one trade, writes one ledger entry and closes the order. PostgreSQL constraints, pessimistic locks and idempotency keys prevent overspending, overselling and duplicate submissions.
