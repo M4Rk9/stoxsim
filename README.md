@@ -15,8 +15,6 @@ StoxSim is a multi-market paper-trading platform for Indian and United States st
 | NIFTY 50, SENSEX and sector indices | S&P 500, NASDAQ-100 and Dow |
 | Indian sessions and simulated charges | US sessions and simulated fees |
 
-The accounts are independent. Balances, holdings and performance are never mixed across currencies.
-
 ## Technology
 
 - Java 21 and Spring Boot 4.1
@@ -33,13 +31,13 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Then open:
-
 - Web application: http://localhost:3000
 - API status: http://localhost:8080/api/v1/system/status
 - API health: http://localhost:8080/actuator/health
 
-## Authentication API
+## Implemented APIs
+
+### Authentication
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
@@ -47,17 +45,23 @@ Then open:
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 
-Registration atomically creates an India account with ₹5,00,000 and a United States account with $10,000.
+### Instruments
+
+- `GET /api/v1/instruments/search?marketRegion=INDIA&q=Reliance`
+- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
+
+The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata.
 
 ## Documentation
 
 - [Product definition](docs/PRODUCT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Authentication](docs/AUTHENTICATION.md)
+- [Instruments and market data](docs/INSTRUMENTS.md)
 
 ## Current milestone
 
-Authentication and virtual-account provisioning are implemented. Next: instrument masters and the provider-independent market-data layer.
+The instrument master and provider-independent market-data contracts are implemented. Next: Upstox REST quotes, historical candles, Redis quote caching and live WebSocket streaming.
 
 ## License
 
