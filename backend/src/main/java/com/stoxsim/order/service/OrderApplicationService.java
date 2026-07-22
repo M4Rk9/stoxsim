@@ -84,6 +84,7 @@ public class OrderApplicationService {
         }
 
         TradableInstrument instrument = findInstrument(request);
+        validateTickSize(instrument, request.limitPrice());
         var session = sessions.current(instrument.getExchange());
         ensureOrderChangesAllowed(session.allowsOrderEntry());
 
@@ -123,11 +124,9 @@ public class OrderApplicationService {
             session.orderDate()
         ));
 
+        events.publishEvent(new OrderOpenedEvent(key(order)));
         if (session.executable()) {
             settlement.settleOpenOrder(order, account, quote);
-        }
-        if (order.isOpen()) {
-            events.publishEvent(new OrderOpenedEvent(key(order)));
         }
         return OrderResponse.from(order);
     }
