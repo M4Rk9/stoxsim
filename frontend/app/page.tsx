@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -38,6 +38,19 @@ interface MarketStatus {
   currentTime: string;
   nextTransition: string;
   orderDate: string;
+}
+
+interface IndexQuote {
+  code: string;
+  label: string;
+  exchange: string;
+  instrumentKey: string;
+  value?: number;
+  change?: number;
+  changePercent?: number;
+  previousClose?: number;
+  dataStatus: "LIVE" | "STALE" | "UNAVAILABLE";
+  exchangeTimestamp?: string;
 }
 
 interface Position {
@@ -99,6 +112,23 @@ interface Quote {
   exchangeTimestamp?: string;
 }
 
+interface Candle {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+}
+
+interface CandleSeries {
+  symbol: string;
+  interval: string;
+  from: string;
+  to: string;
+  candles: Candle[];
+}
+
 interface ChargeBreakdown {
   scheduleVersion: string;
   simulated: boolean;
@@ -141,7 +171,13 @@ interface Trade {
   executedAt: string;
 }
 
-async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+async function rawRequest<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
@@ -152,7 +188,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new Error(payload?.message ?? `Request failed with status ${response.status}`);
+    throw new ApiError(payload?.message ?? `Request failed with status ${response.status}`, response.status);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -178,6 +214,12 @@ const dateTime = (value?: string) =>
       }).format(new Date(value))
     : "—";
 
+const isoDate = (monthsAgo: number) => {
+  const date = new Date();
+  date.setUTCMonth(date.getUTCMonth() - monthsAgo);
+  return date.toISOString().slice(0, 10);
+};
+
 const phaseLabel = (phase?: string) =>
   ({
     REGULAR: "Market open",
@@ -190,16 +232,22 @@ const phaseLabel = (phase?: string) =>
 
 export default function Home() {
   const [session, setSession] = useState<AuthResponse | null>(null);
+  const sessionRef = useRef<AuthResponse | null>(null);
+  const refreshPromiseRef = useRef<Promise<AuthResponse> | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [authForm, setAuthForm] = useState({ displayName: "", email: "", password: "" });
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [market, setMarket] = useState<MarketStatus | null>(null);
+  const [indices, setIndices] = useState<IndexQuote[]>([]);
   const [orders, setOrders] = useState<PaperOrder[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Instrument[]>([]);
   const [selected, setSelected] = useState<Instrument | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [chartRange, setChartRange] = useState<1 | 3 | 12>(3);
+  const [chartLoading, setChartLoading] = useState(false);
   const [side, setSide] = useState<OrderSide>("BUY");
   const [orderType, setOrderType] = useState<OrderType>("MARKET");
   const [quantity, setQuantity] = useState("1");
@@ -212,18 +260,45 @@ export default function Home() {
 
   const token = session?.accessToken;
   const openOrders = useMemo(() => orders.filter((order) => order.status === "OPEN"), [orders]);
+  const displayedIndices = useMemo<IndexQuote[]>(
+    () => indices.length ? indices : Array.from({ length: 6 }, (_, index) => ({
+      code: `loading-${index}`,
+      label: "Loading index",
+      exchange: "",
+      instrumentKey: "",
+      dataStatus: "UNAVAILABLE",
+    })),
+    [indices],
+  );
 
   useEffect(() => {
     const saved = window.localStorage.getItem("stoxsim-session");
     if (!saved) return;
     try {
       const restored = JSON.parse(saved) as AuthResponse;
+      sessionRef.current = restored;
       setSession(restored);
       void loadDashboard(restored.accessToken);
     } catch {
       window.localStorage.removeItem("stoxsim-session");
     }
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    const interval = window.setInterval(() => {
+      void loadIndices();
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !selected) {
+      setCandles([]);
+      return;
+    }
+    void loadCandles(selected, chartRange);
+  }, [token, selected, chartRange]);
 
   useEffect(() => {
     if (!token || !quote) {
@@ -238,33 +313,108 @@ export default function Home() {
     }
     const turnover = units * referencePrice;
     const timer = window.setTimeout(() => {
-      request<ChargeBreakdown>(
+      authorizedRequest<ChargeBreakdown>(
         `/api/v1/trading/charges/estimate?side=${side}&exchange=NSE&turnover=${turnover}`,
         {},
-        token,
       ).then(setChargeEstimate).catch(() => setChargeEstimate(null));
     }, 250);
     return () => window.clearTimeout(timer);
   }, [token, quote, quantity, limitPrice, orderType, side]);
 
+  function persistSession(next: AuthResponse | null) {
+    sessionRef.current = next;
+    setSession(next);
+    if (next) {
+      window.localStorage.setItem("stoxsim-session", JSON.stringify(next));
+    } else {
+      window.localStorage.removeItem("stoxsim-session");
+    }
+  }
+
+  async function rotateSession(): Promise<AuthResponse> {
+    if (refreshPromiseRef.current) return refreshPromiseRef.current;
+    const active = sessionRef.current;
+    if (!active) throw new ApiError("Your session has expired", 401);
+
+    refreshPromiseRef.current = rawRequest<AuthResponse>("/api/v1/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken: active.refreshToken }),
+    }).then((next) => {
+      persistSession(next);
+      return next;
+    }).catch((cause) => {
+      persistSession(null);
+      throw cause;
+    }).finally(() => {
+      refreshPromiseRef.current = null;
+    });
+    return refreshPromiseRef.current;
+  }
+
+  async function authorizedRequest<T>(
+    path: string,
+    options: RequestInit = {},
+    accessToken?: string,
+  ): Promise<T> {
+    const activeToken = accessToken ?? sessionRef.current?.accessToken;
+    if (!activeToken) throw new ApiError("Please sign in to continue", 401);
+    try {
+      return await rawRequest<T>(path, options, activeToken);
+    } catch (cause) {
+      if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
+      const latest = sessionRef.current;
+      if (latest && latest.accessToken !== activeToken) {
+        return rawRequest<T>(path, options, latest.accessToken);
+      }
+      const refreshed = await rotateSession();
+      return rawRequest<T>(path, options, refreshed.accessToken);
+    }
+  }
+
   async function loadDashboard(accessToken: string) {
     setLoading(true);
     setError("");
     try {
-      const [nextPortfolio, nextMarket, nextOrders, nextTrades] = await Promise.all([
-        request<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken),
-        request<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken),
-        request<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken),
-        request<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken),
+      const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices] = await Promise.all([
+        authorizedRequest<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken),
+        authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken),
+        authorizedRequest<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken),
+        authorizedRequest<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken),
+        authorizedRequest<IndexQuote[]>("/api/v1/market/indices", {}, accessToken),
       ]);
       setPortfolio(nextPortfolio);
       setMarket(nextMarket);
       setOrders(nextOrders);
       setTrades(nextTrades);
+      setIndices(nextIndices);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load your dashboard");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadIndices() {
+    try {
+      setIndices(await authorizedRequest<IndexQuote[]>("/api/v1/market/indices"));
+    } catch {
+      // Preserve the last successful values; each card already carries freshness metadata.
+    }
+  }
+
+  async function loadCandles(instrument: Instrument, range: 1 | 3 | 12) {
+    setChartLoading(true);
+    try {
+      const to = new Date().toISOString().slice(0, 10);
+      const series = await authorizedRequest<CandleSeries>(
+        `/api/v1/instruments/INDIA/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/candles?interval=ONE_DAY&from=${isoDate(range)}&to=${to}`,
+      );
+      setCandles(series.candles);
+    } catch (cause) {
+      setCandles([]);
+      setError(cause instanceof Error ? cause.message : "Historical prices are unavailable");
+    } finally {
+      setChartLoading(false);
     }
   }
 
@@ -275,12 +425,11 @@ export default function Home() {
     try {
       const path = authMode === "register" ? "/api/v1/auth/register" : "/api/v1/auth/login";
       const body = authMode === "register" ? authForm : { email: authForm.email, password: authForm.password };
-      const authenticated = await request<AuthResponse>(path, {
+      const authenticated = await rawRequest<AuthResponse>(path, {
         method: "POST",
         body: JSON.stringify(body),
       });
-      setSession(authenticated);
-      window.localStorage.setItem("stoxsim-session", JSON.stringify(authenticated));
+      persistSession(authenticated);
       await loadDashboard(authenticated.accessToken);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Authentication failed");
@@ -295,10 +444,9 @@ export default function Home() {
     setWorking(true);
     setError("");
     try {
-      const found = await request<Instrument[]>(
+      const found = await authorizedRequest<Instrument[]>(
         `/api/v1/instruments/search?marketRegion=INDIA&q=${encodeURIComponent(search.trim())}`,
         {},
-        token,
       );
       setResults(found.filter((item) => item.exchange === "NSE").slice(0, 8));
     } catch (cause) {
@@ -316,10 +464,9 @@ export default function Home() {
     setWorking(true);
     setError("");
     try {
-      const nextQuote = await request<Quote>(
+      const nextQuote = await authorizedRequest<Quote>(
         `/api/v1/instruments/INDIA/${instrument.exchange}/${instrument.tradingSymbol}/quote`,
         {},
-        token,
       );
       setQuote(nextQuote);
       setLimitPrice(String(nextQuote.lastPrice));
@@ -338,7 +485,7 @@ export default function Home() {
     setError("");
     setNotice("");
     try {
-      await request<PaperOrder>(
+      await authorizedRequest<PaperOrder>(
         "/api/v1/orders",
         {
           method: "POST",
@@ -353,7 +500,6 @@ export default function Home() {
             limitPrice: orderType === "LIMIT" ? Number(limitPrice) : null,
           }),
         },
-        token,
       );
       setNotice(`${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
       await loadDashboard(token);
@@ -369,7 +515,7 @@ export default function Home() {
     setWorking(true);
     setError("");
     try {
-      await request<PaperOrder>(`/api/v1/orders/${orderId}`, { method: "DELETE" }, token);
+      await authorizedRequest<PaperOrder>(`/api/v1/orders/${orderId}`, { method: "DELETE" });
       setNotice("Order cancelled and blocked resources released.");
       await loadDashboard(token);
     } catch (cause) {
@@ -381,13 +527,12 @@ export default function Home() {
 
   async function logout() {
     if (session) {
-      await request<void>(
+      await rawRequest<void>(
         "/api/v1/auth/logout",
         { method: "POST", body: JSON.stringify({ refreshToken: session.refreshToken }) },
       ).catch(() => undefined);
     }
-    window.localStorage.removeItem("stoxsim-session");
-    setSession(null);
+    persistSession(null);
     setPortfolio(null);
     setOrders([]);
     setTrades([]);
@@ -446,6 +591,17 @@ export default function Home() {
         <div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</strong></div>
       </section>
 
+      <section className="indexStrip" aria-label="Indian market indices">
+        {displayedIndices.map((index) => {
+          const rising = (index.change ?? 0) >= 0;
+          return <article className="indexCard" key={index.code}>
+            <div><span>{index.label}</span><small>{index.exchange || "MARKET"}</small></div>
+            <strong>{index.value == null ? "—" : number(index.value)}</strong>
+            <div className="indexMove"><span className={index.value == null ? "muted" : rising ? "positive" : "negative"}>{index.value == null ? "Awaiting data" : `${rising ? "+" : ""}${number(index.change)} · ${rising ? "+" : ""}${number(index.changePercent)}%`}</span><i className={index.dataStatus.toLowerCase()} title={`${index.dataStatus} data`} /></div>
+          </article>;
+        })}
+      </section>
+
       {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
 
       <section className="dashboardHeading">
@@ -472,6 +628,10 @@ export default function Home() {
                 <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><span className={`quoteStatus ${quote.dataStatus.toLowerCase()}`}>{quote.dataStatus}</span></div>
                 <div className="quotePrice"><strong>{inr(quote.lastPrice)}</strong><span>{dateTime(quote.exchangeTimestamp)}</span></div>
                 <div className="quoteStats"><div><span>Open</span><strong>{inr(quote.open)}</strong></div><div><span>High</span><strong>{inr(quote.high)}</strong></div><div><span>Low</span><strong>{inr(quote.low)}</strong></div><div><span>Prev. close</span><strong>{inr(quote.previousClose)}</strong></div></div>
+                <div className="chartBlock">
+                  <div className="chartHeader"><div><span>Historical close</span><small>Upstox daily candles</small></div><div className="rangeTabs">{([1, 3, 12] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range === 12 ? "1Y" : `${range}M`}</button>)}</div></div>
+                  <PriceChart candles={candles} loading={chartLoading} />
+                </div>
               </div>
             )}
           </article>
@@ -521,4 +681,57 @@ function Brand() {
 
 function Metric({ label, value, sub, tone = "" }: { label: string; value: string; sub: string; tone?: string }) {
   return <article className="metric"><span>{label}</span><strong className={tone}>{value}</strong><small>{sub}</small></article>;
+}
+
+function PriceChart({ candles, loading }: { candles: Candle[]; loading: boolean }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const ordered = useMemo(
+    () => [...candles]
+      .filter((candle) => Number.isFinite(candle.close))
+      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()),
+    [candles],
+  );
+
+  if (loading) return <div className="chartEmpty"><span className="chartLoader" />Loading historical prices…</div>;
+  if (!ordered.length) return <div className="chartEmpty">Historical prices are unavailable for this selection.</div>;
+
+  const width = 720;
+  const height = 240;
+  const left = 18;
+  const right = 18;
+  const top = 18;
+  const bottom = 30;
+  const values = ordered.map((candle) => candle.close);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const spread = Math.max(maximum - minimum, maximum * 0.005, 1);
+  const points = ordered.map((candle, index) => ({
+    candle,
+    x: left + (index / Math.max(ordered.length - 1, 1)) * (width - left - right),
+    y: top + ((maximum - candle.close) / spread) * (height - top - bottom),
+  }));
+  const line = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+  const area = `${line} L${points.at(-1)?.x},${height - bottom} L${points[0].x},${height - bottom} Z`;
+  const active = hovered == null ? points.at(-1)! : points[hovered];
+  const rising = ordered.at(-1)!.close >= ordered[0].close;
+
+  function move(event: MouseEvent<SVGSVGElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
+    setHovered(Math.round(ratio * (points.length - 1)));
+  }
+
+  return <div className="priceChart">
+    <div className="chartReadout"><div><strong>{inr(active.candle.close)}</strong><span>{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(active.candle.timestamp))}</span></div><div><span>High {inr(active.candle.high)}</span><span>Low {inr(active.candle.low)}</span></div></div>
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical closing-price chart" onMouseMove={move} onMouseLeave={() => setHovered(null)}>
+      <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity=".22" /><stop offset="100%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity="0" /></linearGradient></defs>
+      {[0.25, 0.5, 0.75].map((ratio) => <line key={ratio} x1={left} x2={width - right} y1={top + ratio * (height - top - bottom)} y2={top + ratio * (height - top - bottom)} className="chartGridLine" />)}
+      <path d={area} fill="url(#chartFill)" />
+      <path d={line} className={rising ? "chartLine rising" : "chartLine falling"} />
+      <line x1={active.x} x2={active.x} y1={top} y2={height - bottom} className="chartCrosshair" />
+      <circle cx={active.x} cy={active.y} r="5" className={rising ? "chartPoint rising" : "chartPoint falling"} />
+      <text x={left} y={height - 7} className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered[0].timestamp))}</text>
+      <text x={width - right} y={height - 7} textAnchor="end" className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered.at(-1)!.timestamp))}</text>
+    </svg>
+  </div>;
 }

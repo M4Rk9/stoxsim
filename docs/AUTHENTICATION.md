@@ -28,6 +28,10 @@ A failure in any step rolls back the entire registration.
 - Logout revokes the supplied refresh token.
 - Production must set a unique `JWT_SECRET` of at least 32 characters.
 
+## Browser rotation
+
+The web client retries an authenticated request once after a `401`. Concurrent failures share one in-flight refresh request, preventing a rotating refresh token from being consumed more than once. If another request has already installed a newer access token, late failures retry with that token instead of rotating again. A failed refresh clears the local session and returns the user to sign-in.
+
 ## Example
 
 ```http
