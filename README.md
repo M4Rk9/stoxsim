@@ -35,7 +35,7 @@ docker compose up --build
 - API status: http://localhost:8080/api/v1/system/status
 - API health: http://localhost:8080/actuator/health
 
-Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM_ENABLED=true` to start the reconnecting V3 market stream.
+Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM_ENABLED=true` so resting limit and queued orders can react to live ticks.
 
 ## Implemented APIs
 
@@ -53,8 +53,22 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
+- `GET /api/v1/market/status?exchange=NSE`
 - STOMP WebSocket endpoint: `/ws/market`
 - Quote topic: `/topic/market/quotes`
+
+### Paper trading
+
+- `POST /api/v1/orders`
+- `GET /api/v1/orders`
+- `GET /api/v1/orders/{id}`
+- `PUT /api/v1/orders/{id}`
+- `DELETE /api/v1/orders/{id}`
+- `GET /api/v1/holdings`
+- `GET /api/v1/trades`
+- `GET /api/v1/account/ledger`
+
+Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling.
 
 The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
@@ -65,10 +79,11 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Authentication](docs/AUTHENTICATION.md)
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)
+- [India paper-trading engine](docs/TRADING.md)
 
 ## Current milestone
 
-Upstox REST quotes, historical candles, Redis caching and reconnecting WebSocket streaming are implemented. Next: the India market calendar and transactional paper-order engine.
+The transactional India paper-order engine is implemented. Next: portfolio valuation, simulated Indian charges and the first connected trading dashboard.
 
 ## License
 
