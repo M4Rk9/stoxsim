@@ -1,7 +1,9 @@
 FROM node:24-alpine AS build
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN npm run build
 

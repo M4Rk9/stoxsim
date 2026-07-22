@@ -67,8 +67,12 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 - `GET /api/v1/holdings`
 - `GET /api/v1/trades`
 - `GET /api/v1/account/ledger`
+- `GET /api/v1/trading/charges/estimate`
+- `GET /api/v1/portfolio?marketRegion=INDIA`
 
-Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling.
+Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling. Executions include an effective-dated simulated charge breakdown, and portfolio valuation incorporates charges into cost basis and realized returns.
+
+The first connected dashboard now supports registration, sign-in, NSE stock search, quotes, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
 
 The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
@@ -80,10 +84,11 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)
 - [India paper-trading engine](docs/TRADING.md)
+- [Simulated Indian charges](docs/CHARGES.md)
 
 ## Current milestone
 
-The transactional India paper-order engine is implemented. Next: portfolio valuation, simulated Indian charges and the first connected trading dashboard.
+The charge-aware India paper-trading journey is connected from Spring Boot to Next.js. Next: historical charts, live index cards, refresh-token rotation in the browser and production deployment hardening.
 
 ## License
 

@@ -9,7 +9,7 @@
 - DAY validity
 - No short selling, leverage, partial fills or real brokerage orders
 - Configurable disadvantageous slippage, default 5 basis points
-- Simulated charges are currently zero and will be added through a versioned charge engine
+- Effective-dated simulated Indian charges with a component-level trade breakdown
 
 ## Session phases
 
@@ -48,7 +48,7 @@ Submitting the same key again for the same account returns the original order.
 
 ## Resource blocking
 
-A buy order moves its maximum required value from available cash to blocked cash. A sell order moves the requested quantity from available shares to blocked shares. Cancellation, rejection and expiry release those resources.
+A buy order moves its maximum required value, including estimated charges, from available cash to blocked cash. A sell order moves the requested quantity from available shares to blocked shares. Cancellation, rejection and expiry release those resources.
 
 At execution, one transaction:
 
@@ -56,7 +56,7 @@ At execution, one transaction:
 2. Revalidates the market phase and limit condition.
 3. Settles blocked resources.
 4. Updates or creates the holding.
-5. Calculates realized profit/loss for sells.
+5. Applies the effective charge schedule, includes buy charges in cost basis and deducts sell charges from realized profit/loss.
 6. Creates the trade and cash-ledger entry.
 7. Marks the order executed.
 
@@ -65,3 +65,9 @@ At execution, one transaction:
 Resting orders subscribe through the provider-independent market-data boundary. Open-order subscriptions are restored after application startup, and the Upstox adapter reference-counts identical instruments across users.
 
 `UPSTOX_STREAM_ENABLED=true` is required for resting orders to react continuously to provider ticks.
+
+## Portfolio valuation
+
+`GET /api/v1/portfolio?marketRegion=INDIA` returns cash, blocked cash, invested value, marked-to-market value, realized and unrealized profit/loss, account value, return percentage and position-level quote freshness.
+
+When a quote is unavailable, that position is explicitly labelled `UNAVAILABLE` and temporarily valued at cost basis. It is never labelled live.

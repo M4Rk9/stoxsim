@@ -16,6 +16,8 @@ import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.AccountLedgerRepository;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.calendar.service.IndiaMarketSessionService;
+import com.stoxsim.charge.ChargeBreakdown;
+import com.stoxsim.charge.ChargeCalculator;
 import com.stoxsim.market.data.InstrumentKey;
 import com.stoxsim.market.data.Quote;
 import com.stoxsim.order.domain.OrderSide;
@@ -35,6 +37,7 @@ public class OrderSettlementService {
     private final TradeRepository trades;
     private final AccountLedgerRepository ledger;
     private final ExecutionPriceCalculator prices;
+    private final ChargeCalculator charges;
     private final IndiaMarketSessionService sessions;
     private final ApplicationEventPublisher events;
 
@@ -45,6 +48,7 @@ public class OrderSettlementService {
         TradeRepository trades,
         AccountLedgerRepository ledger,
         ExecutionPriceCalculator prices,
+        ChargeCalculator charges,
         IndiaMarketSessionService sessions,
         ApplicationEventPublisher events
     ) {
@@ -54,6 +58,7 @@ public class OrderSettlementService {
         this.trades = trades;
         this.ledger = ledger;
         this.prices = prices;
+        this.charges = charges;
         this.sessions = sessions;
         this.events = events;
     }
@@ -88,11 +93,20 @@ public class OrderSettlementService {
         BigDecimal grossValue = price
             .multiply(BigDecimal.valueOf(order.getQuantity()))
             .setScale(4, RoundingMode.HALF_UP);
+        ChargeBreakdown chargeBreakdown = charges.calculate(
+            order.getSide(),
+            order.getProductType(),
+            order.getInstrument().getExchange(),
+            grossValue,
+            session.orderDate()
+        );
         Instant executedAt = Instant.now();
+        BigDecimal cashEffect;
 
         if (order.getSide() == OrderSide.BUY) {
+            cashEffect = chargeBreakdown.cashDebit();
             try {
-                account.settleReservedCash(order.getReservedCash(), grossValue);
+                account.settleReservedCash(order.getReservedCash(), cashEffect);
             } catch (TradingValidationException exception) {
                 account.releaseReservedCash(order.getReservedCash());
                 order.markRejected(exception.getMessage());
@@ -107,36 +121,51 @@ public class OrderSettlementService {
                     account,
                     order.getInstrument(),
                     order.getQuantity(),
-                    price
+                    effectiveUnitCost(cashEffect, order.getQuantity())
                 );
             } else {
-                holding.buy(order.getQuantity(), price);
+                holding.buy(
+                    order.getQuantity(),
+                    effectiveUnitCost(cashEffect, order.getQuantity())
+                );
             }
             holdings.save(holding);
         } else {
+            cashEffect = chargeBreakdown.cashCredit();
             Holding holding = holdings
                 .findForUpdate(account.getId(), order.getInstrument().getId())
                 .orElseThrow(() -> new IllegalStateException("Reserved holding no longer exists"));
             BigDecimal realized = holding.sellReserved(order.getQuantity(), price);
-            account.creditCash(grossValue);
-            account.addRealizedProfitLoss(realized);
+            account.creditCash(cashEffect);
+            account.addRealizedProfitLoss(realized.subtract(chargeBreakdown.totalCharges()));
         }
 
         order.markExecuted(price, grossValue, executedAt);
-        Trade trade = trades.save(new Trade(order, price, grossValue, executedAt));
+        Trade trade = trades.save(new Trade(
+            order,
+            price,
+            grossValue,
+            chargeBreakdown,
+            cashEffect,
+            executedAt
+        ));
         ledger.save(new AccountLedgerEntry(
             account,
             order,
             trade,
             order.getSide() == OrderSide.BUY ? EntryType.TRADE_BUY : EntryType.TRADE_SELL,
             order.getSide() == OrderSide.BUY ? Direction.DEBIT : Direction.CREDIT,
-            grossValue,
+            cashEffect,
             order.getSide() + " " + order.getQuantity() + " "
                 + order.getInstrument().getTradingSymbol(),
             executedAt
         ));
         events.publishEvent(new OrderClosedEvent(key(order)));
         return true;
+    }
+
+    private BigDecimal effectiveUnitCost(BigDecimal cashDebit, long quantity) {
+        return cashDebit.divide(BigDecimal.valueOf(quantity), 4, RoundingMode.HALF_UP);
     }
 
     private InstrumentKey key(PaperOrder order) {
