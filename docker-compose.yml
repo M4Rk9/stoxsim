@@ -36,6 +36,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FRONTEND_URL: http://localhost:3000
+      JWT_SECRET: ${JWT_SECRET:-local-development-only-change-this-secret-2026}
     ports:
       - "8080:8080"
     depends_on:
