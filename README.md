@@ -58,6 +58,12 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 - STOMP WebSocket endpoint: `/ws/market`
 - Quote topic: `/topic/market/quotes`
 
+### Watchlists
+
+- `GET /api/v1/watchlists/default`
+- `POST /api/v1/watchlists/default/items`
+- `DELETE /api/v1/watchlists/default/items/{itemId}`
+
 ### Paper trading
 
 - `POST /api/v1/orders`
@@ -73,7 +79,7 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 
 Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling. Executions include an effective-dated simulated charge breakdown, and portfolio valuation incorporates charges into cost basis and realized returns.
 
-The connected dashboard supports registration, sign-in, automatic access-token refresh, six Indian index cards, NSE stock search, interactive historical charts, quotes, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
+The connected dashboard supports registration, sign-in, automatic access-token refresh, six Indian index cards, persistent watchlists, real-time STOMP quote updates with reconnect health, NSE stock search, interactive historical charts, quotes, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
 
 The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
@@ -86,10 +92,11 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Upstox market-data integration](docs/MARKET_DATA.md)
 - [India paper-trading engine](docs/TRADING.md)
 - [Simulated Indian charges](docs/CHARGES.md)
+- [Production deployment](docs/DEPLOYMENT.md)
 
 ## Current milestone
 
-The India learning journey now includes live/stale-aware index cards, historical charts and browser token rotation. Next: market WebSocket consumption in the browser, watchlists and production deployment hardening.
+The India learning journey now includes persistent watchlists, live/stale-aware index cards, historical charts, browser token rotation and real-time WebSocket updates with reconnect visibility. Next: end-to-end Testcontainers coverage and a production-ready hosting checkpoint.
 
 ## License
 
