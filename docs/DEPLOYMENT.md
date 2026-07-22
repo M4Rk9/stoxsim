@@ -60,22 +60,25 @@ Use rolling deployment with a single active API instance for the MVP. Do not let
 
 ## Staging checkpoint
 
-The repository includes two manual GitHub Actions workflows:
+The first private checkpoint uses a single Linux host and the bundle under `deploy/staging`. Caddy owns ports 80 and 443, obtains certificates and proxies both normal API traffic and WebSocket upgrades. PostgreSQL and Redis are reachable only through an internal Docker network.
+
+The repository includes three manual GitHub Actions workflows:
 
 1. **Staging candidate** builds the backend and frontend images and publishes both an immutable commit-SHA tag and the movable `staging` tag to GitHub Container Registry.
 2. **Staging smoke** checks readiness, the rendered frontend, registration, both opening balances, authenticated identity and refresh-token rotation against the deployed HTTPS origins.
+3. **Staging deploy** securely uploads the operations bundle over pinned SSH, deploys one immutable candidate, runs the HTTPS smoke and Chromium learner journey, and rolls back after failed external verification.
 
-Deploy only the immutable SHA shown in the candidate workflow summary:
+Deploy only the immutable SHA shown in the candidate workflow summary. The host must already contain a mode-`600` `.env`; deployments never copy secrets from the repository or replace that file:
 
 ```bash
 cd deploy/staging
 cp .env.example .env
 # Set secrets, managed PostgreSQL/Redis hosts and the tested commit SHA.
 docker compose pull
-docker compose up -d
+./deploy.sh "$STOXSIM_IMAGE_TAG"
 ```
 
-Terminate HTTPS outside the Compose project and proxy the public API and WebSocket origins to ports `8080` and `3000`. Then run the **Staging smoke** workflow with those public URLs.
+Configure the protected `staging` GitHub environment and follow the [private staging operations runbook](../deploy/staging/README.md). Keep the staging host private until market-data display permission is confirmed.
 
 ### Rollback
 
@@ -83,12 +86,14 @@ Keep the previously healthy commit SHA. If readiness or smoke checks fail:
 
 ```bash
 cd deploy/staging
-# Change STOXSIM_IMAGE_TAG in .env to the previous healthy commit SHA.
-docker compose pull
-docker compose up -d
+./rollback.sh
 ```
 
 Flyway migrations must remain backward compatible with the previous application image. If a future migration is destructive or not backward compatible, it requires a separately tested database restoration plan before deployment.
+
+### Backup and restore
+
+Run `deploy/staging/backup.sh` on a daily schedule and copy its custom-format PostgreSQL dump plus checksum to encrypted off-host storage. Regularly prove the restore procedure with `restore.sh`; an untested local-only dump is not a recovery plan.
 
 ## Monitoring and alerts
 
