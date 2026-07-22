@@ -69,9 +69,9 @@ public class VirtualAccount {
         this.user = user;
         this.marketRegion = marketRegion;
         this.currency = marketRegion.currency();
-        this.availableCash = money(startingBalance);
-        this.blockedCash = money(BigDecimal.ZERO);
-        this.realizedProfitLoss = money(BigDecimal.ZERO);
+        this.availableCash = startingBalance;
+        this.blockedCash = BigDecimal.ZERO;
+        this.realizedProfitLoss = BigDecimal.ZERO;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
