@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -125,15 +126,18 @@ public class UpstoxMarketStream {
     }
 
     private boolean release(String key) {
-        Integer remaining = referenceCounts.computeIfPresent(
-            key,
-            (ignored, count) -> count <= 1 ? null : count - 1
-        );
-        if (remaining == null) {
+        var removed = new AtomicBoolean(false);
+        referenceCounts.computeIfPresent(key, (ignored, count) -> {
+            if (count <= 1) {
+                removed.set(true);
+                return null;
+            }
+            return count - 1;
+        });
+        if (removed.get()) {
             desiredModes.remove(key);
-            return true;
         }
-        return false;
+        return removed.get();
     }
 
     private void handleOpen() {
