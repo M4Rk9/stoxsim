@@ -9,7 +9,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -50,6 +49,6 @@ class AccountServiceTest {
             .extracting(VirtualAccount::getAvailableCash)
             .containsExactly(new BigDecimal("500000.00"), new BigDecimal("10000.00"));
 
-        verify(repository).saveAll(ArgumentCaptor.<List<VirtualAccount>>forClass(List.class).capture());
+        verify(repository).saveAll(accounts);
     }
 }
