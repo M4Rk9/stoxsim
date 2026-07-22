@@ -45,6 +45,16 @@ Subscribe to:
 
 The initial upstream subscriptions are NIFTY 50, NIFTY BANK, FINNIFTY, NIFTY IT, INDIA VIX and SENSEX. StoxSim keeps a reference count for dynamic instrument subscriptions so multiple browser users do not create multiple Upstox subscriptions.
 
+## Index dashboard
+
+`GET /api/v1/market/indices` returns a stable six-card response for NIFTY 50, NIFTY BANK, FINNIFTY, NIFTY IT, INDIA VIX and SENSEX. Each card independently reports `LIVE`, `STALE` or `UNAVAILABLE`; a missing instrument or provider failure never removes the card or falsely labels it live.
+
+The Next.js dashboard refreshes this snapshot every 15 seconds. The configured Upstox stream still keeps the Redis-backed quote cache current when streaming is enabled.
+
+## Historical charts
+
+The stock workspace uses the candle API with daily candles and 1-month, 3-month and 1-year ranges. The chart is rendered locally as an accessible SVG and supports pointer inspection without adding a charting dependency.
+
 ## Cache policy
 
 - Latest quotes: 30-second Redis TTL

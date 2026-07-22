@@ -77,6 +77,19 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .bannerRight { text-align: right; }
 .bannerRight strong { margin-top: 2px; }
 
+.indexStrip { display: grid; grid-template-columns: repeat(6, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 2px; }
+.indexCard { min-width: 150px; background: white; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
+.indexCard > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.indexCard > div:first-child span { color: var(--muted); font-size: .59rem; font-weight: 820; letter-spacing: .035em; white-space: nowrap; }
+.indexCard > div:first-child small { color: #98a49e; font-size: .52rem; }
+.indexCard > strong { display: block; font-size: .92rem; letter-spacing: -.025em; margin: 7px 0 4px; }
+.indexMove { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.indexMove span { font-size: .56rem; font-weight: 720; white-space: nowrap; }
+.indexMove span.muted { color: var(--muted); }
+.indexMove i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex: 0 0 auto; }
+.indexMove i.stale { background: var(--gold); }
+.indexMove i.unavailable { background: #aab3ae; }
+
 .message { margin: 14px 0 -2px; border-radius: 10px; padding: 11px 14px; font-size: .76rem; display: flex; justify-content: space-between; align-items: center; }
 .message button { border: 0; background: transparent; color: inherit; font-size: 1.1rem; }
 .errorMessage { color: #9b3030; background: var(--red-soft); border: 1px solid #f0cccc; }
@@ -136,6 +149,33 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .quoteStats span, .quoteStats strong { display: block; }
 .quoteStats span { color: var(--muted); font-size: .6rem; }
 .quoteStats strong { margin-top: 4px; font-size: .72rem; }
+.chartBlock { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.chartHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.chartHeader span, .chartHeader small { display: block; }
+.chartHeader span { font-size: .72rem; font-weight: 780; }
+.chartHeader small { color: var(--muted); font-size: .58rem; margin-top: 2px; }
+.rangeTabs { display: flex; gap: 3px; padding: 3px; border-radius: 7px; background: #eff2ee; }
+.rangeTabs button { border: 0; background: transparent; color: var(--muted); border-radius: 5px; padding: 5px 8px; font-size: .57rem; font-weight: 800; }
+.rangeTabs button.active { color: var(--green); background: white; box-shadow: 0 1px 5px rgba(0,0,0,.07); }
+.priceChart { position: relative; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: linear-gradient(#fbfcfa, #f7f9f6); }
+.priceChart svg { display: block; width: 100%; height: auto; min-height: 190px; cursor: crosshair; }
+.chartReadout { min-height: 39px; padding: 9px 12px 0; display: flex; justify-content: space-between; align-items: start; position: absolute; inset: 0 0 auto; z-index: 2; pointer-events: none; }
+.chartReadout > div:last-child { text-align: right; }
+.chartReadout strong, .chartReadout span { display: block; }
+.chartReadout strong { font-size: .77rem; }
+.chartReadout span { color: var(--muted); font-size: .54rem; margin-top: 2px; }
+.chartGridLine { stroke: #e4e9e4; stroke-width: 1; stroke-dasharray: 3 5; }
+.chartLine { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.chartLine.rising { stroke: var(--green); }
+.chartLine.falling { stroke: var(--red); }
+.chartCrosshair { stroke: #87938d; stroke-width: 1; stroke-dasharray: 3 3; opacity: .65; }
+.chartPoint { stroke: white; stroke-width: 2; }
+.chartPoint.rising { fill: var(--green); }
+.chartPoint.falling { fill: var(--red); }
+.chartAxisLabel { fill: #7d8983; font-size: 9px; }
+.chartEmpty { height: 210px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--line); border-radius: 9px; color: var(--muted); font-size: .67rem; }
+.chartLoader { width: 12px; height: 12px; border: 2px solid #cbd5cf; border-top-color: var(--green); border-radius: 50%; animation: chart-spin .7s linear infinite; }
+@keyframes chart-spin { to { transform: rotate(360deg); } }
 
 .tableWrap { overflow-x: auto; margin: 0 -20px -20px; }
 table { width: 100%; border-collapse: collapse; min-width: 700px; }
@@ -202,6 +242,7 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
   .workspaceGrid { grid-template-columns: 1fr; }
   .rightRail { position: static; grid-template-columns: minmax(320px, 1fr) 1fr; align-items: start; }
   .learnCard { grid-column: 1 / -1; }
+  .indexStrip { grid-template-columns: repeat(6, minmax(165px, 1fr)); }
 }
 
 @media (max-width: 760px) {

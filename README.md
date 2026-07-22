@@ -54,6 +54,7 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
 - `GET /api/v1/market/status?exchange=NSE`
+- `GET /api/v1/market/indices`
 - STOMP WebSocket endpoint: `/ws/market`
 - Quote topic: `/topic/market/quotes`
 
@@ -72,7 +73,7 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 
 Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling. Executions include an effective-dated simulated charge breakdown, and portfolio valuation incorporates charges into cost basis and realized returns.
 
-The first connected dashboard now supports registration, sign-in, NSE stock search, quotes, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
+The connected dashboard supports registration, sign-in, automatic access-token refresh, six Indian index cards, NSE stock search, interactive historical charts, quotes, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
 
 The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
@@ -88,7 +89,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 
 ## Current milestone
 
-The charge-aware India paper-trading journey is connected from Spring Boot to Next.js. Next: historical charts, live index cards, refresh-token rotation in the browser and production deployment hardening.
+The India learning journey now includes live/stale-aware index cards, historical charts and browser token rotation. Next: market WebSocket consumption in the browser, watchlists and production deployment hardening.
 
 ## License
 
