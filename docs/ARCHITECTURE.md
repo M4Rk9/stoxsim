@@ -6,10 +6,10 @@ StoxSim begins as a modular monolith. This keeps transactions and development st
 
 ## Components
 
-- **Next.js web:** user experience and browser WebSocket client
-- **Spring Boot API:** authentication, accounts, instruments, orders, execution and portfolios
+- **Next.js web:** user experience and browser STOMP/WebSocket client
+- **Spring Boot API:** authentication, accounts, instruments, market data, orders, execution and portfolios
 - **PostgreSQL:** users, virtual accounts, refresh tokens, instruments, orders, trades, holdings and ledger
-- **Redis:** current quotes, market status and ephemeral subscriptions
+- **Redis:** current quotes, historical-candle responses, market status and ephemeral subscriptions
 - **Market adapters:** Upstox for India and a provider-independent US adapter
 
 ## Backend modules
@@ -29,6 +29,15 @@ com.stoxsim
 └── common
 ```
 
+## Market-data flow
+
+1. The Upstox adapter converts SDK models into StoxSim `Quote` and `Candle` records.
+2. REST quote requests read Redis first and fall back to Upstox on cache miss.
+3. Historical-candle responses are cached using the instrument, interval and date range.
+4. One reconnecting Upstox V3 stream receives the configured index set and dynamic subscriptions.
+5. Every tick refreshes Redis and is broadcast to browser clients on `/topic/market/quotes`.
+6. Provider SDK types remain inside `market.provider.upstox`.
+
 ## Critical boundaries
 
 1. Domain services never depend directly on provider SDK models.
@@ -40,6 +49,7 @@ com.stoxsim
 7. Refresh tokens are stored only as hashes and rotated after use.
 8. Provider instrument keys are the durable market-data identity; display symbols are searchable labels.
 9. A failed instrument download cannot deactivate the existing catalogue.
+10. An unavailable Redis cache falls back to the provider instead of stopping quote retrieval.
 
 ## Current API
 
@@ -52,5 +62,6 @@ com.stoxsim
 - `GET /api/v1/auth/me`
 - `GET /api/v1/instruments/search`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
-
-Quote, candle and market-stream endpoints follow in the next milestone.
+- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
+- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
+- `WS /ws/market`
