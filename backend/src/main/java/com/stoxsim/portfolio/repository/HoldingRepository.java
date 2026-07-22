@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +29,7 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
         @Param("instrumentId") UUID instrumentId
     );
 
+    @EntityGraph(attributePaths = {"account", "instrument"})
     List<Holding> findAllByAccountUserIdAndAccountMarketRegionAndQuantityGreaterThanOrderByInstrumentTradingSymbol(
         UUID userId,
         MarketRegion marketRegion,

@@ -18,6 +18,11 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
 
     List<VirtualAccount> findAllByUserIdOrderByMarketRegion(UUID userId);
 
+    Optional<VirtualAccount> findByUserIdAndMarketRegion(
+        UUID userId,
+        MarketRegion marketRegion
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         SELECT account

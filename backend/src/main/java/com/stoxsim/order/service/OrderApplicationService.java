@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.calendar.service.IndiaMarketSessionService;
+import com.stoxsim.charge.ChargeCalculator;
 import com.stoxsim.instrument.domain.InstrumentType;
 import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.instrument.domain.TradableInstrument;
@@ -43,6 +44,7 @@ public class OrderApplicationService {
     private final MarketDataService marketData;
     private final IndiaMarketSessionService sessions;
     private final ExecutionPriceCalculator prices;
+    private final ChargeCalculator charges;
     private final OrderSettlementService settlement;
     private final ApplicationEventPublisher events;
 
@@ -54,6 +56,7 @@ public class OrderApplicationService {
         MarketDataService marketData,
         IndiaMarketSessionService sessions,
         ExecutionPriceCalculator prices,
+        ChargeCalculator charges,
         OrderSettlementService settlement,
         ApplicationEventPublisher events
     ) {
@@ -64,6 +67,7 @@ public class OrderApplicationService {
         this.marketData = marketData;
         this.sessions = sessions;
         this.prices = prices;
+        this.charges = charges;
         this.settlement = settlement;
         this.events = events;
     }
@@ -101,7 +105,13 @@ public class OrderApplicationService {
                 request.limitPrice(),
                 quote
             );
-            reservedCash = value(reservationPrice, request.quantity());
+            reservedCash = reservationValue(
+                request.side(),
+                instrument,
+                reservationPrice,
+                request.quantity(),
+                session.orderDate()
+            );
             account.reserveCash(reservedCash);
         } else {
             Holding holding = holdings
@@ -163,7 +173,13 @@ public class OrderApplicationService {
         validateTickSize(order.getInstrument(), request.limitPrice());
 
         if (order.getSide() == OrderSide.BUY) {
-            BigDecimal newReservation = value(request.limitPrice(), request.quantity());
+            BigDecimal newReservation = reservationValue(
+                order.getSide(),
+                order.getInstrument(),
+                request.limitPrice(),
+                request.quantity(),
+                session.orderDate()
+            );
             BigDecimal difference = newReservation.subtract(order.getReservedCash());
             if (difference.signum() > 0) {
                 account.reserveCash(difference);
@@ -329,6 +345,23 @@ public class OrderApplicationService {
     private BigDecimal value(BigDecimal price, long quantity) {
         return price.multiply(BigDecimal.valueOf(quantity))
             .setScale(4, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal reservationValue(
+        OrderSide side,
+        TradableInstrument instrument,
+        BigDecimal price,
+        long quantity,
+        java.time.LocalDate tradeDate
+    ) {
+        BigDecimal turnover = value(price, quantity);
+        return turnover.add(charges.calculate(
+            side,
+            com.stoxsim.order.domain.ProductType.DELIVERY,
+            instrument.getExchange(),
+            turnover,
+            tradeDate
+        ).totalCharges()).setScale(4, RoundingMode.HALF_UP);
     }
 
     private InstrumentKey key(PaperOrder order) {

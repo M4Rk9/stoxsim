@@ -18,6 +18,16 @@ public record TradeResponse(
     BigDecimal price,
     BigDecimal grossValue,
     BigDecimal charges,
+    BigDecimal brokerage,
+    BigDecimal stt,
+    BigDecimal exchangeCharges,
+    BigDecimal gst,
+    BigDecimal sebiCharges,
+    BigDecimal stampDuty,
+    BigDecimal dpCharges,
+    BigDecimal netCashEffect,
+    String chargeScheduleVersion,
+    boolean chargesSimulated,
     Instant executedAt
 ) {
     public static TradeResponse from(Trade trade) {
@@ -32,6 +42,16 @@ public record TradeResponse(
             trade.getPrice(),
             trade.getGrossValue(),
             trade.getCharges(),
+            trade.getBrokerage(),
+            trade.getStt(),
+            trade.getExchangeCharges(),
+            trade.getGst(),
+            trade.getSebiCharges(),
+            trade.getStampDuty(),
+            trade.getDpCharges(),
+            trade.getNetCashEffect(),
+            trade.getChargeScheduleVersion(),
+            trade.isChargesSimulated(),
             trade.getExecutedAt()
         );
     }
