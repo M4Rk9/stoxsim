@@ -1,0 +1,30 @@
+name: stoxsim-staging
+
+services:
+  backend:
+    image: ghcr.io/m4rk9/stoxsim-api:${STOXSIM_IMAGE_TAG:?Set STOXSIM_IMAGE_TAG to a commit SHA}
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    image: ghcr.io/m4rk9/stoxsim-web:${STOXSIM_IMAGE_TAG:?Set STOXSIM_IMAGE_TAG to a commit SHA}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 | grep -q StoxSim"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s

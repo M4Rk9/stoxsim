@@ -1,0 +1,52 @@
+name: Staging candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      public_api_url:
+        description: Public HTTPS URL embedded in the frontend image
+        required: true
+        default: https://api.staging.stoxsim.com
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - component: api
+            context: backend
+          - component: web
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.context }}
+          push: true
+          tags: |
+            ghcr.io/m4rk9/stoxsim-${{ matrix.component }}:${{ github.sha }}
+            ghcr.io/m4rk9/stoxsim-${{ matrix.component }}:staging
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ inputs.public_api_url }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  summary:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record immutable staging tag
+        run: |
+          echo "## Staging candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deploy with \`STOXSIM_IMAGE_TAG=${GITHUB_SHA}\`." >> "$GITHUB_STEP_SUMMARY"
