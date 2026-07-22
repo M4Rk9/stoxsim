@@ -41,4 +41,16 @@ stoxsim:
     united-states-starting-balance: 10000.00
   market-data:
     upstox:
+      analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
       instrument-master-url: ${UPSTOX_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz}
+      stream-enabled: ${UPSTOX_STREAM_ENABLED:false}
+      quote-ttl-seconds: 30
+      candle-ttl-minutes: 5
+      stale-after-seconds: 15
+      initial-instrument-keys:
+        - NSE_INDEX|Nifty 50
+        - NSE_INDEX|Nifty Bank
+        - NSE_INDEX|Nifty Fin Service
+        - NSE_INDEX|Nifty IT
+        - NSE_INDEX|India VIX
+        - BSE_INDEX|SENSEX

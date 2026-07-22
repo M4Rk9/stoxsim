@@ -35,6 +35,8 @@ docker compose up --build
 - API status: http://localhost:8080/api/v1/system/status
 - API health: http://localhost:8080/actuator/health
 
+Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM_ENABLED=true` to start the reconnecting V3 market stream.
+
 ## Implemented APIs
 
 ### Authentication
@@ -45,12 +47,16 @@ docker compose up --build
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 
-### Instruments
+### Instruments and market data
 
 - `GET /api/v1/instruments/search?marketRegion=INDIA&q=Reliance`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
+- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
+- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
+- STOMP WebSocket endpoint: `/ws/market`
+- Quote topic: `/topic/market/quotes`
 
-The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata.
+The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
 ## Documentation
 
@@ -58,10 +64,11 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Architecture](docs/ARCHITECTURE.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Instruments and market data](docs/INSTRUMENTS.md)
+- [Upstox market-data integration](docs/MARKET_DATA.md)
 
 ## Current milestone
 
-The instrument master and provider-independent market-data contracts are implemented. Next: Upstox REST quotes, historical candles, Redis quote caching and live WebSocket streaming.
+Upstox REST quotes, historical candles, Redis caching and reconnecting WebSocket streaming are implemented. Next: the India market calendar and transactional paper-order engine.
 
 ## License
 
