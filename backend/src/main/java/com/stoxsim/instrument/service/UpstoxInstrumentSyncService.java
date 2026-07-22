@@ -46,7 +46,7 @@ public class UpstoxInstrumentSyncService {
 
         try (
             var input = client.download();
-            var parser = objectMapper.getFactory().createParser(input)
+            var parser = objectMapper.createParser(input)
         ) {
             if (parser.nextToken() != JsonToken.START_ARRAY) {
                 throw new IOException("Upstox instrument master must contain a JSON array");
