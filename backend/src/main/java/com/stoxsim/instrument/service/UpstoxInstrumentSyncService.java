@@ -9,8 +9,9 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.ObjectMapper;
+
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMapper;
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMasterClient;
 
