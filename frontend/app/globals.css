@@ -76,6 +76,13 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .closed .pulse { background: #84918a; box-shadow: 0 0 0 5px rgba(80,90,85,.09); }
 .bannerRight { text-align: right; }
 .bannerRight strong { margin-top: 2px; }
+.bannerStatusGroup { display: flex; align-items: center; gap: 16px; }
+.streamBadge { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.64); padding: 6px 9px; color: var(--muted); font-size: .55rem; font-weight: 850; letter-spacing: .06em; }
+.streamBadge i { width: 6px; height: 6px; border-radius: 50%; background: #9aa59f; }
+.streamBadge.live { color: var(--green); }
+.streamBadge.live i { background: var(--green); box-shadow: 0 0 0 3px rgba(11,143,85,.11); }
+.streamBadge.connecting i, .streamBadge.reconnecting i { background: var(--gold); animation: stream-pulse 1s ease-in-out infinite alternate; }
+@keyframes stream-pulse { to { opacity: .35; } }
 
 .indexStrip { display: grid; grid-template-columns: repeat(6, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 2px; }
 .indexCard { min-width: 150px; background: white; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; }
@@ -140,6 +147,9 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .quoteTop p { color: var(--muted); font-size: .64rem; margin-top: 2px; }
 .quoteStatus { font-size: .58rem; font-weight: 850; border-radius: 999px; padding: 5px 8px; background: var(--green-soft); color: var(--green); }
 .quoteStatus.stale { background: #fff5df; color: #976d17; }
+.quoteActions { gap: 7px !important; }
+.watchButton { border: 1px solid var(--line); background: white; color: var(--muted); border-radius: 999px; padding: 5px 8px; font-size: .58rem; font-weight: 800; }
+.watchButton.watching { color: var(--green); background: var(--green-soft); border-color: #c7e7d3; }
 .quotePrice { display: flex; justify-content: space-between; align-items: flex-end; margin: 18px 0; }
 .quotePrice strong { font-size: 1.75rem; letter-spacing: -.045em; }
 .quotePrice span { color: var(--muted); font-size: .62rem; }
@@ -203,6 +213,17 @@ td small.unavailable { color: var(--red); }
 .emptyState.compact { padding: 15px 4px 6px; line-height: 1.5; }
 
 .rightRail { position: sticky; top: 12px; }
+.watchlistRows { display: grid; }
+.watchlistRow { display: grid; grid-template-columns: 1fr auto; align-items: center; border-top: 1px solid var(--line); }
+.watchlistRow:first-child { border-top: 0; }
+.watchlistSelect { min-width: 0; border: 0; background: transparent; padding: 11px 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; }
+.watchlistSelect:hover strong:first-child { color: var(--green); }
+.watchlistSelect > span:last-child { text-align: right; }
+.watchlistSelect strong, .watchlistSelect small { display: block; }
+.watchlistSelect strong { font-size: .7rem; }
+.watchlistSelect small { color: var(--muted); font-size: .56rem; margin-top: 3px; }
+.watchlistRemove { border: 0; background: transparent; color: #a1aaa5; padding: 8px 0 8px 9px; font-size: .95rem; }
+.watchlistRemove:hover { color: var(--red); }
 .deliveryPill, .countPill { color: var(--green); background: var(--green-soft); border-radius: 999px; padding: 5px 8px; font-size: .58rem; font-weight: 850; letter-spacing: .06em; }
 .countPill { min-width: 23px; text-align: center; }
 .sideToggle { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; background: #f0f2ef; border-radius: 9px; padding: 4px; margin-bottom: 17px; }

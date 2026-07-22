@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Client, IMessage } from "@stomp/stompjs";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
 
 type MarketRegion = "INDIA" | "UNITED_STATES";
 type OrderSide = "BUY" | "SELL";
@@ -90,6 +92,9 @@ interface Portfolio {
 
 interface Instrument {
   id: string;
+  provider: string;
+  instrumentKey: string;
+  marketRegion: MarketRegion;
   tradingSymbol: string;
   name: string;
   exchange: string;
@@ -111,6 +116,47 @@ interface Quote {
   dataStatus: "LIVE" | "STALE";
   exchangeTimestamp?: string;
 }
+
+interface WatchlistItem {
+  itemId: string;
+  instrumentId: string;
+  provider: string;
+  instrumentKey: string;
+  marketRegion: MarketRegion;
+  exchange: string;
+  symbol: string;
+  name: string;
+  instrumentType: string;
+  currency: string;
+  tickSize: number;
+  lastPrice?: number;
+  change?: number;
+  changePercent?: number;
+  dataStatus: "LIVE" | "STALE" | "UNAVAILABLE";
+  exchangeTimestamp?: string;
+  addedAt: string;
+}
+
+interface Watchlist {
+  id: string;
+  name: string;
+  items: WatchlistItem[];
+}
+
+interface MarketQuoteMessage {
+  instrumentKey: string;
+  marketRegion: MarketRegion;
+  lastPrice?: number;
+  bid?: number;
+  ask?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  previousClose?: number;
+  exchangeTimestamp?: string;
+}
+
+type StreamStatus = "CONNECTING" | "LIVE" | "RECONNECTING" | "OFFLINE";
 
 interface Candle {
   timestamp: string;
@@ -239,6 +285,8 @@ export default function Home() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [market, setMarket] = useState<MarketStatus | null>(null);
   const [indices, setIndices] = useState<IndexQuote[]>([]);
+  const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>("OFFLINE");
   const [orders, setOrders] = useState<PaperOrder[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [search, setSearch] = useState("");
@@ -257,9 +305,14 @@ export default function Home() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const selectedRef = useRef<Instrument | null>(null);
 
   const token = session?.accessToken;
   const openOrders = useMemo(() => orders.filter((order) => order.status === "OPEN"), [orders]);
+  const watchedItem = useMemo(
+    () => watchlist?.items.find((item) => item.instrumentId === selected?.id),
+    [watchlist, selected],
+  );
   const displayedIndices = useMemo<IndexQuote[]>(
     () => indices.length ? indices : Array.from({ length: 6 }, (_, index) => ({
       code: `loading-${index}`,
@@ -285,11 +338,52 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!token) return;
-    const interval = window.setInterval(() => {
-      void loadIndices();
-    }, 15_000);
-    return () => window.clearInterval(interval);
+    selectedRef.current = selected;
+  }, [selected]);
+
+  useEffect(() => {
+    if (!token) {
+      setStreamStatus("OFFLINE");
+      return;
+    }
+
+    let active = true;
+    let connectedOnce = false;
+    const client = new Client({
+      brokerURL: MARKET_WS_URL,
+      reconnectDelay: 5_000,
+      heartbeatIncoming: 10_000,
+      heartbeatOutgoing: 10_000,
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      beforeConnect: () => {
+        if (active) setStreamStatus(connectedOnce ? "RECONNECTING" : "CONNECTING");
+      },
+      onConnect: () => {
+        if (!active) return;
+        connectedOnce = true;
+        setStreamStatus("LIVE");
+        client.subscribe("/topic/market/quotes", (message: IMessage) => {
+          try {
+            applyMarketTick(JSON.parse(message.body) as MarketQuoteMessage);
+          } catch {
+            // Ignore malformed provider frames and keep the last valid prices.
+          }
+        });
+        void loadIndices();
+        void loadWatchlist();
+      },
+      onStompError: () => active && setStreamStatus("RECONNECTING"),
+      onWebSocketError: () => active && setStreamStatus("RECONNECTING"),
+      onWebSocketClose: () => active && setStreamStatus(connectedOnce ? "RECONNECTING" : "OFFLINE"),
+    });
+
+    setStreamStatus("CONNECTING");
+    client.activate();
+    return () => {
+      active = false;
+      setStreamStatus("OFFLINE");
+      void client.deactivate();
+    };
   }, [token]);
 
   useEffect(() => {
@@ -375,18 +469,20 @@ export default function Home() {
     setLoading(true);
     setError("");
     try {
-      const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices] = await Promise.all([
+      const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices, nextWatchlist] = await Promise.all([
         authorizedRequest<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken),
         authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken),
         authorizedRequest<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken),
         authorizedRequest<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken),
         authorizedRequest<IndexQuote[]>("/api/v1/market/indices", {}, accessToken),
+        authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken),
       ]);
       setPortfolio(nextPortfolio);
       setMarket(nextMarket);
       setOrders(nextOrders);
       setTrades(nextTrades);
       setIndices(nextIndices);
+      setWatchlist(nextWatchlist);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load your dashboard");
     } finally {
@@ -399,6 +495,59 @@ export default function Home() {
       setIndices(await authorizedRequest<IndexQuote[]>("/api/v1/market/indices"));
     } catch {
       // Preserve the last successful values; each card already carries freshness metadata.
+    }
+  }
+
+  async function loadWatchlist() {
+    try {
+      setWatchlist(await authorizedRequest<Watchlist>("/api/v1/watchlists/default"));
+    } catch {
+      // Preserve the saved watchlist while the connection or token recovers.
+    }
+  }
+
+  function applyMarketTick(message: MarketQuoteMessage) {
+    if (message.lastPrice == null) return;
+    const change = message.previousClose == null ? undefined : message.lastPrice - message.previousClose;
+    const changePercent = change == null || !message.previousClose
+      ? undefined
+      : (change / message.previousClose) * 100;
+
+    setIndices((current) => current.map((index) => index.instrumentKey !== message.instrumentKey ? index : {
+      ...index,
+      value: message.lastPrice,
+      previousClose: message.previousClose,
+      change,
+      changePercent,
+      dataStatus: "LIVE",
+      exchangeTimestamp: message.exchangeTimestamp,
+    }));
+
+    setWatchlist((current) => current ? {
+      ...current,
+      items: current.items.map((item) => item.instrumentKey !== message.instrumentKey ? item : {
+        ...item,
+        lastPrice: message.lastPrice,
+        change,
+        changePercent,
+        dataStatus: "LIVE",
+        exchangeTimestamp: message.exchangeTimestamp,
+      }),
+    } : current);
+
+    if (selectedRef.current?.instrumentKey === message.instrumentKey) {
+      setQuote((current) => current ? {
+        ...current,
+        lastPrice: message.lastPrice!,
+        bid: message.bid ?? current.bid,
+        ask: message.ask ?? current.ask,
+        open: message.open ?? current.open,
+        high: message.high ?? current.high,
+        low: message.low ?? current.low,
+        previousClose: message.previousClose ?? current.previousClose,
+        dataStatus: "LIVE",
+        exchangeTimestamp: message.exchangeTimestamp ?? current.exchangeTimestamp,
+      } : current);
     }
   }
 
@@ -448,7 +597,9 @@ export default function Home() {
         `/api/v1/instruments/search?marketRegion=INDIA&q=${encodeURIComponent(search.trim())}`,
         {},
       );
-      setResults(found.filter((item) => item.exchange === "NSE").slice(0, 8));
+      setResults(found.filter((item) =>
+        item.exchange === "NSE" && (item.instrumentType === "EQUITY" || item.instrumentType === "ETF")
+      ).slice(0, 8));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Search failed");
     } finally {
@@ -476,6 +627,59 @@ export default function Home() {
     } finally {
       setWorking(false);
     }
+  }
+
+  async function addSelectedToWatchlist() {
+    if (!selected) return;
+    setWorking(true);
+    setError("");
+    try {
+      const next = await authorizedRequest<Watchlist>("/api/v1/watchlists/default/items", {
+        method: "POST",
+        body: JSON.stringify({
+          marketRegion: selected.marketRegion,
+          exchange: selected.exchange,
+          symbol: selected.tradingSymbol,
+        }),
+      });
+      setWatchlist(next);
+      setNotice(`${selected.tradingSymbol} added to your live watchlist.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Stock could not be added to your watchlist");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function removeWatchlistItem(item: WatchlistItem) {
+    setWorking(true);
+    setError("");
+    try {
+      const next = await authorizedRequest<Watchlist>(`/api/v1/watchlists/default/items/${item.itemId}`, {
+        method: "DELETE",
+      });
+      setWatchlist(next);
+      setNotice(`${item.symbol} removed from your watchlist.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Stock could not be removed from your watchlist");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  function chooseWatchlistItem(item: WatchlistItem) {
+    void chooseInstrument({
+      id: item.instrumentId,
+      provider: item.provider,
+      instrumentKey: item.instrumentKey,
+      marketRegion: item.marketRegion,
+      tradingSymbol: item.symbol,
+      name: item.name,
+      exchange: item.exchange,
+      instrumentType: item.instrumentType,
+      currency: item.currency,
+      tickSize: item.tickSize,
+    });
   }
 
   async function placeOrder(event: FormEvent) {
@@ -536,6 +740,8 @@ export default function Home() {
     setPortfolio(null);
     setOrders([]);
     setTrades([]);
+    setWatchlist(null);
+    setIndices([]);
   }
 
   if (!session) {
@@ -588,7 +794,7 @@ export default function Home() {
 
       <section className={`marketBanner ${market?.phase === "REGULAR" ? "open" : "closed"}`}>
         <div><span className="pulse" /><div><strong>{phaseLabel(market?.phase)}</strong><small>NSE · {market?.timezone ?? "Asia/Kolkata"}</small></div></div>
-        <div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</strong></div>
+        <div className="bannerStatusGroup"><div className={`streamBadge ${streamStatus.toLowerCase()}`}><i />{streamStatus === "LIVE" ? "REAL-TIME STREAM" : streamStatus}</div><div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</strong></div></div>
       </section>
 
       <section className="indexStrip" aria-label="Indian market indices">
@@ -625,7 +831,7 @@ export default function Home() {
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
             {selected && quote && (
               <div className="quoteCard">
-                <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><span className={`quoteStatus ${quote.dataStatus.toLowerCase()}`}>{quote.dataStatus}</span></div>
+                <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><div className="quoteActions"><button type="button" className={watchedItem ? "watchButton watching" : "watchButton"} disabled={working || Boolean(watchedItem)} onClick={addSelectedToWatchlist}>{watchedItem ? "★ Watching" : "☆ Watch"}</button><span className={`quoteStatus ${quote.dataStatus.toLowerCase()}`}>{quote.dataStatus}</span></div></div>
                 <div className="quotePrice"><strong>{inr(quote.lastPrice)}</strong><span>{dateTime(quote.exchangeTimestamp)}</span></div>
                 <div className="quoteStats"><div><span>Open</span><strong>{inr(quote.open)}</strong></div><div><span>High</span><strong>{inr(quote.high)}</strong></div><div><span>Low</span><strong>{inr(quote.low)}</strong></div><div><span>Prev. close</span><strong>{inr(quote.previousClose)}</strong></div></div>
                 <div className="chartBlock">
@@ -651,6 +857,20 @@ export default function Home() {
         </div>
 
         <aside className="rightRail">
+          <article className="panel watchlistPanel">
+            <div className="panelHeading"><div><span className="kicker">LIVE LIST</span><h2>{watchlist?.name ?? "My Watchlist"}</h2></div><span className="countPill">{watchlist?.items.length ?? 0}</span></div>
+            <div className="watchlistRows">
+              {(watchlist?.items ?? []).map((item) => {
+                const rising = (item.change ?? 0) >= 0;
+                return <div className="watchlistRow" key={item.itemId}>
+                  <button type="button" className="watchlistSelect" onClick={() => chooseWatchlistItem(item)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {item.dataStatus}</small></span><span><strong>{item.lastPrice == null ? "—" : inr(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></button>
+                  <button type="button" className="watchlistRemove" aria-label={`Remove ${item.symbol} from watchlist`} title="Remove" disabled={working} onClick={() => removeWatchlistItem(item)}>×</button>
+                </div>;
+              })}
+              {!watchlist?.items.length && <div className="emptyState compact">Open a stock and choose Watch to receive continuous price updates.</div>}
+            </div>
+          </article>
+
           <form className="panel orderTicket" onSubmit={placeOrder}>
             <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Order ticket</h2></div><span className="deliveryPill">DELIVERY</span></div>
             <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
