@@ -17,6 +17,7 @@ import com.stoxsim.market.cache.MarketDataCache;
 import com.stoxsim.market.data.Candle;
 import com.stoxsim.market.data.CandleInterval;
 import com.stoxsim.market.data.InstrumentKey;
+import com.stoxsim.market.data.Quote;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.market.provider.MarketDataProviderRegistry;
 import com.stoxsim.market.provider.upstox.UpstoxMarketDataProperties;
@@ -47,20 +48,26 @@ public class MarketDataService {
         String symbol
     ) {
         TradableInstrument instrument = findInstrument(marketRegion, exchange, symbol);
-        InstrumentKey key = key(instrument);
-        var quote = cache.findQuote(key).orElseGet(() -> {
-            var fresh = providers.forRegion(marketRegion).getQuote(key);
-            cache.storeQuote(fresh);
-            return fresh;
-        });
-
-        Instant staleCutoff = Instant.now().minusSeconds(upstoxProperties.getStaleAfterSeconds());
-        boolean stale = quote.receivedAt() == null || quote.receivedAt().isBefore(staleCutoff);
+        Quote quote = latestQuote(instrument);
         return QuoteResponse.from(
             instrument,
             quote,
-            stale ? QuoteResponse.DataStatus.STALE : QuoteResponse.DataStatus.LIVE
+            isStale(quote) ? QuoteResponse.DataStatus.STALE : QuoteResponse.DataStatus.LIVE
         );
+    }
+
+    public Quote latestQuote(TradableInstrument instrument) {
+        InstrumentKey key = key(instrument);
+        return cache.findQuote(key).orElseGet(() -> {
+            var fresh = providers.forRegion(instrument.getMarketRegion()).getQuote(key);
+            cache.storeQuote(fresh);
+            return fresh;
+        });
+    }
+
+    public boolean isStale(Quote quote) {
+        Instant staleCutoff = Instant.now().minusSeconds(upstoxProperties.getStaleAfterSeconds());
+        return quote.receivedAt() == null || quote.receivedAt().isBefore(staleCutoff);
     }
 
     public CandleSeriesResponse getCandles(
