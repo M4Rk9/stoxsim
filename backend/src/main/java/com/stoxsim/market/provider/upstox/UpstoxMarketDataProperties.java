@@ -13,6 +13,8 @@ public class UpstoxMarketDataProperties {
     private String analyticsToken;
     private boolean streamEnabled;
     private int quoteTtlSeconds = 30;
+    private int quoteRetentionDays = 7;
+    private int closedQuoteRefreshSeconds = 900;
     private int candleTtlMinutes = 5;
     private int staleAfterSeconds = 15;
     private List<String> initialInstrumentKeys = new ArrayList<>();
@@ -39,6 +41,22 @@ public class UpstoxMarketDataProperties {
 
     public void setQuoteTtlSeconds(int quoteTtlSeconds) {
         this.quoteTtlSeconds = quoteTtlSeconds;
+    }
+
+    public int getQuoteRetentionDays() {
+        return quoteRetentionDays;
+    }
+
+    public void setQuoteRetentionDays(int quoteRetentionDays) {
+        this.quoteRetentionDays = quoteRetentionDays;
+    }
+
+    public int getClosedQuoteRefreshSeconds() {
+        return closedQuoteRefreshSeconds;
+    }
+
+    public void setClosedQuoteRefreshSeconds(int closedQuoteRefreshSeconds) {
+        this.closedQuoteRefreshSeconds = closedQuoteRefreshSeconds;
     }
 
     public int getCandleTtlMinutes() {

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 import com.stoxsim.instrument.domain.TradableInstrument;
+import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.data.Quote;
 
 public record QuoteResponse(
@@ -24,12 +25,12 @@ public record QuoteResponse(
     Long volume,
     Instant exchangeTimestamp,
     Instant receivedAt,
-    DataStatus dataStatus
+    MarketDataStatus dataStatus
 ) {
     public static QuoteResponse from(
         TradableInstrument instrument,
         Quote quote,
-        DataStatus dataStatus
+        MarketDataStatus dataStatus
     ) {
         return new QuoteResponse(
             quote.instrument().provider(),
@@ -53,8 +54,4 @@ public record QuoteResponse(
         );
     }
 
-    public enum DataStatus {
-        LIVE,
-        STALE
-    }
 }

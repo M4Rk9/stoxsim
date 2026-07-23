@@ -16,6 +16,7 @@ import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.market.data.Quote;
+import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.market.service.MarketDataService;
 import com.stoxsim.portfolio.api.PortfolioPositionResponse;
@@ -61,7 +62,10 @@ public class PortfolioValuationService {
         BigDecimal invested = money(BigDecimal.ZERO);
         BigDecimal marketValue = money(BigDecimal.ZERO);
         BigDecimal unrealized = money(BigDecimal.ZERO);
-        PricingStatus overallStatus = PricingStatus.LIVE;
+        PricingStatus overallStatus = pricingStatus(marketData.marketStatus(
+            marketRegion,
+            com.stoxsim.instrument.domain.MarketExchange.NSE
+        ));
 
         for (Holding holding : owned) {
             PortfolioPositionResponse position = position(holding);
@@ -110,7 +114,7 @@ public class PortfolioValuationService {
                 throw new IllegalStateException("Quote has no last price");
             }
             currentPrice = quote.lastPrice();
-            status = marketData.isStale(quote) ? PricingStatus.STALE : PricingStatus.LIVE;
+            status = pricingStatus(marketData.status(holding.getInstrument(), quote));
             priceTimestamp = quote.exchangeTimestamp() == null
                 ? quote.receivedAt()
                 : quote.exchangeTimestamp();
@@ -155,7 +159,19 @@ public class PortfolioValuationService {
         if (current == PricingStatus.STALE || next == PricingStatus.STALE) {
             return PricingStatus.STALE;
         }
+        if (current == PricingStatus.CLOSED || next == PricingStatus.CLOSED) {
+            return PricingStatus.CLOSED;
+        }
         return PricingStatus.LIVE;
+    }
+
+    private PricingStatus pricingStatus(MarketDataStatus status) {
+        return switch (status) {
+            case LIVE -> PricingStatus.LIVE;
+            case CLOSED -> PricingStatus.CLOSED;
+            case STALE -> PricingStatus.STALE;
+            case UNAVAILABLE -> PricingStatus.UNAVAILABLE;
+        };
     }
 
     private BigDecimal money(BigDecimal value) {

@@ -3,9 +3,13 @@ package com.stoxsim.market.provider.upstox;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -44,46 +48,55 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
     @Override
     public Quote getQuote(InstrumentKey instrument) {
-        validate(instrument);
+        List<Quote> quotes = getQuotes(Set.of(instrument));
+        if (quotes.isEmpty()) {
+            throw new MarketDataUnavailableException(
+                "Upstox returned no quote for " + instrument.value()
+            );
+        }
+        return quotes.getFirst();
+    }
+
+    @Override
+    public List<Quote> getQuotes(Set<InstrumentKey> instruments) {
+        if (instruments.isEmpty()) {
+            return List.of();
+        }
+        instruments.forEach(this::validate);
         try {
-            var response = new MarketQuoteV3Api(clientFactory.createClient()).getLtp(instrument.value());
+            String requested = instruments.stream()
+                .map(InstrumentKey::value)
+                .collect(Collectors.joining(","));
+            var response = new MarketQuoteV3Api(clientFactory.createClient()).getLtp(requested);
             if (response == null || response.getData() == null || response.getData().isEmpty()) {
                 throw new MarketDataUnavailableException(
-                    "Upstox returned no quote for " + instrument.value()
+                    "Upstox returned no quotes for the requested instruments"
                 );
             }
-            MarketQuoteSymbolLtpV3 data = response.getData().get(instrument.value());
-            if (data == null) {
-                data = response.getData().values().stream()
-                    .filter(value -> instrument.value().equals(value.getInstrumentToken()))
-                    .findFirst()
-                    .orElseGet(() -> response.getData().size() == 1
-                        ? response.getData().values().iterator().next()
-                        : null);
-            }
-            if (data == null || data.getLastPrice() == null) {
-                throw new MarketDataUnavailableException(
-                    "Upstox quote was incomplete for " + instrument.value()
-                );
-            }
+
+            Map<String, MarketQuoteSymbolLtpV3> byInstrumentKey = new LinkedHashMap<>();
+            response.getData().forEach((responseKey, value) -> {
+                byInstrumentKey.put(responseKey, value);
+                if (value != null && value.getInstrumentToken() != null) {
+                    byInstrumentKey.put(value.getInstrumentToken(), value);
+                }
+            });
+
             Instant receivedAt = Instant.now();
-            return new Quote(
-                instrument,
-                BigDecimal.valueOf(data.getLastPrice()),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                decimal(data.getCp()),
-                data.getVolume(),
-                null,
-                receivedAt
-            );
+            List<Quote> quotes = new ArrayList<>(instruments.size());
+            for (InstrumentKey instrument : instruments) {
+                MarketQuoteSymbolLtpV3 data = byInstrumentKey.get(instrument.value());
+                if (data == null && instruments.size() == 1 && response.getData().size() == 1) {
+                    data = response.getData().values().iterator().next();
+                }
+                if (data != null && data.getLastPrice() != null) {
+                    quotes.add(toQuote(instrument, data, receivedAt));
+                }
+            }
+            return List.copyOf(quotes);
         } catch (ApiException exception) {
             throw new MarketDataUnavailableException(
-                "Could not retrieve Upstox quote for " + instrument.value(),
+                "Could not retrieve Upstox quotes",
                 exception
             );
         }
@@ -145,5 +158,26 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
     private BigDecimal decimal(Double value) {
         return value == null ? null : BigDecimal.valueOf(value);
+    }
+
+    private Quote toQuote(
+        InstrumentKey instrument,
+        MarketQuoteSymbolLtpV3 data,
+        Instant receivedAt
+    ) {
+        return new Quote(
+            instrument,
+            BigDecimal.valueOf(data.getLastPrice()),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            decimal(data.getCp()),
+            data.getVolume(),
+            null,
+            receivedAt
+        );
     }
 }

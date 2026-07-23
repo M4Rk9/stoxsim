@@ -24,6 +24,7 @@ public record PortfolioPositionResponse(
 ) {
     public enum PricingStatus {
         LIVE,
+        CLOSED,
         STALE,
         UNAVAILABLE
     }

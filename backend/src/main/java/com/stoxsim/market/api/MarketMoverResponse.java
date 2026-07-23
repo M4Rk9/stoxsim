@@ -5,16 +5,16 @@ import java.time.Instant;
 
 import com.stoxsim.market.data.MarketDataStatus;
 
-public record IndexQuoteResponse(
-    String code,
-    String label,
-    String exchange,
+public record MarketMoverResponse(
     String instrumentKey,
-    BigDecimal value,
+    String symbol,
+    String name,
+    String exchange,
+    BigDecimal lastPrice,
     BigDecimal change,
     BigDecimal changePercent,
-    BigDecimal previousClose,
+    Long volume,
     MarketDataStatus dataStatus,
-    Instant exchangeTimestamp
+    Instant priceTimestamp
 ) {
 }

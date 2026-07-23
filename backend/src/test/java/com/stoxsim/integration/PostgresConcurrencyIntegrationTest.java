@@ -50,6 +50,7 @@ import com.stoxsim.watchlist.repository.WatchlistRepository;
 @Testcontainers
 @SpringBootTest(properties = {
     "stoxsim.market-data.upstox.stream-enabled=false",
+    "stoxsim.market-data.upstox.instrument-sync-on-startup=false",
     "spring.task.scheduling.enabled=false"
 })
 class PostgresConcurrencyIntegrationTest {

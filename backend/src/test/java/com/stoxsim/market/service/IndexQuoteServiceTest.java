@@ -19,8 +19,8 @@ import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.instrument.domain.TradableInstrument;
 import com.stoxsim.instrument.repository.TradableInstrumentRepository;
 import com.stoxsim.instrument.service.InstrumentSnapshot;
-import com.stoxsim.market.api.IndexQuoteResponse.DataStatus;
 import com.stoxsim.market.data.InstrumentKey;
+import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.data.Quote;
 import com.stoxsim.market.domain.MarketRegion;
 
@@ -53,7 +53,10 @@ class IndexQuoteServiceTest {
             now,
             now
         ));
-        when(marketData.isStale(org.mockito.ArgumentMatchers.any())).thenReturn(false);
+        when(marketData.status(
+            org.mockito.ArgumentMatchers.eq(nifty),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(MarketDataStatus.LIVE);
 
         var responses = new IndexQuoteService(instruments, marketData).current();
 
@@ -61,8 +64,8 @@ class IndexQuoteServiceTest {
         assertThat(responses.getFirst().value()).isEqualByComparingTo("25050.0000");
         assertThat(responses.getFirst().change()).isEqualByComparingTo("50.0000");
         assertThat(responses.getFirst().changePercent()).isEqualByComparingTo("0.2000");
-        assertThat(responses.getFirst().dataStatus()).isEqualTo(DataStatus.LIVE);
-        assertThat(responses.get(1).dataStatus()).isEqualTo(DataStatus.UNAVAILABLE);
+        assertThat(responses.getFirst().dataStatus()).isEqualTo(MarketDataStatus.LIVE);
+        assertThat(responses.get(1).dataStatus()).isEqualTo(MarketDataStatus.UNAVAILABLE);
     }
 
     private TradableInstrument index(String key, String name) {
