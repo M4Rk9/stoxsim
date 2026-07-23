@@ -2,6 +2,7 @@ package com.stoxsim.watchlist.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -95,7 +96,7 @@ class WatchlistServiceTest {
             now,
             now
         ));
-        when(marketData.status(instrument, org.mockito.ArgumentMatchers.any()))
+        when(marketData.status(eq(instrument), org.mockito.ArgumentMatchers.any()))
             .thenReturn(MarketDataStatus.LIVE);
 
         var response = service.getDefault(userId);
