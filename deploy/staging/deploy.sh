@@ -54,7 +54,7 @@ if ! "${COMPOSE[@]}" pull; then
 fi
 
 echo "Starting private staging services"
-if "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 240; then
+if "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600; then
   "${COMPOSE[@]}" ps
   docker image prune --force --filter "until=168h" >/dev/null
   echo "StoxSim staging is healthy on ${TARGET_TAG}"
@@ -66,7 +66,7 @@ if [[ "$PREVIOUS_TAG" =~ ^[0-9a-f]{40}$ && "$PREVIOUS_TAG" != "$TARGET_TAG" ]]; 
   echo "Rolling back to ${PREVIOUS_TAG}" >&2
   write_env_value STOXSIM_IMAGE_TAG "$PREVIOUS_TAG"
   "${COMPOSE[@]}" pull
-  "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 240
+  "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600
 else
   echo "No previous immutable image tag is available for automatic rollback" >&2
 fi
