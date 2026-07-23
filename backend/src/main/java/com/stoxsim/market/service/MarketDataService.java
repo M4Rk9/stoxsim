@@ -121,10 +121,19 @@ public class MarketDataService {
         InstrumentKey key = key(instrument);
         List<Candle> candles = cache
             .findCandles(key, interval, from.toString(), to.toString())
+            .filter(cached -> !cached.isEmpty())
             .orElseGet(() -> {
                 var fresh = providers.forRegion(marketRegion)
                     .getCandles(key, interval, from, to);
-                cache.storeCandles(key, interval, from.toString(), to.toString(), fresh);
+                if (!fresh.isEmpty()) {
+                    cache.storeCandles(
+                        key,
+                        interval,
+                        from.toString(),
+                        to.toString(),
+                        fresh
+                    );
+                }
                 return fresh;
             });
         return new CandleSeriesResponse(

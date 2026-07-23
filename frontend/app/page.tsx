@@ -10,6 +10,8 @@ type MarketRegion = "INDIA" | "UNITED_STATES";
 type OrderSide = "BUY" | "SELL";
 type OrderType = "MARKET" | "LIMIT";
 type MarketDataStatus = "LIVE" | "CLOSED" | "STALE" | "UNAVAILABLE";
+type ChartRange = 1 | 3 | 6 | 12 | 36 | 60;
+type FinancialPeriod = "quarterly" | "yearly";
 
 interface Account {
   id: string;
@@ -114,6 +116,7 @@ interface Quote {
   high?: number;
   low?: number;
   previousClose?: number;
+  volume?: number;
   dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
 }
@@ -154,6 +157,7 @@ interface MarketQuoteMessage {
   high?: number;
   low?: number;
   previousClose?: number;
+  volume?: number;
   exchangeTimestamp?: string;
 }
 
@@ -195,6 +199,49 @@ interface CandleSeries {
   from: string;
   to: string;
   candles: Candle[];
+}
+
+interface CompanyProfile {
+  description?: string;
+  sector?: string;
+  sectorMarketCapInrCrore?: number;
+  sectorMarketCapInrFormatted?: string;
+}
+
+interface FundamentalRatio {
+  name: string;
+  companyValue?: string;
+  sectorValue?: string;
+}
+
+interface FinancialHistoryPoint {
+  period: string;
+  value: number;
+  change?: string;
+}
+
+interface FinancialMetric {
+  category: string;
+  history: FinancialHistoryPoint[];
+}
+
+interface FinancialPerformance {
+  statementType?: string;
+  timePeriod?: string;
+  unitsIn?: string;
+  metrics: FinancialMetric[];
+}
+
+interface StockInsights {
+  provider: string;
+  symbol: string;
+  isin?: string;
+  asOf: string;
+  status: "AVAILABLE" | "PARTIAL" | "UNAVAILABLE";
+  profile?: CompanyProfile;
+  ratios: FundamentalRatio[];
+  financials?: FinancialPerformance;
+  message?: string;
 }
 
 interface ChargeBreakdown {
@@ -269,8 +316,21 @@ const inr = (value?: number) =>
     minimumFractionDigits: 2,
   }).format(value ?? 0);
 
+const inrOrDash = (value?: number) =>
+  value == null || !Number.isFinite(value) ? "—" : inr(value);
+
 const number = (value?: number) =>
   new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(value ?? 0);
+
+const compactNumber = (value?: number) =>
+  value == null || !Number.isFinite(value)
+    ? "—"
+    : new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 2 }).format(value);
+
+const crore = (value?: number) =>
+  value == null || !Number.isFinite(value)
+    ? "—"
+    : `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(value)} Cr`;
 
 const dateTime = (value?: string) =>
   value
@@ -318,8 +378,13 @@ export default function Home() {
   const [selected, setSelected] = useState<Instrument | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [chartRange, setChartRange] = useState<1 | 3 | 12>(3);
+  const [yearCandles, setYearCandles] = useState<Candle[]>([]);
+  const [chartRange, setChartRange] = useState<ChartRange>(12);
   const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState("");
+  const [stockInsights, setStockInsights] = useState<StockInsights | null>(null);
+  const [financialPeriod, setFinancialPeriod] = useState<FinancialPeriod>("quarterly");
+  const [insightsLoading, setInsightsLoading] = useState(false);
   const [side, setSide] = useState<OrderSide>("BUY");
   const [orderType, setOrderType] = useState<OrderType>("MARKET");
   const [quantity, setQuantity] = useState("1");
@@ -428,10 +493,19 @@ export default function Home() {
   useEffect(() => {
     if (!token || !selected) {
       setCandles([]);
+      setYearCandles([]);
       return;
     }
     void loadCandles(selected, chartRange);
   }, [token, selected, chartRange]);
+
+  useEffect(() => {
+    if (!token || !selected) {
+      setStockInsights(null);
+      return;
+    }
+    void loadStockInsights(selected, financialPeriod);
+  }, [token, selected, financialPeriod]);
 
   useEffect(() => {
     if (!token || !quote) {
@@ -601,25 +675,47 @@ export default function Home() {
         high: message.high ?? current.high,
         low: message.low ?? current.low,
         previousClose: message.previousClose ?? current.previousClose,
+        volume: message.volume ?? current.volume,
         dataStatus: "LIVE",
         exchangeTimestamp: message.exchangeTimestamp ?? current.exchangeTimestamp,
       } : current);
     }
   }
 
-  async function loadCandles(instrument: Instrument, range: 1 | 3 | 12) {
+  async function loadCandles(instrument: Instrument, range: ChartRange) {
     setChartLoading(true);
+    setChartError("");
     try {
       const to = new Date().toISOString().slice(0, 10);
       const series = await authorizedRequest<CandleSeries>(
         `/api/v1/instruments/INDIA/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/candles?interval=ONE_DAY&from=${isoDate(range)}&to=${to}`,
       );
+      if (selectedRef.current?.id !== instrument.id) return;
       setCandles(series.candles);
+      if (range === 12) setYearCandles(series.candles);
     } catch (cause) {
+      if (selectedRef.current?.id !== instrument.id) return;
       setCandles([]);
-      setError(cause instanceof Error ? cause.message : "Historical prices are unavailable");
+      setChartError(cause instanceof Error ? cause.message : "Historical prices are unavailable");
     } finally {
-      setChartLoading(false);
+      if (selectedRef.current?.id === instrument.id) setChartLoading(false);
+    }
+  }
+
+  async function loadStockInsights(
+    instrument: Instrument,
+    period: FinancialPeriod,
+  ) {
+    setInsightsLoading(true);
+    try {
+      const response = await authorizedRequest<StockInsights>(
+        `/api/v1/instruments/INDIA/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/insights?timePeriod=${period}`,
+      );
+      if (selectedRef.current?.id === instrument.id) setStockInsights(response);
+    } catch {
+      if (selectedRef.current?.id === instrument.id) setStockInsights(null);
+    } finally {
+      if (selectedRef.current?.id === instrument.id) setInsightsLoading(false);
     }
   }
 
@@ -665,9 +761,17 @@ export default function Home() {
 
   async function chooseInstrument(instrument: Instrument) {
     if (!token) return;
+    selectedRef.current = instrument;
     setSelected(instrument);
     setResults([]);
     setSearch(instrument.tradingSymbol);
+    setQuote(null);
+    setCandles([]);
+    setYearCandles([]);
+    setStockInsights(null);
+    setChartRange(12);
+    setFinancialPeriod("quarterly");
+    setChartError("");
     setWorking(true);
     setError("");
     try {
@@ -919,12 +1023,19 @@ export default function Home() {
             {selected && quote && (
               <div className="quoteCard">
                 <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><div className="quoteActions"><button type="button" className={watchedItem ? "watchButton watching" : "watchButton"} disabled={working || Boolean(watchedItem)} onClick={addSelectedToWatchlist}>{watchedItem ? "★ Watching" : "☆ Watch"}</button><span className={`quoteStatus ${quote.dataStatus.toLowerCase()}`}>{quote.dataStatus}</span></div></div>
-                <div className="quotePrice"><strong>{inr(quote.lastPrice)}</strong><span>{dateTime(quote.exchangeTimestamp)}</span></div>
-                <div className="quoteStats"><div><span>Open</span><strong>{inr(quote.open)}</strong></div><div><span>High</span><strong>{inr(quote.high)}</strong></div><div><span>Low</span><strong>{inr(quote.low)}</strong></div><div><span>Prev. close</span><strong>{inr(quote.previousClose)}</strong></div></div>
+                <div className="quotePrice"><div><strong>{inr(quote.lastPrice)}</strong><QuoteMove quote={quote} /></div><span>{dateTime(quote.exchangeTimestamp)}</span></div>
+                <div className="quoteStats"><div><span>Open</span><strong>{inrOrDash(quote.open)}</strong></div><div><span>High</span><strong>{inrOrDash(quote.high)}</strong></div><div><span>Low</span><strong>{inrOrDash(quote.low)}</strong></div><div><span>Prev. close</span><strong>{inrOrDash(quote.previousClose)}</strong></div></div>
                 <div className="chartBlock">
-                  <div className="chartHeader"><div><span>Historical close</span><small>Upstox daily candles</small></div><div className="rangeTabs">{([1, 3, 12] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range === 12 ? "1Y" : `${range}M`}</button>)}</div></div>
-                  <PriceChart candles={candles} loading={chartLoading} />
+                  <div className="chartHeader"><div><span>Price chart</span><small>Verified Upstox daily OHLC candles</small></div><div className="rangeTabs">{([1, 3, 6, 12, 36, 60] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range >= 12 ? `${range / 12}Y` : `${range}M`}</button>)}</div></div>
+                  <PriceChart candles={candles} loading={chartLoading} error={chartError} />
                 </div>
+                <StockPerformance quote={quote} candles={yearCandles} />
+                <StockFundamentals
+                  insights={stockInsights}
+                  loading={insightsLoading}
+                  period={financialPeriod}
+                  onPeriodChange={setFinancialPeriod}
+                />
               </div>
             )}
           </article>
@@ -990,7 +1101,141 @@ function Metric({ label, value, sub, tone = "" }: { label: string; value: string
   return <article className="metric"><span>{label}</span><strong className={tone}>{value}</strong><small>{sub}</small></article>;
 }
 
-function PriceChart({ candles, loading }: { candles: Candle[]; loading: boolean }) {
+function QuoteMove({ quote }: { quote: Quote }) {
+  if (quote.previousClose == null || quote.previousClose <= 0) return null;
+  const change = quote.lastPrice - quote.previousClose;
+  const percent = (change / quote.previousClose) * 100;
+  const rising = change >= 0;
+  return <small className={`quoteMove ${rising ? "positive" : "negative"}`}>
+    {rising ? "+" : ""}{inr(change)} ({rising ? "+" : ""}{number(percent)}%)
+  </small>;
+}
+
+function StockPerformance({ quote, candles }: { quote: Quote; candles: Candle[] }) {
+  const valid = candles.filter((candle) =>
+    Number.isFinite(candle.low) && Number.isFinite(candle.high)
+  );
+  const yearLow = valid.length ? Math.min(...valid.map((candle) => candle.low)) : undefined;
+  const yearHigh = valid.length ? Math.max(...valid.map((candle) => candle.high)) : undefined;
+
+  return <section className="stockSection performanceSection">
+    <div className="stockSectionHeading"><div><h4>Performance</h4><p>Today and trailing 52-week trading range</p></div></div>
+    <div className="rangeMeters">
+      <RangeMeter label="Today" low={quote.low} high={quote.high} current={quote.lastPrice} />
+      <RangeMeter label="52 week" low={yearLow} high={yearHigh} current={quote.lastPrice} />
+    </div>
+    <div className="performanceStats">
+      <div><span>Open price</span><strong>{inrOrDash(quote.open)}</strong></div>
+      <div><span>Previous close</span><strong>{inrOrDash(quote.previousClose)}</strong></div>
+      <div><span>Live volume</span><strong>{compactNumber(quote.volume)}</strong></div>
+      <div><span>Data status</span><strong className={quote.dataStatus.toLowerCase()}>{quote.dataStatus}</strong></div>
+    </div>
+  </section>;
+}
+
+function RangeMeter({
+  label,
+  low,
+  high,
+  current,
+}: {
+  label: string;
+  low?: number;
+  high?: number;
+  current?: number;
+}) {
+  const ready = low != null && high != null && current != null && high > low;
+  const position = ready
+    ? Math.min(100, Math.max(0, ((current - low) / (high - low)) * 100))
+    : 50;
+  return <div className="rangeMeter">
+    <div className="rangeLabels"><span>{label} low<strong>{inrOrDash(low)}</strong></span><span>{label} high<strong>{inrOrDash(high)}</strong></span></div>
+    <div className={`rangeTrack ${ready ? "" : "unavailable"}`}><i style={{ left: `${position}%` }} /></div>
+  </div>;
+}
+
+function StockFundamentals({
+  insights,
+  loading,
+  period,
+  onPeriodChange,
+}: {
+  insights: StockInsights | null;
+  loading: boolean;
+  period: FinancialPeriod;
+  onPeriodChange: (period: FinancialPeriod) => void;
+}) {
+  return <section className="stockSection fundamentalsSection">
+    <div className="stockSectionHeading">
+      <div><h4>Fundamentals</h4><p>Company and sector data supplied by Upstox</p></div>
+      {insights && <span className={`insightsStatus ${insights.status.toLowerCase()}`}>{insights.status}</span>}
+    </div>
+    {loading && !insights && <div className="insightsLoading"><span className="chartLoader" />Loading company fundamentals…</div>}
+    {!loading && !insights && <div className="insightsEmpty">Company fundamentals are temporarily unavailable.</div>}
+    {insights && <>
+      {insights.message && <p className="insightsNotice">{insights.message}</p>}
+      {insights.profile && <div className="companyProfile">
+        <div><span>Sector</span><strong>{insights.profile.sector ?? "—"}</strong></div>
+        <div><span>Sector market cap</span><strong>{insights.profile.sectorMarketCapInrFormatted ?? crore(insights.profile.sectorMarketCapInrCrore)}</strong></div>
+        {insights.profile.description && <p>{insights.profile.description}</p>}
+      </div>}
+      <div className="ratioGrid">
+        {insights.ratios.map((ratio) => <div key={ratio.name} className="ratioItem">
+          <span>{ratio.name}</span><strong>{ratio.companyValue ?? "—"}</strong><small>Sector {ratio.sectorValue ?? "—"}</small>
+        </div>)}
+        {!insights.ratios.length && <div className="insightsEmpty compact">Valuation ratios are unavailable for this stock.</div>}
+      </div>
+      <div className="financialSection">
+        <div className="financialHeader"><div><h4>Financial performance</h4><p>Consolidated revenue and net profit in INR crore</p></div><div className="financialTabs"><button type="button" className={period === "quarterly" ? "active" : ""} onClick={() => onPeriodChange("quarterly")}>Quarterly</button><button type="button" className={period === "yearly" ? "active" : ""} onClick={() => onPeriodChange("yearly")}>Yearly</button></div></div>
+        <FinancialChart financials={insights.financials} loading={loading} />
+      </div>
+      <small className="insightsAsOf">Source: {insights.provider} · refreshed {dateTime(insights.asOf)}</small>
+    </>}
+  </section>;
+}
+
+function FinancialChart({
+  financials,
+  loading,
+}: {
+  financials?: FinancialPerformance;
+  loading: boolean;
+}) {
+  const revenue = financials?.metrics.find((metric) => metric.category === "revenue");
+  const profit = financials?.metrics.find((metric) => metric.category === "net_profit");
+  const revenuePoints = [...(revenue?.history ?? [])].reverse().slice(-5);
+  const profitByPeriod = new Map((profit?.history ?? []).map((point) => [point.period, point]));
+  const maximum = Math.max(
+    1,
+    ...revenuePoints.flatMap((point) => [point.value, profitByPeriod.get(point.period)?.value ?? 0]),
+  );
+
+  if (loading && !financials) return <div className="financialEmpty"><span className="chartLoader" />Updating financial history…</div>;
+  if (!revenuePoints.length) return <div className="financialEmpty">Financial history is unavailable for this stock.</div>;
+
+  const latestRevenue = revenuePoints.at(-1);
+  const latestProfit = latestRevenue ? profitByPeriod.get(latestRevenue.period) : undefined;
+  return <div className="financialChart">
+    <div className="financialLegend">
+      <div><i className="revenue" /><span>Revenue</span><strong>{crore(latestRevenue?.value)} <small className={latestRevenue?.change?.startsWith("-") ? "negative" : "positive"}>{latestRevenue?.change}</small></strong></div>
+      <div><i className="profit" /><span>Net profit</span><strong>{crore(latestProfit?.value)} <small className={latestProfit?.change?.startsWith("-") ? "negative" : "positive"}>{latestProfit?.change}</small></strong></div>
+    </div>
+    <div className="financialPlot">
+      {revenuePoints.map((point) => {
+        const profitPoint = profitByPeriod.get(point.period);
+        return <div className="financialGroup" key={point.period}>
+          <div className="financialBars">
+            <i className="revenue" title={`Revenue ${crore(point.value)}`} style={{ height: `${Math.max(5, (point.value / maximum) * 100)}%` }} />
+            <i className="profit" title={`Net profit ${crore(profitPoint?.value)}`} style={{ height: `${Math.max(3, ((profitPoint?.value ?? 0) / maximum) * 100)}%` }} />
+          </div>
+          <span>{point.period}</span>
+        </div>;
+      })}
+    </div>
+  </div>;
+}
+
+function PriceChart({ candles, loading, error }: { candles: Candle[]; loading: boolean; error: string }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const ordered = useMemo(
     () => [...candles]
@@ -1000,7 +1245,7 @@ function PriceChart({ candles, loading }: { candles: Candle[]; loading: boolean 
   );
 
   if (loading) return <div className="chartEmpty"><span className="chartLoader" />Loading historical prices…</div>;
-  if (!ordered.length) return <div className="chartEmpty">Historical prices are unavailable for this selection.</div>;
+  if (!ordered.length) return <div className="chartEmpty">{error || "Historical prices are unavailable for this selection."}</div>;
 
   const width = 720;
   const height = 240;

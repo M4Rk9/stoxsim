@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.upstox.ApiException;
-import com.upstox.api.MarketQuoteSymbolLtpV3;
+import com.upstox.api.MarketQuoteOHLCV3;
+import com.upstox.api.OhlcV3;
 import com.stoxsim.market.data.Candle;
 import com.stoxsim.market.data.CandleInterval;
 import com.stoxsim.market.data.InstrumentKey;
@@ -67,14 +68,15 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             String requested = instruments.stream()
                 .map(InstrumentKey::value)
                 .collect(Collectors.joining(","));
-            var response = new MarketQuoteV3Api(clientFactory.createClient()).getLtp(requested);
+            var response = new MarketQuoteV3Api(clientFactory.createClient())
+                .getMarketQuoteOHLC("1d", requested);
             if (response == null || response.getData() == null || response.getData().isEmpty()) {
                 throw new MarketDataUnavailableException(
                     "Upstox returned no quotes for the requested instruments"
                 );
             }
 
-            Map<String, MarketQuoteSymbolLtpV3> byInstrumentKey = new LinkedHashMap<>();
+            Map<String, MarketQuoteOHLCV3> byInstrumentKey = new LinkedHashMap<>();
             response.getData().forEach((responseKey, value) -> {
                 byInstrumentKey.put(responseKey, value);
                 if (value != null && value.getInstrumentToken() != null) {
@@ -85,7 +87,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             Instant receivedAt = Instant.now();
             List<Quote> quotes = new ArrayList<>(instruments.size());
             for (InstrumentKey instrument : instruments) {
-                MarketQuoteSymbolLtpV3 data = byInstrumentKey.get(instrument.value());
+                MarketQuoteOHLCV3 data = byInstrumentKey.get(instrument.value());
                 if (data == null && instruments.size() == 1 && response.getData().size() == 1) {
                     data = response.getData().values().iterator().next();
                 }
@@ -112,7 +114,9 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
         validate(instrument);
         UpstoxCandleInterval upstoxInterval = UpstoxCandleInterval.from(interval);
         try {
-            var response = new HistoryV3Api(clientFactory.createClient()).getHistoricalCandleData1(
+            var history = new HistoryV3Api(clientFactory.createClient());
+            history.setHeadersOverrides(clientFactory.authorizationHeaders());
+            var response = history.getHistoricalCandleData1(
                 instrument.value(),
                 upstoxInterval.unit(),
                 upstoxInterval.interval(),
@@ -162,21 +166,25 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
 
     private Quote toQuote(
         InstrumentKey instrument,
-        MarketQuoteSymbolLtpV3 data,
+        MarketQuoteOHLCV3 data,
         Instant receivedAt
     ) {
+        OhlcV3 live = data.getLiveOhlc();
+        OhlcV3 previous = data.getPrevOhlc();
         return new Quote(
             instrument,
             BigDecimal.valueOf(data.getLastPrice()),
             null,
             null,
-            null,
-            null,
-            null,
-            null,
-            decimal(data.getCp()),
-            data.getVolume(),
-            null,
+            live == null ? null : decimal(live.getOpen()),
+            live == null ? null : decimal(live.getHigh()),
+            live == null ? null : decimal(live.getLow()),
+            live == null ? null : decimal(live.getClose()),
+            previous == null ? null : decimal(previous.getClose()),
+            live == null ? null : live.getVolume(),
+            live == null || live.getTs() == null
+                ? null
+                : Instant.ofEpochMilli(live.getTs()),
             receivedAt
         );
     }

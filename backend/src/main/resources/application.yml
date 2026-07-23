@@ -51,6 +51,7 @@ stoxsim:
       quote-retention-days: 7
       closed-quote-refresh-seconds: 900
       candle-ttl-minutes: 5
+      fundamentals-ttl-hours: 6
       stale-after-seconds: 15
       initial-instrument-keys:
         - NSE_INDEX|Nifty 50

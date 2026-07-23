@@ -14,6 +14,7 @@ import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.market.data.CandleInterval;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.market.service.MarketDataService;
+import com.stoxsim.market.service.StockInsightsService;
 
 @RestController
 @RequestMapping("/api/v1/instruments")
@@ -22,9 +23,14 @@ public class MarketDataController {
     private static final ZoneId INDIA_TIME = ZoneId.of("Asia/Kolkata");
 
     private final MarketDataService marketData;
+    private final StockInsightsService stockInsights;
 
-    public MarketDataController(MarketDataService marketData) {
+    public MarketDataController(
+        MarketDataService marketData,
+        StockInsightsService stockInsights
+    ) {
         this.marketData = marketData;
+        this.stockInsights = stockInsights;
     }
 
     @GetMapping("/{marketRegion}/{exchange}/{symbol}/quote")
@@ -58,6 +64,21 @@ public class MarketDataController {
             interval,
             resolvedFrom,
             resolvedTo
+        );
+    }
+
+    @GetMapping("/{marketRegion}/{exchange}/{symbol}/insights")
+    public StockInsightsResponse insights(
+        @PathVariable MarketRegion marketRegion,
+        @PathVariable MarketExchange exchange,
+        @PathVariable String symbol,
+        @RequestParam(defaultValue = "quarterly") String timePeriod
+    ) {
+        return stockInsights.get(
+            marketRegion,
+            exchange,
+            symbol,
+            timePeriod
         );
     }
 }
