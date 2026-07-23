@@ -17,6 +17,8 @@ import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.domain.AppUser;
+import com.stoxsim.instrument.domain.MarketExchange;
+import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.market.service.MarketDataService;
 import com.stoxsim.portfolio.repository.HoldingRepository;
@@ -45,6 +47,8 @@ class PortfolioValuationServiceTest {
             0
         )).thenReturn(List.of());
         when(properties.getIndiaStartingBalance()).thenReturn(new BigDecimal("500000.00"));
+        when(marketData.marketStatus(MarketRegion.INDIA, MarketExchange.NSE))
+            .thenReturn(MarketDataStatus.CLOSED);
 
         var service = new PortfolioValuationService(accounts, holdings, marketData, properties);
         var response = service.value(userId, MarketRegion.INDIA);

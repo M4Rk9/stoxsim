@@ -15,7 +15,7 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
     .toContainText("₹5,00,000.00");
   await expect(page.locator(".metric").filter({ hasText: "Available cash" }))
     .toContainText("₹5,00,000.00");
-  await expect(page.getByText("REAL-TIME STREAM")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();

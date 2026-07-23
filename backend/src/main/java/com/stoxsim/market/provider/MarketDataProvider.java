@@ -19,6 +19,10 @@ public interface MarketDataProvider {
 
     Quote getQuote(InstrumentKey instrument);
 
+    default List<Quote> getQuotes(Set<InstrumentKey> instruments) {
+        return instruments.stream().map(this::getQuote).toList();
+    }
+
     List<Candle> getCandles(
         InstrumentKey instrument,
         CandleInterval interval,

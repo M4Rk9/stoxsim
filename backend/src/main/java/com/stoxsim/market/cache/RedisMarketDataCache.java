@@ -34,7 +34,7 @@ public class RedisMarketDataCache implements MarketDataCache {
         UpstoxMarketDataProperties properties
     ) {
         this.redis = redis;
-        this.quoteTtl = Duration.ofSeconds(properties.getQuoteTtlSeconds());
+        this.quoteTtl = Duration.ofDays(properties.getQuoteRetentionDays());
         this.candleTtl = Duration.ofMinutes(properties.getCandleTtlMinutes());
     }
 

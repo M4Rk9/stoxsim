@@ -129,8 +129,8 @@ public class WatchlistService {
                 quote.lastPrice(),
                 change,
                 changePercent(change, quote.previousClose()),
-                marketData.isStale(quote) ? "STALE" : "LIVE",
-                quote.exchangeTimestamp()
+                marketData.status(instrument, quote).name(),
+                quote.exchangeTimestamp() == null ? quote.receivedAt() : quote.exchangeTimestamp()
             );
         } catch (RuntimeException exception) {
             return itemResponse(item, null, null, null, "UNAVAILABLE", null);

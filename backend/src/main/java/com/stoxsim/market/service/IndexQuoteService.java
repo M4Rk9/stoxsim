@@ -13,7 +13,7 @@ import com.stoxsim.instrument.domain.TradableInstrument;
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMapper;
 import com.stoxsim.instrument.repository.TradableInstrumentRepository;
 import com.stoxsim.market.api.IndexQuoteResponse;
-import com.stoxsim.market.api.IndexQuoteResponse.DataStatus;
+import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.data.Quote;
 
 @Service
@@ -83,7 +83,7 @@ public class IndexQuoteService {
                 change,
                 changePercent,
                 quote.previousClose() == null ? null : money(quote.previousClose()),
-                marketData.isStale(quote) ? DataStatus.STALE : DataStatus.LIVE,
+                marketData.status(instrument, quote),
                 quote.exchangeTimestamp() == null ? quote.receivedAt() : quote.exchangeTimestamp()
             );
         } catch (RuntimeException exception) {
@@ -101,7 +101,7 @@ public class IndexQuoteService {
             null,
             null,
             null,
-            DataStatus.UNAVAILABLE,
+            MarketDataStatus.UNAVAILABLE,
             null
         );
     }

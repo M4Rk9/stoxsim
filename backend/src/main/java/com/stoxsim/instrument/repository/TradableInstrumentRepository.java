@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.instrument.domain.TradableInstrument;
+import com.stoxsim.instrument.domain.InstrumentType;
 import com.stoxsim.market.domain.MarketRegion;
 
 public interface TradableInstrumentRepository extends JpaRepository<TradableInstrument, UUID> {
@@ -20,6 +21,12 @@ public interface TradableInstrumentRepository extends JpaRepository<TradableInst
     List<TradableInstrument> findAllByProviderAndInstrumentKeyIn(
         String provider,
         Collection<String> instrumentKeys
+    );
+
+    List<TradableInstrument> findAllByMarketRegionAndExchangeAndInstrumentTypeAndActiveTrueOrderByTradingSymbol(
+        MarketRegion marketRegion,
+        MarketExchange exchange,
+        InstrumentType instrumentType
     );
 
     Optional<TradableInstrument> findByMarketRegionAndExchangeAndTradingSymbolIgnoreCaseAndActiveTrue(

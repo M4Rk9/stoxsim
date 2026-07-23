@@ -9,6 +9,7 @@ const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/m
 type MarketRegion = "INDIA" | "UNITED_STATES";
 type OrderSide = "BUY" | "SELL";
 type OrderType = "MARKET" | "LIMIT";
+type MarketDataStatus = "LIVE" | "CLOSED" | "STALE" | "UNAVAILABLE";
 
 interface Account {
   id: string;
@@ -51,7 +52,7 @@ interface IndexQuote {
   change?: number;
   changePercent?: number;
   previousClose?: number;
-  dataStatus: "LIVE" | "STALE" | "UNAVAILABLE";
+  dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
 }
 
@@ -68,7 +69,7 @@ interface Position {
   marketValue: number;
   unrealizedProfitLoss: number;
   returnPercent: number;
-  pricingStatus: "LIVE" | "STALE" | "UNAVAILABLE";
+  pricingStatus: MarketDataStatus;
   priceTimestamp?: string;
 }
 
@@ -85,7 +86,7 @@ interface Portfolio {
   totalProfitLoss: number;
   totalAccountValue: number;
   totalReturnPercent: number;
-  dataStatus: "LIVE" | "STALE" | "UNAVAILABLE";
+  dataStatus: MarketDataStatus;
   valuedAt: string;
   holdings: Position[];
 }
@@ -113,7 +114,7 @@ interface Quote {
   high?: number;
   low?: number;
   previousClose?: number;
-  dataStatus: "LIVE" | "STALE";
+  dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
 }
 
@@ -132,7 +133,7 @@ interface WatchlistItem {
   lastPrice?: number;
   change?: number;
   changePercent?: number;
-  dataStatus: "LIVE" | "STALE" | "UNAVAILABLE";
+  dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
   addedAt: string;
 }
@@ -154,6 +155,27 @@ interface MarketQuoteMessage {
   low?: number;
   previousClose?: number;
   exchangeTimestamp?: string;
+}
+
+interface MarketMover {
+  instrumentKey: string;
+  symbol: string;
+  name: string;
+  exchange: string;
+  lastPrice: number;
+  change: number;
+  changePercent: number;
+  volume?: number;
+  dataStatus: MarketDataStatus;
+  priceTimestamp?: string;
+}
+
+interface MarketMovers {
+  universe: string;
+  generatedAt?: string;
+  dataStatus: MarketDataStatus;
+  gainers: MarketMover[];
+  losers: MarketMover[];
 }
 
 type StreamStatus = "CONNECTING" | "LIVE" | "RECONNECTING" | "OFFLINE";
@@ -285,6 +307,8 @@ export default function Home() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [market, setMarket] = useState<MarketStatus | null>(null);
   const [indices, setIndices] = useState<IndexQuote[]>([]);
+  const [movers, setMovers] = useState<MarketMovers | null>(null);
+  const [moverTab, setMoverTab] = useState<"gainers" | "losers">("gainers");
   const [watchlist, setWatchlist] = useState<Watchlist | null>(null);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("OFFLINE");
   const [orders, setOrders] = useState<PaperOrder[]>([]);
@@ -323,6 +347,13 @@ export default function Home() {
     })),
     [indices],
   );
+  const visibleMovers = movers?.[moverTab] ?? [];
+  const marketDataStatus = useMemo<MarketDataStatus>(() => {
+    if (market?.phase && market.phase !== "REGULAR") return "CLOSED";
+    if (indices.some((index) => index.dataStatus === "LIVE")) return "LIVE";
+    if (indices.some((index) => index.dataStatus === "STALE")) return "STALE";
+    return "UNAVAILABLE";
+  }, [market?.phase, indices]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("stoxsim-session");
@@ -384,6 +415,14 @@ export default function Home() {
       setStreamStatus("OFFLINE");
       void client.deactivate();
     };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const timer = window.setInterval(() => {
+      void loadMarketOverview();
+    }, 60_000);
+    return () => window.clearInterval(timer);
   }, [token]);
 
   useEffect(() => {
@@ -469,13 +508,14 @@ export default function Home() {
     setLoading(true);
     setError("");
     try {
-      const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices, nextWatchlist] = await Promise.all([
+      const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices, nextWatchlist, nextMovers] = await Promise.all([
         authorizedRequest<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken),
         authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken),
         authorizedRequest<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken),
         authorizedRequest<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken),
         authorizedRequest<IndexQuote[]>("/api/v1/market/indices", {}, accessToken),
         authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken),
+        authorizedRequest<MarketMovers>("/api/v1/market/movers", {}, accessToken),
       ]);
       setPortfolio(nextPortfolio);
       setMarket(nextMarket);
@@ -483,6 +523,7 @@ export default function Home() {
       setTrades(nextTrades);
       setIndices(nextIndices);
       setWatchlist(nextWatchlist);
+      setMovers(nextMovers);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load your dashboard");
     } finally {
@@ -495,6 +536,21 @@ export default function Home() {
       setIndices(await authorizedRequest<IndexQuote[]>("/api/v1/market/indices"));
     } catch {
       // Preserve the last successful values; each card already carries freshness metadata.
+    }
+  }
+
+  async function loadMarketOverview() {
+    try {
+      const [nextMarket, nextIndices, nextMovers] = await Promise.all([
+        authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE"),
+        authorizedRequest<IndexQuote[]>("/api/v1/market/indices"),
+        authorizedRequest<MarketMovers>("/api/v1/market/movers"),
+      ]);
+      setMarket(nextMarket);
+      setIndices(nextIndices);
+      setMovers(nextMovers);
+    } catch {
+      // Keep the last verified snapshot visible while connectivity recovers.
     }
   }
 
@@ -742,6 +798,7 @@ export default function Home() {
     setTrades([]);
     setWatchlist(null);
     setIndices([]);
+    setMovers(null);
   }
 
   if (!session) {
@@ -794,7 +851,7 @@ export default function Home() {
 
       <section className={`marketBanner ${market?.phase === "REGULAR" ? "open" : "closed"}`}>
         <div><span className="pulse" /><div><strong>{phaseLabel(market?.phase)}</strong><small>NSE · {market?.timezone ?? "Asia/Kolkata"}</small></div></div>
-        <div className="bannerStatusGroup"><div className={`streamBadge ${streamStatus.toLowerCase()}`}><i />{streamStatus === "LIVE" ? "REAL-TIME STREAM" : streamStatus}</div><div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</strong></div></div>
+        <div className="bannerStatusGroup"><div className={`streamBadge ${marketDataStatus.toLowerCase()}`}><i />{marketDataStatus === "CLOSED" ? "MARKET CLOSED" : marketDataStatus === "LIVE" && streamStatus === "LIVE" ? "LIVE MARKET DATA" : marketDataStatus === "STALE" ? "STALE DATA" : "AWAITING MARKET DATA"}</div><div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</strong></div></div>
       </section>
 
       <section className="indexStrip" aria-label="Indian market indices">
@@ -803,7 +860,8 @@ export default function Home() {
           return <article className="indexCard" key={index.code}>
             <div><span>{index.label}</span><small>{index.exchange || "MARKET"}</small></div>
             <strong>{index.value == null ? "—" : number(index.value)}</strong>
-            <div className="indexMove"><span className={index.value == null ? "muted" : rising ? "positive" : "negative"}>{index.value == null ? "Awaiting data" : `${rising ? "+" : ""}${number(index.change)} · ${rising ? "+" : ""}${number(index.changePercent)}%`}</span><i className={index.dataStatus.toLowerCase()} title={`${index.dataStatus} data`} /></div>
+            <div className="indexMove"><span className={index.value == null ? "muted" : rising ? "positive" : "negative"}>{index.value == null ? "Preparing snapshot" : `${rising ? "+" : ""}${number(index.change)} · ${rising ? "+" : ""}${number(index.changePercent)}%`}</span><i className={index.dataStatus.toLowerCase()} title={`${index.dataStatus} data`} /></div>
+            <small className="indexTimestamp">{index.value == null ? index.dataStatus : `${index.dataStatus} · ${dateTime(index.exchangeTimestamp)}`}</small>
           </article>;
         })}
       </section>
@@ -812,7 +870,7 @@ export default function Home() {
 
       <section className="dashboardHeading">
         <div><span className="eyebrow">INDIA PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
-        <div className={`dataBadge ${(portfolio?.dataStatus ?? "LIVE").toLowerCase()}`}><span />{portfolio?.dataStatus ?? "LIVE"} DATA</div>
+        <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus === "CLOSED" ? "MARKET CLOSED" : `${marketDataStatus} DATA`}</div>
       </section>
 
       <section className="metricGrid" aria-busy={loading}>
@@ -820,6 +878,35 @@ export default function Home() {
         <Metric label="Available cash" value={inr(portfolio?.availableCash)} sub={`${inr(portfolio?.blockedCash)} blocked`} />
         <Metric label="Unrealized P/L" value={inr(portfolio?.unrealizedProfitLoss)} tone={(portfolio?.unrealizedProfitLoss ?? 0) >= 0 ? "positive" : "negative"} sub="Across current holdings" />
         <Metric label="Total return" value={`${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${inr(portfolio?.totalProfitLoss)} all time`} />
+      </section>
+
+      <section className="panel moversPanel">
+        <div className="moversHeader">
+          <div><span className="kicker">MARKET OVERVIEW</span><h2>Top movers</h2><p>Leading NSE equity gainers and losers by change from the previous close.</p></div>
+          <div className="moversMeta"><span className={`quoteStatus ${(movers?.dataStatus ?? "UNAVAILABLE").toLowerCase()}`}>{movers?.dataStatus === "CLOSED" ? "MARKET CLOSED" : movers?.dataStatus ?? "PREPARING"}</span><small>{movers?.generatedAt ? `Updated ${dateTime(movers.generatedAt)}` : "Building the first market snapshot"}</small></div>
+        </div>
+        <div className="moverTabs" role="tablist" aria-label="Market mover category">
+          <button type="button" role="tab" aria-selected={moverTab === "gainers"} className={moverTab === "gainers" ? "active" : ""} onClick={() => setMoverTab("gainers")}>Gainers</button>
+          <button type="button" role="tab" aria-selected={moverTab === "losers"} className={moverTab === "losers" ? "active" : ""} onClick={() => setMoverTab("losers")}>Losers</button>
+          <span>NSE equities</span>
+        </div>
+        <div className="moversTableWrap">
+          <table className="moversTable">
+            <thead><tr><th>Company</th><th>Market price</th><th>Day change</th><th>Volume</th></tr></thead>
+            <tbody>
+              {visibleMovers.map((mover) => {
+                const rising = mover.changePercent >= 0;
+                return <tr key={mover.instrumentKey}>
+                  <td><span className="moverMonogram">{mover.symbol.slice(0, 2)}</span><span><strong>{mover.name}</strong><small>{mover.symbol} · {mover.exchange}</small></span></td>
+                  <td><strong>{inr(mover.lastPrice)}</strong><small>{mover.dataStatus} · {dateTime(mover.priceTimestamp)}</small></td>
+                  <td className={rising ? "positive" : "negative"}><strong>{rising ? "+" : ""}{inr(mover.change)}</strong><small>{rising ? "+" : ""}{number(mover.changePercent)}%</small></td>
+                  <td><strong>{mover.volume == null ? "—" : number(mover.volume)}</strong></td>
+                </tr>;
+              })}
+              {!visibleMovers.length && <tr><td colSpan={4} className="emptyCell">StoxSim is preparing the first verified NSE market snapshot. It will remain available after the market closes.</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="workspaceGrid">

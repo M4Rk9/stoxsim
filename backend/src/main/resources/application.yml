@@ -44,8 +44,11 @@ stoxsim:
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
       instrument-master-url: ${UPSTOX_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz}
+      instrument-sync-on-startup: ${UPSTOX_INSTRUMENT_SYNC_ON_STARTUP:true}
       stream-enabled: ${UPSTOX_STREAM_ENABLED:false}
       quote-ttl-seconds: 30
+      quote-retention-days: 7
+      closed-quote-refresh-seconds: 900
       candle-ttl-minutes: 5
       stale-after-seconds: 15
       initial-instrument-keys:
