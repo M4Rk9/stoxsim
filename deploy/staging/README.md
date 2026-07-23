@@ -14,6 +14,20 @@ This layout is intended for the first private staging checkpoint. Production sho
 
 Only the deployment user and administrators should have SSH access. Pin the host key in GitHub; never disable SSH host-key checking.
 
+### Low-memory staging host
+
+The Compose bundle includes conservative service limits for a private, low-traffic host with 1 GB RAM:
+
+| Service | Memory limit |
+|---|---:|
+| Spring Boot API | 448 MB |
+| Next.js web | 192 MB |
+| PostgreSQL | 192 MB |
+| Redis | 64 MB |
+| Caddy | 64 MB |
+
+A 1 GB host must also have at least 2 GB of persistent swap. This profile is a temporary staging compromise: expect slower cold starts and do not use it for public production traffic. Keep Upstox streaming disabled until the complete stack is healthy. Upgrade to at least 4 GB RAM if containers restart for out-of-memory conditions or swap remains heavily used.
+
 ## First-time host setup
 
 Create the remote directory and copy the environment template:
@@ -43,7 +57,7 @@ Create a protected GitHub environment named `staging` and configure:
 | Secret | `STAGING_SSH_PRIVATE_KEY` | Dedicated deployment private key |
 | Secret | `STAGING_SSH_KNOWN_HOSTS` | Pinned `ssh-keyscan` output verified out of band |
 | Secret | `STAGING_GHCR_USERNAME` | GitHub user that can read the images |
-| Secret | `STAGING_GHCR_TOKEN` | Fine-grained token with package read access only |
+| Secret | `STAGING_GHCR_TOKEN` | Classic personal access token with `read:packages` only |
 
 Use environment reviewers if more than one person can deploy. The workflow serializes deployments so two releases cannot mutate staging simultaneously.
 
