@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import tools.jackson.core.JsonToken;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMapper;
@@ -46,6 +47,8 @@ public class UpstoxInstrumentSyncService {
         int accepted = 0;
         int ignored = 0;
         List<InstrumentSnapshot> batch = new ArrayList<>(BATCH_SIZE);
+        var elementReader = objectMapper.reader()
+            .without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
         for (String source : client.sources()) {
             int sourceAccepted = 0;
@@ -63,7 +66,7 @@ public class UpstoxInstrumentSyncService {
                 }
 
                 while (parser.nextToken() != JsonToken.END_ARRAY) {
-                    var node = objectMapper.readTree(parser);
+                    var node = elementReader.readTree(parser);
                     var snapshot = mapper.map(node);
                     if (snapshot.isEmpty()) {
                         ignored++;
