@@ -66,7 +66,7 @@ services:
       UPSTOX_ANALYTICS_TOKEN: ${UPSTOX_ANALYTICS_TOKEN:-}
       UPSTOX_STREAM_ENABLED: ${UPSTOX_STREAM_ENABLED:-false}
       SIMULATED_SLIPPAGE_BASIS_POINTS: ${SIMULATED_SLIPPAGE_BASIS_POINTS:-5}
-      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xms64m -Xmx224m -XX:MaxMetaspaceSize=96m -Xss256k"
+      JAVA_TOOL_OPTIONS: "-XX:+UseSerialGC -Xms64m -Xmx192m -Xss256k"
     expose:
       - "8080"
     depends_on:
