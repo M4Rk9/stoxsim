@@ -4,20 +4,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
-public class UpstoxInstrumentSyncJob {
+public class UpstoxInstrumentSyncJob implements ApplicationRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UpstoxInstrumentSyncJob.class);
 
     private final UpstoxInstrumentSyncService syncService;
     private final boolean syncOnStartup;
     private final AtomicBoolean running = new AtomicBoolean();
+    private final AtomicBoolean synchronizedAtLeastOnce = new AtomicBoolean();
 
     public UpstoxInstrumentSyncJob(
         UpstoxInstrumentSyncService syncService,
@@ -33,15 +34,27 @@ public class UpstoxInstrumentSyncJob {
         synchronize("scheduled");
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void synchronizeAfterStartup() {
+    @Override
+    public void run(ApplicationArguments arguments) {
         if (!syncOnStartup) {
             LOGGER.info("Upstox startup instrument sync is disabled");
             return;
         }
+        queueSynchronization("startup");
+    }
+
+    @Scheduled(initialDelay = 300_000, fixedDelay = 900_000)
+    public void recoverIncompleteStartupSync() {
+        if (!synchronizedAtLeastOnce.get()) {
+            queueSynchronization("recovery");
+        }
+    }
+
+    private void queueSynchronization(String trigger) {
+        LOGGER.info("Queuing Upstox {} instrument synchronization", trigger);
         Thread.ofVirtual()
             .name("upstox-instrument-startup-sync")
-            .start(() -> synchronize("startup"));
+            .start(() -> synchronize(trigger));
     }
 
     private void synchronize(String trigger) {
@@ -50,7 +63,12 @@ public class UpstoxInstrumentSyncJob {
             return;
         }
         try {
+            LOGGER.info("Upstox {} instrument synchronization started", trigger);
             var result = syncService.synchronize();
+            if (result.accepted() == 0) {
+                throw new IllegalStateException("Upstox instrument synchronization imported no instruments");
+            }
+            synchronizedAtLeastOnce.set(true);
             LOGGER.info(
                 "Upstox {} instrument sync {} completed: accepted={}, ignored={}, deactivated={}, duration={}",
                 trigger,

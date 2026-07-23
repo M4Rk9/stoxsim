@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import org.springframework.stereotype.Component;
@@ -27,8 +28,12 @@ public class UpstoxInstrumentMasterClient {
             .build();
     }
 
-    public InputStream download() throws IOException, InterruptedException {
-        var request = HttpRequest.newBuilder(URI.create(properties.getInstrumentMasterUrl()))
+    public List<String> sources() {
+        return properties.instrumentMasterUrls();
+    }
+
+    public InputStream download(String source) throws IOException, InterruptedException {
+        var request = HttpRequest.newBuilder(URI.create(source))
             .timeout(Duration.ofMinutes(2))
             .header("User-Agent", "StoxSim/0.1")
             .GET()
@@ -37,7 +42,12 @@ public class UpstoxInstrumentMasterClient {
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             response.body().close();
-            throw new IOException("Upstox instrument download returned HTTP " + response.statusCode());
+            throw new IOException(
+                "Upstox instrument download returned HTTP "
+                    + response.statusCode()
+                    + " for "
+                    + source
+            );
         }
         return new GZIPInputStream(response.body());
     }

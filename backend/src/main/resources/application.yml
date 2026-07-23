@@ -43,7 +43,8 @@ stoxsim:
   market-data:
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
-      instrument-master-url: ${UPSTOX_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz}
+      nse-instrument-master-url: ${UPSTOX_NSE_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz}
+      bse-instrument-master-url: ${UPSTOX_BSE_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/BSE.json.gz}
       instrument-sync-on-startup: ${UPSTOX_INSTRUMENT_SYNC_ON_STARTUP:true}
       stream-enabled: ${UPSTOX_STREAM_ENABLED:false}
       quote-ttl-seconds: 30
