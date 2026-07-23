@@ -96,7 +96,7 @@ public class MarketDataService {
         MarketExchange exchange
     ) {
         if (marketRegion == MarketRegion.INDIA
-            && indiaSessions.current(exchange).isRegularSession()) {
+            && indiaSessions.current(exchange).executable()) {
             return MarketDataStatus.LIVE;
         }
         return MarketDataStatus.CLOSED;
@@ -175,6 +175,6 @@ public class MarketDataService {
 
     private boolean isRegularSession(TradableInstrument instrument) {
         return instrument.getMarketRegion() == MarketRegion.INDIA
-            && indiaSessions.current(instrument.getExchange()).isRegularSession();
+            && indiaSessions.current(instrument.getExchange()).executable();
     }
 }
