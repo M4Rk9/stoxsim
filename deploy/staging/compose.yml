@@ -82,7 +82,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 45s
+      start_period: 360s
 
   frontend:
     image: ghcr.io/m4rk9/stoxsim-web:${STOXSIM_IMAGE_TAG:?Set STOXSIM_IMAGE_TAG to a commit SHA}
