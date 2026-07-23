@@ -16,6 +16,7 @@ public class UpstoxMarketDataProperties {
     private int quoteRetentionDays = 7;
     private int closedQuoteRefreshSeconds = 900;
     private int candleTtlMinutes = 5;
+    private int fundamentalsTtlHours = 6;
     private int staleAfterSeconds = 15;
     private List<String> initialInstrumentKeys = new ArrayList<>();
 
@@ -65,6 +66,14 @@ public class UpstoxMarketDataProperties {
 
     public void setCandleTtlMinutes(int candleTtlMinutes) {
         this.candleTtlMinutes = candleTtlMinutes;
+    }
+
+    public int getFundamentalsTtlHours() {
+        return fundamentalsTtlHours;
+    }
+
+    public void setFundamentalsTtlHours(int fundamentalsTtlHours) {
+        this.fundamentalsTtlHours = fundamentalsTtlHours;
     }
 
     public int getStaleAfterSeconds() {
