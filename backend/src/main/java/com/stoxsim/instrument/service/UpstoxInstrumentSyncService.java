@@ -7,9 +7,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import tools.jackson.core.JsonToken;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMapper;
@@ -18,6 +21,7 @@ import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMasterClient;
 @Service
 public class UpstoxInstrumentSyncService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(UpstoxInstrumentSyncService.class);
     private static final int BATCH_SIZE = 500;
 
     private final UpstoxInstrumentMasterClient client;
@@ -43,33 +47,53 @@ public class UpstoxInstrumentSyncService {
         int accepted = 0;
         int ignored = 0;
         List<InstrumentSnapshot> batch = new ArrayList<>(BATCH_SIZE);
+        var elementReader = objectMapper.reader()
+            .without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-        try (
-            var input = client.download();
-            var parser = objectMapper.createParser(input)
-        ) {
-            if (parser.nextToken() != JsonToken.START_ARRAY) {
-                throw new IOException("Upstox instrument master must contain a JSON array");
-            }
+        for (String source : client.sources()) {
+            int sourceAccepted = 0;
+            int sourceIgnored = 0;
+            LOGGER.info("Downloading Upstox instrument master from {}", source);
 
-            while (parser.nextToken() != JsonToken.END_ARRAY) {
-                var node = objectMapper.readTree(parser);
-                var snapshot = mapper.map(node);
-                if (snapshot.isEmpty()) {
-                    ignored++;
-                    continue;
+            try (
+                var input = client.download(source);
+                var parser = objectMapper.createParser(input)
+            ) {
+                if (parser.nextToken() != JsonToken.START_ARRAY) {
+                    throw new IOException(
+                        "Upstox instrument master must contain a JSON array: " + source
+                    );
                 }
 
-                batch.add(snapshot.get());
-                accepted++;
-                if (batch.size() == BATCH_SIZE) {
-                    batchService.upsert(List.copyOf(batch), syncId);
-                    batch.clear();
+                while (parser.nextToken() != JsonToken.END_ARRAY) {
+                    var node = elementReader.readTree(parser);
+                    var snapshot = mapper.map(node);
+                    if (snapshot.isEmpty()) {
+                        ignored++;
+                        sourceIgnored++;
+                        continue;
+                    }
+
+                    batch.add(snapshot.get());
+                    accepted++;
+                    sourceAccepted++;
+                    if (batch.size() == BATCH_SIZE) {
+                        batchService.upsert(List.copyOf(batch), syncId);
+                        batch.clear();
+                    }
                 }
             }
+
+            batchService.upsert(List.copyOf(batch), syncId);
+            batch.clear();
+            LOGGER.info(
+                "Processed Upstox instrument source {}: accepted={}, ignored={}",
+                source,
+                sourceAccepted,
+                sourceIgnored
+            );
         }
 
-        batchService.upsert(List.copyOf(batch), syncId);
         int deactivated = batchService.deactivateMissing(UpstoxInstrumentMapper.PROVIDER, syncId);
         return new InstrumentSyncResult(
             syncId,
