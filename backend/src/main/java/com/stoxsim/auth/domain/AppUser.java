@@ -63,4 +63,19 @@ public class AppUser {
     public Instant getCreatedAt() {
         return createdAt;
     }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void updateProfile(String email, String displayName) {
+        this.email = email;
+        this.displayName = displayName;
+        this.updatedAt = Instant.now();
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = Instant.now();
+    }
 }

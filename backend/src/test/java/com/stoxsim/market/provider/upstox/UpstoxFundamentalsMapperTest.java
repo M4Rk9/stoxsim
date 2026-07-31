@@ -37,13 +37,37 @@ class UpstoxFundamentalsMapperTest {
     }
 
     @Test
+    void mapsCamelCaseFieldsProducedByTheUpstoxSdkModel() throws Exception {
+        var profile = UpstoxFundamentalsMapper.profile(objectMapper.readTree("""
+            {
+              "companyProfile": "An SDK-mapped company description.",
+              "sector": "Refineries",
+              "sectorMarketCapInr": {
+                "value": 876543.21,
+                "formatted": "8,76,543.21 Cr"
+              }
+            }
+            """));
+        var ratios = UpstoxFundamentalsMapper.ratios(objectMapper.readTree("""
+            [
+              { "name": "P/E", "companyValue": "19.87", "sectorValue": "16.92" }
+            ]
+            """));
+
+        assertThat(profile.description()).contains("SDK-mapped");
+        assertThat(profile.sector()).isEqualTo("Refineries");
+        assertThat(profile.sectorMarketCapInrFormatted()).isEqualTo("8,76,543.21 Cr");
+        assertThat(ratios.getFirst().companyValue()).isEqualTo("19.87");
+    }
+
+    @Test
     void mapsQuarterlyRevenueAndProfitHistory() throws Exception {
         var financials = UpstoxFundamentalsMapper.financials(objectMapper.readTree("""
             {
               "type": "consolidated",
-              "time_period": "quarterly",
-              "units_in": "crore",
-              "income_statement": [
+              "timePeriod": "quarterly",
+              "unitsIn": "crore",
+              "incomeStatement": [
                 {
                   "category": "revenue",
                   "history": [

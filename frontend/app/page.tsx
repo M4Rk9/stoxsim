@@ -581,25 +581,18 @@ export default function Home() {
   async function loadDashboard(accessToken: string) {
     setLoading(true);
     setError("");
+
+    void authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken).then(setMarket).catch(() => undefined);
+    void authorizedRequest<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken).then(setOrders).catch(() => undefined);
+    void authorizedRequest<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken).then(setTrades).catch(() => undefined);
+    void authorizedRequest<IndexQuote[]>("/api/v1/market/indices", {}, accessToken).then(setIndices).catch(() => undefined);
+    void authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken).then(setWatchlist).catch(() => undefined);
+    void authorizedRequest<MarketMovers>("/api/v1/market/movers", {}, accessToken).then(setMovers).catch(() => undefined);
+
     try {
-      const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices, nextWatchlist, nextMovers] = await Promise.all([
-        authorizedRequest<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken),
-        authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken),
-        authorizedRequest<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken),
-        authorizedRequest<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken),
-        authorizedRequest<IndexQuote[]>("/api/v1/market/indices", {}, accessToken),
-        authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken),
-        authorizedRequest<MarketMovers>("/api/v1/market/movers", {}, accessToken),
-      ]);
-      setPortfolio(nextPortfolio);
-      setMarket(nextMarket);
-      setOrders(nextOrders);
-      setTrades(nextTrades);
-      setIndices(nextIndices);
-      setWatchlist(nextWatchlist);
-      setMovers(nextMovers);
+      setPortfolio(await authorizedRequest<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load your dashboard");
+      setError(cause instanceof Error ? cause.message : "Could not load your portfolio");
     } finally {
       setLoading(false);
     }
@@ -731,7 +724,7 @@ export default function Home() {
         body: JSON.stringify(body),
       });
       persistSession(authenticated);
-      await loadDashboard(authenticated.accessToken);
+      void loadDashboard(authenticated.accessToken);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Authentication failed");
     } finally {
@@ -986,13 +979,13 @@ export default function Home() {
 
       <section className="panel moversPanel">
         <div className="moversHeader">
-          <div><span className="kicker">MARKET OVERVIEW</span><h2>Top movers</h2><p>Leading NSE equity gainers and losers by change from the previous close.</p></div>
+          <div><span className="kicker">MARKET OVERVIEW</span><h2>Top movers</h2><p>Leading NIFTY 100 gainers and losers by change from the previous close.</p></div>
           <div className="moversMeta"><span className={`quoteStatus ${(movers?.dataStatus ?? "UNAVAILABLE").toLowerCase()}`}>{movers?.dataStatus === "CLOSED" ? "MARKET CLOSED" : movers?.dataStatus ?? "PREPARING"}</span><small>{movers?.generatedAt ? `Updated ${dateTime(movers.generatedAt)}` : "Building the first market snapshot"}</small></div>
         </div>
         <div className="moverTabs" role="tablist" aria-label="Market mover category">
           <button type="button" role="tab" aria-selected={moverTab === "gainers"} className={moverTab === "gainers" ? "active" : ""} onClick={() => setMoverTab("gainers")}>Gainers</button>
           <button type="button" role="tab" aria-selected={moverTab === "losers"} className={moverTab === "losers" ? "active" : ""} onClick={() => setMoverTab("losers")}>Losers</button>
-          <span>NSE equities</span>
+          <span>NIFTY 100</span>
         </div>
         <div className="moversTableWrap">
           <table className="moversTable">
@@ -1007,7 +1000,7 @@ export default function Home() {
                   <td><strong>{mover.volume == null ? "—" : number(mover.volume)}</strong></td>
                 </tr>;
               })}
-              {!visibleMovers.length && <tr><td colSpan={4} className="emptyCell">StoxSim is preparing the first verified NSE market snapshot. It will remain available after the market closes.</td></tr>}
+              {!visibleMovers.length && <tr><td colSpan={4} className="emptyCell">StoxSim is preparing the first verified NIFTY 100 market snapshot. It will remain available after the market closes.</td></tr>}
             </tbody>
           </table>
         </div>

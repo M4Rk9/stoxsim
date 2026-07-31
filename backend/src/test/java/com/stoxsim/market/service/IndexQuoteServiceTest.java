@@ -2,6 +2,7 @@ package com.stoxsim.market.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -23,15 +24,18 @@ import com.stoxsim.market.data.InstrumentKey;
 import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.data.Quote;
 import com.stoxsim.market.domain.MarketRegion;
+import com.stoxsim.market.provider.upstox.UpstoxMarketDataProperties;
 
 @ExtendWith(MockitoExtension.class)
 class IndexQuoteServiceTest {
 
     @Mock private TradableInstrumentRepository instruments;
     @Mock private MarketDataService marketData;
+    @Mock private UpstoxMarketDataProperties upstoxProperties;
 
     @Test
     void calculatesPointAndPercentageChangeAndKeepsMissingIndicesVisible() {
+        when(upstoxProperties.hasAnalyticsToken()).thenReturn(true);
         TradableInstrument nifty = index("NSE_INDEX|Nifty 50", "Nifty 50");
         when(instruments.findAllByProviderAndInstrumentKeyIn(
             org.mockito.ArgumentMatchers.eq("UPSTOX"),
@@ -58,7 +62,11 @@ class IndexQuoteServiceTest {
             org.mockito.ArgumentMatchers.any()
         )).thenReturn(MarketDataStatus.LIVE);
 
-        var responses = new IndexQuoteService(instruments, marketData).current();
+        var responses = new IndexQuoteService(
+            instruments,
+            marketData,
+            upstoxProperties
+        ).current();
 
         assertThat(responses).hasSize(6);
         assertThat(responses.getFirst().value()).isEqualByComparingTo("25050.0000");
@@ -66,6 +74,24 @@ class IndexQuoteServiceTest {
         assertThat(responses.getFirst().changePercent()).isEqualByComparingTo("0.2000");
         assertThat(responses.getFirst().dataStatus()).isEqualTo(MarketDataStatus.LIVE);
         assertThat(responses.get(1).dataStatus()).isEqualTo(MarketDataStatus.UNAVAILABLE);
+    }
+
+    @Test
+    void returnsPlaceholdersWithoutCallingProviderWhenTokenIsMissing() {
+        when(upstoxProperties.hasAnalyticsToken()).thenReturn(false);
+
+        var responses = new IndexQuoteService(
+            instruments,
+            marketData,
+            upstoxProperties
+        ).current();
+
+        assertThat(responses).hasSize(6);
+        assertThat(responses).allSatisfy(response -> {
+            assertThat(response.value()).isNull();
+            assertThat(response.dataStatus()).isEqualTo(MarketDataStatus.UNAVAILABLE);
+        });
+        verifyNoInteractions(instruments, marketData);
     }
 
     private TradableInstrument index(String key, String name) {

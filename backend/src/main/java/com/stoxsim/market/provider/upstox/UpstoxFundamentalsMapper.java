@@ -21,8 +21,8 @@ public final class UpstoxFundamentalsMapper {
         if (missing(data)) {
             return null;
         }
-        JsonNode marketCap = data.path("sector_market_cap_inr");
-        String description = text(data, "company_profile");
+        JsonNode marketCap = field(data, "sector_market_cap_inr", "sectorMarketCapInr");
+        String description = text(data, "company_profile", "companyProfile");
         String sector = text(data, "sector");
         if (description == null && sector == null) {
             return null;
@@ -30,7 +30,7 @@ public final class UpstoxFundamentalsMapper {
         return new CompanyProfile(
             description,
             sector,
-            decimal(marketCap.get("value")),
+            decimal(field(marketCap, "value")),
             text(marketCap, "formatted")
         );
     }
@@ -45,8 +45,8 @@ public final class UpstoxFundamentalsMapper {
             if (name != null) {
                 ratios.add(new FundamentalRatio(
                     name,
-                    text(ratio, "company_value"),
-                    text(ratio, "sector_value")
+                    text(ratio, "company_value", "companyValue"),
+                    text(ratio, "sector_value", "sectorValue")
                 ));
             }
         }
@@ -58,7 +58,7 @@ public final class UpstoxFundamentalsMapper {
             return null;
         }
         List<FinancialMetric> metrics = new ArrayList<>();
-        JsonNode statements = data.path("income_statement");
+        JsonNode statements = field(data, "income_statement", "incomeStatement");
         if (statements.isArray()) {
             for (JsonNode statement : statements) {
                 String category = text(statement, "category");
@@ -66,11 +66,11 @@ public final class UpstoxFundamentalsMapper {
                     continue;
                 }
                 List<FinancialHistoryPoint> history = new ArrayList<>();
-                JsonNode entries = statement.path("history");
+                JsonNode entries = field(statement, "history");
                 if (entries.isArray()) {
                     for (JsonNode entry : entries) {
                         String period = text(entry, "period");
-                        BigDecimal value = decimal(entry.get("value"));
+                        BigDecimal value = decimal(field(entry, "value"));
                         if (period != null && value != null) {
                             history.add(new FinancialHistoryPoint(
                                 period,
@@ -88,21 +88,31 @@ public final class UpstoxFundamentalsMapper {
         }
         return new FinancialPerformance(
             text(data, "type"),
-            text(data, "time_period"),
-            text(data, "units_in"),
+            text(data, "time_period", "timePeriod"),
+            text(data, "units_in", "unitsIn"),
             List.copyOf(metrics)
         );
+    }
+
+    private static JsonNode field(JsonNode node, String... names) {
+        if (missing(node)) {
+            return null;
+        }
+        for (String name : names) {
+            JsonNode value = node.get(name);
+            if (!missing(value)) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private static boolean missing(JsonNode node) {
         return node == null || node.isNull() || node.isMissingNode();
     }
 
-    private static String text(JsonNode node, String field) {
-        if (missing(node)) {
-            return null;
-        }
-        JsonNode value = node.get(field);
+    private static String text(JsonNode node, String... fields) {
+        JsonNode value = field(node, fields);
         if (missing(value)) {
             return null;
         }
