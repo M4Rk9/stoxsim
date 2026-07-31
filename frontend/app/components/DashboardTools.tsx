@@ -51,30 +51,22 @@ export default function DashboardTools() {
       setSelectedStock(null);
       return;
     }
-    const scan = () => {
-      const universeLabel = document.querySelector(".moverTabs > span");
-      if (universeLabel && universeLabel.textContent !== "NIFTY 100") {
-        universeLabel.textContent = "NIFTY 100";
-      }
-      const moversDescription = document.querySelector(".moversHeader p");
-      if (moversDescription) {
-        moversDescription.textContent = "Leading NIFTY 100 gainers and losers by change from the previous close.";
-      }
 
-      const quoteCard = document.querySelector(".quoteCard");
-      const symbol = quoteCard?.querySelector(".quoteTop h3")?.textContent?.trim();
-      if (!symbol) {
-        setSelectedStock(null);
-        return;
-      }
-      setSelectedStock((current) => current?.symbol === symbol
-        ? current
-        : { exchange: "NSE", symbol });
+    const scanSelectedStock = () => {
+      const symbol = document
+        .querySelector(".quoteCard .quoteTop h3")
+        ?.textContent
+        ?.trim();
+      setSelectedStock((current) => {
+        if (!symbol) return current == null ? current : null;
+        if (current?.symbol === symbol && current.exchange === "NSE") return current;
+        return { exchange: "NSE", symbol };
+      });
     };
-    scan();
-    const observer = new MutationObserver(scan);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+
+    scanSelectedStock();
+    const timer = window.setInterval(scanSelectedStock, 500);
+    return () => window.clearInterval(timer);
   }, [pathname]);
 
   useEffect(() => {
