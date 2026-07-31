@@ -7,7 +7,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -39,6 +41,28 @@ public class MarketMoverService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final int BATCH_SIZE = 500;
     private static final int RESULT_LIMIT = 8;
+    private static final Set<String> NIFTY_100_SYMBOLS = Set.of(
+        "ABB", "ADANIENSOL", "ADANIENT", "ADANIGREEN", "ADANIPORTS",
+        "ADANIPOWER", "AMBUJACEM", "APOLLOHOSP", "ASIANPAINT", "DMART",
+        "AXISBANK", "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV", "BAJAJHLDNG",
+        "BANKBARODA", "BEL", "BPCL", "BHARTIARTL", "BOSCHLTD",
+        "BRITANNIA", "CGPOWER", "CANBK", "CHOLAFIN", "CIPLA",
+        "COALINDIA", "CUMMINSIND", "DLF", "DIVISLAB", "DRREDDY",
+        "EICHERMOT", "ETERNAL", "GAIL", "GODREJCP", "GRASIM",
+        "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE", "HINDALCO",
+        "HAL", "HINDUNILVR", "HINDZINC", "HYUNDAI", "ICICIBANK",
+        "ITC", "INDHOTEL", "IOC", "IRFC", "INFY",
+        "INDIGO", "JSWSTEEL", "JINDALSTEL", "JIOFIN", "KOTAKBANK",
+        "LTM", "LT", "LODHA", "M&M", "MARUTI",
+        "MAXHEALTH", "MAZDOCK", "MUTHOOTFIN", "NTPC", "NESTLEIND",
+        "ONGC", "PIDILITIND", "PFC", "POWERGRID", "PNB",
+        "RECLTD", "RELIANCE", "SBILIFE", "MOTHERSON", "SHREECEM",
+        "SHRIRAMFIN", "ENRIN", "SIEMENS", "SOLARINDS", "SBIN",
+        "SUNPHARMA", "TVSMOTOR", "TATACAP", "TCS", "TATACONSUM",
+        "TMCV", "TMPV", "TATAPOWER", "TATASTEEL", "TECHM",
+        "TITAN", "TORNTPHARM", "TRENT", "ULTRACEMCO", "UNIONBANK",
+        "UNITDSPR", "VBL", "VEDL", "WIPRO", "ZYDUSLIFE"
+    );
 
     private final TradableInstrumentRepository instruments;
     private final MarketDataProviderRegistry providers;
@@ -63,6 +87,7 @@ public class MarketMoverService {
 
     public MarketMoversResponse current() {
         return moversCache.find()
+            .filter(snapshot -> "NIFTY_100".equals(snapshot.universe()))
             .map(this::withCurrentStatus)
             .orElseGet(this::refresh);
     }
@@ -71,6 +96,7 @@ public class MarketMoverService {
     public MarketMoversResponse refresh() {
         if (!refreshing.compareAndSet(false, true)) {
             return moversCache.find()
+                .filter(snapshot -> "NIFTY_100".equals(snapshot.universe()))
                 .map(this::withCurrentStatus)
                 .orElseGet(MarketMoversResponse::unavailable);
         }
@@ -84,11 +110,10 @@ public class MarketMoverService {
     private MarketMoversResponse refreshSnapshot() {
         if (!upstoxProperties.hasAnalyticsToken()) {
             LOGGER.info("Market movers refresh is disabled until an Upstox token is configured");
-            return moversCache.find()
-                .map(this::withCurrentStatus)
-                .orElseGet(MarketMoversResponse::unavailable);
+            return cachedOrUnavailable();
         }
-        var existing = moversCache.find();
+        var existing = moversCache.find()
+            .filter(snapshot -> "NIFTY_100".equals(snapshot.universe()));
         if (marketData.marketStatus(MarketRegion.INDIA, MarketExchange.NSE)
             == MarketDataStatus.CLOSED
             && existing.isPresent()) {
@@ -99,12 +124,15 @@ public class MarketMoverService {
                 MarketRegion.INDIA,
                 MarketExchange.NSE,
                 InstrumentType.EQUITY
-            );
+            )
+            .stream()
+            .filter(instrument -> NIFTY_100_SYMBOLS.contains(
+                instrument.getTradingSymbol().toUpperCase(Locale.ROOT)
+            ))
+            .toList();
         if (universe.isEmpty()) {
-            LOGGER.info("Market movers refresh is waiting for the instrument master");
-            return moversCache.find()
-                .map(this::withCurrentStatus)
-                .orElseGet(MarketMoversResponse::unavailable);
+            LOGGER.info("Market movers refresh is waiting for the NIFTY 100 instrument universe");
+            return cachedOrUnavailable();
         }
 
         MarketDataProvider provider = providers.forRegion(MarketRegion.INDIA);
@@ -118,10 +146,8 @@ public class MarketMoverService {
         }
 
         if (candidates.isEmpty()) {
-            LOGGER.warn("Market movers refresh returned no usable NSE equity quotes");
-            return moversCache.find()
-                .map(this::withCurrentStatus)
-                .orElseGet(MarketMoversResponse::unavailable);
+            LOGGER.warn("Market movers refresh returned no usable NIFTY 100 quotes");
+            return cachedOrUnavailable();
         }
 
         Comparator<MarketMoverResponse> byChange = Comparator.comparing(
@@ -142,7 +168,7 @@ public class MarketMoverService {
             MarketExchange.NSE
         );
         MarketMoversResponse response = new MarketMoversResponse(
-            "NSE_EQUITIES",
+            "NIFTY_100",
             Instant.now(),
             status,
             gainers,
@@ -150,10 +176,17 @@ public class MarketMoverService {
         );
         moversCache.store(response);
         LOGGER.info(
-            "Market movers refreshed from {} NSE equity quotes",
+            "Market movers refreshed from {} NIFTY 100 quotes",
             candidates.size()
         );
         return response;
+    }
+
+    private MarketMoversResponse cachedOrUnavailable() {
+        return moversCache.find()
+            .filter(snapshot -> "NIFTY_100".equals(snapshot.universe()))
+            .map(this::withCurrentStatus)
+            .orElseGet(MarketMoversResponse::unavailable);
     }
 
     private MarketMoversResponse withCurrentStatus(MarketMoversResponse snapshot) {
