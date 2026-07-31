@@ -28,9 +28,14 @@ public class UpstoxHistoricalCandleClient {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final UpstoxClientFactory clientFactory;
 
-    public UpstoxHistoricalCandleClient(ObjectMapper objectMapper) {
+    public UpstoxHistoricalCandleClient(
+        ObjectMapper objectMapper,
+        UpstoxClientFactory clientFactory
+    ) {
         this.objectMapper = objectMapper;
+        this.clientFactory = clientFactory;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .build();
@@ -52,9 +57,11 @@ public class UpstoxHistoricalCandleClient {
             to,
             from
         ));
+        String authorization = clientFactory.authorizationHeaders().get("Authorization");
         HttpRequest request = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofSeconds(20))
             .header("Accept", "application/json")
+            .header("Authorization", authorization)
             .header("User-Agent", "StoxSim/0.1")
             .GET()
             .build();
