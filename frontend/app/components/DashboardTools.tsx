@@ -52,19 +52,24 @@ export default function DashboardTools() {
       return;
     }
     const scan = () => {
+      const universeLabel = document.querySelector(".moverTabs > span");
+      if (universeLabel && universeLabel.textContent !== "NIFTY 100") {
+        universeLabel.textContent = "NIFTY 100";
+      }
+      const moversDescription = document.querySelector(".moversHeader p");
+      if (moversDescription) {
+        moversDescription.textContent = "Leading NIFTY 100 gainers and losers by change from the previous close.";
+      }
+
       const quoteCard = document.querySelector(".quoteCard");
       const symbol = quoteCard?.querySelector(".quoteTop h3")?.textContent?.trim();
       if (!symbol) {
         setSelectedStock(null);
         return;
       }
-      const exchange = quoteCard
-        .querySelector(".quoteStats")
-        ? "NSE"
-        : "NSE";
       setSelectedStock((current) => current?.symbol === symbol
         ? current
-        : { exchange, symbol });
+        : { exchange: "NSE", symbol });
     };
     scan();
     const observer = new MutationObserver(scan);
