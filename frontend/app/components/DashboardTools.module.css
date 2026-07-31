@@ -1,0 +1,137 @@
+.accountWrap {
+  position: fixed;
+  z-index: 80;
+  top: 18px;
+  right: 182px;
+  font-family: inherit;
+}
+
+.accountButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #d8e0d7;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0b2c3f;
+  box-shadow: 0 8px 28px rgba(15, 39, 33, 0.08);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.accountButton:hover,
+.accountButton:focus-visible {
+  border-color: #0b8f55;
+  outline: none;
+}
+
+.accountButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 250px;
+  overflow: hidden;
+  border: 1px solid #d8e0d7;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 22px 60px rgba(15, 39, 33, 0.18);
+}
+
+.identity {
+  padding: 16px;
+  border-bottom: 1px solid #edf1ec;
+}
+
+.identity strong,
+.identity span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity strong {
+  color: #14251f;
+  font-size: 14px;
+}
+
+.identity span {
+  margin-top: 4px;
+  color: #6c7c74;
+  font-size: 12px;
+}
+
+.menuLink,
+.signOut {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border: 0;
+  border-bottom: 1px solid #edf1ec;
+  background: #fff;
+  color: #173126;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.menuLink:hover,
+.signOut:hover {
+  background: #f5faf6;
+}
+
+.signOut {
+  border-bottom: 0;
+  color: #b53030;
+}
+
+.stockLink {
+  position: fixed;
+  z-index: 70;
+  right: 28px;
+  bottom: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  border: 1px solid #0b8f55;
+  border-radius: 999px;
+  background: #0b2c3f;
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(11, 44, 63, 0.22);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.stockLink:hover,
+.stockLink:focus-visible {
+  background: #0b8f55;
+  outline: none;
+}
+
+@media (max-width: 900px) {
+  .accountWrap {
+    top: 74px;
+    right: 16px;
+  }
+
+  .stockLink {
+    right: 16px;
+    bottom: 16px;
+  }
+}
