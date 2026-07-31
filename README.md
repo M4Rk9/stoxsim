@@ -37,17 +37,19 @@ docker compose up --build
 - API status: http://localhost:8080/api/v1/system/status
 - API health: http://localhost:8080/actuator/health
 
-Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM_ENABLED=true` so resting limit and queued orders can react to live ticks.
+Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and company fundamentals. Set `UPSTOX_STREAM_ENABLED=true` so resting limit and queued orders can react to live ticks.
 
 ## Implemented APIs
 
-### Authentication
+### Authentication and account settings
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `PATCH /api/v1/auth/me`
+- `PATCH /api/v1/auth/me/password`
 
 ### Instruments and market data
 
@@ -55,8 +57,10 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
+- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/insights`
 - `GET /api/v1/market/status?exchange=NSE`
 - `GET /api/v1/market/indices`
+- `GET /api/v1/market/movers` — top gainers and losers restricted to the NIFTY 100 universe
 - STOMP WebSocket endpoint: `/ws/market`
 - Quote topic: `/topic/market/quotes`
 
@@ -81,7 +85,7 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and candles. Set `UPSTOX_STREAM
 
 Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling. Executions include an effective-dated simulated charge breakdown, and portfolio valuation incorporates charges into cost basis and realized returns.
 
-The connected dashboard supports registration, sign-in, automatic access-token refresh, six Indian index cards, persistent watchlists, real-time STOMP quote updates with reconnect health, NSE stock search, interactive historical charts, quotes, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
+The connected dashboard supports registration, sign-in, automatic access-token refresh, editable profile and password settings, six Indian index cards with previous-close movement, persistent watchlists, real-time STOMP quote updates with reconnect health, NIFTY 100 gainers and losers, NSE stock search, interactive historical charts, company fundamentals, standalone stock research pages, order entry, cancellation, holdings, portfolio metrics and trade history. The United States selector remains visible as the next product phase.
 
 The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
@@ -100,7 +104,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 
 ## Current milestone
 
-The India learning journey now includes persistent watchlists, real-time WebSocket updates, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. A provider-neutral private staging bundle now adds automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, backups, restore, immutable-image deployment and verified rollback. Next: provision the private host and DNS, configure the protected GitHub staging environment and deploy the first tested image.
+The India learning journey now includes persistent watchlists, real-time WebSocket updates, previous-close index moves, NIFTY 100 market movers, dedicated stock research pages, editable account settings, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. A provider-neutral private staging bundle adds automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, backups, restore, immutable-image deployment and verified rollback.
 
 ## License
 
