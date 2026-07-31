@@ -15,6 +15,7 @@ import com.stoxsim.instrument.repository.TradableInstrumentRepository;
 import com.stoxsim.market.api.IndexQuoteResponse;
 import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.data.Quote;
+import com.stoxsim.market.provider.upstox.UpstoxMarketDataProperties;
 
 @Service
 public class IndexQuoteService {
@@ -31,16 +32,23 @@ public class IndexQuoteService {
 
     private final TradableInstrumentRepository instruments;
     private final MarketDataService marketData;
+    private final UpstoxMarketDataProperties upstoxProperties;
 
     public IndexQuoteService(
         TradableInstrumentRepository instruments,
-        MarketDataService marketData
+        MarketDataService marketData,
+        UpstoxMarketDataProperties upstoxProperties
     ) {
         this.instruments = instruments;
         this.marketData = marketData;
+        this.upstoxProperties = upstoxProperties;
     }
 
     public List<IndexQuoteResponse> current() {
+        if (!upstoxProperties.hasAnalyticsToken()) {
+            return INDEXES.stream().map(this::unavailable).toList();
+        }
+
         List<String> keys = INDEXES.stream().map(IndexDefinition::instrumentKey).toList();
         Map<String, TradableInstrument> indexed = instruments
             .findAllByProviderAndInstrumentKeyIn(UpstoxInstrumentMapper.PROVIDER, keys)
