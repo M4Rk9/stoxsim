@@ -41,12 +41,13 @@ class MarketMoverServiceTest {
     @Mock private UpstoxMarketDataProperties upstoxProperties;
 
     @Test
-    void ranksPositiveAndNegativeMovesAndKeepsTheSnapshotStatus() {
+    void ranksOnlyNifty100PositiveAndNegativeMoves() {
         List<TradableInstrument> universe = List.of(
-            equity("AAA", "Alpha"),
-            equity("BBB", "Beta"),
-            equity("CCC", "Gamma"),
-            equity("DDD", "Delta")
+            equity("RELIANCE", "Reliance Industries"),
+            equity("TCS", "Tata Consultancy Services"),
+            equity("INFY", "Infosys"),
+            equity("ITC", "ITC"),
+            equity("AAA", "Not a NIFTY 100 constituent")
         );
         when(instruments
             .findAllByMarketRegionAndExchangeAndInstrumentTypeAndActiveTrueOrderByTradingSymbol(
@@ -57,10 +58,10 @@ class MarketMoverServiceTest {
             .thenReturn(universe);
         when(providers.forRegion(MarketRegion.INDIA)).thenReturn(provider);
         when(provider.getQuotes(anySet())).thenReturn(List.of(
-            quote("AAA", "112", "100"),
-            quote("BBB", "105", "100"),
-            quote("CCC", "92", "100"),
-            quote("DDD", "98", "100")
+            quote("RELIANCE", "112", "100"),
+            quote("TCS", "105", "100"),
+            quote("INFY", "92", "100"),
+            quote("ITC", "98", "100")
         ));
         when(marketData.status(any(), any())).thenReturn(MarketDataStatus.CLOSED);
         when(marketData.marketStatus(MarketRegion.INDIA, MarketExchange.NSE))
@@ -76,13 +77,17 @@ class MarketMoverServiceTest {
             upstoxProperties
         ).refresh();
 
+        assertThat(response.universe()).isEqualTo("NIFTY_100");
         assertThat(response.dataStatus()).isEqualTo(MarketDataStatus.CLOSED);
         assertThat(response.gainers())
             .extracting(mover -> mover.symbol())
-            .containsExactly("AAA", "BBB");
+            .containsExactly("RELIANCE", "TCS");
         assertThat(response.losers())
             .extracting(mover -> mover.symbol())
-            .containsExactly("CCC", "DDD");
+            .containsExactly("INFY", "ITC");
+        assertThat(response.gainers())
+            .extracting(mover -> mover.symbol())
+            .doesNotContain("AAA");
     }
 
     private TradableInstrument equity(String symbol, String name) {
