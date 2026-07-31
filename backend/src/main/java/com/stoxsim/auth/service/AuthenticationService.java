@@ -14,6 +14,8 @@ import com.stoxsim.account.service.AccountService;
 import com.stoxsim.auth.api.dto.AccountResponse;
 import com.stoxsim.auth.api.dto.AuthResponse;
 import com.stoxsim.auth.api.dto.LoginRequest;
+import com.stoxsim.auth.api.dto.PasswordUpdateRequest;
+import com.stoxsim.auth.api.dto.ProfileUpdateRequest;
 import com.stoxsim.auth.api.dto.RegisterRequest;
 import com.stoxsim.auth.api.dto.UserResponse;
 import com.stoxsim.auth.domain.AppUser;
@@ -104,9 +106,35 @@ public class AuthenticationService {
 
     @Transactional(readOnly = true)
     public UserResponse currentUser(UUID userId) {
-        var user = userRepository.findById(userId)
-            .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+        AppUser user = requireUser(userId);
         return UserResponse.from(user, accountService.findByUserId(userId));
+    }
+
+    @Transactional
+    public UserResponse updateProfile(UUID userId, ProfileUpdateRequest request) {
+        AppUser user = requireUser(userId);
+        String email = normalizeEmail(request.email());
+        userRepository.findByEmailIgnoreCase(email)
+            .filter(existing -> !existing.getId().equals(userId))
+            .ifPresent(existing -> {
+                throw new ConflictException("An account already exists for this email");
+            });
+        user.updateProfile(email, request.displayName().trim());
+        return UserResponse.from(user, accountService.findByUserId(userId));
+    }
+
+    @Transactional
+    public void updatePassword(UUID userId, PasswordUpdateRequest request) {
+        AppUser user = requireUser(userId);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Current password is incorrect");
+        }
+        user.changePassword(passwordEncoder.encode(request.newPassword()));
+    }
+
+    private AppUser requireUser(UUID userId) {
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
     }
 
     private AuthResponse response(
