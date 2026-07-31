@@ -9,6 +9,130 @@ permissions:
   contents: read
 
 jobs:
+  patch-dashboard:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/market-data-profile-stock-detail'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/market-data-profile-stock-detail
+          fetch-depth: 0
+      - name: Make dashboard loading non-blocking
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("frontend/app/page.tsx")
+          source = path.read_text(encoding="utf-8")
+
+          old_loader = '''  async function loadDashboard(accessToken: string) {
+            setLoading(true);
+            setError("");
+            try {
+              const [nextPortfolio, nextMarket, nextOrders, nextTrades, nextIndices, nextWatchlist, nextMovers] = await Promise.all([
+                authorizedRequest<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", {}, accessToken),
+                authorizedRequest<MarketStatus>("/api/v1/market/status?exchange=NSE", {}, accessToken),
+                authorizedRequest<PaperOrder[]>("/api/v1/orders?marketRegion=INDIA", {}, accessToken),
+                authorizedRequest<Trade[]>("/api/v1/trades?marketRegion=INDIA", {}, accessToken),
+                authorizedRequest<IndexQuote[]>("/api/v1/market/indices", {}, accessToken),
+                authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken),
+                authorizedRequest<MarketMovers>("/api/v1/market/movers", {}, accessToken),
+              ]);
+              setPortfolio(nextPortfolio);
+              setMarket(nextMarket);
+              setOrders(nextOrders);
+              setTrades(nextTrades);
+              setIndices(nextIndices);
+              setWatchlist(nextWatchlist);
+              setMovers(nextMovers);
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : "Could not load your dashboard");
+            } finally {
+              setLoading(false);
+            }
+          }
+          '''
+
+          new_loader = '''  async function loadDashboard(accessToken: string) {
+            setLoading(true);
+            setError("");
+
+            const portfolioRequest = authorizedRequest<Portfolio>(
+              "/api/v1/portfolio?marketRegion=INDIA",
+              {},
+              accessToken,
+            ).then(setPortfolio);
+
+            const secondaryRequests = [
+              authorizedRequest<MarketStatus>(
+                "/api/v1/market/status?exchange=NSE",
+                {},
+                accessToken,
+              ).then(setMarket),
+              authorizedRequest<PaperOrder[]>(
+                "/api/v1/orders?marketRegion=INDIA",
+                {},
+                accessToken,
+              ).then(setOrders),
+              authorizedRequest<Trade[]>(
+                "/api/v1/trades?marketRegion=INDIA",
+                {},
+                accessToken,
+              ).then(setTrades),
+              authorizedRequest<IndexQuote[]>(
+                "/api/v1/market/indices",
+                {},
+                accessToken,
+              ).then(setIndices),
+              authorizedRequest<Watchlist>(
+                "/api/v1/watchlists/default",
+                {},
+                accessToken,
+              ).then(setWatchlist),
+              authorizedRequest<MarketMovers>(
+                "/api/v1/market/movers",
+                {},
+                accessToken,
+              ).then(setMovers),
+            ];
+
+            void Promise.allSettled(secondaryRequests);
+            try {
+              await portfolioRequest;
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : "Could not load your portfolio");
+            } finally {
+              setLoading(false);
+            }
+          }
+          '''
+
+          replacements = [
+            (old_loader, new_loader),
+            ("      await loadDashboard(authenticated.accessToken);", "      void loadDashboard(authenticated.accessToken);"),
+            ("Leading NSE equity gainers and losers by change from the previous close.", "Leading NIFTY 100 gainers and losers by change from the previous close."),
+            ("<span>NSE equities</span>", "<span>NIFTY 100</span>"),
+            ("StoxSim is preparing the first verified NSE market snapshot.", "StoxSim is preparing the first verified NIFTY 100 market snapshot."),
+          ]
+
+          for old, new in replacements:
+            if old not in source:
+              raise SystemExit(f"Expected dashboard source fragment was not found: {old[:80]!r}")
+            source = source.replace(old, new, 1)
+
+          path.write_text(source, encoding="utf-8")
+      - name: Commit patch and remove temporary automation
+        run: |
+          rm -f .github/workflows/one-time-dashboard-patch.yml
+          git checkout origin/main -- .github/workflows/ci.yml
+          git config user.name "stoxsim-ci"
+          git config user.email "stoxsim-ci@users.noreply.github.com"
+          git add frontend/app/page.tsx .github/workflows/ci.yml .github/workflows/one-time-dashboard-patch.yml
+          git commit -m "Make dashboard loading non-blocking [dashboard-patch]"
+          git push origin HEAD:fix/market-data-profile-stock-detail
+
   backend:
     runs-on: ubuntu-latest
     defaults:
