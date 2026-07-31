@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stoxsim.auth.api.dto.AuthResponse;
 import com.stoxsim.auth.api.dto.LoginRequest;
+import com.stoxsim.auth.api.dto.PasswordUpdateRequest;
+import com.stoxsim.auth.api.dto.ProfileUpdateRequest;
 import com.stoxsim.auth.api.dto.RefreshTokenRequest;
 import com.stoxsim.auth.api.dto.RegisterRequest;
 import com.stoxsim.auth.api.dto.UserResponse;
@@ -56,5 +59,28 @@ public class AuthController {
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal Jwt jwt) {
         return authenticationService.currentUser(UUID.fromString(jwt.getSubject()));
+    }
+
+    @PatchMapping("/me")
+    public UserResponse updateProfile(
+        @AuthenticationPrincipal Jwt jwt,
+        @Valid @RequestBody ProfileUpdateRequest request
+    ) {
+        return authenticationService.updateProfile(
+            UUID.fromString(jwt.getSubject()),
+            request
+        );
+    }
+
+    @PatchMapping("/me/password")
+    public ResponseEntity<Void> updatePassword(
+        @AuthenticationPrincipal Jwt jwt,
+        @Valid @RequestBody PasswordUpdateRequest request
+    ) {
+        authenticationService.updatePassword(
+            UUID.fromString(jwt.getSubject()),
+            request
+        );
+        return ResponseEntity.noContent().build();
     }
 }
