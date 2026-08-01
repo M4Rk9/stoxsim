@@ -1,3 +1,4 @@
+# One-shot implementation workflow; self-removes after a successful build.
 name: Apply Alpaca USA foundation
 
 on:
@@ -293,69 +294,22 @@ public class AlpacaMarketDataProperties {
     private boolean pollingEnabled = true;
     private long pollingIntervalMillis = 5000;
 
-    public String getKeyId() {
-        return keyId;
-    }
-
-    public void setKeyId(String keyId) {
-        this.keyId = keyId;
-    }
-
-    public String getSecretKey() {
-        return secretKey;
-    }
-
-    public void setSecretKey(String secretKey) {
-        this.secretKey = secretKey;
-    }
-
-    public String getDataBaseUrl() {
-        return dataBaseUrl;
-    }
-
-    public void setDataBaseUrl(String dataBaseUrl) {
-        this.dataBaseUrl = dataBaseUrl;
-    }
-
-    public String getTradingBaseUrl() {
-        return tradingBaseUrl;
-    }
-
-    public void setTradingBaseUrl(String tradingBaseUrl) {
-        this.tradingBaseUrl = tradingBaseUrl;
-    }
-
-    public String getFeed() {
-        return feed;
-    }
-
-    public void setFeed(String feed) {
-        this.feed = feed;
-    }
-
-    public boolean isInstrumentSyncOnStartup() {
-        return instrumentSyncOnStartup;
-    }
-
-    public void setInstrumentSyncOnStartup(boolean instrumentSyncOnStartup) {
-        this.instrumentSyncOnStartup = instrumentSyncOnStartup;
-    }
-
-    public boolean isPollingEnabled() {
-        return pollingEnabled;
-    }
-
-    public void setPollingEnabled(boolean pollingEnabled) {
-        this.pollingEnabled = pollingEnabled;
-    }
-
-    public long getPollingIntervalMillis() {
-        return pollingIntervalMillis;
-    }
-
-    public void setPollingIntervalMillis(long pollingIntervalMillis) {
-        this.pollingIntervalMillis = pollingIntervalMillis;
-    }
+    public String getKeyId() { return keyId; }
+    public void setKeyId(String keyId) { this.keyId = keyId; }
+    public String getSecretKey() { return secretKey; }
+    public void setSecretKey(String secretKey) { this.secretKey = secretKey; }
+    public String getDataBaseUrl() { return dataBaseUrl; }
+    public void setDataBaseUrl(String dataBaseUrl) { this.dataBaseUrl = dataBaseUrl; }
+    public String getTradingBaseUrl() { return tradingBaseUrl; }
+    public void setTradingBaseUrl(String tradingBaseUrl) { this.tradingBaseUrl = tradingBaseUrl; }
+    public String getFeed() { return feed; }
+    public void setFeed(String feed) { this.feed = feed; }
+    public boolean isInstrumentSyncOnStartup() { return instrumentSyncOnStartup; }
+    public void setInstrumentSyncOnStartup(boolean instrumentSyncOnStartup) { this.instrumentSyncOnStartup = instrumentSyncOnStartup; }
+    public boolean isPollingEnabled() { return pollingEnabled; }
+    public void setPollingEnabled(boolean pollingEnabled) { this.pollingEnabled = pollingEnabled; }
+    public long getPollingIntervalMillis() { return pollingIntervalMillis; }
+    public void setPollingIntervalMillis(long pollingIntervalMillis) { this.pollingIntervalMillis = pollingIntervalMillis; }
 
     public boolean hasCredentials() {
         return keyId != null && !keyId.isBlank()
@@ -396,68 +350,43 @@ public class AlpacaRestClient {
 
     public Map<String, JsonNode> getSnapshots(Collection<String> symbols) {
         requireCredentials();
-        if (symbols.isEmpty()) {
-            return Map.of();
-        }
+        if (symbols.isEmpty()) return Map.of();
         String requested = symbols.stream().collect(Collectors.joining(","));
         try {
             JsonNode root = dataClient.get()
-                .uri(uri -> uri
-                    .path("/v2/stocks/snapshots")
+                .uri(uri -> uri.path("/v2/stocks/snapshots")
                     .queryParam("symbols", requested)
-                    .queryParam("feed", properties.getFeed())
-                    .build())
-                .retrieve()
-                .body(JsonNode.class);
-            JsonNode container = root != null && root.has("snapshots")
-                ? root.get("snapshots")
-                : root;
-            if (container == null || !container.isObject()) {
-                return Map.of();
-            }
+                    .queryParam("feed", properties.getFeed()).build())
+                .retrieve().body(JsonNode.class);
+            JsonNode container = root != null && root.has("snapshots") ? root.get("snapshots") : root;
+            if (container == null || !container.isObject()) return Map.of();
             Map<String, JsonNode> snapshots = new LinkedHashMap<>();
             for (String symbol : symbols) {
                 JsonNode snapshot = container.get(symbol);
-                if (snapshot != null && !snapshot.isNull()) {
-                    snapshots.put(symbol, snapshot);
-                }
+                if (snapshot != null && !snapshot.isNull()) snapshots.put(symbol, snapshot);
             }
             return Map.copyOf(snapshots);
         } catch (RestClientException exception) {
-            throw new MarketDataUnavailableException(
-                "Could not retrieve Alpaca stock snapshots",
-                exception
-            );
+            throw new MarketDataUnavailableException("Could not retrieve Alpaca stock snapshots", exception);
         }
     }
 
-    public JsonNode getBars(
-        String symbol,
-        String timeframe,
-        LocalDate from,
-        LocalDate to
-    ) {
+    public JsonNode getBars(String symbol, String timeframe, LocalDate from, LocalDate to) {
         requireCredentials();
         try {
             String start = from.atStartOfDay().toInstant(ZoneOffset.UTC).toString();
             String end = to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toString();
             return dataClient.get()
-                .uri(uri -> uri
-                    .path("/v2/stocks/{symbol}/bars")
+                .uri(uri -> uri.path("/v2/stocks/{symbol}/bars")
                     .queryParam("timeframe", timeframe)
                     .queryParam("start", start)
                     .queryParam("end", end)
                     .queryParam("adjustment", "all")
                     .queryParam("feed", properties.getFeed())
-                    .queryParam("limit", 10000)
-                    .build(symbol))
-                .retrieve()
-                .body(JsonNode.class);
+                    .queryParam("limit", 10000).build(symbol))
+                .retrieve().body(JsonNode.class);
         } catch (RestClientException exception) {
-            throw new MarketDataUnavailableException(
-                "Could not retrieve Alpaca historical bars for " + symbol,
-                exception
-            );
+            throw new MarketDataUnavailableException("Could not retrieve Alpaca historical bars for " + symbol, exception);
         }
     }
 
@@ -465,39 +394,25 @@ public class AlpacaRestClient {
         requireCredentials();
         try {
             return tradingClient.get()
-                .uri(uri -> uri
-                    .path("/v2/assets")
+                .uri(uri -> uri.path("/v2/assets")
                     .queryParam("status", "active")
-                    .queryParam("asset_class", "us_equity")
-                    .build())
-                .retrieve()
-                .body(JsonNode.class);
+                    .queryParam("asset_class", "us_equity").build())
+                .retrieve().body(JsonNode.class);
         } catch (RestClientException exception) {
-            throw new MarketDataUnavailableException(
-                "Could not retrieve the Alpaca US asset catalogue",
-                exception
-            );
+            throw new MarketDataUnavailableException("Could not retrieve the Alpaca US asset catalogue", exception);
         }
     }
 
     private RestClient client(String baseUrl, AlpacaMarketDataProperties properties) {
-        return RestClient.builder()
-            .baseUrl(baseUrl)
+        return RestClient.builder().baseUrl(baseUrl)
             .defaultHeader("APCA-API-KEY-ID", value(properties.getKeyId()))
-            .defaultHeader("APCA-API-SECRET-KEY", value(properties.getSecretKey()))
-            .build();
+            .defaultHeader("APCA-API-SECRET-KEY", value(properties.getSecretKey())).build();
     }
 
-    private String value(String input) {
-        return input == null ? "" : input;
-    }
+    private String value(String input) { return input == null ? "" : input; }
 
     private void requireCredentials() {
-        if (!properties.hasCredentials()) {
-            throw new MarketDataUnavailableException(
-                "Alpaca credentials are not configured"
-            );
-        }
+        if (!properties.hasCredentials()) throw new MarketDataUnavailableException("Alpaca credentials are not configured");
     }
 }
 ''')
@@ -526,107 +441,49 @@ public class AlpacaQuoteMapper {
         JsonNode minuteBar = snapshot.path("minuteBar");
         JsonNode dailyBar = snapshot.path("dailyBar");
         JsonNode previousDailyBar = snapshot.path("prevDailyBar");
-
-        BigDecimal lastPrice = firstDecimal(
-            decimal(latestTrade, "p"),
-            decimal(minuteBar, "c"),
-            decimal(dailyBar, "c")
-        );
-        if (lastPrice == null) {
-            return null;
-        }
-        Instant exchangeTimestamp = firstInstant(
-            instant(latestTrade, "t"),
-            instant(minuteBar, "t"),
-            instant(dailyBar, "t")
-        );
-        return new Quote(
-            instrument,
-            lastPrice,
-            decimal(latestQuote, "bp"),
-            decimal(latestQuote, "ap"),
-            decimal(dailyBar, "o"),
-            decimal(dailyBar, "h"),
-            decimal(dailyBar, "l"),
-            decimal(dailyBar, "c"),
-            decimal(previousDailyBar, "c"),
-            longValue(dailyBar, "v"),
-            exchangeTimestamp,
-            receivedAt
-        );
+        BigDecimal lastPrice = firstDecimal(decimal(latestTrade, "p"), decimal(minuteBar, "c"), decimal(dailyBar, "c"));
+        if (lastPrice == null) return null;
+        Instant exchangeTimestamp = firstInstant(instant(latestTrade, "t"), instant(minuteBar, "t"), instant(dailyBar, "t"));
+        return new Quote(instrument, lastPrice, decimal(latestQuote, "bp"), decimal(latestQuote, "ap"),
+            decimal(dailyBar, "o"), decimal(dailyBar, "h"), decimal(dailyBar, "l"), decimal(dailyBar, "c"),
+            decimal(previousDailyBar, "c"), longValue(dailyBar, "v"), exchangeTimestamp, receivedAt);
     }
 
     public List<Candle> mapBars(JsonNode response) {
-        if (response == null) {
-            return List.of();
-        }
-        JsonNode bars = response.path("bars");
-        if (!bars.isArray()) {
-            return List.of();
-        }
+        if (response == null || !response.path("bars").isArray()) return List.of();
         List<Candle> result = new ArrayList<>();
-        for (JsonNode bar : bars) {
+        for (JsonNode bar : response.path("bars")) {
             Instant timestamp = instant(bar, "t");
             BigDecimal open = decimal(bar, "o");
             BigDecimal high = decimal(bar, "h");
             BigDecimal low = decimal(bar, "l");
             BigDecimal close = decimal(bar, "c");
-            if (timestamp == null || open == null || high == null || low == null || close == null) {
-                continue;
+            if (timestamp != null && open != null && high != null && low != null && close != null) {
+                result.add(new Candle(timestamp, open, high, low, close, longValue(bar, "v")));
             }
-            result.add(new Candle(
-                timestamp,
-                open,
-                high,
-                low,
-                close,
-                longValue(bar, "v")
-            ));
         }
         return List.copyOf(result);
     }
 
     private BigDecimal decimal(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
-        return value == null || value.isNull() || !value.isNumber()
-            ? null
-            : value.decimalValue();
+        return value == null || value.isNull() || !value.isNumber() ? null : value.decimalValue();
     }
-
     private Long longValue(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
-        return value == null || value.isNull() || !value.isNumber()
-            ? null
-            : value.longValue();
+        return value == null || value.isNull() || !value.isNumber() ? null : value.longValue();
     }
-
     private Instant instant(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
-        if (value == null || value.isNull() || !value.isTextual()) {
-            return null;
-        }
-        try {
-            return Instant.parse(value.textValue());
-        } catch (RuntimeException ignored) {
-            return null;
-        }
+        if (value == null || value.isNull() || !value.isTextual()) return null;
+        try { return Instant.parse(value.textValue()); } catch (RuntimeException ignored) { return null; }
     }
-
     private BigDecimal firstDecimal(BigDecimal... values) {
-        for (BigDecimal value : values) {
-            if (value != null) {
-                return value;
-            }
-        }
+        for (BigDecimal value : values) if (value != null) return value;
         return null;
     }
-
     private Instant firstInstant(Instant... values) {
-        for (Instant value : values) {
-            if (value != null) {
-                return value;
-            }
-        }
+        for (Instant value : values) if (value != null) return value;
         return null;
     }
 }
@@ -655,80 +512,47 @@ import com.stoxsim.market.data.SubscriptionMode;
 
 @Component
 public class AlpacaPollingMarketStream {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(AlpacaPollingMarketStream.class);
     private static final int BATCH_SIZE = 100;
-
     private final AlpacaMarketDataProperties properties;
     private final AlpacaRestClient client;
     private final AlpacaQuoteMapper mapper;
-    private final Map<InstrumentKey, CopyOnWriteArrayList<Consumer<MarketTick>>> listeners =
-        new ConcurrentHashMap<>();
+    private final Map<InstrumentKey, CopyOnWriteArrayList<Consumer<MarketTick>>> listeners = new ConcurrentHashMap<>();
 
-    public AlpacaPollingMarketStream(
-        AlpacaMarketDataProperties properties,
-        AlpacaRestClient client,
-        AlpacaQuoteMapper mapper
-    ) {
+    public AlpacaPollingMarketStream(AlpacaMarketDataProperties properties, AlpacaRestClient client, AlpacaQuoteMapper mapper) {
         this.properties = properties;
         this.client = client;
         this.mapper = mapper;
     }
 
-    public void subscribe(
-        Set<InstrumentKey> instruments,
-        SubscriptionMode mode,
-        Consumer<MarketTick> listener
-    ) {
-        instruments.forEach(instrument -> listeners
-            .computeIfAbsent(instrument, ignored -> new CopyOnWriteArrayList<>())
-            .addIfAbsent(listener));
+    public void subscribe(Set<InstrumentKey> instruments, SubscriptionMode mode, Consumer<MarketTick> listener) {
+        instruments.forEach(instrument -> listeners.computeIfAbsent(instrument, ignored -> new CopyOnWriteArrayList<>()).addIfAbsent(listener));
     }
-
-    public void unsubscribe(Set<InstrumentKey> instruments) {
-        instruments.forEach(listeners::remove);
-    }
+    public void unsubscribe(Set<InstrumentKey> instruments) { instruments.forEach(listeners::remove); }
 
     @Scheduled(fixedDelayString = "${stoxsim.market-data.alpaca.polling-interval-millis:5000}")
     public void poll() {
-        if (!properties.isPollingEnabled() || !properties.hasCredentials() || listeners.isEmpty()) {
-            return;
-        }
+        if (!properties.isPollingEnabled() || !properties.hasCredentials() || listeners.isEmpty()) return;
         List<InstrumentKey> subscribed = new ArrayList<>(listeners.keySet());
         for (int offset = 0; offset < subscribed.size(); offset += BATCH_SIZE) {
-            List<InstrumentKey> batch = subscribed.subList(
-                offset,
-                Math.min(offset + BATCH_SIZE, subscribed.size())
-            );
-            pollBatch(batch);
+            pollBatch(subscribed.subList(offset, Math.min(offset + BATCH_SIZE, subscribed.size())));
         }
     }
 
     private void pollBatch(Collection<InstrumentKey> instruments) {
         try {
-            Map<String, tools.jackson.databind.JsonNode> snapshots = client.getSnapshots(
-                instruments.stream().map(InstrumentKey::value).toList()
-            );
+            Map<String, tools.jackson.databind.JsonNode> snapshots = client.getSnapshots(instruments.stream().map(InstrumentKey::value).toList());
             Instant receivedAt = Instant.now();
             for (InstrumentKey instrument : instruments) {
                 var snapshot = snapshots.get(instrument.value());
-                if (snapshot == null) {
-                    continue;
-                }
+                if (snapshot == null) continue;
                 var quote = mapper.mapQuote(instrument, snapshot, receivedAt);
-                if (quote == null) {
-                    continue;
-                }
+                if (quote == null) continue;
                 MarketTick tick = new MarketTick(quote);
-                for (Consumer<MarketTick> listener : listeners.getOrDefault(
-                    instrument,
-                    new CopyOnWriteArrayList<>()
-                )) {
-                    try {
-                        listener.accept(tick);
-                    } catch (RuntimeException exception) {
-                        LOGGER.warn("Alpaca market tick listener failed", exception);
-                    }
+                var registered = listeners.get(instrument);
+                if (registered == null) continue;
+                for (Consumer<MarketTick> listener : registered) {
+                    try { listener.accept(tick); } catch (RuntimeException exception) { LOGGER.warn("Alpaca market tick listener failed", exception); }
                 }
             }
         } catch (RuntimeException exception) {
@@ -763,108 +587,54 @@ import com.stoxsim.market.provider.upstox.MarketDataUnavailableException;
 
 @Component
 public class AlpacaMarketDataProvider implements MarketDataProvider {
-
     private final AlpacaRestClient client;
     private final AlpacaQuoteMapper mapper;
     private final AlpacaPollingMarketStream stream;
 
-    public AlpacaMarketDataProvider(
-        AlpacaRestClient client,
-        AlpacaQuoteMapper mapper,
-        AlpacaPollingMarketStream stream
-    ) {
+    public AlpacaMarketDataProvider(AlpacaRestClient client, AlpacaQuoteMapper mapper, AlpacaPollingMarketStream stream) {
         this.client = client;
         this.mapper = mapper;
         this.stream = stream;
     }
-
-    @Override
-    public MarketRegion marketRegion() {
-        return MarketRegion.UNITED_STATES;
-    }
-
-    @Override
-    public Quote getQuote(InstrumentKey instrument) {
+    @Override public MarketRegion marketRegion() { return MarketRegion.UNITED_STATES; }
+    @Override public Quote getQuote(InstrumentKey instrument) {
         List<Quote> quotes = getQuotes(Set.of(instrument));
-        if (quotes.isEmpty()) {
-            throw new MarketDataUnavailableException(
-                "Alpaca returned no quote for " + instrument.value()
-            );
-        }
+        if (quotes.isEmpty()) throw new MarketDataUnavailableException("Alpaca returned no quote for " + instrument.value());
         return quotes.getFirst();
     }
-
-    @Override
-    public List<Quote> getQuotes(Set<InstrumentKey> instruments) {
-        if (instruments.isEmpty()) {
-            return List.of();
-        }
+    @Override public List<Quote> getQuotes(Set<InstrumentKey> instruments) {
+        if (instruments.isEmpty()) return List.of();
         instruments.forEach(this::validate);
-        LinkedHashSet<String> symbols = instruments.stream()
-            .map(InstrumentKey::value)
+        LinkedHashSet<String> symbols = instruments.stream().map(InstrumentKey::value)
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         Map<String, tools.jackson.databind.JsonNode> snapshots = client.getSnapshots(symbols);
         Instant receivedAt = Instant.now();
         List<Quote> quotes = new ArrayList<>();
         for (InstrumentKey instrument : instruments) {
             var snapshot = snapshots.get(instrument.value());
-            if (snapshot == null) {
-                continue;
-            }
+            if (snapshot == null) continue;
             Quote quote = mapper.mapQuote(instrument, snapshot, receivedAt);
-            if (quote != null) {
-                quotes.add(quote);
-            }
+            if (quote != null) quotes.add(quote);
         }
-        if (quotes.isEmpty()) {
-            throw new MarketDataUnavailableException(
-                "Alpaca returned no usable quotes for the requested US instruments"
-            );
-        }
+        if (quotes.isEmpty()) throw new MarketDataUnavailableException("Alpaca returned no usable quotes for the requested US instruments");
         return List.copyOf(quotes);
     }
-
-    @Override
-    public List<Candle> getCandles(
-        InstrumentKey instrument,
-        CandleInterval interval,
-        LocalDate from,
-        LocalDate to
-    ) {
+    @Override public List<Candle> getCandles(InstrumentKey instrument, CandleInterval interval, LocalDate from, LocalDate to) {
         validate(instrument);
-        return mapper.mapBars(client.getBars(
-            instrument.value(),
-            timeframe(interval),
-            from,
-            to
-        ));
+        return mapper.mapBars(client.getBars(instrument.value(), timeframe(interval), from, to));
     }
-
-    @Override
-    public void subscribe(
-        Set<InstrumentKey> instruments,
-        SubscriptionMode mode,
-        Consumer<MarketTick> listener
-    ) {
+    @Override public void subscribe(Set<InstrumentKey> instruments, SubscriptionMode mode, Consumer<MarketTick> listener) {
         instruments.forEach(this::validate);
         stream.subscribe(instruments, mode, listener);
     }
-
-    @Override
-    public void unsubscribe(Set<InstrumentKey> instruments) {
+    @Override public void unsubscribe(Set<InstrumentKey> instruments) {
         instruments.forEach(this::validate);
         stream.unsubscribe(instruments);
     }
-
     private void validate(InstrumentKey instrument) {
-        if (instrument.marketRegion() != MarketRegion.UNITED_STATES) {
-            throw new IllegalArgumentException("Alpaca only supplies United States market data");
-        }
-        if (!"ALPACA".equalsIgnoreCase(instrument.provider())) {
-            throw new IllegalArgumentException("Unexpected provider " + instrument.provider());
-        }
+        if (instrument.marketRegion() != MarketRegion.UNITED_STATES) throw new IllegalArgumentException("Alpaca only supplies United States market data");
+        if (!"ALPACA".equalsIgnoreCase(instrument.provider())) throw new IllegalArgumentException("Unexpected provider " + instrument.provider());
     }
-
     private String timeframe(CandleInterval interval) {
         return switch (interval) {
             case ONE_MINUTE -> "1Min";
@@ -896,46 +666,21 @@ import tools.jackson.databind.JsonNode;
 
 @Component
 public class AlpacaInstrumentMapper {
-
     public static final String PROVIDER = "ALPACA";
 
     public Optional<InstrumentSnapshot> map(JsonNode node) {
-        if (node == null
-            || !"active".equalsIgnoreCase(text(node, "status"))
-            || !"us_equity".equalsIgnoreCase(text(node, "class"))
-            || !node.path("tradable").asBoolean(false)) {
-            return Optional.empty();
-        }
+        if (node == null || !"active".equalsIgnoreCase(text(node, "status"))
+            || !"us_equity".equalsIgnoreCase(text(node, "class")) || !node.path("tradable").asBoolean(false)) return Optional.empty();
         String symbol = text(node, "symbol");
         String name = text(node, "name");
         MarketExchange exchange = exchange(text(node, "exchange"));
-        if (symbol == null || exchange == null) {
-            return Optional.empty();
-        }
-        if (name == null || name.isBlank()) {
-            name = symbol;
-        }
-        return Optional.of(new InstrumentSnapshot(
-            PROVIDER,
-            symbol,
-            MarketRegion.UNITED_STATES,
-            exchange,
-            "US_EQUITY",
-            symbol,
-            name,
-            null,
-            instrumentType(name),
-            "USD",
-            1,
-            new BigDecimal("0.01"),
-            text(node, "id")
-        ));
+        if (symbol == null || exchange == null) return Optional.empty();
+        if (name == null || name.isBlank()) name = symbol;
+        return Optional.of(new InstrumentSnapshot(PROVIDER, symbol, MarketRegion.UNITED_STATES, exchange, "US_EQUITY",
+            symbol, name, null, instrumentType(name), "USD", 1, new BigDecimal("0.01"), text(node, "id")));
     }
-
     private MarketExchange exchange(String value) {
-        if (value == null) {
-            return null;
-        }
+        if (value == null) return null;
         return switch (value.toUpperCase(Locale.ROOT)) {
             case "NASDAQ" -> MarketExchange.NASDAQ;
             case "NYSE" -> MarketExchange.NYSE;
@@ -944,23 +689,14 @@ public class AlpacaInstrumentMapper {
             default -> null;
         };
     }
-
     private InstrumentType instrumentType(String name) {
         String normalized = name.toUpperCase(Locale.ROOT);
-        return normalized.contains(" ETF")
-            || normalized.contains(" FUND")
-            || normalized.contains("ISHARES")
-            || normalized.contains("SPDR")
-            || normalized.contains("VANGUARD")
-            ? InstrumentType.ETF
-            : InstrumentType.EQUITY;
+        return normalized.contains(" ETF") || normalized.contains(" FUND") || normalized.contains("ISHARES")
+            || normalized.contains("SPDR") || normalized.contains("VANGUARD") ? InstrumentType.ETF : InstrumentType.EQUITY;
     }
-
     private String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
-        if (value == null || value.isNull() || !value.isTextual()) {
-            return null;
-        }
+        if (value == null || value.isNull() || !value.isTextual()) return null;
         String text = value.textValue();
         return text == null || text.isBlank() ? null : text.trim();
     }
@@ -982,23 +718,16 @@ import com.stoxsim.market.provider.alpaca.AlpacaRestClient;
 
 @Service
 public class AlpacaInstrumentSyncService {
-
     private static final int BATCH_SIZE = 500;
-
     private final AlpacaRestClient client;
     private final AlpacaInstrumentMapper mapper;
     private final InstrumentBatchService batchService;
 
-    public AlpacaInstrumentSyncService(
-        AlpacaRestClient client,
-        AlpacaInstrumentMapper mapper,
-        InstrumentBatchService batchService
-    ) {
+    public AlpacaInstrumentSyncService(AlpacaRestClient client, AlpacaInstrumentMapper mapper, InstrumentBatchService batchService) {
         this.client = client;
         this.mapper = mapper;
         this.batchService = batchService;
     }
-
     public InstrumentSyncResult synchronize() {
         UUID syncId = UUID.randomUUID();
         Instant startedAt = Instant.now();
@@ -1006,31 +735,17 @@ public class AlpacaInstrumentSyncService {
         int ignored = 0;
         List<InstrumentSnapshot> batch = new ArrayList<>(BATCH_SIZE);
         var assets = client.getAssets();
-        if (assets == null || !assets.isArray()) {
-            throw new IllegalStateException("Alpaca assets response must contain a JSON array");
-        }
+        if (assets == null || !assets.isArray()) throw new IllegalStateException("Alpaca assets response must contain a JSON array");
         for (var asset : assets) {
             var snapshot = mapper.map(asset);
-            if (snapshot.isEmpty()) {
-                ignored++;
-                continue;
-            }
+            if (snapshot.isEmpty()) { ignored++; continue; }
             batch.add(snapshot.get());
             accepted++;
-            if (batch.size() == BATCH_SIZE) {
-                batchService.upsert(List.copyOf(batch), syncId);
-                batch.clear();
-            }
+            if (batch.size() == BATCH_SIZE) { batchService.upsert(List.copyOf(batch), syncId); batch.clear(); }
         }
         batchService.upsert(List.copyOf(batch), syncId);
         int deactivated = batchService.deactivateMissing(AlpacaInstrumentMapper.PROVIDER, syncId);
-        return new InstrumentSyncResult(
-            syncId,
-            accepted,
-            ignored,
-            deactivated,
-            Duration.between(startedAt, Instant.now())
-        );
+        return new InstrumentSyncResult(syncId, accepted, ignored, deactivated, Duration.between(startedAt, Instant.now()));
     }
 }
 ''')
@@ -1050,75 +765,39 @@ import com.stoxsim.market.provider.alpaca.AlpacaMarketDataProperties;
 
 @Component
 public class AlpacaInstrumentSyncJob implements ApplicationRunner {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(AlpacaInstrumentSyncJob.class);
-
     private final AlpacaInstrumentSyncService syncService;
     private final AlpacaMarketDataProperties properties;
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicBoolean synchronizedAtLeastOnce = new AtomicBoolean();
 
-    public AlpacaInstrumentSyncJob(
-        AlpacaInstrumentSyncService syncService,
-        AlpacaMarketDataProperties properties
-    ) {
+    public AlpacaInstrumentSyncJob(AlpacaInstrumentSyncService syncService, AlpacaMarketDataProperties properties) {
         this.syncService = syncService;
         this.properties = properties;
     }
-
-    @Override
-    public void run(ApplicationArguments arguments) {
+    @Override public void run(ApplicationArguments arguments) {
         if (!properties.isInstrumentSyncOnStartup() || !properties.hasCredentials()) {
             LOGGER.info("Alpaca startup instrument sync is disabled until credentials are configured");
             return;
         }
         queue("startup");
     }
-
     @Scheduled(cron = "0 0 7 * * MON-FRI", zone = "America/New_York")
-    public void synchronizeBeforeMarket() {
-        if (properties.hasCredentials()) {
-            queue("scheduled");
-        }
-    }
-
+    public void synchronizeBeforeMarket() { if (properties.hasCredentials()) queue("scheduled"); }
     @Scheduled(initialDelay = 600_000, fixedDelay = 1_800_000)
-    public void recoverIncompleteStartupSync() {
-        if (properties.hasCredentials() && !synchronizedAtLeastOnce.get()) {
-            queue("recovery");
-        }
-    }
-
-    private void queue(String trigger) {
-        Thread.ofVirtual()
-            .name("alpaca-us-instrument-sync")
-            .start(() -> synchronize(trigger));
-    }
-
+    public void recoverIncompleteStartupSync() { if (properties.hasCredentials() && !synchronizedAtLeastOnce.get()) queue("recovery"); }
+    private void queue(String trigger) { Thread.ofVirtual().name("alpaca-us-instrument-sync").start(() -> synchronize(trigger)); }
     private void synchronize(String trigger) {
-        if (!running.compareAndSet(false, true)) {
-            return;
-        }
+        if (!running.compareAndSet(false, true)) return;
         try {
             var result = syncService.synchronize();
-            if (result.accepted() == 0) {
-                throw new IllegalStateException("Alpaca instrument sync imported no instruments");
-            }
+            if (result.accepted() == 0) throw new IllegalStateException("Alpaca instrument sync imported no instruments");
             synchronizedAtLeastOnce.set(true);
-            LOGGER.info(
-                "Alpaca {} instrument sync {} completed: accepted={}, ignored={}, deactivated={}, duration={}",
-                trigger,
-                result.syncId(),
-                result.accepted(),
-                result.ignored(),
-                result.deactivated(),
-                result.duration()
-            );
+            LOGGER.info("Alpaca {} instrument sync {} completed: accepted={}, ignored={}, deactivated={}, duration={}",
+                trigger, result.syncId(), result.accepted(), result.ignored(), result.deactivated(), result.duration());
         } catch (RuntimeException exception) {
             LOGGER.error("Alpaca {} instrument synchronization failed", trigger, exception);
-        } finally {
-            running.set(false);
-        }
+        } finally { running.set(false); }
     }
 }
 ''')
@@ -1140,147 +819,59 @@ import com.stoxsim.order.service.TradingValidationException;
 
 @Component
 public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
-
     private static final BigDecimal ZERO = new BigDecimal("0.0000");
     private static final BigDecimal STT_RATE = new BigDecimal("0.001");
     private static final BigDecimal SEBI_RATE = new BigDecimal("0.000001");
     private static final BigDecimal STAMP_DUTY_BUY_RATE = new BigDecimal("0.00015");
     private static final BigDecimal GST_RATE = new BigDecimal("0.18");
-
     private static final List<Schedule> SCHEDULES = List.of(
-        new Schedule(
-            "SIM-IN-DELIVERY-2024-10",
-            LocalDate.of(2024, 10, 1),
-            new BigDecimal("0.0000297")
-        ),
-        new Schedule(
-            "SIM-IN-DELIVERY-2026-03",
-            LocalDate.of(2026, 3, 1),
-            new BigDecimal("0.0000307")
-        )
+        new Schedule("SIM-IN-DELIVERY-2024-10", LocalDate.of(2024, 10, 1), new BigDecimal("0.0000297")),
+        new Schedule("SIM-IN-DELIVERY-2026-03", LocalDate.of(2026, 3, 1), new BigDecimal("0.0000307"))
     );
 
-    @Override
-    public ChargeBreakdown calculate(
-        OrderSide side,
-        ProductType product,
-        MarketExchange exchange,
-        BigDecimal turnover,
-        LocalDate tradeDate
-    ) {
-        if (product != ProductType.DELIVERY) {
-            throw new TradingValidationException("Only delivery trades are supported");
-        }
-        if (turnover == null || turnover.signum() <= 0 || tradeDate == null) {
-            throw new TradingValidationException("Turnover and trade date are required for charges");
-        }
+    @Override public ChargeBreakdown calculate(OrderSide side, ProductType product, MarketExchange exchange, BigDecimal turnover, LocalDate tradeDate) {
+        if (product != ProductType.DELIVERY) throw new TradingValidationException("Only delivery trades are supported");
+        if (turnover == null || turnover.signum() <= 0 || tradeDate == null) throw new TradingValidationException("Turnover and trade date are required for charges");
         if (isUnitedStates(exchange)) {
-            return new ChargeBreakdown(
-                "SIM-US-ZERO-COMMISSION-2026-08",
-                true,
-                turnover,
-                ZERO,
-                ZERO,
-                ZERO,
-                ZERO,
-                ZERO,
-                ZERO,
-                ZERO,
-                ZERO
-            );
+            return new ChargeBreakdown("SIM-US-ZERO-COMMISSION-2026-08", true, turnover, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO, ZERO);
         }
-        if (exchange != MarketExchange.NSE) {
-            throw new TradingValidationException(
-                "The simulated charge engine supports NSE and configured US cash markets"
-            );
-        }
-
-        Schedule schedule = SCHEDULES.stream()
-            .filter(candidate -> !candidate.effectiveFrom().isAfter(tradeDate))
-            .max(Comparator.comparing(Schedule::effectiveFrom))
-            .orElseThrow(() -> new TradingValidationException(
-                "No simulated charge schedule is available for " + tradeDate
-            ));
-
+        if (exchange != MarketExchange.NSE) throw new TradingValidationException("The simulated charge engine supports NSE and configured US cash markets");
+        Schedule schedule = SCHEDULES.stream().filter(candidate -> !candidate.effectiveFrom().isAfter(tradeDate))
+            .max(Comparator.comparing(Schedule::effectiveFrom)).orElseThrow(() -> new TradingValidationException("No simulated charge schedule is available for " + tradeDate));
         BigDecimal brokerage = ZERO;
         BigDecimal stt = charge(turnover, STT_RATE);
         BigDecimal exchangeCharges = charge(turnover, schedule.exchangeTransactionRate());
         BigDecimal sebiCharges = charge(turnover, SEBI_RATE);
-        BigDecimal stampDuty = side == OrderSide.BUY
-            ? charge(turnover, STAMP_DUTY_BUY_RATE)
-            : ZERO;
+        BigDecimal stampDuty = side == OrderSide.BUY ? charge(turnover, STAMP_DUTY_BUY_RATE) : ZERO;
         BigDecimal dpCharges = ZERO;
-        BigDecimal gst = charge(
-            brokerage.add(exchangeCharges).add(sebiCharges),
-            GST_RATE
-        );
-        BigDecimal total = brokerage
-            .add(stt)
-            .add(exchangeCharges)
-            .add(gst)
-            .add(sebiCharges)
-            .add(stampDuty)
-            .add(dpCharges)
-            .setScale(4, RoundingMode.HALF_UP);
-
-        return new ChargeBreakdown(
-            schedule.version(),
-            true,
-            turnover,
-            brokerage,
-            stt,
-            exchangeCharges,
-            gst,
-            sebiCharges,
-            stampDuty,
-            dpCharges,
-            total
-        );
+        BigDecimal gst = charge(brokerage.add(exchangeCharges).add(sebiCharges), GST_RATE);
+        BigDecimal total = brokerage.add(stt).add(exchangeCharges).add(gst).add(sebiCharges).add(stampDuty).add(dpCharges).setScale(4, RoundingMode.HALF_UP);
+        return new ChargeBreakdown(schedule.version(), true, turnover, brokerage, stt, exchangeCharges, gst, sebiCharges, stampDuty, dpCharges, total);
     }
-
     private boolean isUnitedStates(MarketExchange exchange) {
-        return exchange == MarketExchange.NASDAQ
-            || exchange == MarketExchange.NYSE
-            || exchange == MarketExchange.NYSE_ARCA
-            || exchange == MarketExchange.AMEX;
+        return exchange == MarketExchange.NASDAQ || exchange == MarketExchange.NYSE || exchange == MarketExchange.NYSE_ARCA || exchange == MarketExchange.AMEX;
     }
-
-    private BigDecimal charge(BigDecimal base, BigDecimal rate) {
-        return base.multiply(rate).setScale(4, RoundingMode.HALF_UP);
-    }
-
-    private record Schedule(
-        String version,
-        LocalDate effectiveFrom,
-        BigDecimal exchangeTransactionRate
-    ) {
-    }
+    private BigDecimal charge(BigDecimal base, BigDecimal rate) { return base.multiply(rate).setScale(4, RoundingMode.HALF_UP); }
+    private record Schedule(String version, LocalDate effectiveFrom, BigDecimal exchangeTransactionRate) { }
 }
 ''')
 
-          replace(
-              "backend/src/main/java/com/stoxsim/market/service/MarketDataService.java",
+          replace("backend/src/main/java/com/stoxsim/market/service/MarketDataService.java",
               '''        if (marketRegion == MarketRegion.INDIA
             && indiaSessions.current(exchange).executable()) {
             return MarketDataStatus.LIVE;
         }
-''',
-              '''        if (indiaSessions.current(exchange).executable()) {
+''', '''        if (indiaSessions.current(exchange).executable()) {
             return MarketDataStatus.LIVE;
         }
-'''
-          )
-          replace(
-              "backend/src/main/java/com/stoxsim/market/service/MarketDataService.java",
+''')
+          replace("backend/src/main/java/com/stoxsim/market/service/MarketDataService.java",
               '''        return instrument.getMarketRegion() == MarketRegion.INDIA
             && indiaSessions.current(instrument.getExchange()).executable();
-''',
-              '''        return indiaSessions.current(instrument.getExchange()).executable();
-'''
-          )
+''', '''        return indiaSessions.current(instrument.getExchange()).executable();
+''')
 
-          replace(
-              "backend/src/main/java/com/stoxsim/order/service/OrderApplicationService.java",
+          replace("backend/src/main/java/com/stoxsim/order/service/OrderApplicationService.java",
               '''        if (
             instrument.getMarketRegion() != MarketRegion.INDIA
             || instrument.getExchange() != MarketExchange.NSE
@@ -1293,8 +884,7 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
                 "The MVP supports NSE cash equities and ETFs only"
             );
         }
-''',
-              '''        if (
+''', '''        if (
             !supportsCashMarket(instrument.getMarketRegion(), instrument.getExchange())
             || (
                 instrument.getInstrumentType() != InstrumentType.EQUITY
@@ -1305,46 +895,35 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
                 "StoxSim supports NSE and configured US cash equities and ETFs"
             );
         }
-'''
-          )
-          replace(
-              "backend/src/main/java/com/stoxsim/order/service/OrderApplicationService.java",
+''')
+          replace("backend/src/main/java/com/stoxsim/order/service/OrderApplicationService.java",
               '''        if (request.marketRegion() != MarketRegion.INDIA || request.exchange() != MarketExchange.NSE) {
             throw new TradingValidationException("The MVP supports NSE delivery orders only");
         }
         validateLimitTerms(request.orderType(), request.quantity(), request.limitPrice());
-''',
-              '''        if (!supportsCashMarket(request.marketRegion(), request.exchange())) {
+''', '''        if (!supportsCashMarket(request.marketRegion(), request.exchange())) {
             throw new TradingValidationException(
                 "Orders are supported for NSE, NASDAQ, NYSE, NYSE Arca and AMEX cash markets"
             );
         }
         validateLimitTerms(request.orderType(), request.quantity(), request.limitPrice());
-'''
-          )
-          replace(
-              "backend/src/main/java/com/stoxsim/order/service/OrderApplicationService.java",
+''')
+          replace("backend/src/main/java/com/stoxsim/order/service/OrderApplicationService.java",
               '''    private void validateLimitTerms(OrderType type, long quantity, BigDecimal limitPrice) {
-''',
-              '''    private boolean supportsCashMarket(
+''', '''    private boolean supportsCashMarket(
         MarketRegion marketRegion,
         MarketExchange exchange
     ) {
-        if (marketRegion == MarketRegion.INDIA) {
-            return exchange == MarketExchange.NSE;
-        }
+        if (marketRegion == MarketRegion.INDIA) return exchange == MarketExchange.NSE;
         if (marketRegion == MarketRegion.UNITED_STATES) {
-            return exchange == MarketExchange.NASDAQ
-                || exchange == MarketExchange.NYSE
-                || exchange == MarketExchange.NYSE_ARCA
-                || exchange == MarketExchange.AMEX;
+            return exchange == MarketExchange.NASDAQ || exchange == MarketExchange.NYSE
+                || exchange == MarketExchange.NYSE_ARCA || exchange == MarketExchange.AMEX;
         }
         return false;
     }
 
     private void validateLimitTerms(OrderType type, long quantity, BigDecimal limitPrice) {
-'''
-          )
+''')
 
           app = Path("backend/src/main/resources/application.yml").read_text(encoding="utf-8")
           marker = '''      initial-instrument-keys:
@@ -1365,55 +944,32 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
       polling-enabled: ${ALPACA_POLLING_ENABLED:true}
       polling-interval-millis: ${ALPACA_POLLING_INTERVAL_MILLIS:5000}
 '''
-          if marker not in app:
-              raise SystemExit("application.yml Upstox marker not found")
-          Path("backend/src/main/resources/application.yml").write_text(
-              app.replace(marker, alpaca),
-              encoding="utf-8"
-          )
+          if marker not in app: raise SystemExit("application.yml Upstox marker not found")
+          Path("backend/src/main/resources/application.yml").write_text(app.replace(marker, alpaca), encoding="utf-8")
 
           env = Path(".env.example").read_text(encoding="utf-8")
-          env = env.replace(
-              "US_MARKET_DATA_API_KEY=\n",
-              "ALPACA_API_KEY_ID=\nALPACA_API_SECRET_KEY=\nALPACA_DATA_FEED=iex\nALPACA_POLLING_ENABLED=true\n"
-          )
+          env = env.replace("US_MARKET_DATA_API_KEY=\n", "ALPACA_API_KEY_ID=\nALPACA_API_SECRET_KEY=\nALPACA_DATA_FEED=iex\nALPACA_POLLING_ENABLED=true\n")
           Path(".env.example").write_text(env, encoding="utf-8")
 
           write("backend/src/test/java/com/stoxsim/market/provider/alpaca/AlpacaQuoteMapperTest.java", '''package com.stoxsim.market.provider.alpaca;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.time.Instant;
-
 import org.junit.jupiter.api.Test;
-
 import com.stoxsim.market.data.InstrumentKey;
 import com.stoxsim.market.domain.MarketRegion;
-
 import tools.jackson.databind.ObjectMapper;
 
 class AlpacaQuoteMapperTest {
-
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AlpacaQuoteMapper mapper = new AlpacaQuoteMapper();
-
-    @Test
-    void mapsSnapshotIntoProviderNeutralQuote() throws Exception {
+    @Test void mapsSnapshotIntoProviderNeutralQuote() throws Exception {
         var snapshot = objectMapper.readTree("""
-            {
-              "latestTrade": {"p": 210.45, "t": "2026-08-01T15:59:59Z"},
-              "latestQuote": {"bp": 210.44, "ap": 210.46},
-              "dailyBar": {"o": 205.10, "h": 211.00, "l": 204.80, "c": 210.45, "v": 1234567, "t": "2026-08-01T13:30:00Z"},
-              "prevDailyBar": {"c": 204.25}
-            }
+            {"latestTrade":{"p":210.45,"t":"2026-08-01T15:59:59Z"},"latestQuote":{"bp":210.44,"ap":210.46},
+             "dailyBar":{"o":205.10,"h":211.00,"l":204.80,"c":210.45,"v":1234567,"t":"2026-08-01T13:30:00Z"},
+             "prevDailyBar":{"c":204.25}}
             """);
-
-        var quote = mapper.mapQuote(
-            new InstrumentKey("ALPACA", "AAPL", MarketRegion.UNITED_STATES),
-            snapshot,
-            Instant.parse("2026-08-01T16:00:01Z")
-        );
-
+        var quote = mapper.mapQuote(new InstrumentKey("ALPACA", "AAPL", MarketRegion.UNITED_STATES), snapshot, Instant.parse("2026-08-01T16:00:01Z"));
         assertThat(quote.lastPrice()).isEqualByComparingTo("210.45");
         assertThat(quote.bid()).isEqualByComparingTo("210.44");
         assertThat(quote.ask()).isEqualByComparingTo("210.46");
@@ -1422,40 +978,23 @@ class AlpacaQuoteMapperTest {
     }
 }
 ''')
-
           write("backend/src/test/java/com/stoxsim/instrument/provider/alpaca/AlpacaInstrumentMapperTest.java", '''package com.stoxsim.instrument.provider.alpaca;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.jupiter.api.Test;
-
 import com.stoxsim.instrument.domain.InstrumentType;
 import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.market.domain.MarketRegion;
-
 import tools.jackson.databind.ObjectMapper;
 
 class AlpacaInstrumentMapperTest {
-
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AlpacaInstrumentMapper mapper = new AlpacaInstrumentMapper();
-
-    @Test
-    void mapsActiveTradableUsAsset() throws Exception {
+    @Test void mapsActiveTradableUsAsset() throws Exception {
         var asset = objectMapper.readTree("""
-            {
-              "id": "asset-id",
-              "class": "us_equity",
-              "exchange": "NASDAQ",
-              "symbol": "AAPL",
-              "name": "Apple Inc. Common Stock",
-              "status": "active",
-              "tradable": true
-            }
+            {"id":"asset-id","class":"us_equity","exchange":"NASDAQ","symbol":"AAPL","name":"Apple Inc. Common Stock","status":"active","tradable":true}
             """);
-
         var snapshot = mapper.map(asset).orElseThrow();
-
         assertThat(snapshot.provider()).isEqualTo("ALPACA");
         assertThat(snapshot.marketRegion()).isEqualTo(MarketRegion.UNITED_STATES);
         assertThat(snapshot.exchange()).isEqualTo(MarketExchange.NASDAQ);
@@ -1464,84 +1003,50 @@ class AlpacaInstrumentMapperTest {
     }
 }
 ''')
-
           write("backend/src/test/java/com/stoxsim/calendar/service/UnitedStatesMarketSessionTest.java", '''package com.stoxsim.calendar.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-
 import org.junit.jupiter.api.Test;
-
 import com.stoxsim.calendar.domain.MarketPhase;
 import com.stoxsim.calendar.repository.MarketHolidayRepository;
 import com.stoxsim.instrument.domain.MarketExchange;
 
 class UnitedStatesMarketSessionTest {
-
     private final MarketHolidayRepository holidays = mock(MarketHolidayRepository.class);
-    private final IndiaMarketSessionService sessions = new IndiaMarketSessionService(
-        Clock.fixed(Instant.parse("2026-08-03T14:00:00Z"), ZoneOffset.UTC),
-        holidays
-    );
-
-    @Test
-    void resolvesRegularSessionInNewYorkTimezone() {
-        var snapshot = sessions.at(
-            MarketExchange.NASDAQ,
-            ZonedDateTime.parse("2026-08-03T10:00:00-04:00[America/New_York]")
-        );
-
+    private final IndiaMarketSessionService sessions = new IndiaMarketSessionService(Clock.fixed(Instant.parse("2026-08-03T14:00:00Z"), ZoneOffset.UTC), holidays);
+    @Test void resolvesRegularSessionInNewYorkTimezone() {
+        var snapshot = sessions.at(MarketExchange.NASDAQ, ZonedDateTime.parse("2026-08-03T10:00:00-04:00[America/New_York]"));
         assertThat(snapshot.phase()).isEqualTo(MarketPhase.REGULAR);
         assertThat(snapshot.timezone()).isEqualTo("America/New_York");
         assertThat(snapshot.executable()).isTrue();
     }
-
-    @Test
-    void acceptsOrdersButDoesNotExecuteDuringPreMarket() {
-        var snapshot = sessions.at(
-            MarketExchange.NYSE,
-            ZonedDateTime.parse("2026-08-03T08:00:00-04:00[America/New_York]")
-        );
-
+    @Test void acceptsOrdersButDoesNotExecuteDuringPreMarket() {
+        var snapshot = sessions.at(MarketExchange.NYSE, ZonedDateTime.parse("2026-08-03T08:00:00-04:00[America/New_York]"));
         assertThat(snapshot.phase()).isEqualTo(MarketPhase.PRE_MARKET);
         assertThat(snapshot.allowsOrderEntry()).isTrue();
         assertThat(snapshot.executable()).isFalse();
     }
 }
 ''')
-
           write("backend/src/test/java/com/stoxsim/charge/UnitedStatesChargeCalculatorTest.java", '''package com.stoxsim.charge;
 
 import static org.assertj.core.api.Assertions.assertThat;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
 import org.junit.jupiter.api.Test;
-
 import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.order.domain.OrderSide;
 import com.stoxsim.order.domain.ProductType;
 
 class UnitedStatesChargeCalculatorTest {
-
     private final IndiaDeliveryChargeCalculator calculator = new IndiaDeliveryChargeCalculator();
-
-    @Test
-    void startsUsMvpWithExplicitZeroCommissionSchedule() {
-        var charges = calculator.calculate(
-            OrderSide.BUY,
-            ProductType.DELIVERY,
-            MarketExchange.NASDAQ,
-            new BigDecimal("1000.00"),
-            LocalDate.of(2026, 8, 1)
-        );
-
+    @Test void startsUsMvpWithExplicitZeroCommissionSchedule() {
+        var charges = calculator.calculate(OrderSide.BUY, ProductType.DELIVERY, MarketExchange.NASDAQ, new BigDecimal("1000.00"), LocalDate.of(2026, 8, 1));
         assertThat(charges.scheduleVersion()).isEqualTo("SIM-US-ZERO-COMMISSION-2026-08");
         assertThat(charges.totalCharges()).isEqualByComparingTo("0.0000");
         assertThat(charges.cashDebit()).isEqualByComparingTo("1000.0000");
