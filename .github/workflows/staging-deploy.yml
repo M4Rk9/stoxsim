@@ -126,6 +126,7 @@ jobs:
         working-directory: frontend
         env:
           PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_WEB_URL }}
+          EXPECT_US_MARKET_DATA: "true"
         run: npm run e2e
 
       - name: Upload browser diagnostics
