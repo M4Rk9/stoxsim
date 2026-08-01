@@ -95,6 +95,24 @@ public class AlpacaRestClient {
         }
     }
 
+    public JsonNode getMovers(int top) {
+        requireCredentials();
+        try {
+            return dataClient.get()
+                .uri(uri -> uri
+                    .path("/v1beta1/screener/stocks/movers")
+                    .queryParam("top", top)
+                    .build())
+                .retrieve()
+                .body(JsonNode.class);
+        } catch (RestClientException exception) {
+            throw new MarketDataUnavailableException(
+                "Could not retrieve Alpaca top market movers",
+                exception
+            );
+        }
+    }
+
     public JsonNode getAssets() {
         requireCredentials();
         try {
