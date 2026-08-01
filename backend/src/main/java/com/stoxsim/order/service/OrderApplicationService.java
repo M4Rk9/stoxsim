@@ -73,12 +73,20 @@ public class OrderApplicationService {
     }
 
     @Transactional
-    public OrderResponse place(UUID userId, String idempotencyKey, PlaceOrderRequest request) {
+    public OrderResponse place(
+        UUID userId,
+        String idempotencyKey,
+        PlaceOrderRequest request
+    ) {
         validateIdempotencyKey(idempotencyKey);
         validateRequest(request);
 
-        VirtualAccount account = accounts.findForUpdate(userId, request.marketRegion())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+        VirtualAccount account = accounts
+            .findForUpdate(userId, request.marketRegion())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Account not found"
+            ));
         var existing = orders.findByAccountIdAndIdempotencyKey(
             account.getId(),
             idempotencyKey.trim()
@@ -94,10 +102,15 @@ public class OrderApplicationService {
 
         Quote quote = marketData.latestQuote(instrument);
         if (marketData.isStale(quote)) {
-            throw new TradingValidationException("Stale quote cannot be used for an order");
+            throw new TradingValidationException(
+                "Stale quote cannot be used for an order"
+            );
         }
 
-        BigDecimal reservedCash = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
+        BigDecimal reservedCash = BigDecimal.ZERO.setScale(
+            4,
+            RoundingMode.HALF_UP
+        );
         if (request.side() == OrderSide.BUY) {
             BigDecimal reservationPrice = prices.reservationPrice(
                 request.side(),
@@ -144,9 +157,15 @@ public class OrderApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> list(UUID userId, MarketRegion marketRegion) {
+    public List<OrderResponse> list(
+        UUID userId,
+        MarketRegion marketRegion
+    ) {
         return orders
-            .findAllByAccountUserIdAndAccountMarketRegionOrderByCreatedAtDesc(userId, marketRegion)
+            .findAllByAccountUserIdAndAccountMarketRegionOrderByCreatedAtDesc(
+                userId,
+                marketRegion
+            )
             .stream()
             .map(OrderResponse::from)
             .toList();
@@ -156,20 +175,32 @@ public class OrderApplicationService {
     public OrderResponse get(UUID userId, UUID orderId) {
         return orders.findByIdAndAccountUserId(orderId, userId)
             .map(OrderResponse::from)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Order not found"
+            ));
     }
 
     @Transactional
-    public OrderResponse modify(UUID userId, UUID orderId, ModifyOrderRequest request) {
+    public OrderResponse modify(
+        UUID userId,
+        UUID orderId,
+        ModifyOrderRequest request
+    ) {
         PaperOrder snapshot = ownedOrder(userId, orderId);
-        VirtualAccount account = accounts.findByIdForUpdate(snapshot.getAccount().getId())
+        VirtualAccount account = accounts
+            .findByIdForUpdate(snapshot.getAccount().getId())
             .orElseThrow();
         PaperOrder order = orders.findByIdForUpdate(orderId).orElseThrow();
         ensureOwner(order, userId);
 
         var session = sessions.current(order.getInstrument().getExchange());
         ensureOrderChangesAllowed(session.allowsOrderEntry());
-        validateLimitTerms(order.getOrderType(), request.quantity(), request.limitPrice());
+        validateLimitTerms(
+            order.getOrderType(),
+            request.quantity(),
+            request.limitPrice()
+        );
         validateTickSize(order.getInstrument(), request.limitPrice());
 
         if (order.getSide() == OrderSide.BUY) {
@@ -180,16 +211,25 @@ public class OrderApplicationService {
                 request.quantity(),
                 session.orderDate()
             );
-            BigDecimal difference = newReservation.subtract(order.getReservedCash());
+            BigDecimal difference = newReservation.subtract(
+                order.getReservedCash()
+            );
             if (difference.signum() > 0) {
                 account.reserveCash(difference);
             } else if (difference.signum() < 0) {
                 account.releaseReservedCash(difference.abs());
             }
-            order.changeTerms(request.quantity(), request.limitPrice(), newReservation);
+            order.changeTerms(
+                request.quantity(),
+                request.limitPrice(),
+                newReservation
+            );
         } else {
             Holding holding = holdings
-                .findForUpdate(account.getId(), order.getInstrument().getId())
+                .findForUpdate(
+                    account.getId(),
+                    order.getInstrument().getId()
+                )
                 .orElseThrow();
             long difference = request.quantity() - order.getQuantity();
             if (difference > 0) {
@@ -207,7 +247,9 @@ public class OrderApplicationService {
         if (session.executable()) {
             Quote quote = marketData.latestQuote(order.getInstrument());
             if (marketData.isStale(quote)) {
-                throw new TradingValidationException("Stale quote cannot be used for an order");
+                throw new TradingValidationException(
+                    "Stale quote cannot be used for an order"
+                );
             }
             settlement.settleOpenOrder(order, account, quote);
         }
@@ -217,12 +259,15 @@ public class OrderApplicationService {
     @Transactional
     public OrderResponse cancel(UUID userId, UUID orderId) {
         PaperOrder snapshot = ownedOrder(userId, orderId);
-        VirtualAccount account = accounts.findByIdForUpdate(snapshot.getAccount().getId())
+        VirtualAccount account = accounts
+            .findByIdForUpdate(snapshot.getAccount().getId())
             .orElseThrow();
         PaperOrder order = orders.findByIdForUpdate(orderId).orElseThrow();
         ensureOwner(order, userId);
         ensureOrderChangesAllowed(
-            sessions.current(order.getInstrument().getExchange()).allowsOrderEntry()
+            sessions
+                .current(order.getInstrument().getExchange())
+                .allowsOrderEntry()
         );
 
         releaseReservation(order, account);
@@ -237,7 +282,8 @@ public class OrderApplicationService {
         if (snapshot == null || snapshot.getStatus() != OrderStatus.OPEN) {
             return;
         }
-        VirtualAccount account = accounts.findByIdForUpdate(snapshot.getAccount().getId())
+        VirtualAccount account = accounts
+            .findByIdForUpdate(snapshot.getAccount().getId())
             .orElseThrow();
         PaperOrder order = orders.findByIdForUpdate(orderId).orElseThrow();
         if (!order.isOpen()) {
@@ -248,24 +294,36 @@ public class OrderApplicationService {
         events.publishEvent(new OrderClosedEvent(key(order)));
     }
 
-    private void releaseReservation(PaperOrder order, VirtualAccount account) {
+    private void releaseReservation(
+        PaperOrder order,
+        VirtualAccount account
+    ) {
         if (order.getSide() == OrderSide.BUY) {
             account.releaseReservedCash(order.getReservedCash());
             return;
         }
-        holdings.findForUpdate(account.getId(), order.getInstrument().getId())
+        holdings.findForUpdate(
+            account.getId(),
+            order.getInstrument().getId()
+        )
             .orElseThrow()
             .release(order.getQuantity());
     }
 
     private PaperOrder ownedOrder(UUID userId, UUID orderId) {
         return orders.findByIdAndAccountUserId(orderId, userId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Order not found"
+            ));
     }
 
     private void ensureOwner(PaperOrder order, UUID userId) {
         if (!order.getAccount().getUserId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Order not found"
+            );
         }
     }
 
@@ -280,54 +338,90 @@ public class OrderApplicationService {
                 HttpStatus.NOT_FOUND,
                 "Instrument not found"
             ));
-        if (
-            instrument.getMarketRegion() != MarketRegion.INDIA
-            || instrument.getExchange() != MarketExchange.NSE
-            || (
-                instrument.getInstrumentType() != InstrumentType.EQUITY
-                && instrument.getInstrumentType() != InstrumentType.ETF
+        if (!supportsCashMarket(
+                instrument.getMarketRegion(),
+                instrument.getExchange()
             )
-        ) {
+            || (instrument.getInstrumentType() != InstrumentType.EQUITY
+                && instrument.getInstrumentType() != InstrumentType.ETF)) {
             throw new TradingValidationException(
-                "The MVP supports NSE cash equities and ETFs only"
+                "StoxSim supports NSE and configured US cash equities and ETFs"
             );
         }
         return instrument;
     }
 
     private void validateRequest(PlaceOrderRequest request) {
-        if (request.marketRegion() != MarketRegion.INDIA || request.exchange() != MarketExchange.NSE) {
-            throw new TradingValidationException("The MVP supports NSE delivery orders only");
+        if (!supportsCashMarket(
+            request.marketRegion(),
+            request.exchange()
+        )) {
+            throw new TradingValidationException(
+                "Orders are supported for NSE and configured US cash markets"
+            );
         }
-        validateLimitTerms(request.orderType(), request.quantity(), request.limitPrice());
+        validateLimitTerms(
+            request.orderType(),
+            request.quantity(),
+            request.limitPrice()
+        );
     }
 
-    private void validateLimitTerms(OrderType type, long quantity, BigDecimal limitPrice) {
+    private boolean supportsCashMarket(
+        MarketRegion marketRegion,
+        MarketExchange exchange
+    ) {
+        if (marketRegion == MarketRegion.INDIA) {
+            return exchange == MarketExchange.NSE;
+        }
+        if (marketRegion == MarketRegion.UNITED_STATES) {
+            return sessions.isUnitedStatesExchange(exchange);
+        }
+        return false;
+    }
+
+    private void validateLimitTerms(
+        OrderType type,
+        long quantity,
+        BigDecimal limitPrice
+    ) {
         if (quantity <= 0) {
-            throw new TradingValidationException("Quantity must be positive");
+            throw new TradingValidationException(
+                "Quantity must be positive"
+            );
         }
         if (type == OrderType.MARKET && limitPrice != null) {
-            throw new TradingValidationException("Market orders cannot include a limit price");
+            throw new TradingValidationException(
+                "Market orders cannot include a limit price"
+            );
         }
-        if (type == OrderType.LIMIT && (limitPrice == null || limitPrice.signum() <= 0)) {
-            throw new TradingValidationException("Limit orders require a positive limit price");
+        if (type == OrderType.LIMIT
+            && (limitPrice == null || limitPrice.signum() <= 0)) {
+            throw new TradingValidationException(
+                "Limit orders require a positive limit price"
+            );
         }
     }
 
-    private void validateTickSize(TradableInstrument instrument, BigDecimal price) {
-        if (
-            price != null
+    private void validateTickSize(
+        TradableInstrument instrument,
+        BigDecimal price
+    ) {
+        if (price != null
             && instrument.getTickSize().signum() > 0
-            && price.remainder(instrument.getTickSize()).compareTo(BigDecimal.ZERO) != 0
-        ) {
+            && price.remainder(instrument.getTickSize())
+                .compareTo(BigDecimal.ZERO) != 0) {
             throw new TradingValidationException(
-                "Limit price must be a multiple of tick size " + instrument.getTickSize()
+                "Limit price must be a multiple of tick size "
+                    + instrument.getTickSize()
             );
         }
     }
 
     private void validateIdempotencyKey(String idempotencyKey) {
-        if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
+        if (idempotencyKey == null
+            || idempotencyKey.isBlank()
+            || idempotencyKey.length() > 100) {
             throw new TradingValidationException(
                 "Idempotency-Key must contain between 1 and 100 characters"
             );
@@ -337,7 +431,7 @@ public class OrderApplicationService {
     private void ensureOrderChangesAllowed(boolean allowed) {
         if (!allowed) {
             throw new TradingValidationException(
-                "Orders are frozen during pre-open matching and buffer phases"
+                "Orders are temporarily frozen during the exchange transition phase"
             );
         }
     }
