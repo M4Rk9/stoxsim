@@ -47,6 +47,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve Gemini model migration
+        run: |
+          if [[ "$GEMINI_MODEL" == "gemini-2.5-flash" ]]; then
+            echo "::warning::GEMINI_MODEL still points to gemini-2.5-flash, which is unavailable to new users. Using gemini-3.6-flash for this deployment."
+            echo "GEMINI_MODEL=gemini-3.6-flash" >> "$GITHUB_ENV"
+          fi
+
       - name: Validate deployment configuration
         run: |
           [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]
@@ -102,7 +109,7 @@ jobs:
             exit 1
           fi
 
-          if ! jq -e '[.candidates[]?.content.parts[]? | select(.thought != true) | .text?] | any(. == "FINWIZ_GEMINI_OK")' "$RESPONSE_FILE" >/dev/null; then
+          if ! jq -e '[.candidates[]?.content.parts[]? | select(.thought != true) | .text?] | any(. != null and contains("FINWIZ_GEMINI_OK"))' "$RESPONSE_FILE" >/dev/null; then
             echo "::error::Gemini preflight returned no usable text"
             jq '{promptFeedback, candidates: [.candidates[]? | {finishReason, finishMessage, safetyRatings, content}]}' "$RESPONSE_FILE"
             exit 1
