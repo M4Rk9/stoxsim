@@ -54,17 +54,22 @@ def main() -> None:
         "ALPACA_POLLING_ENABLED": str(payload.get("ALPACA_POLLING_ENABLED", "true")),
         "ALPACA_POLLING_INTERVAL_MILLIS": str(payload.get("ALPACA_POLLING_INTERVAL_MILLIS", "5000")),
         "GEMINI_API_KEY": str(payload["GEMINI_API_KEY"]),
-        "GEMINI_MODEL": str(payload.get("GEMINI_MODEL", "gemini-2.5-flash")),
+        "GEMINI_MODEL": str(payload.get("GEMINI_MODEL", "gemini-3.6-flash")),
         "GEMINI_BASE_URL": str(payload.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com")),
         "FINWIZ_AI_ENABLED": str(payload.get("FINWIZ_AI_ENABLED", "true")),
         "FINWIZ_MAX_QUESTION_CHARACTERS": str(payload.get("FINWIZ_MAX_QUESTION_CHARACTERS", "2000")),
         "FINWIZ_MAX_OUTPUT_TOKENS": str(payload.get("FINWIZ_MAX_OUTPUT_TOKENS", "900")),
-        "FINWIZ_THINKING_BUDGET": str(payload.get("FINWIZ_THINKING_BUDGET", "0")),
+        "FINWIZ_THINKING_LEVEL": str(payload.get("FINWIZ_THINKING_LEVEL", "minimal")),
     }
     update_env_file(
         Path(sys.argv[1]),
         values,
-        remove_keys={"OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_BASE_URL"},
+        remove_keys={
+            "OPENAI_API_KEY",
+            "OPENAI_MODEL",
+            "OPENAI_BASE_URL",
+            "FINWIZ_THINKING_BUDGET",
+        },
     )
 
 
