@@ -298,7 +298,7 @@ export default function FinwizPage() {
             </div>
             <div className={styles.answerMeta}>
               <span>{answer.groundedInStoxSimData ? "Grounded in StoxSim data" : "General learning mode"}</span>
-              <small>{answer.provider === "OPENAI" ? `AI · ${answer.model}` : "Built-in learning fallback"}</small>
+              <small>{answer.provider === "GEMINI" ? `Gemini · ${answer.model}` : "Built-in learning fallback"}</small>
             </div>
           </div>
           <div className={styles.answerText}>{answer.answer}</div>
