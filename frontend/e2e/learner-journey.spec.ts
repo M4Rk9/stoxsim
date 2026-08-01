@@ -17,6 +17,18 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
     .toContainText("₹5,00,000.00");
   await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
 
+  await page.getByRole("button", { name: /US/ }).click();
+  await expect(page.getByText("USA PORTFOLIO")).toBeVisible();
+  await expect(page.getByRole("button", { name: /US/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
+    .toContainText("$10,000.00");
+
+  await page.getByRole("button", { name: /India/ }).click();
+  await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible();
+  await expect(page.getByRole("button", { name: /India/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
+    .toContainText("₹5,00,000.00");
+
   await page.reload();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "My Watchlist" })).toBeVisible();

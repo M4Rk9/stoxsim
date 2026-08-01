@@ -989,8 +989,18 @@ export default function Home() {
       <header className="appHeader">
         <Brand />
         <div className="marketSwitch" aria-label="Market selection">
-          <button className="active"><span>🇮🇳</span> India</button>
-          <button disabled title="United States market is the next product phase"><span>🇺🇸</span> US <small>NEXT</small></button>
+          <button
+            type="button"
+            className={marketRegion === "INDIA" ? "active" : ""}
+            aria-pressed={marketRegion === "INDIA"}
+            onClick={() => switchMarket("INDIA")}
+          ><span>🇮🇳</span> India</button>
+          <button
+            type="button"
+            className={marketRegion === "UNITED_STATES" ? "active" : ""}
+            aria-pressed={marketRegion === "UNITED_STATES"}
+            onClick={() => switchMarket("UNITED_STATES")}
+          ><span>🇺🇸</span> US</button>
         </div>
         <div aria-hidden="true" />
       </header>
