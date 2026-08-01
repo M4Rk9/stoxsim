@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.setTimeout(process.env.EXPECT_US_MARKET_DATA === "true" ? 480_000 : 60_000);
+
 test("a learner can create, restore and reopen an India portfolio", async ({ page }) => {
   const email = `browser-${Date.now()}-${Math.random().toString(16).slice(2)}@stoxsim.test`;
   const password = "Browser-acceptance-2026";
