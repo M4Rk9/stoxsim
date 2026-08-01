@@ -44,10 +44,10 @@ stoxsim:
     enabled: ${FINWIZ_AI_ENABLED:true}
     api-key: ${GEMINI_API_KEY:}
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
-    model: ${GEMINI_MODEL:gemini-2.5-flash}
+    model: ${GEMINI_MODEL:gemini-3.6-flash}
     max-question-characters: ${FINWIZ_MAX_QUESTION_CHARACTERS:2000}
     max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
-    thinking-budget: ${FINWIZ_THINKING_BUDGET:0}
+    thinking-level: ${FINWIZ_THINKING_LEVEL:minimal}
   market-data:
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
