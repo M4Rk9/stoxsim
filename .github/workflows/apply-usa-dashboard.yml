@@ -1,0 +1,1332 @@
+name: Apply USA dashboard milestone
+
+on:
+  push:
+    branches: [feat/usa-dashboard-alpaca]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/usa-dashboard-alpaca
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Implement USA dashboard and movers
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          def write(path: str, content: str) -> None:
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(content.strip() + "\n", encoding="utf-8")
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              if old not in text:
+                  raise RuntimeError(f"Expected pattern not found in {path}: {old[:100]!r}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          write("backend/src/main/java/com/stoxsim/market/service/UnitedStatesIndexQuoteService.java", r'''
+          package com.stoxsim.market.service;
+
+          import java.math.BigDecimal;
+          import java.math.RoundingMode;
+          import java.util.LinkedHashSet;
+          import java.util.List;
+          import java.util.Map;
+          import java.util.function.Function;
+          import java.util.stream.Collectors;
+
+          import org.springframework.stereotype.Service;
+
+          import com.stoxsim.instrument.domain.TradableInstrument;
+          import com.stoxsim.instrument.provider.alpaca.AlpacaInstrumentMapper;
+          import com.stoxsim.instrument.repository.TradableInstrumentRepository;
+          import com.stoxsim.market.api.IndexQuoteResponse;
+          import com.stoxsim.market.data.InstrumentKey;
+          import com.stoxsim.market.data.MarketDataStatus;
+          import com.stoxsim.market.data.Quote;
+          import com.stoxsim.market.domain.MarketRegion;
+          import com.stoxsim.market.provider.MarketDataProviderRegistry;
+          import com.stoxsim.market.provider.alpaca.AlpacaMarketDataProperties;
+
+          @Service
+          public class UnitedStatesIndexQuoteService {
+
+              private static final BigDecimal HUNDRED = new BigDecimal("100");
+              private static final List<BenchmarkDefinition> BENCHMARKS = List.of(
+                  new BenchmarkDefinition("SP500", "S&P 500 · SPY", "SPY"),
+                  new BenchmarkDefinition("NASDAQ_100", "Nasdaq-100 · QQQ", "QQQ"),
+                  new BenchmarkDefinition("DOW_JONES", "Dow Jones · DIA", "DIA"),
+                  new BenchmarkDefinition("RUSSELL_2000", "Russell 2000 · IWM", "IWM"),
+                  new BenchmarkDefinition("TOTAL_US", "Total US Market · VTI", "VTI"),
+                  new BenchmarkDefinition("VIX_FUTURES", "VIX Futures · VXX", "VXX")
+              );
+
+              private final TradableInstrumentRepository instruments;
+              private final MarketDataProviderRegistry providers;
+              private final MarketDataService marketData;
+              private final AlpacaMarketDataProperties properties;
+
+              public UnitedStatesIndexQuoteService(
+                  TradableInstrumentRepository instruments,
+                  MarketDataProviderRegistry providers,
+                  MarketDataService marketData,
+                  AlpacaMarketDataProperties properties
+              ) {
+                  this.instruments = instruments;
+                  this.providers = providers;
+                  this.marketData = marketData;
+                  this.properties = properties;
+              }
+
+              public List<IndexQuoteResponse> current() {
+                  if (!properties.hasCredentials()) {
+                      return BENCHMARKS.stream().map(this::unavailable).toList();
+                  }
+
+                  List<String> symbols = BENCHMARKS.stream()
+                      .map(BenchmarkDefinition::symbol)
+                      .toList();
+                  Map<String, TradableInstrument> bySymbol = instruments
+                      .findAllByProviderAndInstrumentKeyIn(
+                          AlpacaInstrumentMapper.PROVIDER,
+                          symbols
+                      )
+                      .stream()
+                      .filter(TradableInstrument::isActive)
+                      .collect(Collectors.toMap(
+                          instrument -> instrument.getTradingSymbol().toUpperCase(),
+                          Function.identity(),
+                          (first, ignored) -> first
+                      ));
+
+                  LinkedHashSet<InstrumentKey> keys = bySymbol.values().stream()
+                      .map(this::key)
+                      .collect(Collectors.toCollection(LinkedHashSet::new));
+                  Map<String, Quote> quotes;
+                  try {
+                      quotes = providers
+                          .forRegion(MarketRegion.UNITED_STATES)
+                          .getQuotes(keys)
+                          .stream()
+                          .collect(Collectors.toMap(
+                              quote -> quote.instrument().value().toUpperCase(),
+                              Function.identity(),
+                              (first, ignored) -> first
+                          ));
+                  } catch (RuntimeException exception) {
+                      quotes = Map.of();
+                  }
+
+                  Map<String, Quote> availableQuotes = quotes;
+                  return BENCHMARKS.stream()
+                      .map(definition -> response(
+                          definition,
+                          bySymbol.get(definition.symbol()),
+                          availableQuotes.get(definition.symbol())
+                      ))
+                      .toList();
+              }
+
+              private IndexQuoteResponse response(
+                  BenchmarkDefinition definition,
+                  TradableInstrument instrument,
+                  Quote quote
+              ) {
+                  if (instrument == null
+                      || quote == null
+                      || quote.lastPrice() == null
+                      || quote.lastPrice().signum() <= 0) {
+                      return unavailable(definition);
+                  }
+                  BigDecimal previousClose = quote.previousClose();
+                  BigDecimal change = previousClose == null
+                      ? null
+                      : money(quote.lastPrice().subtract(previousClose));
+                  BigDecimal changePercent = change == null
+                      || previousClose.signum() == 0
+                      ? null
+                      : change.multiply(HUNDRED)
+                          .divide(previousClose, 4, RoundingMode.HALF_UP);
+                  return new IndexQuoteResponse(
+                      definition.code(),
+                      definition.label(),
+                      instrument.getExchange().name(),
+                      instrument.getInstrumentKey(),
+                      money(quote.lastPrice()),
+                      change,
+                      changePercent,
+                      previousClose == null ? null : money(previousClose),
+                      marketData.status(instrument, quote),
+                      quote.exchangeTimestamp() == null
+                          ? quote.receivedAt()
+                          : quote.exchangeTimestamp()
+                  );
+              }
+
+              private IndexQuoteResponse unavailable(BenchmarkDefinition definition) {
+                  return new IndexQuoteResponse(
+                      definition.code(),
+                      definition.label(),
+                      "US",
+                      definition.symbol(),
+                      null,
+                      null,
+                      null,
+                      null,
+                      MarketDataStatus.UNAVAILABLE,
+                      null
+                  );
+              }
+
+              private InstrumentKey key(TradableInstrument instrument) {
+                  return new InstrumentKey(
+                      instrument.getProvider(),
+                      instrument.getInstrumentKey(),
+                      instrument.getMarketRegion()
+                  );
+              }
+
+              private BigDecimal money(BigDecimal value) {
+                  return value.setScale(4, RoundingMode.HALF_UP);
+              }
+
+              private record BenchmarkDefinition(
+                  String code,
+                  String label,
+                  String symbol
+              ) {
+              }
+          }
+          ''')
+
+          write("backend/src/main/java/com/stoxsim/market/provider/alpaca/AlpacaMarketMoverMapper.java", r'''
+          package com.stoxsim.market.provider.alpaca;
+
+          import java.math.BigDecimal;
+          import java.util.ArrayList;
+          import java.util.List;
+          import java.util.Locale;
+
+          import org.springframework.stereotype.Component;
+
+          import tools.jackson.databind.JsonNode;
+
+          @Component
+          public class AlpacaMarketMoverMapper {
+
+              public List<MoverSeed> map(JsonNode root, String collectionName) {
+                  JsonNode collection = root == null ? null : root.get(collectionName);
+                  if (collection == null || !collection.isArray()) {
+                      return List.of();
+                  }
+                  List<MoverSeed> result = new ArrayList<>();
+                  for (JsonNode node : collection) {
+                      String symbol = text(node, "symbol");
+                      BigDecimal price = decimal(node, "price", "last_price");
+                      BigDecimal change = decimal(node, "change");
+                      BigDecimal percent = decimal(
+                          node,
+                          "percent_change",
+                          "change_percent",
+                          "percentage_change"
+                      );
+                      if (symbol == null || price == null || percent == null) {
+                          continue;
+                      }
+                      result.add(new MoverSeed(
+                          symbol.toUpperCase(Locale.ROOT),
+                          price,
+                          change,
+                          percent
+                      ));
+                  }
+                  return List.copyOf(result);
+              }
+
+              private BigDecimal decimal(JsonNode node, String... fields) {
+                  for (String field : fields) {
+                      JsonNode value = node.get(field);
+                      if (value == null || value.isNull()) {
+                          continue;
+                      }
+                      try {
+                          return new BigDecimal(value.asText());
+                      } catch (NumberFormatException ignored) {
+                          // Try the next documented/legacy field name.
+                      }
+                  }
+                  return null;
+              }
+
+              private String text(JsonNode node, String field) {
+                  JsonNode value = node.get(field);
+                  if (value == null || value.isNull()) {
+                      return null;
+                  }
+                  String text = value.asText();
+                  return text == null || text.isBlank() ? null : text;
+              }
+
+              public record MoverSeed(
+                  String symbol,
+                  BigDecimal price,
+                  BigDecimal change,
+                  BigDecimal percentChange
+              ) {
+              }
+          }
+          ''')
+
+          write("backend/src/main/java/com/stoxsim/market/cache/UnitedStatesMarketMoversCache.java", r'''
+          package com.stoxsim.market.cache;
+
+          import java.time.Duration;
+          import java.util.Optional;
+
+          import org.slf4j.Logger;
+          import org.slf4j.LoggerFactory;
+          import org.springframework.data.redis.core.StringRedisTemplate;
+          import org.springframework.stereotype.Component;
+
+          import com.stoxsim.market.api.MarketMoversResponse;
+
+          import tools.jackson.databind.ObjectMapper;
+
+          @Component
+          public class UnitedStatesMarketMoversCache {
+
+              private static final Logger LOGGER = LoggerFactory.getLogger(
+                  UnitedStatesMarketMoversCache.class
+              );
+              private static final String KEY = "market:movers:united-states:stocks";
+              private static final Duration RETENTION = Duration.ofDays(7);
+
+              private final StringRedisTemplate redis;
+              private final ObjectMapper objectMapper;
+
+              public UnitedStatesMarketMoversCache(
+                  StringRedisTemplate redis,
+                  ObjectMapper objectMapper
+              ) {
+                  this.redis = redis;
+                  this.objectMapper = objectMapper;
+              }
+
+              public Optional<MarketMoversResponse> find() {
+                  try {
+                      String value = redis.opsForValue().get(KEY);
+                      return value == null
+                          ? Optional.empty()
+                          : Optional.of(objectMapper.readValue(
+                              value,
+                              MarketMoversResponse.class
+                          ));
+                  } catch (RuntimeException exception) {
+                      LOGGER.warn("Could not read USA market movers cache", exception);
+                      return Optional.empty();
+                  }
+              }
+
+              public void store(MarketMoversResponse response) {
+                  try {
+                      redis.opsForValue().set(
+                          KEY,
+                          objectMapper.writeValueAsString(response),
+                          RETENTION
+                      );
+                  } catch (RuntimeException exception) {
+                      LOGGER.warn("Could not store USA market movers cache", exception);
+                  }
+              }
+          }
+          ''')
+
+          write("backend/src/main/java/com/stoxsim/market/service/UnitedStatesMarketMoverService.java", r'''
+          package com.stoxsim.market.service;
+
+          import java.math.BigDecimal;
+          import java.math.RoundingMode;
+          import java.time.Instant;
+          import java.util.ArrayList;
+          import java.util.Comparator;
+          import java.util.LinkedHashSet;
+          import java.util.List;
+          import java.util.Locale;
+          import java.util.Map;
+          import java.util.Set;
+          import java.util.concurrent.atomic.AtomicBoolean;
+          import java.util.function.Function;
+          import java.util.stream.Collectors;
+
+          import org.slf4j.Logger;
+          import org.slf4j.LoggerFactory;
+          import org.springframework.scheduling.annotation.Scheduled;
+          import org.springframework.stereotype.Service;
+
+          import com.stoxsim.instrument.domain.MarketExchange;
+          import com.stoxsim.instrument.domain.TradableInstrument;
+          import com.stoxsim.instrument.provider.alpaca.AlpacaInstrumentMapper;
+          import com.stoxsim.instrument.repository.TradableInstrumentRepository;
+          import com.stoxsim.market.api.MarketMoverResponse;
+          import com.stoxsim.market.api.MarketMoversResponse;
+          import com.stoxsim.market.cache.UnitedStatesMarketMoversCache;
+          import com.stoxsim.market.data.InstrumentKey;
+          import com.stoxsim.market.data.MarketDataStatus;
+          import com.stoxsim.market.data.Quote;
+          import com.stoxsim.market.domain.MarketRegion;
+          import com.stoxsim.market.provider.MarketDataProvider;
+          import com.stoxsim.market.provider.MarketDataProviderRegistry;
+          import com.stoxsim.market.provider.alpaca.AlpacaMarketDataProperties;
+          import com.stoxsim.market.provider.alpaca.AlpacaMarketMoverMapper;
+          import com.stoxsim.market.provider.alpaca.AlpacaMarketMoverMapper.MoverSeed;
+          import com.stoxsim.market.provider.alpaca.AlpacaRestClient;
+
+          @Service
+          public class UnitedStatesMarketMoverService {
+
+              private static final Logger LOGGER = LoggerFactory.getLogger(
+                  UnitedStatesMarketMoverService.class
+              );
+              private static final BigDecimal HUNDRED = new BigDecimal("100");
+              private static final int RESULT_LIMIT = 10;
+              private static final List<String> LARGE_CAP_SYMBOLS = List.of(
+                  "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA",
+                  "AVGO", "LLY", "JPM", "WMT", "V", "MA", "ORCL", "XOM",
+                  "COST", "NFLX", "HD", "PG", "JNJ", "ABBV", "BAC", "KO",
+                  "CRM", "CSCO", "CVX", "IBM", "AMD", "GE", "PM", "MRK",
+                  "MCD", "ADBE", "PEP", "TMO", "DIS", "LIN", "WFC", "QCOM",
+                  "TXN", "CAT", "AMGN", "ISRG", "NOW", "GS", "INTU", "RTX",
+                  "BKNG", "SPGI", "UNH", "T", "VZ", "COP", "AMAT", "PANW",
+                  "MU", "PFE"
+              );
+
+              private final TradableInstrumentRepository instruments;
+              private final MarketDataProviderRegistry providers;
+              private final MarketDataService marketData;
+              private final AlpacaRestClient client;
+              private final AlpacaMarketMoverMapper mapper;
+              private final AlpacaMarketDataProperties properties;
+              private final UnitedStatesMarketMoversCache cache;
+              private final AtomicBoolean refreshing = new AtomicBoolean();
+
+              public UnitedStatesMarketMoverService(
+                  TradableInstrumentRepository instruments,
+                  MarketDataProviderRegistry providers,
+                  MarketDataService marketData,
+                  AlpacaRestClient client,
+                  AlpacaMarketMoverMapper mapper,
+                  AlpacaMarketDataProperties properties,
+                  UnitedStatesMarketMoversCache cache
+              ) {
+                  this.instruments = instruments;
+                  this.providers = providers;
+                  this.marketData = marketData;
+                  this.client = client;
+                  this.mapper = mapper;
+                  this.properties = properties;
+                  this.cache = cache;
+              }
+
+              public MarketMoversResponse current() {
+                  return cache.find()
+                      .map(this::withCurrentStatus)
+                      .orElseGet(this::refresh);
+              }
+
+              @Scheduled(initialDelay = 30_000, fixedDelay = 60_000)
+              public MarketMoversResponse refresh() {
+                  if (!refreshing.compareAndSet(false, true)) {
+                      return cachedOrUnavailable();
+                  }
+                  try {
+                      if (!properties.hasCredentials()) {
+                          return cachedOrUnavailable();
+                      }
+                      try {
+                          MarketMoversResponse screened = fromAlpacaScreener();
+                          if (!screened.gainers().isEmpty() || !screened.losers().isEmpty()) {
+                              cache.store(screened);
+                              return screened;
+                          }
+                      } catch (RuntimeException exception) {
+                          LOGGER.info(
+                              "Alpaca SIP movers are unavailable; using the US large-cap snapshot fallback"
+                          );
+                      }
+                      MarketMoversResponse fallback = fromLargeCapSnapshots();
+                      if (!fallback.gainers().isEmpty() || !fallback.losers().isEmpty()) {
+                          cache.store(fallback);
+                      }
+                      return fallback;
+                  } finally {
+                      refreshing.set(false);
+                  }
+              }
+
+              private MarketMoversResponse fromAlpacaScreener() {
+                  var root = client.getMovers(RESULT_LIMIT);
+                  List<MoverSeed> gainers = mapper.map(root, "gainers");
+                  List<MoverSeed> losers = mapper.map(root, "losers");
+                  if (gainers.isEmpty() && losers.isEmpty()) {
+                      throw new IllegalStateException("Alpaca returned no market movers");
+                  }
+                  return enrichSeeds("US_MARKET", gainers, losers);
+              }
+
+              private MarketMoversResponse enrichSeeds(
+                  String universe,
+                  List<MoverSeed> gainers,
+                  List<MoverSeed> losers
+              ) {
+                  LinkedHashSet<String> symbols = new LinkedHashSet<>();
+                  gainers.forEach(seed -> symbols.add(seed.symbol()));
+                  losers.forEach(seed -> symbols.add(seed.symbol()));
+                  Map<String, TradableInstrument> bySymbol = instruments
+                      .findAllByProviderAndInstrumentKeyIn(
+                          AlpacaInstrumentMapper.PROVIDER,
+                          symbols
+                      )
+                      .stream()
+                      .filter(TradableInstrument::isActive)
+                      .collect(Collectors.toMap(
+                          instrument -> instrument.getTradingSymbol().toUpperCase(Locale.ROOT),
+                          Function.identity(),
+                          (first, ignored) -> first
+                      ));
+
+                  Map<String, Quote> quotes = loadQuotes(bySymbol.values());
+                  MarketDataStatus status = marketData.marketStatus(
+                      MarketRegion.UNITED_STATES,
+                      MarketExchange.NASDAQ
+                  );
+                  List<MarketMoverResponse> mappedGainers = gainers.stream()
+                      .map(seed -> toMover(seed, bySymbol.get(seed.symbol()), quotes.get(seed.symbol()), status))
+                      .filter(java.util.Objects::nonNull)
+                      .limit(RESULT_LIMIT)
+                      .toList();
+                  List<MarketMoverResponse> mappedLosers = losers.stream()
+                      .map(seed -> toMover(seed, bySymbol.get(seed.symbol()), quotes.get(seed.symbol()), status))
+                      .filter(java.util.Objects::nonNull)
+                      .limit(RESULT_LIMIT)
+                      .toList();
+                  return new MarketMoversResponse(
+                      universe,
+                      Instant.now(),
+                      status,
+                      mappedGainers,
+                      mappedLosers
+                  );
+              }
+
+              private MarketMoversResponse fromLargeCapSnapshots() {
+                  List<TradableInstrument> universe = instruments
+                      .findAllByProviderAndInstrumentKeyIn(
+                          AlpacaInstrumentMapper.PROVIDER,
+                          LARGE_CAP_SYMBOLS
+                      )
+                      .stream()
+                      .filter(TradableInstrument::isActive)
+                      .toList();
+                  if (universe.isEmpty()) {
+                      return cachedOrUnavailable();
+                  }
+                  Map<String, Quote> quotes = loadQuotes(universe);
+                  MarketDataStatus status = marketData.marketStatus(
+                      MarketRegion.UNITED_STATES,
+                      MarketExchange.NASDAQ
+                  );
+                  List<MarketMoverResponse> candidates = new ArrayList<>();
+                  for (TradableInstrument instrument : universe) {
+                      Quote quote = quotes.get(instrument.getTradingSymbol().toUpperCase(Locale.ROOT));
+                      MarketMoverResponse mover = toMover(instrument, quote, status);
+                      if (mover != null) {
+                          candidates.add(mover);
+                      }
+                  }
+                  Comparator<MarketMoverResponse> byChange = Comparator.comparing(
+                      MarketMoverResponse::changePercent
+                  );
+                  return new MarketMoversResponse(
+                      "US_LARGE_CAP",
+                      Instant.now(),
+                      status,
+                      candidates.stream()
+                          .filter(candidate -> candidate.changePercent().signum() > 0)
+                          .sorted(byChange.reversed())
+                          .limit(RESULT_LIMIT)
+                          .toList(),
+                      candidates.stream()
+                          .filter(candidate -> candidate.changePercent().signum() < 0)
+                          .sorted(byChange)
+                          .limit(RESULT_LIMIT)
+                          .toList()
+                  );
+              }
+
+              private Map<String, Quote> loadQuotes(
+                  java.util.Collection<TradableInstrument> requested
+              ) {
+                  if (requested.isEmpty()) {
+                      return Map.of();
+                  }
+                  MarketDataProvider provider = providers.forRegion(
+                      MarketRegion.UNITED_STATES
+                  );
+                  Set<InstrumentKey> keys = requested.stream()
+                      .map(this::key)
+                      .collect(Collectors.toCollection(LinkedHashSet::new));
+                  try {
+                      return provider.getQuotes(keys).stream().collect(Collectors.toMap(
+                          quote -> quote.instrument().value().toUpperCase(Locale.ROOT),
+                          Function.identity(),
+                          (first, ignored) -> first
+                      ));
+                  } catch (RuntimeException exception) {
+                      LOGGER.warn("Could not retrieve USA mover snapshots", exception);
+                      return Map.of();
+                  }
+              }
+
+              private MarketMoverResponse toMover(
+                  MoverSeed seed,
+                  TradableInstrument instrument,
+                  Quote quote,
+                  MarketDataStatus status
+              ) {
+                  if (instrument == null) {
+                      return null;
+                  }
+                  BigDecimal lastPrice = quote != null && quote.lastPrice() != null
+                      ? quote.lastPrice()
+                      : seed.price();
+                  BigDecimal change = seed.change();
+                  BigDecimal percent = seed.percentChange();
+                  if (change == null
+                      && quote != null
+                      && quote.previousClose() != null
+                      && lastPrice != null) {
+                      change = lastPrice.subtract(quote.previousClose());
+                  }
+                  if (percent == null
+                      && change != null
+                      && quote != null
+                      && quote.previousClose() != null
+                      && quote.previousClose().signum() != 0) {
+                      percent = change.multiply(HUNDRED)
+                          .divide(quote.previousClose(), 4, RoundingMode.HALF_UP);
+                  }
+                  if (lastPrice == null || change == null || percent == null) {
+                      return null;
+                  }
+                  return new MarketMoverResponse(
+                      instrument.getInstrumentKey(),
+                      instrument.getTradingSymbol(),
+                      instrument.getName(),
+                      instrument.getExchange().name(),
+                      money(lastPrice),
+                      money(change),
+                      percent.setScale(4, RoundingMode.HALF_UP),
+                      quote == null ? null : quote.volume(),
+                      status,
+                      quote == null
+                          ? Instant.now()
+                          : quote.exchangeTimestamp() == null
+                              ? quote.receivedAt()
+                              : quote.exchangeTimestamp()
+                  );
+              }
+
+              private MarketMoverResponse toMover(
+                  TradableInstrument instrument,
+                  Quote quote,
+                  MarketDataStatus status
+              ) {
+                  if (quote == null
+                      || quote.lastPrice() == null
+                      || quote.previousClose() == null
+                      || quote.previousClose().signum() <= 0) {
+                      return null;
+                  }
+                  BigDecimal change = quote.lastPrice().subtract(quote.previousClose());
+                  BigDecimal percent = change.multiply(HUNDRED)
+                      .divide(quote.previousClose(), 4, RoundingMode.HALF_UP);
+                  return new MarketMoverResponse(
+                      instrument.getInstrumentKey(),
+                      instrument.getTradingSymbol(),
+                      instrument.getName(),
+                      instrument.getExchange().name(),
+                      money(quote.lastPrice()),
+                      money(change),
+                      percent,
+                      quote.volume(),
+                      status,
+                      quote.exchangeTimestamp() == null
+                          ? quote.receivedAt()
+                          : quote.exchangeTimestamp()
+                  );
+              }
+
+              private MarketMoversResponse withCurrentStatus(
+                  MarketMoversResponse snapshot
+              ) {
+                  MarketDataStatus status = marketData.marketStatus(
+                      MarketRegion.UNITED_STATES,
+                      MarketExchange.NASDAQ
+                  );
+                  if (status == MarketDataStatus.LIVE
+                      && (snapshot.generatedAt() == null
+                          || snapshot.generatedAt().isBefore(
+                              Instant.now().minusSeconds(180)
+                          ))) {
+                      status = MarketDataStatus.STALE;
+                  }
+                  MarketDataStatus currentStatus = status;
+                  return new MarketMoversResponse(
+                      snapshot.universe(),
+                      snapshot.generatedAt(),
+                      currentStatus,
+                      snapshot.gainers().stream()
+                          .map(mover -> withStatus(mover, currentStatus))
+                          .toList(),
+                      snapshot.losers().stream()
+                          .map(mover -> withStatus(mover, currentStatus))
+                          .toList()
+                  );
+              }
+
+              private MarketMoverResponse withStatus(
+                  MarketMoverResponse mover,
+                  MarketDataStatus status
+              ) {
+                  return new MarketMoverResponse(
+                      mover.instrumentKey(),
+                      mover.symbol(),
+                      mover.name(),
+                      mover.exchange(),
+                      mover.lastPrice(),
+                      mover.change(),
+                      mover.changePercent(),
+                      mover.volume(),
+                      status,
+                      mover.priceTimestamp()
+                  );
+              }
+
+              private MarketMoversResponse cachedOrUnavailable() {
+                  return cache.find()
+                      .map(this::withCurrentStatus)
+                      .orElseGet(() -> MarketMoversResponse.unavailable("US_MARKET"));
+              }
+
+              private InstrumentKey key(TradableInstrument instrument) {
+                  return new InstrumentKey(
+                      instrument.getProvider(),
+                      instrument.getInstrumentKey(),
+                      instrument.getMarketRegion()
+                  );
+              }
+
+              private BigDecimal money(BigDecimal value) {
+                  return value.setScale(4, RoundingMode.HALF_UP);
+              }
+          }
+          ''')
+
+          write("backend/src/test/java/com/stoxsim/market/provider/alpaca/AlpacaMarketMoverMapperTest.java", r'''
+          package com.stoxsim.market.provider.alpaca;
+
+          import static org.assertj.core.api.Assertions.assertThat;
+
+          import org.junit.jupiter.api.Test;
+
+          import tools.jackson.databind.ObjectMapper;
+
+          class AlpacaMarketMoverMapperTest {
+
+              private final ObjectMapper objectMapper = new ObjectMapper();
+              private final AlpacaMarketMoverMapper mapper = new AlpacaMarketMoverMapper();
+
+              @Test
+              void mapsGainersAndSupportsDocumentedPercentField() throws Exception {
+                  var root = objectMapper.readTree("""
+                      {
+                        "gainers": [
+                          {
+                            "symbol": "AAPL",
+                            "price": 214.50,
+                            "change": 5.20,
+                            "percent_change": 2.4841
+                          }
+                        ],
+                        "losers": []
+                      }
+                      """);
+
+                  var movers = mapper.map(root, "gainers");
+
+                  assertThat(movers).hasSize(1);
+                  assertThat(movers.getFirst().symbol()).isEqualTo("AAPL");
+                  assertThat(movers.getFirst().price()).isEqualByComparingTo("214.50");
+                  assertThat(movers.getFirst().percentChange())
+                      .isEqualByComparingTo("2.4841");
+              }
+          }
+          ''')
+
+          replace_once(
+              "backend/src/main/java/com/stoxsim/market/provider/alpaca/AlpacaRestClient.java",
+              "    public JsonNode getAssets() {",
+              r'''    public JsonNode getMovers(int top) {
+                  requireCredentials();
+                  try {
+                      return dataClient.get()
+                          .uri(uri -> uri
+                              .path("/v1beta1/screener/stocks/movers")
+                              .queryParam("top", top)
+                              .build())
+                          .retrieve()
+                          .body(JsonNode.class);
+                  } catch (RestClientException exception) {
+                      throw new MarketDataUnavailableException(
+                          "Could not retrieve Alpaca top market movers",
+                          exception
+                      );
+                  }
+              }
+
+              public JsonNode getAssets() {'''
+          )
+
+          write("backend/src/main/java/com/stoxsim/market/api/IndexController.java", r'''
+          package com.stoxsim.market.api;
+
+          import java.util.List;
+
+          import org.springframework.web.bind.annotation.GetMapping;
+          import org.springframework.web.bind.annotation.RequestMapping;
+          import org.springframework.web.bind.annotation.RequestParam;
+          import org.springframework.web.bind.annotation.RestController;
+
+          import com.stoxsim.market.domain.MarketRegion;
+          import com.stoxsim.market.service.IndexQuoteService;
+          import com.stoxsim.market.service.UnitedStatesIndexQuoteService;
+
+          @RestController
+          @RequestMapping("/api/v1/market/indices")
+          public class IndexController {
+
+              private final IndexQuoteService indiaIndices;
+              private final UnitedStatesIndexQuoteService unitedStatesIndices;
+
+              public IndexController(
+                  IndexQuoteService indiaIndices,
+                  UnitedStatesIndexQuoteService unitedStatesIndices
+              ) {
+                  this.indiaIndices = indiaIndices;
+                  this.unitedStatesIndices = unitedStatesIndices;
+              }
+
+              @GetMapping
+              public List<IndexQuoteResponse> current(
+                  @RequestParam(defaultValue = "INDIA") MarketRegion marketRegion
+              ) {
+                  return marketRegion == MarketRegion.UNITED_STATES
+                      ? unitedStatesIndices.current()
+                      : indiaIndices.current();
+              }
+          }
+          ''')
+
+          write("backend/src/main/java/com/stoxsim/market/api/MarketMoversController.java", r'''
+          package com.stoxsim.market.api;
+
+          import org.springframework.web.bind.annotation.GetMapping;
+          import org.springframework.web.bind.annotation.RequestMapping;
+          import org.springframework.web.bind.annotation.RequestParam;
+          import org.springframework.web.bind.annotation.RestController;
+
+          import com.stoxsim.market.domain.MarketRegion;
+          import com.stoxsim.market.service.MarketMoverService;
+          import com.stoxsim.market.service.UnitedStatesMarketMoverService;
+
+          @RestController
+          @RequestMapping("/api/v1/market/movers")
+          public class MarketMoversController {
+
+              private final MarketMoverService indiaMovers;
+              private final UnitedStatesMarketMoverService unitedStatesMovers;
+
+              public MarketMoversController(
+                  MarketMoverService indiaMovers,
+                  UnitedStatesMarketMoverService unitedStatesMovers
+              ) {
+                  this.indiaMovers = indiaMovers;
+                  this.unitedStatesMovers = unitedStatesMovers;
+              }
+
+              @GetMapping
+              public MarketMoversResponse current(
+                  @RequestParam(defaultValue = "INDIA") MarketRegion marketRegion
+              ) {
+                  return marketRegion == MarketRegion.UNITED_STATES
+                      ? unitedStatesMovers.current()
+                      : indiaMovers.current();
+              }
+          }
+          ''')
+
+          write("backend/src/main/java/com/stoxsim/market/api/MarketMoversResponse.java", r'''
+          package com.stoxsim.market.api;
+
+          import java.time.Instant;
+          import java.util.List;
+
+          import com.stoxsim.market.data.MarketDataStatus;
+
+          public record MarketMoversResponse(
+              String universe,
+              Instant generatedAt,
+              MarketDataStatus dataStatus,
+              List<MarketMoverResponse> gainers,
+              List<MarketMoverResponse> losers
+          ) {
+              public static MarketMoversResponse unavailable() {
+                  return unavailable("NIFTY_100");
+              }
+
+              public static MarketMoversResponse unavailable(String universe) {
+                  return new MarketMoversResponse(
+                      universe,
+                      null,
+                      MarketDataStatus.UNAVAILABLE,
+                      List.of(),
+                      List.of()
+                  );
+              }
+          }
+          ''')
+
+          page_path = Path("frontend/app/page.tsx")
+          page = page_path.read_text(encoding="utf-8")
+
+          page = page.replace(
+              'type MarketRegion = "INDIA" | "UNITED_STATES";\n',
+              'type MarketRegion = "INDIA" | "UNITED_STATES";\ntype CurrencyCode = "INR" | "USD";\n',
+              1,
+          )
+          old_money = '''const inr = (value?: number) =>
+            new Intl.NumberFormat("en-IN", {
+              style: "currency",
+              currency: "INR",
+              minimumFractionDigits: 2,
+            }).format(value ?? 0);
+
+          const inrOrDash = (value?: number) =>
+            value == null || !Number.isFinite(value) ? "—" : inr(value);
+          '''
+          new_money = '''const money = (value?: number, currency: CurrencyCode = "INR") =>
+            new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
+              style: "currency",
+              currency,
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(value ?? 0);
+
+          const moneyOrDash = (value?: number, currency: CurrencyCode = "INR") =>
+            value == null || !Number.isFinite(value) ? "—" : money(value, currency);
+
+          const inr = (value?: number) => money(value, "INR");
+          const inrOrDash = (value?: number) => moneyOrDash(value, "INR");
+          '''
+          if old_money not in page:
+              raise RuntimeError("Currency helper block not found")
+          page = page.replace(old_money, new_money, 1)
+          page = page.replace(
+              '    PRE_OPEN_ORDER_ENTRY: "Pre-open orders",\n',
+              '    PRE_MARKET: "Pre-market",\n    PRE_OPEN_ORDER_ENTRY: "Pre-open orders",\n',
+              1,
+          )
+          page = page.replace(
+              '    AFTER_MARKET: "Market closed",\n',
+              '    AFTER_HOURS: "After-hours",\n    AFTER_MARKET: "Market closed",\n',
+              1,
+          )
+          page = page.replace(
+              '  const [authForm, setAuthForm] = useState({ displayName: "", email: "", password: "" });\n  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);',
+              '  const [authForm, setAuthForm] = useState({ displayName: "", email: "", password: "" });\n  const [marketRegion, setMarketRegion] = useState<MarketRegion>("INDIA");\n  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);',
+              1,
+          )
+          page = page.replace(
+              '  const token = session?.accessToken;\n  const openOrders = useMemo(() => orders.filter((order) => order.status === "OPEN"), [orders]);',
+              '''  const token = session?.accessToken;
+            const primaryExchange = marketRegion === "INDIA" ? "NSE" : "NASDAQ";
+            const activeCurrency: CurrencyCode = marketRegion === "INDIA" ? "INR" : "USD";
+            const marketName = marketRegion === "INDIA" ? "India" : "USA";
+            const displayMoney = (value?: number) => money(value, activeCurrency);
+            const displayMoneyOrDash = (value?: number) => moneyOrDash(value, activeCurrency);
+            const openOrders = useMemo(() => orders.filter((order) => order.status === "OPEN"), [orders]);''',
+              1,
+          )
+          old_watch = '''  const watchedItem = useMemo(
+              () => watchlist?.items.find((item) => item.instrumentId === selected?.id),
+              [watchlist, selected],
+            );'''
+          new_watch = '''  const visibleWatchlistItems = useMemo(
+              () => (watchlist?.items ?? []).filter((item) => item.marketRegion === marketRegion),
+              [watchlist, marketRegion],
+            );
+            const watchedItem = useMemo(
+              () => visibleWatchlistItems.find((item) => item.instrumentId === selected?.id),
+              [visibleWatchlistItems, selected],
+            );'''
+          if old_watch not in page:
+              raise RuntimeError("Watchlist memo block not found")
+          page = page.replace(old_watch, new_watch, 1)
+          page = page.replace('      void loadDashboard(restored.accessToken);\n', '', 1)
+          selected_effect = '''  useEffect(() => {
+              selectedRef.current = selected;
+            }, [selected]);
+          '''
+          market_effect = selected_effect + '''
+            useEffect(() => {
+              if (!token) return;
+              void loadDashboard(token, marketRegion);
+            }, [token, marketRegion]);
+          '''
+          if selected_effect not in page:
+              raise RuntimeError("Selected effect block not found")
+          page = page.replace(selected_effect, market_effect, 1)
+          page = page.replace('  }, [token]);', '  }, [token, marketRegion]);', 2)
+          page = page.replace(
+              '`/api/v1/trading/charges/estimate?side=${side}&exchange=NSE&turnover=${turnover}`',
+              '`/api/v1/trading/charges/estimate?side=${side}&exchange=${selected?.exchange ?? primaryExchange}&turnover=${turnover}`',
+              1,
+          )
+          page = page.replace(
+              '  }, [token, quote, quantity, limitPrice, orderType, side]);',
+              '  }, [token, quote, quantity, limitPrice, orderType, side, selected?.exchange, primaryExchange]);',
+              1,
+          )
+
+          pattern = re.compile(r'  async function loadDashboard\(accessToken: string\) \{.*?\n  async function loadIndices\(\) \{.*?\n  async function loadMarketOverview\(\) \{.*?\n  async function loadWatchlist\(\) \{.*?\n  \}', re.S)
+          replacement = '''  async function loadDashboard(
+              accessToken: string,
+              region: MarketRegion = marketRegion,
+            ) {
+              setLoading(true);
+              setError("");
+              const exchange = region === "INDIA" ? "NSE" : "NASDAQ";
+
+              void authorizedRequest<MarketStatus>(`/api/v1/market/status?exchange=${exchange}`, {}, accessToken).then(setMarket).catch(() => undefined);
+              void authorizedRequest<PaperOrder[]>(`/api/v1/orders?marketRegion=${region}`, {}, accessToken).then(setOrders).catch(() => undefined);
+              void authorizedRequest<Trade[]>(`/api/v1/trades?marketRegion=${region}`, {}, accessToken).then(setTrades).catch(() => undefined);
+              void authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${region}`, {}, accessToken).then(setIndices).catch(() => undefined);
+              void authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken).then(setWatchlist).catch(() => undefined);
+              void authorizedRequest<MarketMovers>(`/api/v1/market/movers?marketRegion=${region}`, {}, accessToken).then(setMovers).catch(() => undefined);
+
+              try {
+                setPortfolio(await authorizedRequest<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, {}, accessToken));
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : "Could not load your portfolio");
+              } finally {
+                setLoading(false);
+              }
+            }
+
+            async function loadIndices() {
+              try {
+                setIndices(await authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${marketRegion}`));
+              } catch {
+                // Preserve the last successful values; each card already carries freshness metadata.
+              }
+            }
+
+            async function loadMarketOverview() {
+              try {
+                const [nextMarket, nextIndices, nextMovers] = await Promise.all([
+                  authorizedRequest<MarketStatus>(`/api/v1/market/status?exchange=${primaryExchange}`),
+                  authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${marketRegion}`),
+                  authorizedRequest<MarketMovers>(`/api/v1/market/movers?marketRegion=${marketRegion}`),
+                ]);
+                setMarket(nextMarket);
+                setIndices(nextIndices);
+                setMovers(nextMovers);
+              } catch {
+                // Keep the last verified snapshot visible while connectivity recovers.
+              }
+            }
+
+            async function loadWatchlist() {
+              try {
+                setWatchlist(await authorizedRequest<Watchlist>("/api/v1/watchlists/default"));
+              } catch {
+                // Preserve the saved watchlist while the connection or token recovers.
+              }
+            }'''
+          page, count = pattern.subn(replacement, page, count=1)
+          if count != 1:
+              raise RuntimeError("Dashboard loading function group not replaced")
+
+          page = page.replace(
+              '  function applyMarketTick(message: MarketQuoteMessage) {\n    if (message.lastPrice == null) return;',
+              '  function applyMarketTick(message: MarketQuoteMessage) {\n    if (message.marketRegion !== marketRegion || message.lastPrice == null) return;',
+              1,
+          )
+          page = page.replace('/api/v1/instruments/INDIA/${instrument.exchange}', '/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}')
+          page = page.replace(
+              '      const found = await authorizedRequest<Instrument[]>(\n        `/api/v1/instruments/search?marketRegion=INDIA&q=${encodeURIComponent(search.trim())}`,\n        {},\n      );\n      setResults(found.filter((item) =>\n        item.exchange === "NSE" && (item.instrumentType === "EQUITY" || item.instrumentType === "ETF")\n      ).slice(0, 8));',
+              '''      const found = await authorizedRequest<Instrument[]>(
+                `/api/v1/instruments/search?marketRegion=${marketRegion}&q=${encodeURIComponent(search.trim())}`,
+                {},
+              );
+              const supportedUsExchanges = ["NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE"];
+              setResults(found.filter((item) =>
+                (item.instrumentType === "EQUITY" || item.instrumentType === "ETF")
+                && (marketRegion === "INDIA"
+                  ? item.exchange === "NSE"
+                  : supportedUsExchanges.includes(item.exchange))
+              ).slice(0, 8));''',
+              1,
+          )
+          page = page.replace(
+              '            marketRegion: "INDIA",\n            exchange: "NSE",',
+              '            marketRegion,\n            exchange: selected.exchange,',
+              1,
+          )
+          insert_before_logout = '''  async function logout() {'''
+          switch_function = '''  function switchMarket(region: MarketRegion) {
+              if (region === marketRegion) return;
+              setMarketRegion(region);
+              setSelected(null);
+              selectedRef.current = null;
+              setQuote(null);
+              setCandles([]);
+              setYearCandles([]);
+              setStockInsights(null);
+              setResults([]);
+              setSearch("");
+              setIndices([]);
+              setMovers(null);
+              setPortfolio(null);
+              setOrders([]);
+              setTrades([]);
+              setError("");
+              setNotice("");
+            }
+
+            async function logout() {'''
+          if insert_before_logout not in page:
+              raise RuntimeError("Logout function not found")
+          page = page.replace(insert_before_logout, switch_function, 1)
+
+          page = page.replace('India live · US next', 'India + USA paper trading', 1)
+          page = page.replace(
+              'Start with ₹5,00,000, research NSE stocks, place realistic market and limit orders, and learn from every decision.',
+              'Practise with ₹5,00,000 in India and $10,000 in the USA, research stocks and ETFs, and learn from every simulated trade.',
+              1,
+          )
+          page = page.replace(
+              '''        <div className="marketSwitch" aria-label="Market selection">
+                  <button className="active"><span>🇮🇳</span> India</button>
+                  <button disabled title="United States market is the next product phase"><span>🇺🇸</span> US <small>NEXT</small></button>
+                </div>''',
+              '''        <div className="marketSwitch" aria-label="Market selection">
+                  <button type="button" className={marketRegion === "INDIA" ? "active" : ""} onClick={() => switchMarket("INDIA")}><span>🇮🇳</span> India</button>
+                  <button type="button" className={marketRegion === "UNITED_STATES" ? "active" : ""} onClick={() => switchMarket("UNITED_STATES")}><span>🇺🇸</span> USA</button>
+                </div>''',
+              1,
+          )
+          page = page.replace(
+              '<div><span className="pulse" /><div><strong>{phaseLabel(market?.phase)}</strong><small>NSE · {market?.timezone ?? "Asia/Kolkata"}</small></div></div>',
+              '<div><span className="pulse" /><div><strong>{phaseLabel(market?.phase)}</strong><small>{primaryExchange} · {market?.timezone ?? (marketRegion === "INDIA" ? "Asia/Kolkata" : "America/New_York")}</small></div></div>',
+              1,
+          )
+          page = page.replace(
+              '<section className="indexStrip" aria-label="Indian market indices">',
+              '<section className="indexStrip" aria-label={marketRegion === "INDIA" ? "Indian market indices" : "United States market benchmarks"}>',
+              1,
+          )
+          page = page.replace(
+              '<div><span className="eyebrow">INDIA PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>',
+              '<div><span className="eyebrow">{marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>',
+              1,
+          )
+          page = page.replace(
+              'Leading NIFTY 100 gainers and losers by change from the previous close.',
+              '{marketRegion === "INDIA" ? "Leading NIFTY 100 gainers and losers by change from the previous close." : "Leading US-listed gainers and losers from Alpaca, with a large-cap fallback when SIP screening is unavailable."}',
+              1,
+          )
+          page = page.replace('<span>NIFTY 100</span>', '<span>{movers?.universe === "US_MARKET" ? "US MARKET" : movers?.universe === "US_LARGE_CAP" ? "US LARGE CAP" : "NIFTY 100"}</span>', 1)
+          page = page.replace(
+              'StoxSim is preparing the first verified NIFTY 100 market snapshot. It will remain available after the market closes.',
+              '{marketRegion === "INDIA" ? "StoxSim is preparing the first verified NIFTY 100 market snapshot." : "StoxSim is preparing the first verified USA mover snapshot."} It will remain available after the market closes.',
+              1,
+          )
+          page = page.replace(
+              '<div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>Find an NSE stock</h2></div><span className="shortcut">⌘ K</span></div>',
+              '<div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>',
+              1,
+          )
+          page = page.replace(
+              'placeholder="Search Reliance, TCS, HDFC Bank…"',
+              'placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, HDFC Bank…" : "Search Apple, Nvidia, SPY…"}',
+              1,
+          )
+          page = page.replace('<div className="quoteCard">', '<div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>', 1)
+          page = page.replace('Verified Upstox daily OHLC candles', '{marketRegion === "INDIA" ? "Verified Upstox daily OHLC candles" : "Alpaca daily OHLC candles"}', 1)
+          page = page.replace('<PriceChart candles={candles} loading={chartLoading} error={chartError} />', '<PriceChart candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} />', 1)
+          page = page.replace('<QuoteMove quote={quote} />', '<QuoteMove quote={quote} currency={activeCurrency} />', 1)
+          page = page.replace('<StockPerformance quote={quote} candles={yearCandles} />', '<StockPerformance quote={quote} candles={yearCandles} currency={activeCurrency} />', 1)
+          page = page.replace('{watchlist?.items.length ?? 0}', '{visibleWatchlistItems.length}', 1)
+          page = page.replace('{(watchlist?.items ?? []).map((item) => {', '{visibleWatchlistItems.map((item) => {', 1)
+          page = page.replace('{!watchlist?.items.length &&', '{!visibleWatchlistItems.length &&', 1)
+
+          home, rest = page.split('\nfunction Brand()', 1)
+          home = home.replace('inrOrDash(', 'displayMoneyOrDash(').replace('inr(', 'displayMoney(')
+          page = home + '\nfunction Brand()' + rest
+
+          page = page.replace(
+              'function QuoteMove({ quote }: { quote: Quote }) {',
+              'function QuoteMove({ quote, currency }: { quote: Quote; currency: CurrencyCode }) {',
+              1,
+          )
+          page = page.replace('{inr(change)}', '{money(change, currency)}', 1)
+          page = page.replace(
+              'function StockPerformance({ quote, candles }: { quote: Quote; candles: Candle[] }) {',
+              'function StockPerformance({ quote, candles, currency }: { quote: Quote; candles: Candle[]; currency: CurrencyCode }) {',
+              1,
+          )
+          page = page.replace('<RangeMeter label="Today" low={quote.low} high={quote.high} current={quote.lastPrice} />', '<RangeMeter label="Today" low={quote.low} high={quote.high} current={quote.lastPrice} currency={currency} />', 1)
+          page = page.replace('<RangeMeter label="52 week" low={yearLow} high={yearHigh} current={quote.lastPrice} />', '<RangeMeter label="52 week" low={yearLow} high={yearHigh} current={quote.lastPrice} currency={currency} />', 1)
+          stock_perf_start = page.index('function StockPerformance')
+          range_start = page.index('function RangeMeter', stock_perf_start)
+          stock_perf = page[stock_perf_start:range_start].replace('inrOrDash(', 'moneyOrDash(')
+          stock_perf = stock_perf.replace('moneyOrDash(quote.open)', 'moneyOrDash(quote.open, currency)').replace('moneyOrDash(quote.previousClose)', 'moneyOrDash(quote.previousClose, currency)')
+          page = page[:stock_perf_start] + stock_perf + page[range_start:]
+          page = page.replace(
+              '  current?: number;\n}) {',
+              '  current?: number;\n  currency: CurrencyCode;\n}) {',
+              1,
+          )
+          page = page.replace('  current,\n}: {', '  current,\n  currency,\n}: {', 1)
+          page = page.replace('{inrOrDash(low)}', '{moneyOrDash(low, currency)}', 1)
+          page = page.replace('{inrOrDash(high)}', '{moneyOrDash(high, currency)}', 1)
+          page = page.replace(
+              'function PriceChart({ candles, loading, error }: { candles: Candle[]; loading: boolean; error: string }) {',
+              'function PriceChart({ candles, loading, error, currency }: { candles: Candle[]; loading: boolean; error: string; currency: CurrencyCode }) {',
+              1,
+          )
+          price_start = page.index('function PriceChart')
+          price_chart = page[price_start:].replace('inr(active.candle.close)', 'money(active.candle.close, currency)', 1).replace('inr(active.candle.high)', 'money(active.candle.high, currency)', 1).replace('inr(active.candle.low)', 'money(active.candle.low, currency)', 1)
+          page = page[:price_start] + price_chart
+          page_path.write_text(page, encoding="utf-8")
+
+          tools_path = Path("frontend/app/components/DashboardTools.tsx")
+          tools = tools_path.read_text(encoding="utf-8")
+          tools = tools.replace(
+              '''      const symbol = document
+                .querySelector(".quoteCard .quoteTop h3")
+                ?.textContent
+                ?.trim();
+              setSelectedStock((current) => {
+                if (!symbol) return current == null ? current : null;
+                if (current?.symbol === symbol && current.exchange === "NSE") return current;
+                return { exchange: "NSE", symbol };
+              });''',
+              '''      const card = document.querySelector<HTMLElement>(".quoteCard");
+              const symbol = card?.querySelector(".quoteTop h3")?.textContent?.trim();
+              const exchange = card?.dataset.exchange;
+              setSelectedStock((current) => {
+                if (!symbol || !exchange) return current == null ? current : null;
+                if (current?.symbol === symbol && current.exchange === exchange) return current;
+                return { exchange, symbol };
+              });''',
+              1,
+          )
+          tools_path.write_text(tools, encoding="utf-8")
+
+          stock_path = Path("frontend/app/stocks/[exchange]/[symbol]/page.tsx")
+          stock = stock_path.read_text(encoding="utf-8")
+          stock = stock.replace(
+              'interface Instrument {\n  tradingSymbol: string;',
+              'interface Instrument {\n  provider: string;\n  currency: string;\n  tradingSymbol: string;',
+              1,
+          )
+          stock = stock.replace(
+              'const money = (value?: number) => value == null || !Number.isFinite(value)\n  ? "—"\n  : new Intl.NumberFormat("en-IN", {\n      style: "currency",\n      currency: "INR",\n      maximumFractionDigits: 2,\n    }).format(value);',
+              '''const money = (value?: number, currency: "INR" | "USD" = "INR") => value == null || !Number.isFinite(value)
+              ? "—"
+              : new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
+                  style: "currency",
+                  currency,
+                  maximumFractionDigits: 2,
+                }).format(value);''',
+              1,
+          )
+          stock = stock.replace(
+              '  const symbol = decodeURIComponent(params.symbol).toUpperCase();',
+              '  const symbol = decodeURIComponent(params.symbol).toUpperCase();\n  const marketRegion = exchange === "NSE" || exchange === "BSE" ? "INDIA" : "UNITED_STATES";',
+              1,
+          )
+          stock = stock.replace('/api/v1/instruments/INDIA/${exchange}', '/api/v1/instruments/${marketRegion}/${exchange}')
+          stock = stock.replace(
+              '  const rising = (change ?? 0) >= 0;\n\n  return <main',
+              '  const rising = (change ?? 0) >= 0;\n  const currency = instrument.currency === "USD" ? "USD" : "INR";\n\n  return <main',
+              1,
+          )
+          stock = stock.replace('{money(quote.lastPrice)}', '{money(quote.lastPrice, currency)}', 1)
+          stock = stock.replace('{money(change)}', '{money(change, currency)}', 1)
+          stock = stock.replace('Daily OHLC candles supplied by Upstox', '{instrument.provider === "ALPACA" ? "Daily OHLC candles supplied by Alpaca" : "Daily OHLC candles supplied by Upstox"}', 1)
+          stock = stock.replace('<PriceChart candles={candles} loading={chartLoading} error={chartError} />', '<PriceChart candles={candles} loading={chartLoading} error={chartError} currency={currency} />', 1)
+          stock = stock.replace('{money(quote.open)}', '{money(quote.open, currency)}')
+          stock = stock.replace('{money(quote.previousClose)}', '{money(quote.previousClose, currency)}')
+          stock = stock.replace('{money(quote.high)}', '{money(quote.high, currency)}')
+          stock = stock.replace('{money(quote.low)}', '{money(quote.low, currency)}')
+          stock = stock.replace(
+              'function PriceChart({ candles, loading, error }: {\n  candles: Candle[];\n  loading: boolean;\n  error: string;\n}) {',
+              'function PriceChart({ candles, loading, error, currency }: {\n  candles: Candle[];\n  loading: boolean;\n  error: string;\n  currency: "INR" | "USD";\n}) {',
+              1,
+          )
+          stock = stock.replace('{money(latest.close)}', '{money(latest.close, currency)}', 1)
+          stock = stock.replace('High {money(latest.high)} · Low {money(latest.low)}', 'High {money(latest.high, currency)} · Low {money(latest.low, currency)}', 1)
+          stock = stock.replace('Consolidated figures in INR crore', '{marketRegion === "INDIA" ? "Consolidated figures in INR crore" : "US fundamentals provider integration is the next research milestone"}', 1)
+          stock_path.write_text(stock, encoding="utf-8")
+          PY
+      - name: Test backend
+        working-directory: backend
+        run: mvn -B test
+      - name: Test frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+      - name: Commit implementation
+        run: |
+          rm .github/workflows/apply-usa-dashboard.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Enable Alpaca USA dashboard, benchmarks and movers"
+          git push origin feat/usa-dashboard-alpaca
