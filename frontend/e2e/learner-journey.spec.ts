@@ -8,7 +8,7 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await page.getByLabel("Display name").fill("Browser Learner");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Start with ₹5,00,000" }).click();
+  await page.getByRole("button", { name: "Start Now!" }).click();
 
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
@@ -21,7 +21,9 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "My Watchlist" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await expect(page.getByRole("menuitem", { name: /Account settings/ })).toBeVisible();
+  await page.getByRole("menuitem", { name: /Sign out/ }).click();
   await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
 
   await page.getByRole("button", { name: "Sign in" }).click();
