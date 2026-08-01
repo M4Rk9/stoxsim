@@ -8,6 +8,9 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [fix/enable-usa-market-switch]
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,6 +18,8 @@ permissions:
 jobs:
   repair:
     if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issues' && github.event.issue.title == 'repair-usa-switch-trigger') ||
       github.event_name == 'push' ||
       github.head_ref == 'fix/enable-usa-market-switch'
