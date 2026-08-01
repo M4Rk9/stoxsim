@@ -6,13 +6,11 @@
   font-family: inherit;
 }
 
-.profileButton {
+.profileButton,
+.profileButtonCompact {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 18px;
   align-items: center;
   gap: 10px;
-  min-width: 190px;
-  max-width: 280px;
   min-height: 54px;
   padding: 6px 10px 6px 7px;
   border: 1px solid transparent;
@@ -24,9 +22,23 @@
   text-align: left;
 }
 
+.profileButton {
+  grid-template-columns: 40px minmax(0, 1fr) 18px;
+  min-width: 190px;
+  max-width: 280px;
+}
+
+.profileButtonCompact {
+  grid-template-columns: 40px 18px;
+  padding-right: 8px;
+}
+
 .profileButton:hover,
 .profileButton:focus-visible,
-.profileButton[aria-expanded="true"] {
+.profileButton[aria-expanded="true"],
+.profileButtonCompact:hover,
+.profileButtonCompact:focus-visible,
+.profileButtonCompact[aria-expanded="true"] {
   border-color: #d8e0d7;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 10px 30px rgba(15, 39, 33, 0.1);
