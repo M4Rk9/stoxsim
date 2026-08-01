@@ -59,6 +59,7 @@ def main() -> None:
         "FINWIZ_AI_ENABLED": str(payload.get("FINWIZ_AI_ENABLED", "true")),
         "FINWIZ_MAX_QUESTION_CHARACTERS": str(payload.get("FINWIZ_MAX_QUESTION_CHARACTERS", "2000")),
         "FINWIZ_MAX_OUTPUT_TOKENS": str(payload.get("FINWIZ_MAX_OUTPUT_TOKENS", "900")),
+        "FINWIZ_THINKING_BUDGET": str(payload.get("FINWIZ_THINKING_BUDGET", "0")),
     }
     update_env_file(
         Path(sys.argv[1]),
