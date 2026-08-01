@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.stoxsim.instrument.domain.TradableInstrument;
@@ -24,6 +26,9 @@ import com.stoxsim.market.provider.alpaca.AlpacaMarketDataProperties;
 @Service
 public class UnitedStatesIndexQuoteService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(
+        UnitedStatesIndexQuoteService.class
+    );
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final List<BenchmarkDefinition> BENCHMARKS = List.of(
         new BenchmarkDefinition("SP500", "S&P 500 · SPY", "SPY"),
@@ -53,6 +58,7 @@ public class UnitedStatesIndexQuoteService {
 
     public List<IndexQuoteResponse> current() {
         if (!properties.hasCredentials()) {
+            LOGGER.warn("USA benchmark snapshots are unavailable because Alpaca credentials are missing");
             return BENCHMARKS.stream().map(this::unavailable).toList();
         }
 
@@ -72,6 +78,14 @@ public class UnitedStatesIndexQuoteService {
                 (first, ignored) -> first
             ));
 
+        if (bySymbol.size() < BENCHMARKS.size()) {
+            LOGGER.info(
+                "USA benchmark snapshots are waiting for the Alpaca instrument catalogue: {}/{} symbols available",
+                bySymbol.size(),
+                BENCHMARKS.size()
+            );
+        }
+
         LinkedHashSet<InstrumentKey> keys = bySymbol.values().stream()
             .map(this::key)
             .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -87,6 +101,7 @@ public class UnitedStatesIndexQuoteService {
                     (first, ignored) -> first
                 ));
         } catch (RuntimeException exception) {
+            LOGGER.warn("Could not retrieve Alpaca USA benchmark snapshots", exception);
             quotes = Map.of();
         }
 

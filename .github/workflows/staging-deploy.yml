@@ -60,6 +60,9 @@ jobs:
           : "${ALPACA_API_KEY_ID:?Set the ALPACA_API_KEY_ID environment secret}"
           : "${ALPACA_API_SECRET_KEY:?Set the ALPACA_API_SECRET_KEY environment secret}"
 
+      - name: Verify Alpaca credentials and SPY snapshot
+        run: bash scripts/alpaca-preflight.sh
+
       - name: Configure pinned SSH host identity
         run: |
           install -m 700 -d "$HOME/.ssh"
@@ -128,6 +131,12 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ vars.STAGING_WEB_URL }}
           EXPECT_US_MARKET_DATA: "true"
         run: npm run e2e
+
+      - name: Capture backend Alpaca diagnostics
+        if: failure() && steps.remote-deploy.outcome == 'success'
+        run: |
+          ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
+            "cd '$REMOTE_DIR' && docker compose --env-file .env -f compose.yml logs --no-color --tail=500 backend | grep -Ei 'alpaca|market data|exception|error|warn' || true"
 
       - name: Upload browser diagnostics
         if: failure()
