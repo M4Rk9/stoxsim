@@ -99,22 +99,23 @@ export default function DashboardTools() {
   if (!session) return null;
 
   const initial = session.user.displayName.trim().slice(0, 1).toUpperCase() || "U";
+  const isDashboard = pathname === "/";
 
   return <>
     <div className={styles.profileMenuWrap} ref={wrapper}>
       <button
         type="button"
-        className={styles.profileButton}
+        className={isDashboard ? styles.profileButton : styles.profileButtonCompact}
         aria-label={`Open account menu for ${session.user.displayName}`}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((open) => !open)}
       >
         <span className={styles.avatar} aria-hidden="true">{initial}</span>
-        <span className={styles.profileText}>
+        {isDashboard && <span className={styles.profileText}>
           <strong>{session.user.displayName}</strong>
           <small>{session.user.email}</small>
-        </span>
+        </span>}
         <svg className={menuOpen ? styles.chevronOpen : styles.chevron} viewBox="0 0 20 20" aria-hidden="true">
           <path d="m5.5 7.5 4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
         </svg>
@@ -125,7 +126,7 @@ export default function DashboardTools() {
           <strong>{session.user.displayName}</strong>
           <span>{session.user.email}</span>
         </div>
-        {pathname !== "/" && <a className={styles.menuLink} href="/" role="menuitem">
+        {!isDashboard && <a className={styles.menuLink} href="/" role="menuitem">
           Dashboard <span>→</span>
         </a>}
         <a className={styles.menuLink} href="/settings" role="menuitem">
@@ -137,7 +138,7 @@ export default function DashboardTools() {
       </div>}
     </div>
 
-    {pathname === "/" && selectedStock && <a
+    {isDashboard && selectedStock && <a
       className={styles.stockLink}
       href={`/stocks/${encodeURIComponent(selectedStock.exchange)}/${encodeURIComponent(selectedStock.symbol)}`}
       target="_blank"
