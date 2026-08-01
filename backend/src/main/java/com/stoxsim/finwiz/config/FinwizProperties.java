@@ -10,10 +10,10 @@ public class FinwizProperties {
     private boolean enabled = true;
     private String apiKey;
     private String baseUrl = "https://generativelanguage.googleapis.com";
-    private String model = "gemini-2.5-flash";
+    private String model = "gemini-3.6-flash";
     private int maxQuestionCharacters = 2000;
     private int maxOutputTokens = 900;
-    private int thinkingBudget = 0;
+    private String thinkingLevel = "minimal";
 
     public boolean isEnabled() {
         return enabled;
@@ -63,12 +63,12 @@ public class FinwizProperties {
         this.maxOutputTokens = maxOutputTokens;
     }
 
-    public int getThinkingBudget() {
-        return thinkingBudget;
+    public String getThinkingLevel() {
+        return thinkingLevel;
     }
 
-    public void setThinkingBudget(int thinkingBudget) {
-        this.thinkingBudget = thinkingBudget;
+    public void setThinkingLevel(String thinkingLevel) {
+        this.thinkingLevel = thinkingLevel;
     }
 
     public boolean hasApiKey() {
