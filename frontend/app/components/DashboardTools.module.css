@@ -16,7 +16,7 @@
   border: 1px solid transparent;
   border-radius: 14px;
   background: transparent;
-  color: #14251f;
+  color: var(--ink);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -39,9 +39,9 @@
 .profileButtonCompact:hover,
 .profileButtonCompact:focus-visible,
 .profileButtonCompact[aria-expanded="true"] {
-  border-color: #d8e0d7;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 30px rgba(15, 39, 33, 0.1);
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: 0 10px 30px var(--shadow-color);
   outline: none;
 }
 
@@ -51,7 +51,7 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #142d3f;
+  background: var(--navy);
   color: #fff;
   font-size: 13px;
   font-weight: 850;
@@ -76,7 +76,7 @@
 
 .profileText small {
   margin-top: 3px;
-  color: #6c7c74;
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.2;
 }
@@ -85,7 +85,7 @@
 .chevronOpen {
   width: 18px;
   height: 18px;
-  color: #6c7c74;
+  color: var(--muted);
   transition: transform 160ms ease;
 }
 
@@ -99,15 +99,15 @@
   right: 0;
   width: 260px;
   overflow: hidden;
-  border: 1px solid #d8e0d7;
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 22px 60px rgba(15, 39, 33, 0.18);
+  background: var(--panel);
+  box-shadow: 0 22px 60px var(--shadow-color);
 }
 
 .identity {
   padding: 16px;
-  border-bottom: 1px solid #edf1ec;
+  border-bottom: 1px solid var(--line);
 }
 
 .identity strong,
@@ -119,13 +119,13 @@
 }
 
 .identity strong {
-  color: #14251f;
+  color: var(--ink);
   font-size: 14px;
 }
 
 .identity span {
   margin-top: 4px;
-  color: #6c7c74;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -137,9 +137,9 @@
   justify-content: space-between;
   padding: 13px 16px;
   border: 0;
-  border-bottom: 1px solid #edf1ec;
-  background: #fff;
-  color: #173126;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
   text-decoration: none;
   cursor: pointer;
   font: inherit;
@@ -152,13 +152,13 @@
 .signOut:hover,
 .menuLink:focus-visible,
 .signOut:focus-visible {
-  background: #f5faf6;
+  background: var(--surface-soft);
   outline: none;
 }
 
 .signOut {
   border-bottom: 0;
-  color: #b53030;
+  color: var(--red);
 }
 
 .stockLink {
@@ -170,9 +170,9 @@
   align-items: center;
   gap: 9px;
   padding: 12px 16px;
-  border: 1px solid #0b8f55;
+  border: 1px solid var(--green);
   border-radius: 999px;
-  background: #0b2c3f;
+  background: var(--navy);
   color: #fff;
   box-shadow: 0 16px 40px rgba(11, 44, 63, 0.22);
   text-decoration: none;
@@ -182,7 +182,7 @@
 
 .stockLink:hover,
 .stockLink:focus-visible {
-  background: #0b8f55;
+  background: var(--green);
   outline: none;
 }
 
