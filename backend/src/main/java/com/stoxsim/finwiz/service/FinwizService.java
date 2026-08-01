@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.stoxsim.finwiz.api.FinwizRequest;
@@ -26,6 +27,7 @@ import tools.jackson.databind.JsonNode;
 public class FinwizService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FinwizService.class);
+    private static final int MAX_PROVIDER_ERROR_LOG_CHARACTERS = 1_000;
     private static final String DISCLAIMER = "Educational information only. Finwiz AI does not provide investment advice, recommendations, return guarantees or real trade execution.";
     private static final String INSTRUCTIONS = """
         You are Finwiz AI, the beginner-friendly market education tutor inside StoxSim.
@@ -83,7 +85,7 @@ public class FinwizService {
                 .body(JsonNode.class);
             String answer = extractAnswer(root);
             if (answer == null || answer.isBlank()) {
-                throw new IllegalStateException("Gemini response contained no output text");
+                throw new IllegalStateException("Gemini response contained no output text: " + responseSummary(root));
             }
             return response(
                 answer.trim(),
@@ -92,8 +94,15 @@ public class FinwizService {
                 context,
                 suggestions(request.topic())
             );
+        } catch (RestClientResponseException exception) {
+            LOGGER.warn(
+                "Gemini request for Finwiz AI failed with HTTP {}: {}; using educational fallback",
+                exception.getStatusCode().value(),
+                safeProviderError(exception.getResponseBodyAsString())
+            );
+            return fallback(request, context, question);
         } catch (RestClientException | IllegalStateException exception) {
-            LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback", exception);
+            LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback: {}", exception.getMessage());
             return fallback(request, context, question);
         }
     }
@@ -130,7 +139,10 @@ public class FinwizService {
             "parts", List.of(Map.of("text", prompt))
         )));
         body.put("generationConfig", Map.of(
-            "maxOutputTokens", properties.getMaxOutputTokens()
+            "maxOutputTokens", properties.getMaxOutputTokens(),
+            "thinkingConfig", Map.of(
+                "thinkingBudget", properties.getThinkingBudget()
+            )
         ));
         return body;
     }
@@ -147,6 +159,7 @@ public class FinwizService {
             JsonNode parts = content.get("parts");
             if (parts == null || !parts.isArray()) continue;
             for (JsonNode part : parts) {
+                if (part.path("thought").asBoolean(false)) continue;
                 String text = part.path("text").asText();
                 if (!text.isBlank()) {
                     if (!answer.isEmpty()) answer.append('\n');
@@ -155,6 +168,27 @@ public class FinwizService {
             }
         }
         return answer.toString();
+    }
+
+    private String responseSummary(JsonNode root) {
+        if (root == null) return "null response";
+        JsonNode promptFeedback = root.get("promptFeedback");
+        JsonNode candidates = root.get("candidates");
+        String finishReason = candidates != null && candidates.isArray() && !candidates.isEmpty()
+            ? candidates.get(0).path("finishReason").asText("unknown")
+            : "no-candidate";
+        String blockReason = promptFeedback == null
+            ? "none"
+            : promptFeedback.path("blockReason").asText("none");
+        return "finishReason=" + finishReason + ", blockReason=" + blockReason;
+    }
+
+    private String safeProviderError(String value) {
+        if (value == null || value.isBlank()) return "empty provider error body";
+        String singleLine = value.replaceAll("[\\r\\n]+", " ");
+        return singleLine.length() <= MAX_PROVIDER_ERROR_LOG_CHARACTERS
+            ? singleLine
+            : singleLine.substring(0, MAX_PROVIDER_ERROR_LOG_CHARACTERS) + "…";
     }
 
     private FinwizResponse fallback(

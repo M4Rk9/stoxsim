@@ -65,16 +65,35 @@ FINWIZ_BODY=$(jq -nc '{
   experienceLevel: "BEGINNER"
 }')
 echo "Checking Gemini-backed Finwiz response"
-FINWIZ=$(curl --fail --silent --show-error \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d "$FINWIZ_BODY" \
-  "${API_URL}/api/v1/finwiz/ask")
-jq -e '
-  .provider == "GEMINI"
-  and (.model | startswith("gemini-"))
-  and (.answer | type == "string" and length > 40)
-' <<<"$FINWIZ" >/dev/null
+FINWIZ=""
+FINWIZ_OK=false
+for attempt in 1 2 3; do
+  FINWIZ=$(curl --fail --silent --show-error \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$FINWIZ_BODY" \
+    "${API_URL}/api/v1/finwiz/ask")
+
+  if jq -e '
+    .provider == "GEMINI"
+    and (.model | startswith("gemini-"))
+    and (.answer | type == "string" and length > 40)
+  ' <<<"$FINWIZ" >/dev/null; then
+    FINWIZ_OK=true
+    break
+  fi
+
+  echo "Finwiz attempt ${attempt} did not use Gemini: provider=$(jq -r '.provider // "missing"' <<<"$FINWIZ"), model=$(jq -r '.model // "missing"' <<<"$FINWIZ")"
+  if [[ "$attempt" -lt 3 ]]; then
+    sleep 10
+  fi
+done
+
+if [[ "$FINWIZ_OK" != true ]]; then
+  echo "::error::Finwiz returned a fallback or unusable Gemini response after three attempts. Expand 'Capture backend provider diagnostics' for the exact Gemini HTTP error."
+  jq '{provider, model, groundedInStoxSimData, generatedAt, answerPreview: (.answer // "" | .[0:160])}' <<<"$FINWIZ"
+  exit 1
+fi
 
 REFRESH_BODY=$(jq -nc --arg refreshToken "$REFRESH_TOKEN" '{refreshToken: $refreshToken}')
 ROTATED=$(curl --fail --silent --show-error \

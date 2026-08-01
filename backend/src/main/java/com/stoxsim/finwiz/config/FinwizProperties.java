@@ -13,6 +13,7 @@ public class FinwizProperties {
     private String model = "gemini-2.5-flash";
     private int maxQuestionCharacters = 2000;
     private int maxOutputTokens = 900;
+    private int thinkingBudget = 0;
 
     public boolean isEnabled() {
         return enabled;
@@ -60,6 +61,14 @@ public class FinwizProperties {
 
     public void setMaxOutputTokens(int maxOutputTokens) {
         this.maxOutputTokens = maxOutputTokens;
+    }
+
+    public int getThinkingBudget() {
+        return thinkingBudget;
+    }
+
+    public void setThinkingBudget(int thinkingBudget) {
+        this.thinkingBudget = thinkingBudget;
     }
 
     public boolean hasApiKey() {
