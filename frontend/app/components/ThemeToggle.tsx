@@ -26,8 +26,15 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     setTheme(currentTheme());
-    setSignedIn(hasSession());
     setReady(true);
+    const syncSession = () => setSignedIn(hasSession());
+    syncSession();
+    const timer = window.setInterval(syncSession, 1_000);
+    window.addEventListener("storage", syncSession);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("storage", syncSession);
+    };
   }, [pathname]);
 
   function apply(next: Theme) {
