@@ -28,8 +28,9 @@ jobs:
       SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
       GHCR_USER: ${{ secrets.STAGING_GHCR_USERNAME }}
       GHCR_TOKEN: ${{ secrets.STAGING_GHCR_TOKEN }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5-mini' }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+      GEMINI_BASE_URL: ${{ vars.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com' }}
       FINWIZ_AI_ENABLED: ${{ vars.FINWIZ_AI_ENABLED || 'true' }}
       FINWIZ_MAX_QUESTION_CHARACTERS: ${{ vars.FINWIZ_MAX_QUESTION_CHARACTERS || '2000' }}
       FINWIZ_MAX_OUTPUT_TOKENS: ${{ vars.FINWIZ_MAX_OUTPUT_TOKENS || '900' }}
@@ -52,6 +53,7 @@ jobs:
           [[ "$REMOTE_DIR" =~ ^[A-Za-z0-9._/-]+$ ]]
           [[ "$STAGING_API_URL" == https://* ]]
           [[ "$STAGING_WEB_URL" == https://* ]]
+          [[ "$GEMINI_BASE_URL" == https://* ]]
           [[ "$ALPACA_DATA_FEED" =~ ^(iex|sip|delayed_sip)$ ]]
           [[ "$ALPACA_INSTRUMENT_SYNC_ON_STARTUP" =~ ^(true|false)$ ]]
           [[ "$ALPACA_POLLING_ENABLED" =~ ^(true|false)$ ]]
@@ -65,6 +67,7 @@ jobs:
           : "${SSH_KNOWN_HOSTS:?Set the STAGING_SSH_KNOWN_HOSTS environment secret}"
           : "${GHCR_USER:?Set the STAGING_GHCR_USERNAME environment secret}"
           : "${GHCR_TOKEN:?Set the STAGING_GHCR_TOKEN environment secret}"
+          : "${GEMINI_API_KEY:?Set the GEMINI_API_KEY environment secret}"
           : "${ALPACA_API_KEY_ID:?Set the ALPACA_API_KEY_ID environment secret}"
           : "${ALPACA_API_SECRET_KEY:?Set the ALPACA_API_SECRET_KEY environment secret}"
 
@@ -98,8 +101,9 @@ jobs:
           import os
 
           print(json.dumps({
-              "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
-              "OPENAI_MODEL": os.environ["OPENAI_MODEL"],
+              "GEMINI_API_KEY": os.environ["GEMINI_API_KEY"],
+              "GEMINI_MODEL": os.environ["GEMINI_MODEL"],
+              "GEMINI_BASE_URL": os.environ["GEMINI_BASE_URL"],
               "FINWIZ_AI_ENABLED": os.environ["FINWIZ_AI_ENABLED"],
               "FINWIZ_MAX_QUESTION_CHARACTERS": os.environ["FINWIZ_MAX_QUESTION_CHARACTERS"],
               "FINWIZ_MAX_OUTPUT_TOKENS": os.environ["FINWIZ_MAX_OUTPUT_TOKENS"],
@@ -149,7 +153,7 @@ jobs:
         if: failure() && steps.remote-deploy.outcome == 'success'
         run: |
           ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
-            "cd '$REMOTE_DIR' && docker compose --env-file .env -f compose.yml logs --no-color --tail=500 backend | grep -Ei 'alpaca|openai|finwiz|market data|exception|error|warn' || true"
+            "cd '$REMOTE_DIR' && docker compose --env-file .env -f compose.yml logs --no-color --tail=500 backend | grep -Ei 'alpaca|gemini|finwiz|market data|exception|error|warn' || true"
 
       - name: Upload browser diagnostics
         if: failure()
