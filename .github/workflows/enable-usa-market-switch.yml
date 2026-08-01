@@ -1,0 +1,81 @@
+name: Enable USA market switch
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Enable USA market switching
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          page = Path("frontend/app/page.tsx")
+          content = page.read_text()
+          old = '''        <div className="marketSwitch" aria-label="Market selection">
+          <button className="active"><span>🇮🇳</span> India</button>
+          <button disabled title="United States market is the next product phase"><span>🇺🇸</span> US <small>NEXT</small></button>
+        </div>'''
+          new = '''        <div className="marketSwitch" aria-label="Market selection">
+          <button
+            type="button"
+            className={marketRegion === "INDIA" ? "active" : ""}
+            aria-pressed={marketRegion === "INDIA"}
+            onClick={() => switchMarket("INDIA")}
+          ><span>🇮🇳</span> India</button>
+          <button
+            type="button"
+            className={marketRegion === "UNITED_STATES" ? "active" : ""}
+            aria-pressed={marketRegion === "UNITED_STATES"}
+            onClick={() => switchMarket("UNITED_STATES")}
+          ><span>🇺🇸</span> US</button>
+        </div>'''
+          if old not in content:
+              raise SystemExit("Disabled USA selector was not found")
+          page.write_text(content.replace(old, new, 1))
+
+          test = Path("frontend/e2e/learner-journey.spec.ts")
+          content = test.read_text()
+          anchor = '''  await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
+
+  await page.reload();'''
+          replacement = '''  await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("button", { name: /US/ }).click();
+  await expect(page.getByText("USA PORTFOLIO")).toBeVisible();
+  await expect(page.getByRole("button", { name: /US/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
+    .toContainText("$10,000.00");
+
+  await page.getByRole("button", { name: /India/ }).click();
+  await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible();
+  await expect(page.getByRole("button", { name: /India/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
+    .toContainText("₹5,00,000.00");
+
+  await page.reload();'''
+          if anchor not in content:
+              raise SystemExit("Learner journey insertion point was not found")
+          test.write_text(content.replace(anchor, replacement, 1))
+          PY
+
+      - name: Commit the repair to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/app/page.tsx frontend/e2e/learner-journey.spec.ts
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "Enable and test USA market switching"
+          git push origin HEAD:main
