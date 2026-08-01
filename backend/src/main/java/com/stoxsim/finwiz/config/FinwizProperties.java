@@ -9,8 +9,8 @@ public class FinwizProperties {
 
     private boolean enabled = true;
     private String apiKey;
-    private String baseUrl = "https://api.openai.com/v1";
-    private String model = "gpt-5-mini";
+    private String baseUrl = "https://generativelanguage.googleapis.com";
+    private String model = "gemini-2.5-flash";
     private int maxQuestionCharacters = 2000;
     private int maxOutputTokens = 900;
 

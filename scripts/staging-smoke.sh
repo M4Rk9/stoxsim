@@ -17,11 +17,21 @@ retry() {
   done
 }
 
+check_api_readiness() {
+  local payload
+  payload=$(curl --fail --silent --show-error "${API_URL}/actuator/health/readiness") || return 1
+  jq -e '.status == "UP"' <<<"$payload" >/dev/null
+}
+
+check_web_readiness() {
+  local payload
+  payload=$(curl --fail --silent --show-error "${WEB_URL}") || return 1
+  grep -Fq "StoxSim" <<<"$payload"
+}
+
 echo "Checking staging readiness"
-retry curl --fail --silent --show-error "${API_URL}/actuator/health/readiness" \
-  | jq -e '.status == "UP"' >/dev/null
-retry curl --fail --silent --show-error "${WEB_URL}" \
-  | grep -q "StoxSim"
+retry check_api_readiness
+retry check_web_readiness
 
 EMAIL="staging-smoke-$(date +%s)-${RANDOM}@stoxsim.test"
 REGISTER_BODY=$(jq -nc \
@@ -44,10 +54,27 @@ jq -e '
 ' <<<"$AUTH" >/dev/null
 
 echo "Checking authenticated API and token rotation"
-curl --fail --silent --show-error \
+ME=$(curl --fail --silent --show-error \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  "${API_URL}/api/v1/auth/me" \
-  | jq -e --arg email "$EMAIL" '.email == $email' >/dev/null
+  "${API_URL}/api/v1/auth/me")
+jq -e --arg email "$EMAIL" '.email == $email' <<<"$ME" >/dev/null
+
+FINWIZ_BODY=$(jq -nc '{
+  question: "Explain operating cash flow to a beginner in one short paragraph.",
+  topic: "CASH_FLOW",
+  experienceLevel: "BEGINNER"
+}')
+echo "Checking Gemini-backed Finwiz response"
+FINWIZ=$(curl --fail --silent --show-error \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "$FINWIZ_BODY" \
+  "${API_URL}/api/v1/finwiz/ask")
+jq -e '
+  .provider == "GEMINI"
+  and (.model | startswith("gemini-"))
+  and (.answer | type == "string" and length > 40)
+' <<<"$FINWIZ" >/dev/null
 
 REFRESH_BODY=$(jq -nc --arg refreshToken "$REFRESH_TOKEN" '{refreshToken: $refreshToken}')
 ROTATED=$(curl --fail --silent --show-error \

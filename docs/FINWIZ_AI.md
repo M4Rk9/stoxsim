@@ -39,19 +39,22 @@ Example:
 
 The stock fields are optional. General lessons work without market context.
 
-## Provider configuration
+## Gemini provider configuration
 
 ```text
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5-mini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com
 FINWIZ_AI_ENABLED=true
 FINWIZ_MAX_QUESTION_CHARACTERS=2000
 FINWIZ_MAX_OUTPUT_TOKENS=900
 ```
 
-The API key is optional. When it is absent, disabled or the provider request fails, Finwiz returns a deterministic educational fallback instead of making the feature unavailable.
+Staging requires `GEMINI_API_KEY`. The key is synchronized into the backend host's protected `.env` file and is never exposed to the browser. The backend authenticates with the `x-goog-api-key` header and calls Gemini's `generateContent` endpoint.
 
-OpenAI requests use the Responses API with `store=false`. Keys remain backend-only and must never be included in browser code, logs or source control.
+Local development can omit the key. When Gemini is disabled, unconfigured or temporarily unavailable, Finwiz returns a deterministic educational fallback instead of making the feature unavailable.
+
+Legacy `OPENAI_API_KEY`, `OPENAI_MODEL` and `OPENAI_BASE_URL` entries are removed from the staging `.env` during provider synchronization and are not read by the application.
 
 ## Grounding
 

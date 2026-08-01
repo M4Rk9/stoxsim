@@ -24,7 +24,7 @@ class FinwizServiceTest {
     @Mock private FinwizContextService contexts;
 
     @Test
-    void usesEducationalFallbackWhenNoOpenAiKeyIsConfigured() {
+    void usesEducationalFallbackWhenNoGeminiKeyIsConfigured() {
         FinwizProperties properties = new FinwizProperties();
         properties.setApiKey("");
         FinwizRequest request = new FinwizRequest(
