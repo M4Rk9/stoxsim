@@ -75,28 +75,25 @@ public class FinwizService {
 
         try {
             JsonNode root = client.post()
-                .uri("/responses")
-                .header("Authorization", "Bearer " + properties.getApiKey())
+                .uri("/v1beta/models/{model}:generateContent", properties.getModel())
+                .header("x-goog-api-key", properties.getApiKey())
                 .header("Content-Type", "application/json")
                 .body(requestBody(request, context, question))
                 .retrieve()
                 .body(JsonNode.class);
             String answer = extractAnswer(root);
             if (answer == null || answer.isBlank()) {
-                throw new IllegalStateException("OpenAI response contained no output text");
+                throw new IllegalStateException("Gemini response contained no output text");
             }
-            String model = root != null && root.has("model")
-                ? root.get("model").asText()
-                : properties.getModel();
             return response(
                 answer.trim(),
-                "OPENAI",
-                model,
+                "GEMINI",
+                properties.getModel(),
                 context,
                 suggestions(request.topic())
             );
         } catch (RestClientException | IllegalStateException exception) {
-            LOGGER.warn("Finwiz AI provider request failed; using educational fallback", exception);
+            LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback", exception);
             return fallback(request, context, question);
         }
     }
@@ -106,12 +103,7 @@ public class FinwizService {
         ContextSnapshot context,
         String question
     ) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", properties.getModel());
-        body.put("store", false);
-        body.put("max_output_tokens", properties.getMaxOutputTokens());
-        body.put("instructions", INSTRUCTIONS);
-        body.put("input", """
+        String prompt = """
             Learning topic: %s
             Learner level: %s
             Selected symbol: %s
@@ -127,20 +119,34 @@ public class FinwizService {
                 context.symbol() == null ? "none" : context.symbol(),
                 context.text(),
                 question
-            ));
+            );
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("systemInstruction", Map.of(
+            "parts", List.of(Map.of("text", INSTRUCTIONS))
+        ));
+        body.put("contents", List.of(Map.of(
+            "role", "user",
+            "parts", List.of(Map.of("text", prompt))
+        )));
+        body.put("generationConfig", Map.of(
+            "maxOutputTokens", properties.getMaxOutputTokens()
+        ));
         return body;
     }
 
     private String extractAnswer(JsonNode root) {
         if (root == null) return null;
+        JsonNode candidates = root.get("candidates");
+        if (candidates == null || !candidates.isArray()) return null;
+
         StringBuilder answer = new StringBuilder();
-        JsonNode output = root.get("output");
-        if (output == null || !output.isArray()) return null;
-        for (JsonNode item : output) {
-            JsonNode content = item.get("content");
-            if (content == null || !content.isArray()) continue;
-            for (JsonNode part : content) {
-                if (!"output_text".equals(part.path("type").asText())) continue;
+        for (JsonNode candidate : candidates) {
+            JsonNode content = candidate.get("content");
+            if (content == null) continue;
+            JsonNode parts = content.get("parts");
+            if (parts == null || !parts.isArray()) continue;
+            for (JsonNode part : parts) {
                 String text = part.path("text").asText();
                 if (!text.isBlank()) {
                     if (!answer.isEmpty()) answer.append('\n');
