@@ -141,7 +141,7 @@ public class FinwizService {
         body.put("generationConfig", Map.of(
             "maxOutputTokens", properties.getMaxOutputTokens(),
             "thinkingConfig", Map.of(
-                "thinkingBudget", properties.getThinkingBudget()
+                "thinkingLevel", properties.getThinkingLevel()
             )
         ));
         return body;
