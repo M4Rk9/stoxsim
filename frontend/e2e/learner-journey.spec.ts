@@ -23,6 +23,21 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
     .toContainText("$10,000.00");
 
+  if (process.env.EXPECT_US_MARKET_DATA === "true") {
+    await expect(page.locator(".indexCard").first())
+      .not.toContainText("UNAVAILABLE", { timeout: 120_000 });
+
+    await expect(async () => {
+      await page.getByPlaceholder("Search Apple, Nvidia, SPY…").fill("Apple");
+      await page.getByRole("button", { name: "Search" }).click();
+      await expect(page.locator(".searchResults button").filter({ hasText: "AAPL" }))
+        .toBeVisible({ timeout: 5_000 });
+    }).toPass({
+      timeout: 120_000,
+      intervals: [5_000],
+    });
+  }
+
   await page.getByRole("button", { name: /India/ }).click();
   await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible();
   await expect(page.getByRole("button", { name: /India/ })).toHaveAttribute("aria-pressed", "true");
