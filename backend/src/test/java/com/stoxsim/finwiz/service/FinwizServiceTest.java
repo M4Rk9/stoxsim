@@ -66,7 +66,7 @@ class FinwizServiceTest {
 
         var response = new FinwizService(properties, contexts).ask(request);
 
-        assertThat(response.answer()).contains("Verified StoxSim data");
+        assertThat(response.answer()).contains("What the verified StoxSim data says");
         assertThat(response.answer()).contains("lastPrice=100.00");
         assertThat(response.dataAsOf()).isEqualTo(context.dataAsOf());
     }
