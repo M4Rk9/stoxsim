@@ -19,6 +19,11 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
     .toContainText("₹5,00,000.00");
   await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
 
+  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Switch to light mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
   await page.getByRole("button", { name: /US/ }).click();
   await expect(page.getByText("USA PORTFOLIO")).toBeVisible();
   await expect(page.getByRole("button", { name: /US/ })).toHaveAttribute("aria-pressed", "true");
@@ -51,6 +56,14 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await page.reload();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "My Watchlist" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await page.getByRole("menuitem", { name: /Finwiz AI/ }).click();
+  await expect(page.getByRole("heading", { name: /Understand markets/ })).toBeVisible();
+  await expect(page.getByText("Learning assistant, not a tip service")).toBeVisible();
+  await page.getByRole("link", { name: "Back to dashboard" }).click();
+  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
 
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
   await expect(page.getByRole("menuitem", { name: /Account settings/ })).toBeVisible();

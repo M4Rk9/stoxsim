@@ -28,6 +28,11 @@ jobs:
       SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
       GHCR_USER: ${{ secrets.STAGING_GHCR_USERNAME }}
       GHCR_TOKEN: ${{ secrets.STAGING_GHCR_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5-mini' }}
+      FINWIZ_AI_ENABLED: ${{ vars.FINWIZ_AI_ENABLED || 'true' }}
+      FINWIZ_MAX_QUESTION_CHARACTERS: ${{ vars.FINWIZ_MAX_QUESTION_CHARACTERS || '2000' }}
+      FINWIZ_MAX_OUTPUT_TOKENS: ${{ vars.FINWIZ_MAX_OUTPUT_TOKENS || '900' }}
       ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
       ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
       ALPACA_DATA_FEED: ${{ vars.ALPACA_DATA_FEED || 'iex' }}
@@ -51,6 +56,9 @@ jobs:
           [[ "$ALPACA_INSTRUMENT_SYNC_ON_STARTUP" =~ ^(true|false)$ ]]
           [[ "$ALPACA_POLLING_ENABLED" =~ ^(true|false)$ ]]
           [[ "$ALPACA_POLLING_INTERVAL_MILLIS" =~ ^[0-9]+$ ]]
+          [[ "$FINWIZ_AI_ENABLED" =~ ^(true|false)$ ]]
+          [[ "$FINWIZ_MAX_QUESTION_CHARACTERS" =~ ^[0-9]+$ ]]
+          [[ "$FINWIZ_MAX_OUTPUT_TOKENS" =~ ^[0-9]+$ ]]
           : "${STAGING_HOST:?Set the STAGING_HOST environment secret}"
           : "${STAGING_USER:?Set the STAGING_USER environment secret}"
           : "${SSH_PRIVATE_KEY:?Set the STAGING_SSH_PRIVATE_KEY environment secret}"
@@ -79,7 +87,7 @@ jobs:
           ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
             "tar -xzf /tmp/stoxsim-staging.tgz -C '$REMOTE_DIR' && rm /tmp/stoxsim-staging.tgz && chmod +x '$REMOTE_DIR'/*.sh && test -f '$REMOTE_DIR'/.env"
 
-      - name: Synchronize Alpaca staging credentials
+      - name: Synchronize provider credentials and settings
         run: |
           scp -P "$STAGING_PORT" \
             .github/scripts/sync_staging_market_data_secrets.py \
@@ -90,6 +98,11 @@ jobs:
           import os
 
           print(json.dumps({
+              "OPENAI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
+              "OPENAI_MODEL": os.environ["OPENAI_MODEL"],
+              "FINWIZ_AI_ENABLED": os.environ["FINWIZ_AI_ENABLED"],
+              "FINWIZ_MAX_QUESTION_CHARACTERS": os.environ["FINWIZ_MAX_QUESTION_CHARACTERS"],
+              "FINWIZ_MAX_OUTPUT_TOKENS": os.environ["FINWIZ_MAX_OUTPUT_TOKENS"],
               "ALPACA_API_KEY_ID": os.environ["ALPACA_API_KEY_ID"],
               "ALPACA_API_SECRET_KEY": os.environ["ALPACA_API_SECRET_KEY"],
               "ALPACA_DATA_FEED": os.environ["ALPACA_DATA_FEED"],
@@ -132,11 +145,11 @@ jobs:
           EXPECT_US_MARKET_DATA: "true"
         run: npm run e2e
 
-      - name: Capture backend Alpaca diagnostics
+      - name: Capture backend provider diagnostics
         if: failure() && steps.remote-deploy.outcome == 'success'
         run: |
           ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
-            "cd '$REMOTE_DIR' && docker compose --env-file .env -f compose.yml logs --no-color --tail=500 backend | grep -Ei 'alpaca|market data|exception|error|warn' || true"
+            "cd '$REMOTE_DIR' && docker compose --env-file .env -f compose.yml logs --no-color --tail=500 backend | grep -Ei 'alpaca|openai|finwiz|market data|exception|error|warn' || true"
 
       - name: Upload browser diagnostics
         if: failure()
