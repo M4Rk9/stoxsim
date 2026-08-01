@@ -129,6 +129,9 @@ export default function DashboardTools() {
         {!isDashboard && <a className={styles.menuLink} href="/" role="menuitem">
           Dashboard <span>→</span>
         </a>}
+        <a className={styles.menuLink} href="/finwiz" role="menuitem">
+          Finwiz AI <span>↗</span>
+        </a>
         <a className={styles.menuLink} href="/settings" role="menuitem">
           Account settings <span>→</span>
         </a>
