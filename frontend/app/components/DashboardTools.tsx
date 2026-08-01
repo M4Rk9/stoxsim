@@ -70,6 +70,10 @@ export default function DashboardTools() {
   }, [pathname]);
 
   useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     const close = (event: globalThis.MouseEvent) => {
       if (!wrapper.current?.contains(event.target as Node)) {
         setMenuOpen(false);
@@ -94,27 +98,38 @@ export default function DashboardTools() {
 
   if (!session) return null;
 
+  const initial = session.user.displayName.trim().slice(0, 1).toUpperCase() || "U";
+
   return <>
-    <div className={styles.accountWrap} ref={wrapper}>
+    <div className={styles.profileMenuWrap} ref={wrapper}>
       <button
         type="button"
-        className={styles.accountButton}
+        className={styles.profileButton}
+        aria-label={`Open account menu for ${session.user.displayName}`}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((open) => !open)}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 10c5.1 0 8 2.55 8 5.7V20H4v-2.3C4 14.55 6.9 12 12 12Z" fill="currentColor" />
+        <span className={styles.avatar} aria-hidden="true">{initial}</span>
+        <span className={styles.profileText}>
+          <strong>{session.user.displayName}</strong>
+          <small>{session.user.email}</small>
+        </span>
+        <svg className={menuOpen ? styles.chevronOpen : styles.chevron} viewBox="0 0 20 20" aria-hidden="true">
+          <path d="m5.5 7.5 4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
         </svg>
-        Account
       </button>
+
       {menuOpen && <div className={styles.menu} role="menu">
         <div className={styles.identity}>
           <strong>{session.user.displayName}</strong>
           <span>{session.user.email}</span>
         </div>
+        {pathname !== "/" && <a className={styles.menuLink} href="/" role="menuitem">
+          Dashboard <span>→</span>
+        </a>}
         <a className={styles.menuLink} href="/settings" role="menuitem">
-          Profile &amp; security <span>→</span>
+          Account settings <span>→</span>
         </a>
         <button type="button" className={styles.signOut} role="menuitem" onClick={signOut}>
           Sign out <span>→</span>
