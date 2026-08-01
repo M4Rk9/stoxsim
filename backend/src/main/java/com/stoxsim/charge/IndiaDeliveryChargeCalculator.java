@@ -43,13 +43,33 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
         BigDecimal turnover,
         LocalDate tradeDate
     ) {
-        if (product != ProductType.DELIVERY || exchange != MarketExchange.NSE) {
-            throw new TradingValidationException(
-                "The simulated charge engine currently supports NSE delivery trades only"
-            );
+        if (product != ProductType.DELIVERY) {
+            throw new TradingValidationException("Only delivery trades are supported");
         }
         if (turnover == null || turnover.signum() <= 0 || tradeDate == null) {
-            throw new TradingValidationException("Turnover and trade date are required for charges");
+            throw new TradingValidationException(
+                "Turnover and trade date are required for charges"
+            );
+        }
+        if (isUnitedStates(exchange)) {
+            return new ChargeBreakdown(
+                "SIM-US-ZERO-COMMISSION-2026-08",
+                true,
+                turnover,
+                ZERO,
+                ZERO,
+                ZERO,
+                ZERO,
+                ZERO,
+                ZERO,
+                ZERO,
+                ZERO
+            );
+        }
+        if (exchange != MarketExchange.NSE) {
+            throw new TradingValidationException(
+                "The simulated charge engine supports NSE and configured US cash markets"
+            );
         }
 
         Schedule schedule = SCHEDULES.stream()
@@ -61,7 +81,10 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
 
         BigDecimal brokerage = ZERO;
         BigDecimal stt = charge(turnover, STT_RATE);
-        BigDecimal exchangeCharges = charge(turnover, schedule.exchangeTransactionRate());
+        BigDecimal exchangeCharges = charge(
+            turnover,
+            schedule.exchangeTransactionRate()
+        );
         BigDecimal sebiCharges = charge(turnover, SEBI_RATE);
         BigDecimal stampDuty = side == OrderSide.BUY
             ? charge(turnover, STAMP_DUTY_BUY_RATE)
@@ -93,6 +116,14 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
             dpCharges,
             total
         );
+    }
+
+    private boolean isUnitedStates(MarketExchange exchange) {
+        return exchange == MarketExchange.NASDAQ
+            || exchange == MarketExchange.NYSE
+            || exchange == MarketExchange.NYSE_ARCA
+            || exchange == MarketExchange.AMEX
+            || exchange == MarketExchange.CBOE;
     }
 
     private BigDecimal charge(BigDecimal base, BigDecimal rate) {

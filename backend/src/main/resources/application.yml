@@ -60,5 +60,14 @@ stoxsim:
         - NSE_INDEX|Nifty IT
         - NSE_INDEX|India VIX
         - BSE_INDEX|SENSEX
+    alpaca:
+      key-id: ${ALPACA_API_KEY_ID:}
+      secret-key: ${ALPACA_API_SECRET_KEY:}
+      data-base-url: ${ALPACA_DATA_BASE_URL:https://data.alpaca.markets}
+      trading-base-url: ${ALPACA_TRADING_BASE_URL:https://paper-api.alpaca.markets}
+      feed: ${ALPACA_DATA_FEED:iex}
+      instrument-sync-on-startup: ${ALPACA_INSTRUMENT_SYNC_ON_STARTUP:true}
+      polling-enabled: ${ALPACA_POLLING_ENABLED:true}
+      polling-interval-millis: ${ALPACA_POLLING_INTERVAL_MILLIS:5000}
   trading:
     slippage-basis-points: ${SIMULATED_SLIPPAGE_BASIS_POINTS:5}

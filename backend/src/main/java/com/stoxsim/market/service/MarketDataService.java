@@ -31,20 +31,20 @@ public class MarketDataService {
     private final MarketDataProviderRegistry providers;
     private final MarketDataCache cache;
     private final UpstoxMarketDataProperties upstoxProperties;
-    private final IndiaMarketSessionService indiaSessions;
+    private final IndiaMarketSessionService sessions;
 
     public MarketDataService(
         TradableInstrumentRepository instruments,
         MarketDataProviderRegistry providers,
         MarketDataCache cache,
         UpstoxMarketDataProperties upstoxProperties,
-        IndiaMarketSessionService indiaSessions
+        IndiaMarketSessionService sessions
     ) {
         this.instruments = instruments;
         this.providers = providers;
         this.cache = cache;
         this.upstoxProperties = upstoxProperties;
-        this.indiaSessions = indiaSessions;
+        this.sessions = sessions;
     }
 
     public QuoteResponse getQuote(
@@ -52,7 +52,11 @@ public class MarketDataService {
         MarketExchange exchange,
         String symbol
     ) {
-        TradableInstrument instrument = findInstrument(marketRegion, exchange, symbol);
+        TradableInstrument instrument = findInstrument(
+            marketRegion,
+            exchange,
+            symbol
+        );
         Quote quote = latestQuote(instrument);
         return QuoteResponse.from(
             instrument,
@@ -68,7 +72,9 @@ public class MarketDataService {
             return cached.get();
         }
         try {
-            var fresh = providers.forRegion(instrument.getMarketRegion()).getQuote(key);
+            var fresh = providers
+                .forRegion(instrument.getMarketRegion())
+                .getQuote(key);
             cache.storeQuote(fresh);
             return fresh;
         } catch (RuntimeException exception) {
@@ -77,12 +83,20 @@ public class MarketDataService {
     }
 
     public boolean isStale(Quote quote) {
-        Instant staleCutoff = Instant.now().minusSeconds(upstoxProperties.getStaleAfterSeconds());
-        return quote.receivedAt() == null || quote.receivedAt().isBefore(staleCutoff);
+        Instant staleCutoff = Instant.now().minusSeconds(
+            upstoxProperties.getStaleAfterSeconds()
+        );
+        return quote.receivedAt() == null
+            || quote.receivedAt().isBefore(staleCutoff);
     }
 
-    public MarketDataStatus status(TradableInstrument instrument, Quote quote) {
-        if (quote == null || quote.lastPrice() == null || quote.lastPrice().signum() <= 0) {
+    public MarketDataStatus status(
+        TradableInstrument instrument,
+        Quote quote
+    ) {
+        if (quote == null
+            || quote.lastPrice() == null
+            || quote.lastPrice().signum() <= 0) {
             return MarketDataStatus.UNAVAILABLE;
         }
         if (!isRegularSession(instrument)) {
@@ -95,11 +109,10 @@ public class MarketDataService {
         MarketRegion marketRegion,
         MarketExchange exchange
     ) {
-        if (marketRegion == MarketRegion.INDIA
-            && indiaSessions.current(exchange).executable()) {
-            return MarketDataStatus.LIVE;
-        }
-        return MarketDataStatus.CLOSED;
+        validateExchangeRegion(marketRegion, exchange);
+        return sessions.current(exchange).executable()
+            ? MarketDataStatus.LIVE
+            : MarketDataStatus.CLOSED;
     }
 
     public CandleSeriesResponse getCandles(
@@ -117,13 +130,18 @@ public class MarketDataService {
             );
         }
 
-        TradableInstrument instrument = findInstrument(marketRegion, exchange, symbol);
+        TradableInstrument instrument = findInstrument(
+            marketRegion,
+            exchange,
+            symbol
+        );
         InstrumentKey key = key(instrument);
         List<Candle> candles = cache
             .findCandles(key, interval, from.toString(), to.toString())
             .filter(cached -> !cached.isEmpty())
             .orElseGet(() -> {
-                var fresh = providers.forRegion(marketRegion)
+                var fresh = providers
+                    .forRegion(marketRegion)
                     .getCandles(key, interval, from, to);
                 if (!fresh.isEmpty()) {
                     cache.storeCandles(
@@ -172,18 +190,39 @@ public class MarketDataService {
         );
     }
 
-    private boolean shouldRefresh(TradableInstrument instrument, Quote quote) {
+    private boolean shouldRefresh(
+        TradableInstrument instrument,
+        Quote quote
+    ) {
         if (quote.receivedAt() == null) {
             return true;
         }
         int refreshSeconds = isRegularSession(instrument)
             ? upstoxProperties.getQuoteTtlSeconds()
             : upstoxProperties.getClosedQuoteRefreshSeconds();
-        return quote.receivedAt().isBefore(Instant.now().minusSeconds(refreshSeconds));
+        return quote.receivedAt().isBefore(
+            Instant.now().minusSeconds(refreshSeconds)
+        );
     }
 
     private boolean isRegularSession(TradableInstrument instrument) {
-        return instrument.getMarketRegion() == MarketRegion.INDIA
-            && indiaSessions.current(instrument.getExchange()).executable();
+        return sessions.current(instrument.getExchange()).executable();
+    }
+
+    private void validateExchangeRegion(
+        MarketRegion marketRegion,
+        MarketExchange exchange
+    ) {
+        boolean usExchange = sessions.isUnitedStatesExchange(exchange);
+        if (marketRegion == MarketRegion.UNITED_STATES && !usExchange) {
+            throw new IllegalArgumentException(
+                "United States market status requires a US exchange"
+            );
+        }
+        if (marketRegion == MarketRegion.INDIA && usExchange) {
+            throw new IllegalArgumentException(
+                "India market status requires NSE or BSE"
+            );
+        }
     }
 }

@@ -23,9 +23,6 @@ public class MarketStatusController {
     public MarketSessionSnapshot status(
         @RequestParam(defaultValue = "NSE") MarketExchange exchange
     ) {
-        if (exchange != MarketExchange.NSE && exchange != MarketExchange.BSE) {
-            throw new IllegalArgumentException("India market status supports NSE and BSE");
-        }
         return sessions.current(exchange);
     }
 }

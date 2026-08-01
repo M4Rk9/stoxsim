@@ -4,5 +4,8 @@ public enum MarketExchange {
     NSE,
     BSE,
     NASDAQ,
-    NYSE
+    NYSE,
+    NYSE_ARCA,
+    AMEX,
+    CBOE
 }
