@@ -29,12 +29,12 @@ jobs:
       GHCR_USER: ${{ secrets.STAGING_GHCR_USERNAME }}
       GHCR_TOKEN: ${{ secrets.STAGING_GHCR_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }}
       GEMINI_BASE_URL: ${{ vars.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com' }}
       FINWIZ_AI_ENABLED: ${{ vars.FINWIZ_AI_ENABLED || 'true' }}
       FINWIZ_MAX_QUESTION_CHARACTERS: ${{ vars.FINWIZ_MAX_QUESTION_CHARACTERS || '2000' }}
       FINWIZ_MAX_OUTPUT_TOKENS: ${{ vars.FINWIZ_MAX_OUTPUT_TOKENS || '900' }}
-      FINWIZ_THINKING_BUDGET: ${{ vars.FINWIZ_THINKING_BUDGET || '0' }}
+      FINWIZ_THINKING_LEVEL: ${{ vars.FINWIZ_THINKING_LEVEL || 'minimal' }}
       ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
       ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
       ALPACA_DATA_FEED: ${{ vars.ALPACA_DATA_FEED || 'iex' }}
@@ -62,8 +62,7 @@ jobs:
           [[ "$FINWIZ_AI_ENABLED" =~ ^(true|false)$ ]]
           [[ "$FINWIZ_MAX_QUESTION_CHARACTERS" =~ ^[0-9]+$ ]]
           [[ "$FINWIZ_MAX_OUTPUT_TOKENS" =~ ^[0-9]+$ ]]
-          [[ "$FINWIZ_THINKING_BUDGET" =~ ^[0-9]+$ ]]
-          (( FINWIZ_THINKING_BUDGET <= 24576 ))
+          [[ "$FINWIZ_THINKING_LEVEL" =~ ^(minimal|low|medium|high)$ ]]
           : "${STAGING_HOST:?Set the STAGING_HOST environment secret}"
           : "${STAGING_USER:?Set the STAGING_USER environment secret}"
           : "${SSH_PRIVATE_KEY:?Set the STAGING_SSH_PRIVATE_KEY environment secret}"
@@ -80,12 +79,12 @@ jobs:
           REQUEST_BODY=$(jq -nc \
             --arg prompt "Reply with exactly: FINWIZ_GEMINI_OK" \
             --argjson maxOutputTokens 64 \
-            --argjson thinkingBudget "$FINWIZ_THINKING_BUDGET" \
+            --arg thinkingLevel "$FINWIZ_THINKING_LEVEL" \
             '{
               contents: [{role: "user", parts: [{text: $prompt}]}],
               generationConfig: {
                 maxOutputTokens: $maxOutputTokens,
-                thinkingConfig: {thinkingBudget: $thinkingBudget}
+                thinkingConfig: {thinkingLevel: $thinkingLevel}
               }
             }')
           HTTP_STATUS=$(curl --silent --show-error \
@@ -103,7 +102,7 @@ jobs:
             exit 1
           fi
 
-          if ! jq -e '[.candidates[]?.content.parts[]?.text?] | any(. == "FINWIZ_GEMINI_OK")' "$RESPONSE_FILE" >/dev/null; then
+          if ! jq -e '[.candidates[]?.content.parts[]? | select(.thought != true) | .text?] | any(. == "FINWIZ_GEMINI_OK")' "$RESPONSE_FILE" >/dev/null; then
             echo "::error::Gemini preflight returned no usable text"
             jq '{promptFeedback, candidates: [.candidates[]? | {finishReason, finishMessage, safetyRatings, content}]}' "$RESPONSE_FILE"
             exit 1
@@ -146,7 +145,7 @@ jobs:
               "FINWIZ_AI_ENABLED": os.environ["FINWIZ_AI_ENABLED"],
               "FINWIZ_MAX_QUESTION_CHARACTERS": os.environ["FINWIZ_MAX_QUESTION_CHARACTERS"],
               "FINWIZ_MAX_OUTPUT_TOKENS": os.environ["FINWIZ_MAX_OUTPUT_TOKENS"],
-              "FINWIZ_THINKING_BUDGET": os.environ["FINWIZ_THINKING_BUDGET"],
+              "FINWIZ_THINKING_LEVEL": os.environ["FINWIZ_THINKING_LEVEL"],
               "ALPACA_API_KEY_ID": os.environ["ALPACA_API_KEY_ID"],
               "ALPACA_API_SECRET_KEY": os.environ["ALPACA_API_SECRET_KEY"],
               "ALPACA_DATA_FEED": os.environ["ALPACA_DATA_FEED"],
