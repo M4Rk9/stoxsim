@@ -13,8 +13,12 @@ public record MarketMoversResponse(
     List<MarketMoverResponse> losers
 ) {
     public static MarketMoversResponse unavailable() {
+        return unavailable("NIFTY_100");
+    }
+
+    public static MarketMoversResponse unavailable(String universe) {
         return new MarketMoversResponse(
-            "NSE_EQUITIES",
+            universe,
             null,
             MarketDataStatus.UNAVAILABLE,
             List.of(),

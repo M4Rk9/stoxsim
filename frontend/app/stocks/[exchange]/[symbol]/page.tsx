@@ -16,6 +16,8 @@ interface StoredSession {
 }
 
 interface Instrument {
+  provider: string;
+  currency: string;
   tradingSymbol: string;
   name: string;
   exchange: string;
@@ -90,13 +92,13 @@ class ApiError extends Error {
   }
 }
 
-const money = (value?: number) => value == null || !Number.isFinite(value)
-  ? "—"
-  : new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 2,
-    }).format(value);
+const money = (value?: number, currency: "INR" | "USD" = "INR") => value == null || !Number.isFinite(value)
+    ? "—"
+    : new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 2,
+      }).format(value);
 
 const number = (value?: number) => value == null || !Number.isFinite(value)
   ? "—"
@@ -143,6 +145,7 @@ export default function StockPage() {
   const params = useParams<{ exchange: string; symbol: string }>();
   const exchange = decodeURIComponent(params.exchange).toUpperCase();
   const symbol = decodeURIComponent(params.symbol).toUpperCase();
+  const marketRegion = exchange === "NSE" || exchange === "BSE" ? "INDIA" : "UNITED_STATES";
   const [session, setSession] = useState<StoredSession | null>(null);
   const [instrument, setInstrument] = useState<Instrument | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -191,8 +194,8 @@ export default function StockPage() {
     setLoading(true);
     setError("");
     Promise.all([
-      authorized<Instrument>(`/api/v1/instruments/INDIA/${exchange}/${encodeURIComponent(symbol)}`),
-      authorized<Quote>(`/api/v1/instruments/INDIA/${exchange}/${encodeURIComponent(symbol)}/quote`),
+      authorized<Instrument>(`/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}`),
+      authorized<Quote>(`/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}/quote`),
     ]).then(([nextInstrument, nextQuote]) => {
       if (!active) return;
       setInstrument(nextInstrument);
@@ -216,7 +219,7 @@ export default function StockPage() {
     setChartError("");
     const to = new Date().toISOString().slice(0, 10);
     authorized<CandleSeries>(
-      `/api/v1/instruments/INDIA/${exchange}/${encodeURIComponent(symbol)}/candles?interval=ONE_DAY&from=${monthsAgo(range)}&to=${to}`,
+      `/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}/candles?interval=ONE_DAY&from=${monthsAgo(range)}&to=${to}`,
     ).then((series) => {
       if (active) setCandles(series.candles ?? []);
     }).catch((cause) => {
@@ -237,7 +240,7 @@ export default function StockPage() {
     let active = true;
     setInsightsLoading(true);
     authorized<StockInsights>(
-      `/api/v1/instruments/INDIA/${exchange}/${encodeURIComponent(symbol)}/insights?timePeriod=${period}`,
+      `/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}/insights?timePeriod=${period}`,
     ).then((next) => {
       if (active) setInsights(next);
     }).catch(() => {
@@ -270,6 +273,7 @@ export default function StockPage() {
     ? undefined
     : (change / quote.previousClose) * 100;
   const rising = (change ?? 0) >= 0;
+  const currency = instrument.currency === "USD" ? "USD" : "INR";
 
   return <main className={styles.shell}>
     <header className={styles.header}>
@@ -291,9 +295,9 @@ export default function StockPage() {
           </div>
         </div>
         <div className={styles.priceBlock}>
-          <strong>{money(quote.lastPrice)}</strong>
+          <strong>{money(quote.lastPrice, currency)}</strong>
           {change != null && <div className={`${styles.move} ${rising ? styles.positive : styles.negative}`}>
-            {rising ? "+" : ""}{money(change)} ({rising ? "+" : ""}{number(changePercent)}%)
+            {rising ? "+" : ""}{money(change, currency)} ({rising ? "+" : ""}{number(changePercent)}%)
           </div>}
           <span className={styles.status}>{quote.dataStatus} DATA</span>
         </div>
@@ -303,7 +307,7 @@ export default function StockPage() {
         <div className={styles.stack}>
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Price history</h2><p>Daily OHLC candles supplied by Upstox</p></div>
+              <div><h2>Price history</h2><p>{instrument.provider === "ALPACA" ? "Daily OHLC candles supplied by Alpaca" : "Daily OHLC candles supplied by Upstox"}</p></div>
               <div className={styles.rangeTabs}>
                 {([1, 3, 6, 12, 36, 60] as const).map((months) => <button
                   type="button"
@@ -313,7 +317,7 @@ export default function StockPage() {
                 >{months >= 12 ? `${months / 12}Y` : `${months}M`}</button>)}
               </div>
             </div>
-            <PriceChart candles={candles} loading={chartLoading} error={chartError} />
+            <PriceChart candles={candles} loading={chartLoading} error={chartError} currency={currency} />
           </article>
 
           <article className={styles.card}>
@@ -345,7 +349,7 @@ export default function StockPage() {
 
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Financial performance</h2><p>Consolidated figures in INR crore</p></div>
+              <div><h2>Financial performance</h2><p>{marketRegion === "INDIA" ? "Consolidated figures in INR crore" : "US fundamentals provider integration is the next research milestone"}</p></div>
               <div className={styles.rangeTabs}>
                 <button type="button" className={period === "quarterly" ? styles.active : ""} onClick={() => setPeriod("quarterly")}>Quarterly</button>
                 <button type="button" className={period === "yearly" ? styles.active : ""} onClick={() => setPeriod("yearly")}>Yearly</button>
@@ -359,10 +363,10 @@ export default function StockPage() {
           <article className={styles.card}>
             <div className={styles.cardHeader}><div><h2>Market snapshot</h2><p>Latest verified trading values</p></div></div>
             <div className={styles.stats}>
-              <div><span>Open</span><strong>{money(quote.open)}</strong></div>
-              <div><span>Previous close</span><strong>{money(quote.previousClose)}</strong></div>
-              <div><span>Day high</span><strong>{money(quote.high)}</strong></div>
-              <div><span>Day low</span><strong>{money(quote.low)}</strong></div>
+              <div><span>Open</span><strong>{money(quote.open, currency)}</strong></div>
+              <div><span>Previous close</span><strong>{money(quote.previousClose, currency)}</strong></div>
+              <div><span>Day high</span><strong>{money(quote.high, currency)}</strong></div>
+              <div><span>Day low</span><strong>{money(quote.low, currency)}</strong></div>
               <div><span>Volume</span><strong>{compact(quote.volume)}</strong></div>
               <div><span>Exchange</span><strong>{exchange}</strong></div>
             </div>
@@ -382,10 +386,11 @@ export default function StockPage() {
   </main>;
 }
 
-function PriceChart({ candles, loading, error }: {
+function PriceChart({ candles, loading, error, currency }: {
   candles: Candle[];
   loading: boolean;
   error: string;
+  currency: "INR" | "USD";
 }) {
   const ordered = useMemo(() => [...candles]
     .filter((candle) => Number.isFinite(candle.close))
@@ -414,8 +419,8 @@ function PriceChart({ candles, loading, error }: {
 
   return <div className={styles.chart}>
     <div className={styles.chartReadout}>
-      <div><strong>{money(latest.close)}</strong><span>Latest historical close</span></div>
-      <div>High {money(latest.high)} · Low {money(latest.low)}</div>
+      <div><strong>{money(latest.close, currency)}</strong><span>Latest historical close</span></div>
+      <div>High {money(latest.high, currency)} · Low {money(latest.low, currency)}</div>
     </div>
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${ordered.length} daily closing prices`}>
       {[0.25, 0.5, 0.75].map((ratio) => <line
