@@ -47,6 +47,7 @@ stoxsim:
     model: ${GEMINI_MODEL:gemini-2.5-flash}
     max-question-characters: ${FINWIZ_MAX_QUESTION_CHARACTERS:2000}
     max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
+    thinking-budget: ${FINWIZ_THINKING_BUDGET:0}
   market-data:
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
