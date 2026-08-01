@@ -51,6 +51,7 @@ import com.stoxsim.watchlist.repository.WatchlistRepository;
 @SpringBootTest(properties = {
     "stoxsim.market-data.upstox.stream-enabled=false",
     "stoxsim.market-data.upstox.instrument-sync-on-startup=false",
+    "stoxsim.market-data.alpaca.instrument-sync-on-startup=false",
     "spring.task.scheduling.enabled=false"
 })
 class PostgresConcurrencyIntegrationTest {
@@ -99,6 +100,46 @@ class PostgresConcurrencyIntegrationTest {
         assertThatThrownBy(() -> watchlistItems.saveAndFlush(
             new WatchlistItem(watchlist, instrument)
         )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void flywaySchemaAcceptsEverySupportedUnitedStatesExchange() {
+        List<MarketExchange> supported = List.of(
+            MarketExchange.NASDAQ,
+            MarketExchange.NYSE,
+            MarketExchange.NYSE_ARCA,
+            MarketExchange.AMEX,
+            MarketExchange.CBOE
+        );
+
+        for (MarketExchange exchange : supported) {
+            String symbol = exchange.name().replace("_", "");
+            instruments.saveAndFlush(new TradableInstrument(
+                new InstrumentSnapshot(
+                    "ALPACA",
+                    symbol,
+                    MarketRegion.UNITED_STATES,
+                    exchange,
+                    "US_EQUITY",
+                    symbol,
+                    symbol + " Test Security",
+                    null,
+                    InstrumentType.EQUITY,
+                    "USD",
+                    1,
+                    new BigDecimal("0.0001"),
+                    "test-asset-id-" + symbol
+                ),
+                UUID.randomUUID(),
+                Instant.now()
+            ));
+        }
+
+        Integer persisted = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM instrument WHERE provider = 'ALPACA'",
+            Integer.class
+        );
+        assertThat(persisted).isEqualTo(supported.size());
     }
 
     @Test
