@@ -32,13 +32,9 @@ class PortfolioValuationServiceTest {
     @Mock private AccountProperties properties;
 
     @Test
-    void valuesAnEmptyPortfolioFromCash() {
+    void valuesAnEmptyIndiaPortfolioFromCash() {
         UUID userId = UUID.randomUUID();
-        var account = new VirtualAccount(
-            new AppUser("learner@example.com", "hash", "Learner"),
-            MarketRegion.INDIA,
-            new BigDecimal("500000.00")
-        );
+        var account = account(MarketRegion.INDIA, "500000.00");
         when(accounts.findByUserIdAndMarketRegion(userId, MarketRegion.INDIA))
             .thenReturn(Optional.of(account));
         when(holdings.findAllByAccountUserIdAndAccountMarketRegionAndQuantityGreaterThanOrderByInstrumentTradingSymbol(
@@ -50,11 +46,55 @@ class PortfolioValuationServiceTest {
         when(marketData.marketStatus(MarketRegion.INDIA, MarketExchange.NSE))
             .thenReturn(MarketDataStatus.CLOSED);
 
-        var service = new PortfolioValuationService(accounts, holdings, marketData, properties);
-        var response = service.value(userId, MarketRegion.INDIA);
+        var response = service().value(userId, MarketRegion.INDIA);
 
         assertThat(response.totalAccountValue()).isEqualByComparingTo("500000.0000");
         assertThat(response.totalProfitLoss()).isEqualByComparingTo("0.0000");
         assertThat(response.holdings()).isEmpty();
+    }
+
+    @Test
+    void valuesAnEmptyUnitedStatesPortfolioUsingNasdaqStatus() {
+        UUID userId = UUID.randomUUID();
+        var account = account(MarketRegion.UNITED_STATES, "10000.00");
+        when(accounts.findByUserIdAndMarketRegion(
+            userId,
+            MarketRegion.UNITED_STATES
+        )).thenReturn(Optional.of(account));
+        when(holdings.findAllByAccountUserIdAndAccountMarketRegionAndQuantityGreaterThanOrderByInstrumentTradingSymbol(
+            userId,
+            MarketRegion.UNITED_STATES,
+            0
+        )).thenReturn(List.of());
+        when(properties.getUnitedStatesStartingBalance())
+            .thenReturn(new BigDecimal("10000.00"));
+        when(marketData.marketStatus(
+            MarketRegion.UNITED_STATES,
+            MarketExchange.NASDAQ
+        )).thenReturn(MarketDataStatus.CLOSED);
+
+        var response = service().value(userId, MarketRegion.UNITED_STATES);
+
+        assertThat(response.currency()).isEqualTo("USD");
+        assertThat(response.totalAccountValue()).isEqualByComparingTo("10000.0000");
+        assertThat(response.totalProfitLoss()).isEqualByComparingTo("0.0000");
+        assertThat(response.holdings()).isEmpty();
+    }
+
+    private PortfolioValuationService service() {
+        return new PortfolioValuationService(
+            accounts,
+            holdings,
+            marketData,
+            properties
+        );
+    }
+
+    private VirtualAccount account(MarketRegion region, String balance) {
+        return new VirtualAccount(
+            new AppUser("learner@example.com", "hash", "Learner"),
+            region,
+            new BigDecimal(balance)
+        );
     }
 }
