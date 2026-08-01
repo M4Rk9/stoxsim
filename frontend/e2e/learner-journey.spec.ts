@@ -29,8 +29,8 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
     await expect(async () => {
       await page.getByPlaceholder("Search Apple, Nvidia, SPY…").fill("Apple");
       await page.getByRole("button", { name: "Search" }).click();
-      await expect(page.locator(".searchResults button").filter({ hasText: "AAPL" }))
-        .toBeVisible({ timeout: 5_000 });
+      await expect(page.locator(".searchResults button").filter({ hasText: /^AAPL$/ }))
+  .toBeVisible({ timeout: 5_000 });
     }).toPass({
       timeout: 300_000,
       intervals: [5_000, 10_000],
