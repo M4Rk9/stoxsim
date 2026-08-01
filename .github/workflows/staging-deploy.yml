@@ -28,6 +28,12 @@ jobs:
       SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
       GHCR_USER: ${{ secrets.STAGING_GHCR_USERNAME }}
       GHCR_TOKEN: ${{ secrets.STAGING_GHCR_TOKEN }}
+      ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
+      ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+      ALPACA_DATA_FEED: ${{ vars.ALPACA_DATA_FEED || 'iex' }}
+      ALPACA_INSTRUMENT_SYNC_ON_STARTUP: ${{ vars.ALPACA_INSTRUMENT_SYNC_ON_STARTUP || 'true' }}
+      ALPACA_POLLING_ENABLED: ${{ vars.ALPACA_POLLING_ENABLED || 'true' }}
+      ALPACA_POLLING_INTERVAL_MILLIS: ${{ vars.ALPACA_POLLING_INTERVAL_MILLIS || '5000' }}
       REMOTE_DIR: ${{ vars.STAGING_REMOTE_DIR || 'stoxsim-staging' }}
       STAGING_API_URL: ${{ vars.STAGING_API_URL }}
       STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
@@ -41,12 +47,18 @@ jobs:
           [[ "$REMOTE_DIR" =~ ^[A-Za-z0-9._/-]+$ ]]
           [[ "$STAGING_API_URL" == https://* ]]
           [[ "$STAGING_WEB_URL" == https://* ]]
+          [[ "$ALPACA_DATA_FEED" =~ ^(iex|sip|delayed_sip)$ ]]
+          [[ "$ALPACA_INSTRUMENT_SYNC_ON_STARTUP" =~ ^(true|false)$ ]]
+          [[ "$ALPACA_POLLING_ENABLED" =~ ^(true|false)$ ]]
+          [[ "$ALPACA_POLLING_INTERVAL_MILLIS" =~ ^[0-9]+$ ]]
           : "${STAGING_HOST:?Set the STAGING_HOST environment secret}"
           : "${STAGING_USER:?Set the STAGING_USER environment secret}"
           : "${SSH_PRIVATE_KEY:?Set the STAGING_SSH_PRIVATE_KEY environment secret}"
           : "${SSH_KNOWN_HOSTS:?Set the STAGING_SSH_KNOWN_HOSTS environment secret}"
           : "${GHCR_USER:?Set the STAGING_GHCR_USERNAME environment secret}"
           : "${GHCR_TOKEN:?Set the STAGING_GHCR_TOKEN environment secret}"
+          : "${ALPACA_API_KEY_ID:?Set the ALPACA_API_KEY_ID environment secret}"
+          : "${ALPACA_API_SECRET_KEY:?Set the ALPACA_API_SECRET_KEY environment secret}"
 
       - name: Configure pinned SSH host identity
         run: |
@@ -63,6 +75,26 @@ jobs:
           scp -P "$STAGING_PORT" /tmp/stoxsim-staging.tgz "$STAGING_USER@$STAGING_HOST:/tmp/stoxsim-staging.tgz"
           ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
             "tar -xzf /tmp/stoxsim-staging.tgz -C '$REMOTE_DIR' && rm /tmp/stoxsim-staging.tgz && chmod +x '$REMOTE_DIR'/*.sh && test -f '$REMOTE_DIR'/.env"
+
+      - name: Synchronize Alpaca staging credentials
+        run: |
+          scp -P "$STAGING_PORT" \
+            .github/scripts/sync_staging_market_data_secrets.py \
+            "$STAGING_USER@$STAGING_HOST:/tmp/sync_staging_market_data_secrets.py"
+          python3 - <<'PY' | ssh -p "$STAGING_PORT" "$STAGING_USER@$STAGING_HOST" \
+            "python3 /tmp/sync_staging_market_data_secrets.py '$REMOTE_DIR/.env' && rm /tmp/sync_staging_market_data_secrets.py"
+          import json
+          import os
+
+          print(json.dumps({
+              "ALPACA_API_KEY_ID": os.environ["ALPACA_API_KEY_ID"],
+              "ALPACA_API_SECRET_KEY": os.environ["ALPACA_API_SECRET_KEY"],
+              "ALPACA_DATA_FEED": os.environ["ALPACA_DATA_FEED"],
+              "ALPACA_INSTRUMENT_SYNC_ON_STARTUP": os.environ["ALPACA_INSTRUMENT_SYNC_ON_STARTUP"],
+              "ALPACA_POLLING_ENABLED": os.environ["ALPACA_POLLING_ENABLED"],
+              "ALPACA_POLLING_INTERVAL_MILLIS": os.environ["ALPACA_POLLING_INTERVAL_MILLIS"],
+          }))
+          PY
 
       - name: Authenticate staging host to GHCR
         run: |
