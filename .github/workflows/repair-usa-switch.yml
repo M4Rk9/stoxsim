@@ -82,6 +82,7 @@ jobs:
           for temporary in (
               Path(".github/workflows/fix-usa-switch.yml"),
               Path(".github/workflows/repair-usa-switch.yml"),
+              Path(".github/usa-switch-repair.trigger"),
           ):
               if temporary.exists():
                   temporary.unlink()
