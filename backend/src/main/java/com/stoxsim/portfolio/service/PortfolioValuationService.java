@@ -15,8 +15,9 @@ import org.springframework.web.server.ResponseStatusException;
 import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
-import com.stoxsim.market.data.Quote;
+import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.market.data.MarketDataStatus;
+import com.stoxsim.market.data.Quote;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.market.service.MarketDataService;
 import com.stoxsim.portfolio.api.PortfolioPositionResponse;
@@ -64,7 +65,7 @@ public class PortfolioValuationService {
         BigDecimal unrealized = money(BigDecimal.ZERO);
         PricingStatus overallStatus = pricingStatus(marketData.marketStatus(
             marketRegion,
-            com.stoxsim.instrument.domain.MarketExchange.NSE
+            referenceExchange(marketRegion)
         ));
 
         for (Holding holding : owned) {
@@ -144,6 +145,12 @@ public class PortfolioValuationService {
             status,
             priceTimestamp
         );
+    }
+
+    private MarketExchange referenceExchange(MarketRegion marketRegion) {
+        return marketRegion == MarketRegion.UNITED_STATES
+            ? MarketExchange.NASDAQ
+            : MarketExchange.NSE;
     }
 
     private BigDecimal startingCapital(MarketRegion marketRegion) {
