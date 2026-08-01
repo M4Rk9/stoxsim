@@ -1,40 +1,26 @@
-name: Repair USA selector branch
+name: Repair USA market switch
 
 on:
-  issues:
-    types: [opened]
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-  push:
-    branches: [fix/enable-usa-market-switch]
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   repair:
-    if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issues' && github.event.issue.title == 'repair-usa-switch-trigger') ||
-      github.event_name == 'push' ||
-      github.head_ref == 'fix/enable-usa-market-switch'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/enable-usa-market-switch
+          ref: main
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+      - name: Reset repair branch to current main
+        run: |
+          git fetch origin main
+          git checkout -B fix/enable-usa-market-switch origin/main
 
       - name: Enable the USA selector and add regression coverage
         run: |
@@ -89,14 +75,19 @@ jobs:
               raise SystemExit("Expected learner journey insertion point was not found")
           test.write_text(content.replace(anchor, replacement, 1))
 
-          for temporary in (
-              Path(".github/workflows/fix-usa-switch.yml"),
-              Path(".github/workflows/repair-usa-switch.yml"),
-              Path(".github/usa-switch-repair.trigger"),
-          ):
-              if temporary.exists():
-                  temporary.unlink()
+          marker = Path(".github/usa-switch-repair.trigger")
+          if marker.exists():
+              marker.unlink()
+          old_workflow = Path(".github/workflows/fix-usa-switch.yml")
+          if old_workflow.exists():
+              old_workflow.unlink()
           PY
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Validate frontend
         working-directory: frontend
@@ -104,11 +95,38 @@ jobs:
           npm ci
           npm run typecheck
           npm run build
+          npx playwright install --with-deps chromium
 
-      - name: Commit the repair
+      - name: Run complete authenticated learner journey
+        run: |
+          docker compose up --build --detach --wait --wait-timeout 180
+          cd frontend
+          npm run e2e
+
+      - name: Stop application stack
+        if: always()
+        run: docker compose down --volumes
+
+      - name: Commit and push repair branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add frontend/app/page.tsx frontend/e2e/learner-journey.spec.ts
           git commit -m "Enable and test USA market switching"
-          git push origin HEAD:fix/enable-usa-market-switch
+          git push --force-with-lease origin HEAD:fix/enable-usa-market-switch
+
+      - name: Open repair pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr reopen 22 || gh pr create \
+            --base main \
+            --head fix/enable-usa-market-switch \
+            --title "Enable the USA market switch" \
+            --body "Enables the India/USA selector and adds Playwright regression coverage for switching between the ₹5,00,000 India portfolio and the $10,000 USA portfolio."
+
+      - name: Record result
+        run: |
+          echo "## USA market switch repaired" >> "$GITHUB_STEP_SUMMARY"
+          echo "Branch: \`fix/enable-usa-market-switch\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pull request: #22" >> "$GITHUB_STEP_SUMMARY"
