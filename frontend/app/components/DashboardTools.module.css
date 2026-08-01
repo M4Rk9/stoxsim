@@ -1,44 +1,103 @@
-.accountWrap {
+.profileMenuWrap {
   position: fixed;
   z-index: 80;
-  top: 18px;
-  right: 182px;
+  top: 10px;
+  right: max(24px, calc((100vw - 1440px) / 2 + 24px));
   font-family: inherit;
 }
 
-.accountButton {
-  display: inline-flex;
+.profileButton,
+.profileButtonCompact {
+  display: grid;
   align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 0 13px;
-  border: 1px solid #d8e0d7;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #0b2c3f;
-  box-shadow: 0 8px 28px rgba(15, 39, 33, 0.08);
+  gap: 10px;
+  min-height: 54px;
+  padding: 6px 10px 6px 7px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: #14251f;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  text-align: left;
 }
 
-.accountButton:hover,
-.accountButton:focus-visible {
-  border-color: #0b8f55;
+.profileButton {
+  grid-template-columns: 40px minmax(0, 1fr) 18px;
+  min-width: 190px;
+  max-width: 280px;
+}
+
+.profileButtonCompact {
+  grid-template-columns: 40px 18px;
+  padding-right: 8px;
+}
+
+.profileButton:hover,
+.profileButton:focus-visible,
+.profileButton[aria-expanded="true"],
+.profileButtonCompact:hover,
+.profileButtonCompact:focus-visible,
+.profileButtonCompact[aria-expanded="true"] {
+  border-color: #d8e0d7;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px rgba(15, 39, 33, 0.1);
   outline: none;
 }
 
-.accountButton svg {
-  width: 16px;
-  height: 16px;
+.avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #142d3f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.profileText {
+  min-width: 0;
+}
+
+.profileText strong,
+.profileText small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileText strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.profileText small {
+  margin-top: 3px;
+  color: #6c7c74;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.chevron,
+.chevronOpen {
+  width: 18px;
+  height: 18px;
+  color: #6c7c74;
+  transition: transform 160ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
 }
 
 .menu {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 8px);
   right: 0;
-  width: 250px;
+  width: 260px;
   overflow: hidden;
   border: 1px solid #d8e0d7;
   border-radius: 16px;
@@ -90,8 +149,11 @@
 }
 
 .menuLink:hover,
-.signOut:hover {
+.signOut:hover,
+.menuLink:focus-visible,
+.signOut:focus-visible {
   background: #f5faf6;
+  outline: none;
 }
 
 .signOut {
@@ -125,9 +187,23 @@
 }
 
 @media (max-width: 900px) {
-  .accountWrap {
-    top: 74px;
-    right: 16px;
+  .profileMenuWrap {
+    top: 8px;
+    right: 12px;
+  }
+
+  .profileButton {
+    min-width: auto;
+    grid-template-columns: 40px 18px;
+    padding-right: 8px;
+  }
+
+  .profileText {
+    display: none;
+  }
+
+  .menu {
+    width: min(260px, calc(100vw - 24px));
   }
 
   .stockLink {

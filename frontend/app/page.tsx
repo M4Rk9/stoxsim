@@ -927,7 +927,7 @@ export default function Home() {
             <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
             <label>Password<input required minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
             {error && <div className="message errorMessage">{error}</div>}
-            <button className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start with ₹5,00,000" : "Open dashboard"}</button>
+            <button className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start Now!" : "Open dashboard"}</button>
             <small>StoxSim is an educational simulator. No real orders or investment advice.</small>
           </form>
         </section>
@@ -943,7 +943,7 @@ export default function Home() {
           <button className="active"><span>🇮🇳</span> India</button>
           <button disabled title="United States market is the next product phase"><span>🇺🇸</span> US <small>NEXT</small></button>
         </div>
-        <div className="profileBlock"><span className="avatar">{session.user.displayName.slice(0, 1).toUpperCase()}</span><div><strong>{session.user.displayName}</strong><button onClick={logout}>Sign out</button></div></div>
+        <div aria-hidden="true" />
       </header>
 
       <section className={`marketBanner ${market?.phase === "REGULAR" ? "open" : "closed"}`}>
