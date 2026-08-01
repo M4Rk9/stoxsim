@@ -59,6 +59,23 @@ ME=$(curl --fail --silent --show-error \
   "${API_URL}/api/v1/auth/me")
 jq -e --arg email "$EMAIL" '.email == $email' <<<"$ME" >/dev/null
 
+FINWIZ_BODY=$(jq -nc '{
+  question: "Explain operating cash flow to a beginner in one short paragraph.",
+  topic: "CASH_FLOW",
+  experienceLevel: "BEGINNER"
+}')
+echo "Checking Gemini-backed Finwiz response"
+FINWIZ=$(curl --fail --silent --show-error \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "$FINWIZ_BODY" \
+  "${API_URL}/api/v1/finwiz/ask")
+jq -e '
+  .provider == "GEMINI"
+  and (.model | startswith("gemini-"))
+  and (.answer | type == "string" and length > 40)
+' <<<"$FINWIZ" >/dev/null
+
 REFRESH_BODY=$(jq -nc --arg refreshToken "$REFRESH_TOKEN" '{refreshToken: $refreshToken}')
 ROTATED=$(curl --fail --silent --show-error \
   -H "Content-Type: application/json" \
