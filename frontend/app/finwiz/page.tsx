@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import styles from "./finwiz.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -71,7 +70,6 @@ async function parseError(response: Response) {
 }
 
 export default function FinwizPage() {
-  const searchParams = useSearchParams();
   const [session, setSession] = useState<StoredSession | null>(null);
   const [topic, setTopic] = useState<Topic>("LEARN");
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>("BEGINNER");
@@ -91,6 +89,7 @@ export default function FinwizPage() {
     }
     setSession(active);
 
+    const searchParams = new URLSearchParams(window.location.search);
     const requestedRegion = searchParams.get("marketRegion");
     const requestedExchange = searchParams.get("exchange");
     const requestedSymbol = searchParams.get("symbol");
@@ -100,11 +99,12 @@ export default function FinwizPage() {
     }
     if (requestedExchange) setExchange(requestedExchange.toUpperCase());
     if (requestedSymbol) {
-      setSymbol(requestedSymbol.toUpperCase());
+      const normalizedSymbol = requestedSymbol.toUpperCase();
+      setSymbol(normalizedSymbol);
       setTopic("STOCK_FUNDAMENTALS");
-      setQuestion(`Explain the fundamentals, valuation, cash-flow quality and key risks of ${requestedSymbol.toUpperCase()} using the available StoxSim data.`);
+      setQuestion(`Explain the fundamentals, valuation, cash-flow quality and key risks of ${normalizedSymbol} using the available StoxSim data.`);
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     setExchange(marketRegion === "INDIA" ? "NSE" : "NASDAQ");
@@ -138,9 +138,10 @@ export default function FinwizPage() {
       window.localStorage.removeItem("stoxsim-session");
       throw new ApiError("Your session expired. Please sign in again.", 401);
     }
-    active = await refresh.json() as StoredSession;
-    window.localStorage.setItem("stoxsim-session", JSON.stringify(active));
-    setSession(active);
+    const refreshed = await refresh.json() as StoredSession;
+    active = refreshed;
+    window.localStorage.setItem("stoxsim-session", JSON.stringify(refreshed));
+    setSession(refreshed);
 
     response = await fetch(`${API_URL}${path}`, {
       ...init,
