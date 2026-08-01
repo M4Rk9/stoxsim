@@ -1,6 +1,9 @@
 name: Repair USA selector branch
 
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
   push:
     branches: [fix/enable-usa-market-switch]
 
@@ -9,6 +12,7 @@ permissions:
 
 jobs:
   repair:
+    if: github.event_name == 'push' || github.head_ref == 'fix/enable-usa-market-switch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
