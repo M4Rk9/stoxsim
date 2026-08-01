@@ -40,6 +40,13 @@ stoxsim:
   accounts:
     india-starting-balance: 500000.00
     united-states-starting-balance: 10000.00
+  finwiz:
+    enabled: ${FINWIZ_AI_ENABLED:true}
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_MODEL:gpt-5-mini}
+    max-question-characters: ${FINWIZ_MAX_QUESTION_CHARACTERS:2000}
+    max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
   market-data:
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
