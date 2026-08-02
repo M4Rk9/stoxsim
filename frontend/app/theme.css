@@ -1,30 +1,41 @@
 :root {
   --surface-soft: #eef2ed;
   --surface-subtle: #f8faf7;
+  --surface-elevated: #ffffff;
+  --surface-hover: #f2f6f2;
+  --input-surface: #fbfcfa;
   --shadow-color: rgba(15, 39, 33, 0.12);
+  --focus-ring: rgba(11, 143, 85, 0.14);
 }
 
 html[data-theme="dark"] {
-  --ink: #e7efe9;
-  --muted: #9baaa2;
-  --paper: #0b1210;
-  --panel: #111b17;
-  --line: #27362f;
-  --green: #42d486;
-  --green-dark: #2fb66f;
-  --green-soft: #123221;
-  --red: #ff7979;
-  --red-soft: #351c1d;
-  --navy: #122d3d;
-  --gold: #efbd59;
-  --surface-soft: #16221d;
-  --surface-subtle: #0e1713;
-  --shadow-color: rgba(0, 0, 0, 0.34);
+  --ink: #eef7f1;
+  --muted: #a8b9af;
+  --paper: #07110d;
+  --panel: #0e1b15;
+  --line: #263b31;
+  --green: #4dde91;
+  --green-dark: #35c97b;
+  --green-soft: #123522;
+  --red: #ff8585;
+  --red-soft: #351b1f;
+  --navy: #15384a;
+  --gold: #f2c05e;
+  --surface-soft: #15251d;
+  --surface-subtle: #0a1611;
+  --surface-elevated: #122219;
+  --surface-hover: #182b21;
+  --input-surface: #0b1712;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --focus-ring: rgba(77, 222, 145, 0.18);
   color-scheme: dark;
 }
 
 html[data-theme="dark"] body {
-  background: var(--paper);
+  background:
+    radial-gradient(circle at 12% -8%, rgba(53, 201, 123, 0.08), transparent 28rem),
+    radial-gradient(circle at 92% 12%, rgba(21, 56, 74, 0.14), transparent 30rem),
+    var(--paper);
   color: var(--ink);
 }
 
@@ -35,60 +46,387 @@ html[data-theme="dark"] .welcomeShell {
     var(--paper);
 }
 
-html[data-theme="dark"] :where(
-  .authCard,
-  .indexCard,
-  .metricGrid,
-  .panel,
-  .dataBadge,
-  .moverTabs button,
-  .featureRow span,
-  .streamBadge,
-  .message,
-  .marketSwitch button.active
-) {
+html[data-theme="dark"] .appHeader,
+html[data-theme="dark"] .welcomeNav,
+html[data-theme="dark"] footer {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .authCard,
+html[data-theme="dark"] .indexCard,
+html[data-theme="dark"] .metricGrid,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .dataBadge,
+html[data-theme="dark"] .message,
+html[data-theme="dark"] .searchResults,
+html[data-theme="dark"] .companyProfile,
+html[data-theme="dark"] .financialChart,
+html[data-theme="dark"] .priceChart {
   background: var(--panel);
   border-color: var(--line);
   color: var(--ink);
   box-shadow: 0 18px 54px var(--shadow-color);
 }
 
-html[data-theme="dark"] :where(.authTabs, .marketSwitch, .marketBanner.closed) {
+html[data-theme="dark"] .marketSwitch,
+html[data-theme="dark"] .authTabs,
+html[data-theme="dark"] .sideToggle,
+html[data-theme="dark"] .rangeTabs {
+  border: 1px solid var(--line);
   background: var(--surface-soft);
-  border-color: var(--line);
 }
 
-html[data-theme="dark"] :where(input, select, textarea) {
-  background: var(--surface-subtle);
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-html[data-theme="dark"] :where(input, textarea)::placeholder {
-  color: #728078;
-}
-
-html[data-theme="dark"] :where(label, .navNote, .authCard > p, .welcomeCopy > p) {
+html[data-theme="dark"] .marketSwitch button,
+html[data-theme="dark"] .authTabs button,
+html[data-theme="dark"] .sideToggle button,
+html[data-theme="dark"] .rangeTabs button {
   color: var(--muted);
 }
 
-html[data-theme="dark"] :where(.moverMonogram, .profileGrid div) {
+html[data-theme="dark"] .marketSwitch button.active,
+html[data-theme="dark"] .authTabs button.active,
+html[data-theme="dark"] .rangeTabs button.active {
+  background: linear-gradient(180deg, #1b392a, #153023);
+  color: #f4fff8;
+  box-shadow: inset 0 0 0 1px rgba(77, 222, 145, 0.16), 0 5px 16px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme="dark"] .marketSwitch button.active small {
+  color: #b8d6c5;
+}
+
+html[data-theme="dark"] .sideToggle .buy.active {
+  background: #153624;
+  color: var(--green);
+  box-shadow: inset 0 0 0 1px rgba(77, 222, 145, 0.17);
+}
+
+html[data-theme="dark"] .sideToggle .sell.active {
+  background: #382023;
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px rgba(255, 133, 133, 0.15);
+}
+
+html[data-theme="dark"] .marketBanner {
+  color: var(--ink);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme="dark"] .marketBanner.open {
+  background: #0f2a1c;
+  border-color: #245b3c;
+}
+
+html[data-theme="dark"] .marketBanner.closed {
+  background: #101f18;
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .marketBanner strong,
+html[data-theme="dark"] .bannerRight strong {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .marketBanner small,
+html[data-theme="dark"] .bannerRight span {
+  color: #b2c3b9;
+}
+
+html[data-theme="dark"] .streamBadge,
+html[data-theme="dark"] .dataBadge {
+  background: var(--surface-elevated);
+  border-color: var(--line);
+  color: #c2d0c8;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .streamBadge.closed {
+  color: #b7c5bd;
+}
+
+html[data-theme="dark"] .indexCard > div:first-child span,
+html[data-theme="dark"] .indexMove span.muted,
+html[data-theme="dark"] .indexTimestamp,
+html[data-theme="dark"] .indexCard > div:first-child small {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .indexCard > strong {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .moverTabs button,
+html[data-theme="dark"] .financialTabs button,
+html[data-theme="dark"] .watchButton,
+html[data-theme="dark"] .openOrder > button {
+  background: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .moverTabs button:hover,
+html[data-theme="dark"] .financialTabs button:hover,
+html[data-theme="dark"] .watchButton:hover,
+html[data-theme="dark"] .openOrder > button:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .moverTabs button.active {
+  background: #173b2a;
+  border-color: #2d6c4a;
+  color: #effff5;
+}
+
+html[data-theme="dark"] .financialTabs button.active {
+  background: var(--green-soft);
+  border-color: #2c6948;
+  color: var(--green);
+}
+
+html[data-theme="dark"] .moverMonogram {
+  background: var(--surface-subtle);
+  border-color: var(--line);
+  color: #bcebd0;
+}
+
+html[data-theme="dark"] .shortcut {
+  background: var(--surface-soft);
+  border-color: var(--line);
+  color: #c1d0c7;
+}
+
+html[data-theme="dark"] .searchBox {
+  background: var(--input-surface);
+  border-color: #315044;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+html[data-theme="dark"] .searchBox:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+html[data-theme="dark"] .searchBox > span {
+  color: #8fa69a;
+}
+
+html[data-theme="dark"] .searchBox input {
+  background: transparent;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .searchBox button {
+  background: var(--green);
+  color: #06150d;
+}
+
+html[data-theme="dark"] .searchBox button:hover:not(:disabled) {
+  background: #66e6a3;
+}
+
+html[data-theme="dark"] .searchBox button:disabled {
+  background: #244536;
+  color: #9ab9a9;
+  opacity: 1;
+}
+
+html[data-theme="dark"] .searchResults button {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .searchResults button:hover {
+  background: var(--surface-hover);
+}
+
+html[data-theme="dark"] .searchResults span,
+html[data-theme="dark"] .searchResults small,
+html[data-theme="dark"] .searchEmpty,
+html[data-theme="dark"] .searchEmpty p {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .searchEmpty > span {
+  color: #6f8d7c;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background: var(--input-surface);
+  border-color: #30493e;
+  color: var(--ink);
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] select:focus,
+html[data-theme="dark"] textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #83998d;
+  opacity: 1;
+}
+
+html[data-theme="dark"] select option {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] label,
+html[data-theme="dark"] .navNote,
+html[data-theme="dark"] .authCard > p,
+html[data-theme="dark"] .welcomeCopy > p,
+html[data-theme="dark"] .panelMeta,
+html[data-theme="dark"] .moversHeader p,
+html[data-theme="dark"] .moversMeta small,
+html[data-theme="dark"] .moverTabs > span,
+html[data-theme="dark"] .ticketNote,
+html[data-theme="dark"] .emptyState,
+html[data-theme="dark"] .activityRow small,
+html[data-theme="dark"] .watchlistSelect small {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] table,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] th {
+  background: #101e18;
+  color: #aebfb5;
+}
+
+html[data-theme="dark"] td {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.012);
+}
+
+html[data-theme="dark"] .estimateBox {
   background: var(--surface-subtle);
   border-color: var(--line);
   color: var(--ink);
 }
 
-html[data-theme="dark"] :where(table, th, td) {
-  border-color: var(--line);
+html[data-theme="dark"] .estimateBox span,
+html[data-theme="dark"] .estimateBox small {
+  color: #aebfb5;
+}
+
+html[data-theme="dark"] .estimateBox strong {
+  color: #edf8f1;
+}
+
+html[data-theme="dark"] .orderButton:disabled {
+  background: #204d37;
+  color: #b1d7c3;
+  opacity: 1;
+}
+
+html[data-theme="dark"] .quoteStatus.closed {
+  background: #18271f;
+  color: #bdcbc3;
+}
+
+html[data-theme="dark"] .quoteStatus.stale,
+html[data-theme="dark"] .insightsStatus.partial {
+  background: #342a13;
+  color: #f2c76d;
+}
+
+html[data-theme="dark"] .insightsNotice {
+  background: #2d2716;
+  color: #e8c979;
+}
+
+html[data-theme="dark"] .companyProfile p,
+html[data-theme="dark"] .ratioItem small {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .rangeTrack {
+  background: linear-gradient(90deg, #26352d, #347852, #26352d);
+}
+
+html[data-theme="dark"] .rangeTrack.unavailable {
+  background: #223129;
+}
+
+html[data-theme="dark"] .rangeLabels strong {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .priceChart {
+  background: linear-gradient(180deg, #0c1813, #09130f);
+}
+
+html[data-theme="dark"] .chartGridLine {
+  stroke: #2a3b32;
+}
+
+html[data-theme="dark"] .chartAxisLabel,
+html[data-theme="dark"] .chartCrosshair {
+  color: var(--muted);
+  fill: #91a59a;
+  stroke: #91a59a;
+}
+
+html[data-theme="dark"] .chartPoint {
+  stroke: var(--panel);
+}
+
+html[data-theme="dark"] .errorMessage {
+  background: var(--red-soft);
+  border-color: #633136;
+  color: #ffaaaa;
+}
+
+html[data-theme="dark"] .successMessage {
+  background: var(--green-soft);
+  border-color: #285c41;
+  color: #8ce8b8;
+}
+
+html[data-theme="dark"] .learnCard {
+  background: linear-gradient(145deg, #113145, #10281f);
+  border: 1px solid #29483c;
 }
 
 html[data-theme="dark"] ::selection {
-  background: rgba(66, 212, 134, 0.28);
+  background: rgba(77, 222, 145, 0.28);
+}
+
+html[data-theme="dark"] {
+  scrollbar-color: #315044 #0a1510;
 }
 
 html[data-theme="dark"] [class*="stock-module__shell"],
 html[data-theme="dark"] [class*="settings-module__shell"] {
-  background: var(--paper) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(53, 201, 123, 0.07), transparent 24rem),
+    var(--paper) !important;
+  color: var(--ink) !important;
+}
+
+html[data-theme="dark"] [class*="stock-module__header"],
+html[data-theme="dark"] [class*="settings-module__header"] {
+  border-color: var(--line) !important;
+}
+
+html[data-theme="dark"] [class*="stock-module__brand"],
+html[data-theme="dark"] [class*="stock-module__back"],
+html[data-theme="dark"] [class*="settings-module__brand"],
+html[data-theme="dark"] [class*="settings-module__back"] {
   color: var(--ink) !important;
 }
 
@@ -98,13 +436,28 @@ html[data-theme="dark"] [class*="settings-module__panel"] {
   background: var(--panel) !important;
   border-color: var(--line) !important;
   color: var(--ink) !important;
+  box-shadow: 0 20px 60px var(--shadow-color) !important;
 }
 
 html[data-theme="dark"] [class*="stock-module__profileGrid"] > div,
-html[data-theme="dark"] [class*="stock-module__rangeTabs"] button {
+html[data-theme="dark"] [class*="stock-module__rangeTabs"] button,
+html[data-theme="dark"] [class*="stock-module__table"] th,
+html[data-theme="dark"] [class*="settings-module__card"] input {
   background: var(--surface-subtle) !important;
   border-color: var(--line) !important;
   color: var(--ink) !important;
+}
+
+html[data-theme="dark"] [class*="settings-module__lead"],
+html[data-theme="dark"] [class*="settings-module__card"] > p,
+html[data-theme="dark"] [class*="settings-module__card"] label,
+html[data-theme="dark"] [class*="settings-module__loading"] {
+  color: var(--muted) !important;
+}
+
+html[data-theme="dark"] [class*="settings-module__submit"] {
+  background: var(--green) !important;
+  color: #06150d !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
