@@ -97,17 +97,18 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 260px;
+  width: 300px;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--panel);
-  box-shadow: 0 22px 60px var(--shadow-color);
+  box-shadow: 0 24px 70px var(--shadow-color);
 }
 
 .identity {
-  padding: 16px;
+  padding: 17px 18px;
   border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-soft) 54%, var(--panel));
 }
 
 .identity strong,
@@ -135,7 +136,7 @@
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding: 13px 16px;
+  padding: 13px 18px;
   border: 0;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
@@ -144,7 +145,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 750;
   text-align: left;
 }
 
@@ -154,6 +155,80 @@
 .signOut:focus-visible {
   background: var(--surface-soft);
   outline: none;
+}
+
+.appearanceSection {
+  padding: 15px 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-subtle) 62%, var(--panel));
+}
+
+.appearanceHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 3px 10px;
+}
+
+.appearanceHeader span {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.appearanceHeader small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.themeOptions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.themeOption,
+.themeOptionActive {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  gap: 6px;
+  min-height: 58px;
+  padding: 8px 5px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.themeOption:hover,
+.themeOption:focus-visible {
+  border-color: color-mix(in srgb, var(--green) 55%, var(--line));
+  color: var(--ink);
+  outline: none;
+}
+
+.themeOptionActive {
+  border-color: color-mix(in srgb, var(--green) 68%, var(--line));
+  background: var(--green-soft);
+  color: var(--green);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 16%, transparent);
+}
+
+.themeOption svg,
+.themeOptionActive svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
 
 .signOut {
@@ -183,6 +258,7 @@
 .stockLink:hover,
 .stockLink:focus-visible {
   background: var(--green);
+  color: #06150d;
   outline: none;
 }
 
@@ -203,7 +279,7 @@
   }
 
   .menu {
-    width: min(260px, calc(100vw - 24px));
+    width: min(300px, calc(100vw - 24px));
   }
 
   .stockLink {
