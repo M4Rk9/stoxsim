@@ -6,6 +6,9 @@ import styles from "./DashboardTools.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
+type ThemePreference = "light" | "dark" | "system";
+type ResolvedTheme = "light" | "dark";
+
 interface StoredSession {
   refreshToken: string;
   user: {
@@ -28,11 +31,64 @@ function readSession(): StoredSession | null {
   }
 }
 
+function readThemePreference(): ThemePreference {
+  try {
+    const saved = window.localStorage.getItem("stoxsim-theme");
+    return saved === "light" || saved === "dark" || saved === "system"
+      ? saved
+      : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function resolveTheme(preference: ThemePreference, systemDark: boolean): ResolvedTheme {
+  return preference === "system"
+    ? systemDark ? "dark" : "light"
+    : preference;
+}
+
+function applyResolvedTheme(preference: ThemePreference, systemDark: boolean) {
+  const resolved = resolveTheme(preference, systemDark);
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.themePreference = preference;
+  document.documentElement.style.colorScheme = resolved;
+}
+
+const themeOptions: Array<{
+  value: ThemePreference;
+  label: string;
+  icon: "sun" | "moon" | "system";
+}> = [
+  { value: "light", label: "Light", icon: "sun" },
+  { value: "dark", label: "Dark", icon: "moon" },
+  { value: "system", label: "System", icon: "system" },
+];
+
+function ThemeIcon({ icon }: { icon: "sun" | "moon" | "system" }) {
+  if (icon === "sun") {
+    return <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>;
+  }
+  if (icon === "moon") {
+    return <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20.5 14.3A8.4 8.4 0 0 1 9.7 3.5 8.7 8.7 0 1 0 20.5 14.3Z" />
+    </svg>;
+  }
+  return <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="3.5" y="4.5" width="17" height="12" rx="2" />
+    <path d="M8.5 20h7M12 16.5V20" />
+  </svg>;
+}
+
 export default function DashboardTools() {
   const pathname = usePathname();
   const [session, setSession] = useState<StoredSession | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState<SelectedStock | null>(null);
+  const [themePreference, setThemePreference] = useState<ThemePreference>("system");
   const wrapper = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +99,26 @@ export default function DashboardTools() {
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => {
+      const preference = readThemePreference();
+      setThemePreference(preference);
+      applyResolvedTheme(preference, media.matches);
+    };
+    const syncSystemTheme = () => {
+      if (readThemePreference() === "system") sync();
+    };
+
+    sync();
+    window.addEventListener("storage", sync);
+    media.addEventListener("change", syncSystemTheme);
+    return () => {
+      window.removeEventListener("storage", sync);
+      media.removeEventListener("change", syncSystemTheme);
     };
   }, []);
 
@@ -82,6 +158,15 @@ export default function DashboardTools() {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
+
+  function selectTheme(preference: ThemePreference) {
+    window.localStorage.setItem("stoxsim-theme", preference);
+    setThemePreference(preference);
+    applyResolvedTheme(
+      preference,
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
+    );
+  }
 
   async function signOut() {
     const active = readSession();
@@ -135,6 +220,27 @@ export default function DashboardTools() {
         <a className={styles.menuLink} href="/settings" role="menuitem">
           Account settings <span>→</span>
         </a>
+
+        <div className={styles.appearanceSection}>
+          <div className={styles.appearanceHeader}>
+            <span>Appearance</span>
+            <small>Choose how StoxSim looks</small>
+          </div>
+          <div className={styles.themeOptions} role="group" aria-label="Appearance">
+            {themeOptions.map((option) => <button
+              key={option.value}
+              type="button"
+              className={themePreference === option.value ? styles.themeOptionActive : styles.themeOption}
+              aria-label={`Use ${option.label.toLowerCase()} appearance`}
+              aria-pressed={themePreference === option.value}
+              onClick={() => selectTheme(option.value)}
+            >
+              <ThemeIcon icon={option.icon} />
+              <span>{option.label}</span>
+            </button>)}
+          </div>
+        </div>
+
         <button type="button" className={styles.signOut} role="menuitem" onClick={signOut}>
           Sign out <span>→</span>
         </button>
