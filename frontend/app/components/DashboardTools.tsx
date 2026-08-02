@@ -214,9 +214,6 @@ export default function DashboardTools() {
         {!isDashboard && <a className={styles.menuLink} href="/" role="menuitem">
           Dashboard <span>→</span>
         </a>}
-        <a className={styles.menuLink} href="/finwiz" role="menuitem">
-          Finwiz AI <span>↗</span>
-        </a>
         <a className={styles.menuLink} href="/settings" role="menuitem">
           Account settings <span>→</span>
         </a>
@@ -247,13 +244,30 @@ export default function DashboardTools() {
       </div>}
     </div>
 
-    {isDashboard && selectedStock && <a
-      className={styles.stockLink}
-      href={`/stocks/${encodeURIComponent(selectedStock.exchange)}/${encodeURIComponent(selectedStock.symbol)}`}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Study {selectedStock.symbol} in detail <span aria-hidden="true">↗</span>
-    </a>}
+    {isDashboard && <div className={styles.quickActions}>
+      {selectedStock && <a
+        className={styles.stockLink}
+        href={`/stocks/${encodeURIComponent(selectedStock.exchange)}/${encodeURIComponent(selectedStock.symbol)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Study {selectedStock.symbol} in detail <span aria-hidden="true">↗</span>
+      </a>}
+
+      <a className={styles.finwizLauncher} href="/finwiz" aria-label="Ask Finwiz AI">
+        <span className={styles.finwizCore} aria-hidden="true">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="18" />
+            <circle cx="24" cy="24" r="11" />
+            <path d="M24 6v7M24 35v7M6 24h7M35 24h7M11.3 11.3l5 5M31.7 31.7l5 5M36.7 11.3l-5 5M16.3 31.7l-5 5" />
+          </svg>
+        </span>
+        <span className={styles.finwizCopy}>
+          <small>MARKET LEARNING AI</small>
+          <strong>Ask Finwiz</strong>
+        </span>
+        <span className={styles.finwizArrow} aria-hidden="true">↗</span>
+      </a>
+    </div>}
   </>;
 }

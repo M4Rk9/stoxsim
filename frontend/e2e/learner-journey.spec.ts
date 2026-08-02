@@ -69,9 +69,39 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
 
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-  await page.getByRole("menuitem", { name: /Finwiz AI/ }).click();
-  await expect(page.getByRole("heading", { name: /Understand markets/ })).toBeVisible();
-  await expect(page.getByText("Learning assistant, not a tip service")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /Finwiz AI/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+
+  await page.route("**/api/v1/finwiz/ask", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        answer: "### Evaluate valuation\n\nA **high-quality company** can still be overpriced.\n\n$$\\text{P/E Ratio} = \\frac{\\text{Share Price}}{\\text{Earnings Per Share}}$$\n\n* Compare the ratio with direct peers.\n* Check whether growth supports the premium.\n\n---\n\n### Risks and limitations\n\nDo not treat one ratio as a buy or sell signal.",
+        provider: "GEMINI",
+        model: "gemini-3.6-flash",
+        groundedInStoxSimData: false,
+        generatedAt: new Date().toISOString(),
+        suggestedQuestions: ["When can a low P/E be misleading?"],
+        disclaimer: "Educational information only.",
+      }),
+    });
+  });
+
+  await page.getByRole("link", { name: "Ask Finwiz AI" }).click();
+  await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeVisible();
+  await page.getByLabel("Your question").fill("How should a beginner evaluate valuation?");
+  await page.getByRole("button", { name: /Transmit question/ }).click();
+
+  const report = page.locator("#finwiz-response");
+  await expect(report).toBeVisible();
+  await expect(report.getByRole("heading", { name: "Evaluate valuation" })).toBeVisible();
+  await expect(report).toContainText("P/E Ratio = (Share Price ÷ Earnings Per Share)");
+  await expect(report).not.toContainText("###");
+  await expect(report).not.toContainText("**");
+  await expect(report).not.toContainText("$$");
   await page.getByRole("link", { name: "Back to dashboard" }).click();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
 

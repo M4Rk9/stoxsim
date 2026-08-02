@@ -1,19 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import FinwizAnswer from "./FinwizAnswer";
+import FinwizReactor, { Topic, TopicDefinition, topics } from "./FinwizReactor";
 import styles from "./finwiz.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-type Topic =
-  | "LEARN"
-  | "STOCK_FUNDAMENTALS"
-  | "TECHNICAL_ANALYSIS"
-  | "FUNDAMENTAL_ANALYSIS"
-  | "VALUATION"
-  | "CASH_FLOW"
-  | "MARKET_EVALUATION"
-  | "PORTFOLIO_EDUCATION";
 type MarketRegion = "INDIA" | "UNITED_STATES";
 type ExperienceLevel = "BEGINNER" | "INTERMEDIATE";
 
@@ -44,17 +37,6 @@ class ApiError extends Error {
   }
 }
 
-const topics: Array<{ id: Topic; label: string; description: string }> = [
-  { id: "LEARN", label: "Learn the basics", description: "Markets, orders, risk and beginner terminology." },
-  { id: "STOCK_FUNDAMENTALS", label: "Stock fundamentals", description: "Business model, sector, ratios and company quality." },
-  { id: "TECHNICAL_ANALYSIS", label: "Technical analysis", description: "Trends, moving averages, RSI, support and resistance." },
-  { id: "FUNDAMENTAL_ANALYSIS", label: "Fundamental analysis", description: "Financial statements, profitability, debt and growth." },
-  { id: "VALUATION", label: "Valuation", description: "P/E, P/S, EV/EBITDA and assumptions inside a price." },
-  { id: "CASH_FLOW", label: "Cash flows", description: "Operating, investing, financing and free cash flow." },
-  { id: "MARKET_EVALUATION", label: "Market evaluation", description: "Breadth, rates, earnings, volatility and sector leadership." },
-  { id: "PORTFOLIO_EDUCATION", label: "Portfolio education", description: "Diversification, concentration, drawdown and sizing." },
-];
-
 function readSession(): StoredSession | null {
   try {
     const value = window.localStorage.getItem("stoxsim-session");
@@ -76,7 +58,7 @@ export default function FinwizPage() {
   const [marketRegion, setMarketRegion] = useState<MarketRegion>("INDIA");
   const [exchange, setExchange] = useState("NSE");
   const [symbol, setSymbol] = useState("");
-  const [question, setQuestion] = useState("Explain how a beginner should analyse a stock step by step.");
+  const [question, setQuestion] = useState(topics[0].prompt);
   const [answer, setAnswer] = useState<FinwizResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -115,6 +97,12 @@ export default function FinwizPage() {
     [topic],
   );
 
+  function selectTopic(next: TopicDefinition) {
+    setTopic(next.id);
+    setQuestion(next.prompt);
+    setError("");
+  }
+
   async function authorized(path: string, init: RequestInit): Promise<Response> {
     let active = readSession();
     if (!active) throw new ApiError("Please sign in again", 401);
@@ -143,7 +131,7 @@ export default function FinwizPage() {
     window.localStorage.setItem("stoxsim-session", JSON.stringify(refreshed));
     setSession(refreshed);
 
-    response = await fetch(`${API_URL}${path}`, {
+    return fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -151,7 +139,6 @@ export default function FinwizPage() {
         ...(init.headers ?? {}),
       },
     });
-    return response;
   }
 
   async function ask(event: FormEvent) {
@@ -176,6 +163,9 @@ export default function FinwizPage() {
       });
       if (!response.ok) throw new ApiError(await parseError(response), response.status);
       setAnswer(await response.json() as FinwizResponse);
+      window.requestAnimationFrame(() => {
+        document.getElementById("finwiz-response")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Finwiz could not answer right now.");
     } finally {
@@ -186,139 +176,163 @@ export default function FinwizPage() {
   if (!session) return null;
 
   return <main className={styles.shell}>
+    <div className={styles.gridBackdrop} aria-hidden="true" />
     <header className={styles.header}>
       <a className={styles.brand} href="/">Stox<span>Sim</span></a>
-      <div>
-        <span className={styles.beta}>EDUCATIONAL AI</span>
+      <div className={styles.headerStatus}>
+        <span><i /> FINWIZ CORE ONLINE</span>
         <a href="/">Back to dashboard</a>
       </div>
     </header>
 
     <section className={styles.hero}>
       <div>
-        <span className={styles.eyebrow}>FINWIZ AI</span>
-        <h1>Understand markets.<br />Do not just follow them.</h1>
-        <p>Learn financial statements, valuation, technical indicators, cash flow and portfolio risk using plain explanations grounded in StoxSim data.</p>
+        <span className={styles.eyebrow}>AI-POWERED MARKET EDUCATION</span>
+        <h1>FINWIZ <em>AI</em></h1>
+        <p>Explore the market through an interactive learning core. Select a module, add a stock when relevant and receive a clear explanation grounded in available StoxSim data.</p>
       </div>
-      <div className={styles.guardrail}>
-        <strong>Learning assistant, not a tip service</strong>
-        <p>Finwiz explains evidence and uncertainty. It does not issue buy, sell, hold or target-price recommendations.</p>
+      <div className={styles.heroTelemetry}>
+        <div><span>LEARNER</span><strong>{session.user.displayName}</strong></div>
+        <div><span>MODE</span><strong>{experienceLevel}</strong></div>
+        <div><span>MARKET</span><strong>{marketRegion === "INDIA" ? "INDIA" : "USA"}</strong></div>
       </div>
     </section>
 
-    <section className={styles.workspace}>
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarHeader}>
-          <span>Choose a lesson</span>
-          <small>{selectedTopic.description}</small>
+    <section className={styles.reactorWorkspace}>
+      <FinwizReactor selected={topic} onSelect={selectTopic} />
+
+      <aside className={styles.moduleConsole}>
+        <div className={styles.consoleLabel}>SELECTED LEARNING MODULE</div>
+        <div className={styles.moduleNumber}>{String(topics.findIndex((item) => item.id === topic) + 1).padStart(2, "0")}</div>
+        <h2>{selectedTopic.label}</h2>
+        <p>{selectedTopic.description}</p>
+
+        <div className={styles.moduleSignals}>
+          <div><span>DEPTH</span><strong>{experienceLevel}</strong></div>
+          <div><span>DATA LINK</span><strong>{symbol ? `${exchange}:${symbol}` : "GENERAL"}</strong></div>
+          <div><span>OUTPUT</span><strong>CLEAN FORMAT</strong></div>
         </div>
-        <div className={styles.topicList}>
-          {topics.map((item) => <button
-            type="button"
-            key={item.id}
-            className={topic === item.id ? styles.topicActive : styles.topic}
-            onClick={() => setTopic(item.id)}
-          >
-            <strong>{item.label}</strong>
-            <small>{item.description}</small>
-          </button>)}
+
+        <button type="button" className={styles.loadPrompt} onClick={() => setQuestion(selectedTopic.prompt)}>
+          Load recommended question <span>→</span>
+        </button>
+
+        <div className={styles.guardrail}>
+          <span>EDUCATION GUARDRAIL</span>
+          <strong>Analysis, not investment instructions.</strong>
+          <p>Finwiz explains evidence, assumptions and limitations. It does not issue buy, sell, hold or target-price calls.</p>
         </div>
       </aside>
-
-      <section className={styles.chatPanel}>
-        <form onSubmit={ask}>
-          <div className={styles.formTop}>
-            <label>
-              Learning level
-              <select value={experienceLevel} onChange={(event) => setExperienceLevel(event.target.value as ExperienceLevel)}>
-                <option value="BEGINNER">Beginner</option>
-                <option value="INTERMEDIATE">Intermediate</option>
-              </select>
-            </label>
-            <label>
-              Market
-              <select value={marketRegion} onChange={(event) => setMarketRegion(event.target.value as MarketRegion)}>
-                <option value="INDIA">India</option>
-                <option value="UNITED_STATES">United States</option>
-              </select>
-            </label>
-            <label>
-              Exchange
-              <select value={exchange} onChange={(event) => setExchange(event.target.value)}>
-                {marketRegion === "INDIA" ? <>
-                  <option value="NSE">NSE</option>
-                  <option value="BSE">BSE</option>
-                </> : <>
-                  <option value="NASDAQ">NASDAQ</option>
-                  <option value="NYSE">NYSE</option>
-                  <option value="NYSE_ARCA">NYSE Arca</option>
-                  <option value="AMEX">AMEX</option>
-                  <option value="CBOE">Cboe</option>
-                </>}
-              </select>
-            </label>
-            <label>
-              Stock symbol <small>Optional</small>
-              <input
-                value={symbol}
-                onChange={(event) => setSymbol(event.target.value.toUpperCase())}
-                placeholder={marketRegion === "INDIA" ? "RELIANCE" : "AAPL"}
-                maxLength={32}
-              />
-            </label>
-          </div>
-
-          <label className={styles.questionLabel}>
-            Ask Finwiz
-            <textarea
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              maxLength={2000}
-              rows={5}
-              placeholder="Ask about a financial statement, ratio, indicator, market condition or stock…"
-            />
-            <span>{question.length}/2000</span>
-          </label>
-
-          <div className={styles.formFooter}>
-            <small>Company-specific statements use available StoxSim data. Missing data remains explicitly unavailable.</small>
-            <button type="submit" disabled={loading || !question.trim()}>
-              {loading ? "Finwiz is studying…" : "Explain this"}
-            </button>
-          </div>
-        </form>
-
-        {error && <div className={styles.error}>{error}</div>}
-
-        {answer ? <article className={styles.answer}>
-          <div className={styles.answerHeader}>
-            <div>
-              <span>FINWIZ RESPONSE</span>
-              <h2>{selectedTopic.label}</h2>
-            </div>
-            <div className={styles.answerMeta}>
-              <span>{answer.groundedInStoxSimData ? "Grounded in StoxSim data" : "General learning mode"}</span>
-              <small>{answer.provider === "GEMINI" ? `Gemini · ${answer.model}` : "Built-in learning fallback"}</small>
-            </div>
-          </div>
-          <div className={styles.answerText}>{answer.answer}</div>
-          <div className={styles.suggestions}>
-            <span>Continue learning</span>
-            <div>
-              {answer.suggestedQuestions.map((suggestion) => <button
-                type="button"
-                key={suggestion}
-                onClick={() => setQuestion(suggestion)}
-              >{suggestion}</button>)}
-            </div>
-          </div>
-          <p className={styles.disclaimer}>{answer.disclaimer}</p>
-        </article> : <div className={styles.emptyState}>
-          <div className={styles.orb}>F</div>
-          <h2>Ask a question to begin</h2>
-          <p>Try “Why can profit increase while operating cash flow decreases?” or add a symbol and ask Finwiz to explain the available fundamentals.</p>
-        </div>}
-      </section>
     </section>
+
+    <section className={styles.commandConsole}>
+      <div className={styles.consoleHeader}>
+        <div>
+          <span>QUERY TERMINAL</span>
+          <h2>Ask Finwiz</h2>
+        </div>
+        <div className={styles.consoleState}><i /> READY FOR INPUT</div>
+      </div>
+
+      <form onSubmit={ask}>
+        <div className={styles.formTop}>
+          <label>
+            Learning level
+            <select value={experienceLevel} onChange={(event) => setExperienceLevel(event.target.value as ExperienceLevel)}>
+              <option value="BEGINNER">Beginner</option>
+              <option value="INTERMEDIATE">Intermediate</option>
+            </select>
+          </label>
+          <label>
+            Market
+            <select value={marketRegion} onChange={(event) => setMarketRegion(event.target.value as MarketRegion)}>
+              <option value="INDIA">India</option>
+              <option value="UNITED_STATES">United States</option>
+            </select>
+          </label>
+          <label>
+            Exchange
+            <select value={exchange} onChange={(event) => setExchange(event.target.value)}>
+              {marketRegion === "INDIA" ? <>
+                <option value="NSE">NSE</option>
+                <option value="BSE">BSE</option>
+              </> : <>
+                <option value="NASDAQ">NASDAQ</option>
+                <option value="NYSE">NYSE</option>
+                <option value="NYSE_ARCA">NYSE Arca</option>
+                <option value="AMEX">AMEX</option>
+                <option value="CBOE">Cboe</option>
+              </>}
+            </select>
+          </label>
+          <label>
+            Stock symbol <small>Optional</small>
+            <input
+              value={symbol}
+              onChange={(event) => setSymbol(event.target.value.toUpperCase())}
+              placeholder={marketRegion === "INDIA" ? "RELIANCE" : "AAPL"}
+              maxLength={32}
+            />
+          </label>
+        </div>
+
+        <label className={styles.questionLabel}>
+          Your question
+          <textarea
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            maxLength={2000}
+            rows={5}
+            placeholder="Ask about a financial statement, ratio, indicator, market condition or stock…"
+          />
+          <span>{question.length}/2000</span>
+        </label>
+
+        <div className={styles.formFooter}>
+          <small>Stock-specific explanations use available StoxSim data. Missing values remain explicitly unavailable.</small>
+          <button type="submit" disabled={loading || !question.trim()}>
+            {loading ? <><i className={styles.loader} /> Analysing</> : <>Transmit question <span>↗</span></>}
+          </button>
+        </div>
+      </form>
+      {error && <div className={styles.error}>{error}</div>}
+    </section>
+
+    {answer ? <article className={styles.answer} id="finwiz-response">
+      <div className={styles.answerHeader}>
+        <div>
+          <span>FINWIZ INTELLIGENCE REPORT</span>
+          <h2>{selectedTopic.label}</h2>
+        </div>
+        <div className={styles.answerMeta}>
+          <span>{answer.groundedInStoxSimData ? "STOXSIM DATA LINKED" : "GENERAL LEARNING MODE"}</span>
+          <small>{answer.provider === "GEMINI" ? `Gemini · ${answer.model}` : "Built-in learning fallback"}</small>
+        </div>
+      </div>
+
+      <FinwizAnswer answer={answer.answer} />
+
+      <div className={styles.suggestions}>
+        <span>NEXT LEARNING PATHS</span>
+        <div>
+          {answer.suggestedQuestions.map((suggestion) => <button
+            type="button"
+            key={suggestion}
+            onClick={() => {
+              setQuestion(suggestion);
+              document.querySelector(`.${styles.commandConsole}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >{suggestion}<b>↗</b></button>)}
+        </div>
+      </div>
+      <p className={styles.disclaimer}>{answer.disclaimer}</p>
+    </article> : <section className={styles.idlePanel}>
+      <div className={styles.idlePulse} aria-hidden="true"><span>F</span></div>
+      <div>
+        <span>AWAITING QUERY</span>
+        <h2>The learning core is ready.</h2>
+        <p>Choose a reactor segment or transmit your own question. Finwiz will turn complex market language into a structured, readable explanation.</p>
+      </div>
+    </section>}
   </main>;
 }
