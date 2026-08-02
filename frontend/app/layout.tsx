@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import DashboardTools from "./components/DashboardTools";
-import ThemeToggle from "./components/ThemeToggle";
 import "./globals.css";
 import "./theme.css";
 
@@ -12,13 +11,19 @@ export const metadata: Metadata = {
 const themeScript = `(() => {
   try {
     const saved = window.localStorage.getItem("stoxsim-theme");
-    const theme = saved === "light" || saved === "dark"
+    const preference = saved === "light" || saved === "dark" || saved === "system"
       ? saved
-      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.style.colorScheme = theme;
+      : "system";
+    const resolved = preference === "system"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      : preference;
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.dataset.themePreference = preference;
+    document.documentElement.style.colorScheme = resolved;
   } catch {
     document.documentElement.dataset.theme = "light";
+    document.documentElement.dataset.themePreference = "system";
+    document.documentElement.style.colorScheme = "light";
   }
 })();`;
 
@@ -32,7 +37,6 @@ export default function RootLayout({
       </head>
       <body>
         {children}
-        <ThemeToggle />
         <DashboardTools />
       </body>
     </html>
