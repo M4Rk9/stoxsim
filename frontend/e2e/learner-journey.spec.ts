@@ -1,25 +1,39 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test.setTimeout(process.env.EXPECT_US_MARKET_DATA === "true" ? 480_000 : 60_000);
+const PASSWORD = "Browser-acceptance-2026";
 
-test("a learner can create, restore and reopen an India portfolio", async ({ page }) => {
-  const email = `browser-${Date.now()}-${Math.random().toString(16).slice(2)}@stoxsim.test`;
-  const password = "Browser-acceptance-2026";
+function uniqueEmail(label: string) {
+  return `browser-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}@stoxsim.test`;
+}
 
+async function registerLearner(page: Page, label: string) {
+  const email = uniqueEmail(label);
   await page.goto("/");
   await page.getByLabel("Display name").fill("Browser Learner");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Start Now!" }).click();
-
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Start Now!", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
+  return email;
+}
+
+async function expectIndiaAccount(page: Page) {
+  await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible();
+  await expect(page.getByRole("button", { name: /India/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
     .toContainText("₹5,00,000.00");
   await expect(page.locator(".metric").filter({ hasText: "Available cash" }))
     .toContainText("₹5,00,000.00");
-  await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
+}
 
+test("a learner can register, persist appearance and sign in again", async ({ page }) => {
+  test.setTimeout(150_000);
+  const email = await registerLearner(page, "auth");
+
+  await expectIndiaAccount(page);
+  await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /Switch to (dark|light) mode/ })).toHaveCount(0);
+
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
   await expect(page.getByRole("group", { name: "Appearance" })).toBeVisible();
   await page.getByRole("button", { name: "Use dark appearance" }).click();
@@ -33,6 +47,32 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
 
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My Watchlist" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await expect(page.getByRole("menuitem", { name: /Account settings/ })).toBeVisible();
+  await page.getByRole("menuitem", { name: /Sign out/ }).click();
+  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open dashboard", exact: true })).toBeVisible();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Open dashboard", exact: true }).click();
+
+  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
+  await expectIndiaAccount(page);
+});
+
+test("a learner can switch between India and United States markets", async ({ page }) => {
+  test.setTimeout(process.env.EXPECT_US_MARKET_DATA === "true" ? 480_000 : 90_000);
+  await registerLearner(page, "markets");
+
   await page.getByRole("button", { name: /US/ }).click();
   await expect(page.getByText("USA PORTFOLIO")).toBeVisible();
   await expect(page.getByRole("button", { name: /US/ })).toHaveAttribute("aria-pressed", "true");
@@ -42,7 +82,7 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   if (process.env.EXPECT_US_MARKET_DATA === "true") {
     await expect(async () => {
       await page.getByPlaceholder("Search Apple, Nvidia, SPY…").fill("Apple");
-      await page.getByRole("button", { name: "Search" }).click();
+      await page.getByRole("button", { name: "Search", exact: true }).click();
       await expect(page.locator(".searchResults button strong").filter({ hasText: /^AAPL$/ }))
         .toBeVisible({ timeout: 5_000 });
     }).toPass({
@@ -57,16 +97,12 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   }
 
   await page.getByRole("button", { name: /India/ }).click();
-  await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible();
-  await expect(page.getByRole("button", { name: /India/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
-    .toContainText("₹5,00,000.00");
+  await expectIndiaAccount(page);
+});
 
-  await page.reload();
-  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "My Watchlist" })).toBeVisible();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
+test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "finwiz");
 
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
   await expect(page.getByRole("menuitem", { name: /Finwiz AI/ })).toHaveCount(0);
@@ -92,6 +128,9 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeVisible();
+  await page.getByRole("button", { name: "Select Technical analysis" }).focus();
+  await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeFocused();
+
   await page.getByLabel("Your question").fill("How should a beginner evaluate valuation?");
   await page.getByRole("button", { name: /Transmit question/ }).click();
 
@@ -102,20 +141,7 @@ test("a learner can create, restore and reopen an India portfolio", async ({ pag
   await expect(report).not.toContainText("###");
   await expect(report).not.toContainText("**");
   await expect(report).not.toContainText("$$");
+
   await page.getByRole("link", { name: "Back to dashboard" }).click();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
-
-  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-  await expect(page.getByRole("menuitem", { name: /Account settings/ })).toBeVisible();
-  await page.getByRole("menuitem", { name: /Sign out/ }).click();
-  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Open dashboard" }).click();
-
-  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
-  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
-    .toContainText("₹5,00,000.00");
 });
