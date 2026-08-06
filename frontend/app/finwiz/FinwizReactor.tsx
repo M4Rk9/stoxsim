@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, KeyboardEvent } from "react";
+import type { KeyboardEvent } from "react";
 import { useState } from "react";
 import styles from "./finwiz.module.css";
 
@@ -81,36 +81,135 @@ export const topics: TopicDefinition[] = [
   },
 ];
 
-function polarPoint(radius: number, angle: number) {
-  const radians = (angle - 90) * Math.PI / 180;
-  return {
-    x: 320 + radius * Math.cos(radians),
-    y: 320 + radius * Math.sin(radians),
-  };
+type TextAnchor = "start" | "middle" | "end";
+
+interface ChildSkill {
+  x: number;
+  y: number;
+  label: string;
+  labelX: number;
+  labelY: number;
+  anchor: TextAnchor;
 }
 
-function segmentPath(index: number) {
-  const startAngle = index * 45 + 2.4;
-  const endAngle = (index + 1) * 45 - 2.4;
-  const outerStart = polarPoint(224, startAngle);
-  const outerEnd = polarPoint(224, endAngle);
-  const innerEnd = polarPoint(132, endAngle);
-  const innerStart = polarPoint(132, startAngle);
-
-  return [
-    `M ${outerStart.x} ${outerStart.y}`,
-    `A 224 224 0 0 1 ${outerEnd.x} ${outerEnd.y}`,
-    `L ${innerEnd.x} ${innerEnd.y}`,
-    `A 132 132 0 0 0 ${innerStart.x} ${innerStart.y}`,
-    "Z",
-  ].join(" ");
+interface SkillBranch {
+  topic: Topic;
+  x: number;
+  y: number;
+  labelX: number;
+  labelY: number;
+  anchor: TextAnchor;
+  children: ChildSkill[];
 }
 
-function splitLabel(label: string) {
-  const words = label.split(" ");
-  if (words.length === 1) return [label];
-  const midpoint = Math.ceil(words.length / 2);
-  return [words.slice(0, midpoint).join(" "), words.slice(midpoint).join(" ")];
+const branches: SkillBranch[] = [
+  {
+    topic: "LEARN",
+    x: 500,
+    y: 132,
+    labelX: 500,
+    labelY: 94,
+    anchor: "middle",
+    children: [
+      { x: 426, y: 48, label: "ORDERS", labelX: 402, labelY: 28, anchor: "end" },
+      { x: 574, y: 48, label: "RISK", labelX: 598, labelY: 28, anchor: "start" },
+    ],
+  },
+  {
+    topic: "STOCK_FUNDAMENTALS",
+    x: 714,
+    y: 190,
+    labelX: 748,
+    labelY: 181,
+    anchor: "start",
+    children: [
+      { x: 790, y: 90, label: "BUSINESS", labelX: 812, labelY: 72, anchor: "start" },
+      { x: 842, y: 172, label: "RATIOS", labelX: 866, labelY: 176, anchor: "start" },
+    ],
+  },
+  {
+    topic: "TECHNICAL_ANALYSIS",
+    x: 836,
+    y: 350,
+    labelX: 874,
+    labelY: 342,
+    anchor: "start",
+    children: [
+      { x: 930, y: 286, label: "TREND", labelX: 954, labelY: 273, anchor: "start" },
+      { x: 942, y: 414, label: "MOMENTUM", labelX: 966, labelY: 430, anchor: "start" },
+    ],
+  },
+  {
+    topic: "FUNDAMENTAL_ANALYSIS",
+    x: 714,
+    y: 510,
+    labelX: 748,
+    labelY: 527,
+    anchor: "start",
+    children: [
+      { x: 790, y: 610, label: "INCOME", labelX: 812, labelY: 632, anchor: "start" },
+      { x: 842, y: 528, label: "BALANCE", labelX: 866, labelY: 532, anchor: "start" },
+    ],
+  },
+  {
+    topic: "VALUATION",
+    x: 500,
+    y: 568,
+    labelX: 500,
+    labelY: 618,
+    anchor: "middle",
+    children: [
+      { x: 426, y: 650, label: "MULTIPLES", labelX: 402, labelY: 676, anchor: "end" },
+      { x: 574, y: 650, label: "ASSUMPTIONS", labelX: 598, labelY: 676, anchor: "start" },
+    ],
+  },
+  {
+    topic: "CASH_FLOW",
+    x: 286,
+    y: 510,
+    labelX: 252,
+    labelY: 527,
+    anchor: "end",
+    children: [
+      { x: 210, y: 610, label: "OPERATING", labelX: 188, labelY: 632, anchor: "end" },
+      { x: 158, y: 528, label: "FREE CASH", labelX: 134, labelY: 532, anchor: "end" },
+    ],
+  },
+  {
+    topic: "MARKET_EVALUATION",
+    x: 164,
+    y: 350,
+    labelX: 126,
+    labelY: 342,
+    anchor: "end",
+    children: [
+      { x: 70, y: 286, label: "BREADTH", labelX: 46, labelY: 273, anchor: "end" },
+      { x: 58, y: 414, label: "CYCLES", labelX: 34, labelY: 430, anchor: "end" },
+    ],
+  },
+  {
+    topic: "PORTFOLIO_EDUCATION",
+    x: 286,
+    y: 190,
+    labelX: 252,
+    labelY: 181,
+    anchor: "end",
+    children: [
+      { x: 210, y: 90, label: "SIZING", labelX: 188, labelY: 72, anchor: "end" },
+      { x: 158, y: 172, label: "DIVERSIFY", labelX: 134, labelY: 176, anchor: "end" },
+    ],
+  },
+];
+
+function findTopic(id: Topic) {
+  return topics.find((topic) => topic.id === id) ?? topics[0];
+}
+
+function activate(event: KeyboardEvent<SVGGElement>, action: () => void) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    action();
+  }
 }
 
 export default function FinwizReactor({
@@ -121,94 +220,111 @@ export default function FinwizReactor({
   onSelect: (topic: TopicDefinition) => void;
 }) {
   const [hovered, setHovered] = useState<Topic | null>(null);
-  const active = topics.find((item) => item.id === (hovered ?? selected)) ?? topics[0];
+  const active = findTopic(hovered ?? selected);
 
-  function activate(event: KeyboardEvent<SVGGElement>, topic: TopicDefinition) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onSelect(topic);
-    }
-  }
+  return <section className={styles.treeModule} aria-label="Finwiz learning skill tree">
+    <svg className={styles.skillTree} viewBox="0 0 1000 700" role="img" aria-label="Interactive Finwiz topic selector">
+      <g className={styles.treeFramework} aria-hidden="true">
+        <circle cx="500" cy="350" r="146" />
+        <circle cx="500" cy="350" r="126" />
+        {Array.from({ length: 8 }, (_, index) => {
+          const angle = index * 45 - 90;
+          const radians = angle * Math.PI / 180;
+          const x1 = 500 + Math.cos(radians) * 96;
+          const y1 = 350 + Math.sin(radians) * 96;
+          const x2 = 500 + Math.cos(radians) * 145;
+          const y2 = 350 + Math.sin(radians) * 145;
+          return <line key={angle} x1={x1} y1={y1} x2={x2} y2={y2} />;
+        })}
+      </g>
 
-  return <section className={styles.reactorModule} aria-label="Finwiz learning reactor">
-    <div className={styles.reactorHalo} aria-hidden="true" />
-    <svg className={styles.reactor} viewBox="0 0 640 640" role="img" aria-label="Interactive Finwiz topic selector">
-      <defs>
-        <radialGradient id="finwiz-core" cx="50%" cy="46%" r="58%">
-          <stop offset="0%" stopColor="var(--reactor-core)" stopOpacity="0.98" />
-          <stop offset="58%" stopColor="var(--reactor-core-deep)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="var(--reactor-core-deep)" stopOpacity="0.72" />
-        </radialGradient>
-        <linearGradient id="finwiz-segment" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="var(--reactor-segment-start)" />
-          <stop offset="100%" stopColor="var(--reactor-segment-end)" />
-        </linearGradient>
-        <filter id="finwiz-glow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="8" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
+      {branches.map((branch, index) => {
+        const topic = findTopic(branch.topic);
+        const isActive = branch.topic === selected || branch.topic === hovered;
+        const select = () => onSelect(topic);
 
-      <circle className={styles.orbitOuter} cx="320" cy="320" r="258" />
-      <circle className={styles.orbitDash} cx="320" cy="320" r="246" />
-      <circle className={styles.orbitInner} cx="320" cy="320" r="118" />
+        return <g key={branch.topic}>
+          <line
+            className={isActive ? styles.treeLineActive : styles.treeLine}
+            x1="500"
+            y1="350"
+            x2={branch.x}
+            y2={branch.y}
+          />
+          {branch.children.map((child) => <line
+            key={`${branch.topic}-${child.label}`}
+            className={isActive ? styles.childLineActive : styles.childLine}
+            x1={branch.x}
+            y1={branch.y}
+            x2={child.x}
+            y2={child.y}
+          />)}
 
-      {topics.map((topic, index) => {
-        const midpoint = index * 45 + 22.5;
-        const labelPoint = polarPoint(178, midpoint);
-        const liftRadians = (midpoint - 90) * Math.PI / 180;
-        const liftX = Math.cos(liftRadians) * 12;
-        const liftY = Math.sin(liftRadians) * 12;
-        const lines = splitLabel(topic.shortLabel);
-        const isSelected = selected === topic.id;
-        const isHovered = hovered === topic.id;
+          <g
+            role="button"
+            tabIndex={0}
+            aria-label={`Select ${topic.label}`}
+            aria-pressed={selected === branch.topic}
+            className={selected === branch.topic ? styles.skillNodeActive : styles.skillNode}
+            onClick={select}
+            onKeyDown={(event) => activate(event, select)}
+            onMouseEnter={() => setHovered(branch.topic)}
+            onMouseLeave={() => setHovered(null)}
+            onFocus={() => setHovered(branch.topic)}
+            onBlur={() => setHovered(null)}
+          >
+            <circle cx={branch.x} cy={branch.y} r="27" />
+            <circle className={styles.nodeInner} cx={branch.x} cy={branch.y} r="17" />
+            <text className={styles.nodeIndex} x={branch.x} y={branch.y + 4} textAnchor="middle">
+              {String(index + 1).padStart(2, "0")}
+            </text>
+            <text
+              className={styles.nodeLabel}
+              x={branch.labelX}
+              y={branch.labelY}
+              textAnchor={branch.anchor}
+            >{topic.shortLabel}</text>
+          </g>
 
-        return <g
-          key={topic.id}
-          role="button"
-          tabIndex={0}
-          aria-label={`Select ${topic.label}`}
-          aria-pressed={isSelected}
-          className={`${styles.reactorSegment} ${isSelected ? styles.reactorSegmentActive : ""} ${isHovered ? styles.reactorSegmentHover : ""}`}
-          style={{ "--lift-x": `${liftX}px`, "--lift-y": `${liftY}px` } as CSSProperties}
-          onClick={() => onSelect(topic)}
-          onKeyDown={(event) => activate(event, topic)}
-          onMouseEnter={() => setHovered(topic.id)}
-          onMouseLeave={() => setHovered(null)}
-          onFocus={() => setHovered(topic.id)}
-          onBlur={() => setHovered(null)}
-        >
-          <path d={segmentPath(index)} />
-          <circle cx={labelPoint.x} cy={labelPoint.y - 3} r="18" />
-          <text x={labelPoint.x} y={labelPoint.y + (lines.length === 1 ? 3 : -2)} textAnchor="middle">
-            {lines.map((line, lineIndex) => <tspan
-              key={line}
-              x={labelPoint.x}
-              dy={lineIndex === 0 ? 0 : 12}
-            >{line}</tspan>)}
-          </text>
+          {branch.children.map((child) => <g
+            key={`${branch.topic}-${child.label}-node`}
+            role="button"
+            tabIndex={0}
+            aria-label={`${topic.label} subskill: ${child.label}`}
+            className={selected === branch.topic ? styles.childNodeActive : styles.childNode}
+            onClick={select}
+            onKeyDown={(event) => activate(event, select)}
+            onMouseEnter={() => setHovered(branch.topic)}
+            onMouseLeave={() => setHovered(null)}
+            onFocus={() => setHovered(branch.topic)}
+            onBlur={() => setHovered(null)}
+          >
+            <circle cx={child.x} cy={child.y} r="11" />
+            <circle className={styles.childNodeInner} cx={child.x} cy={child.y} r="4" />
+            <text
+              className={styles.childLabel}
+              x={child.labelX}
+              y={child.labelY}
+              textAnchor={child.anchor}
+            >{child.label}</text>
+          </g>)}
         </g>;
       })}
 
-      <g className={styles.reactorCore} filter="url(#finwiz-glow)">
-        <circle cx="320" cy="320" r="108" fill="url(#finwiz-core)" />
-        <circle className={styles.coreRingOne} cx="320" cy="320" r="90" />
-        <circle className={styles.coreRingTwo} cx="320" cy="320" r="71" />
-        <circle className={styles.corePulse} cx="320" cy="320" r="49" />
-        <text className={styles.coreTitle} x="320" y="309" textAnchor="middle">FINWIZ</text>
-        <text className={styles.coreSubtitle} x="320" y="337" textAnchor="middle">AI</text>
-        <text className={styles.coreStatus} x="320" y="365" textAnchor="middle">LEARNING CORE ONLINE</text>
+      <g className={styles.core} aria-hidden="true">
+        <circle className={styles.coreOuter} cx="500" cy="350" r="100" />
+        <circle className={styles.coreMiddle} cx="500" cy="350" r="77" />
+        <circle className={styles.coreInner} cx="500" cy="350" r="55" />
+        <path d="m500 309 35 61h-70l35-61Z" />
+        <circle cx="500" cy="350" r="17" />
+        <text className={styles.coreTitle} x="500" y="344" textAnchor="middle">FINWIZ</text>
+        <text className={styles.coreSubtitle} x="500" y="366" textAnchor="middle">AI</text>
+      </g>
+
+      <g className={styles.activeReadout} aria-live="polite">
+        <text x="500" y="475" textAnchor="middle">{active.label.toUpperCase()}</text>
+        <text className={styles.activeDescription} x="500" y="495" textAnchor="middle">{active.description}</text>
       </g>
     </svg>
-
-    <div className={styles.reactorReadout} aria-live="polite">
-      <span>ACTIVE MODULE</span>
-      <strong>{active.label}</strong>
-      <p>{active.description}</p>
-      <button type="button" onClick={() => onSelect(active)}>Load this module</button>
-    </div>
   </section>;
 }
