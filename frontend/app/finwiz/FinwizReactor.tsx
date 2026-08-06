@@ -290,7 +290,7 @@ export default function FinwizReactor({
             key={`${branch.topic}-${child.label}-node`}
             role="button"
             tabIndex={0}
-            aria-label={`Select ${topic.label}: ${child.label}`}
+            aria-label={`${topic.label} subskill: ${child.label}`}
             className={selected === branch.topic ? styles.childNodeActive : styles.childNode}
             onClick={select}
             onKeyDown={(event) => activate(event, select)}
