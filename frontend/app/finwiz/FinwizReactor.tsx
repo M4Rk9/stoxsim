@@ -1,8 +1,7 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
-import { useState } from "react";
-import styles from "./finwiz.module.css";
+import styles from "./finwiz-tree.module.css";
 
 export type Topic =
   | "LEARN"
@@ -98,7 +97,6 @@ interface SkillBranch {
   y: number;
   labelX: number;
   labelY: number;
-  anchor: TextAnchor;
   children: ChildSkill[];
 }
 
@@ -106,97 +104,89 @@ const branches: SkillBranch[] = [
   {
     topic: "LEARN",
     x: 500,
-    y: 132,
+    y: 100,
     labelX: 500,
-    labelY: 94,
-    anchor: "middle",
+    labelY: 148,
     children: [
-      { x: 426, y: 48, label: "ORDERS", labelX: 402, labelY: 28, anchor: "end" },
-      { x: 574, y: 48, label: "RISK", labelX: 598, labelY: 28, anchor: "start" },
+      { x: 420, y: 35, label: "ORDERS", labelX: 390, labelY: 20, anchor: "end" },
+      { x: 580, y: 35, label: "RISK", labelX: 610, labelY: 20, anchor: "start" },
     ],
   },
   {
     topic: "STOCK_FUNDAMENTALS",
-    x: 714,
-    y: 190,
-    labelX: 748,
-    labelY: 181,
-    anchor: "start",
+    x: 700,
+    y: 175,
+    labelX: 758,
+    labelY: 170,
     children: [
-      { x: 790, y: 90, label: "BUSINESS", labelX: 812, labelY: 72, anchor: "start" },
-      { x: 842, y: 172, label: "RATIOS", labelX: 866, labelY: 176, anchor: "start" },
+      { x: 790, y: 80, label: "BUSINESS", labelX: 817, labelY: 62, anchor: "start" },
+      { x: 875, y: 165, label: "RATIOS", labelX: 905, labelY: 165, anchor: "start" },
     ],
   },
   {
     topic: "TECHNICAL_ANALYSIS",
-    x: 836,
+    x: 810,
     y: 350,
-    labelX: 874,
-    labelY: 342,
-    anchor: "start",
+    labelX: 866,
+    labelY: 350,
     children: [
-      { x: 930, y: 286, label: "TREND", labelX: 954, labelY: 273, anchor: "start" },
-      { x: 942, y: 414, label: "MOMENTUM", labelX: 966, labelY: 430, anchor: "start" },
+      { x: 920, y: 285, label: "TREND", labelX: 946, labelY: 270, anchor: "start" },
+      { x: 920, y: 415, label: "MOMENTUM", labelX: 946, labelY: 430, anchor: "start" },
     ],
   },
   {
     topic: "FUNDAMENTAL_ANALYSIS",
-    x: 714,
-    y: 510,
-    labelX: 748,
-    labelY: 527,
-    anchor: "start",
+    x: 700,
+    y: 525,
+    labelX: 758,
+    labelY: 530,
     children: [
-      { x: 790, y: 610, label: "INCOME", labelX: 812, labelY: 632, anchor: "start" },
-      { x: 842, y: 528, label: "BALANCE", labelX: 866, labelY: 532, anchor: "start" },
+      { x: 790, y: 620, label: "INCOME", labelX: 817, labelY: 642, anchor: "start" },
+      { x: 875, y: 535, label: "BALANCE", labelX: 905, labelY: 535, anchor: "start" },
     ],
   },
   {
     topic: "VALUATION",
     x: 500,
-    y: 568,
+    y: 600,
     labelX: 500,
-    labelY: 618,
-    anchor: "middle",
+    labelY: 560,
     children: [
-      { x: 426, y: 650, label: "MULTIPLES", labelX: 402, labelY: 676, anchor: "end" },
-      { x: 574, y: 650, label: "ASSUMPTIONS", labelX: 598, labelY: 676, anchor: "start" },
+      { x: 420, y: 675, label: "MULTIPLES", labelX: 390, labelY: 692, anchor: "end" },
+      { x: 580, y: 675, label: "ASSUMPTIONS", labelX: 610, labelY: 692, anchor: "start" },
     ],
   },
   {
     topic: "CASH_FLOW",
-    x: 286,
-    y: 510,
-    labelX: 252,
-    labelY: 527,
-    anchor: "end",
+    x: 300,
+    y: 525,
+    labelX: 242,
+    labelY: 530,
     children: [
-      { x: 210, y: 610, label: "OPERATING", labelX: 188, labelY: 632, anchor: "end" },
-      { x: 158, y: 528, label: "FREE CASH", labelX: 134, labelY: 532, anchor: "end" },
+      { x: 210, y: 620, label: "OPERATING", labelX: 183, labelY: 642, anchor: "end" },
+      { x: 125, y: 535, label: "FREE CASH", labelX: 95, labelY: 535, anchor: "end" },
     ],
   },
   {
     topic: "MARKET_EVALUATION",
-    x: 164,
+    x: 190,
     y: 350,
-    labelX: 126,
-    labelY: 342,
-    anchor: "end",
+    labelX: 134,
+    labelY: 350,
     children: [
-      { x: 70, y: 286, label: "BREADTH", labelX: 46, labelY: 273, anchor: "end" },
-      { x: 58, y: 414, label: "CYCLES", labelX: 34, labelY: 430, anchor: "end" },
+      { x: 80, y: 285, label: "BREADTH", labelX: 52, labelY: 270, anchor: "start" },
+      { x: 80, y: 415, label: "CYCLES", labelX: 52, labelY: 430, anchor: "start" },
     ],
   },
   {
     topic: "PORTFOLIO_EDUCATION",
-    x: 286,
-    y: 190,
-    labelX: 252,
-    labelY: 181,
-    anchor: "end",
+    x: 300,
+    y: 175,
+    labelX: 242,
+    labelY: 170,
     children: [
-      { x: 210, y: 90, label: "SIZING", labelX: 188, labelY: 72, anchor: "end" },
-      { x: 158, y: 172, label: "DIVERSIFY", labelX: 134, labelY: 176, anchor: "end" },
+      { x: 210, y: 80, label: "SIZING", labelX: 183, labelY: 62, anchor: "end" },
+      { x: 125, y: 165, label: "DIVERSIFY", labelX: 95, labelY: 165, anchor: "end" },
     ],
   },
 ];
@@ -219,28 +209,47 @@ export default function FinwizReactor({
   selected: Topic;
   onSelect: (topic: TopicDefinition) => void;
 }) {
-  const [hovered, setHovered] = useState<Topic | null>(null);
-  const active = findTopic(hovered ?? selected);
-
   return <section className={styles.treeModule} aria-label="Finwiz learning skill tree">
     <svg className={styles.skillTree} viewBox="0 0 1000 700" role="img" aria-label="Interactive Finwiz topic selector">
+      <defs>
+        <pattern id="finwiz-map-dots" width="8" height="8" patternUnits="userSpaceOnUse">
+          <circle cx="1.5" cy="1.5" r="1" fill="#fff" />
+        </pattern>
+      </defs>
+
+      <g className={styles.worldMap} aria-hidden="true">
+        <path d="M70 180 130 120 230 105 315 145 360 205 325 250 270 260 230 310 170 300 125 250Z" />
+        <path d="M285 60 345 55 380 95 345 125 300 105Z" />
+        <path d="M330 325 390 350 425 430 405 520 365 610 325 535 305 445Z" />
+        <path d="M450 165 520 145 585 175 570 225 510 240 465 215Z" />
+        <path d="M465 245 560 240 625 300 610 405 555 525 485 455 450 340Z" />
+        <path d="M575 165 675 110 810 120 925 180 965 250 900 305 810 290 730 340 650 305 600 245Z" />
+        <path d="M750 465 835 430 925 470 905 545 815 570 745 525Z" />
+      </g>
+
+      <g className={styles.mapGuide} aria-hidden="true">
+        <path d="M50 350h900" />
+        <path d="M500 45v610" />
+        <ellipse cx="500" cy="350" rx="430" ry="230" />
+      </g>
+
       <g className={styles.treeFramework} aria-hidden="true">
-        <circle cx="500" cy="350" r="146" />
-        <circle cx="500" cy="350" r="126" />
+        <circle cx="500" cy="350" r="137" />
+        <circle cx="500" cy="350" r="116" />
         {Array.from({ length: 8 }, (_, index) => {
           const angle = index * 45 - 90;
           const radians = angle * Math.PI / 180;
-          const x1 = 500 + Math.cos(radians) * 96;
-          const y1 = 350 + Math.sin(radians) * 96;
-          const x2 = 500 + Math.cos(radians) * 145;
-          const y2 = 350 + Math.sin(radians) * 145;
+          const x1 = 500 + Math.cos(radians) * 92;
+          const y1 = 350 + Math.sin(radians) * 92;
+          const x2 = 500 + Math.cos(radians) * 136;
+          const y2 = 350 + Math.sin(radians) * 136;
           return <line key={angle} x1={x1} y1={y1} x2={x2} y2={y2} />;
         })}
       </g>
 
       {branches.map((branch, index) => {
         const topic = findTopic(branch.topic);
-        const isActive = branch.topic === selected || branch.topic === hovered;
+        const isActive = branch.topic === selected;
         const select = () => onSelect(topic);
 
         return <g key={branch.topic}>
@@ -251,6 +260,7 @@ export default function FinwizReactor({
             x2={branch.x}
             y2={branch.y}
           />
+
           {branch.children.map((child) => <line
             key={`${branch.topic}-${child.label}`}
             className={isActive ? styles.childLineActive : styles.childLine}
@@ -264,17 +274,13 @@ export default function FinwizReactor({
             role="button"
             tabIndex={0}
             aria-label={`Select ${topic.label}`}
-            aria-pressed={selected === branch.topic}
-            className={selected === branch.topic ? styles.skillNodeActive : styles.skillNode}
+            aria-pressed={isActive}
+            className={isActive ? styles.skillNodeActive : styles.skillNode}
             onClick={select}
             onKeyDown={(event) => activate(event, select)}
-            onMouseEnter={() => setHovered(branch.topic)}
-            onMouseLeave={() => setHovered(null)}
-            onFocus={() => setHovered(branch.topic)}
-            onBlur={() => setHovered(null)}
           >
-            <circle cx={branch.x} cy={branch.y} r="27" />
-            <circle className={styles.nodeInner} cx={branch.x} cy={branch.y} r="17" />
+            <circle className={styles.nodeOuter} cx={branch.x} cy={branch.y} r="25" />
+            <circle className={styles.nodeInner} cx={branch.x} cy={branch.y} r="16" />
             <text className={styles.nodeIndex} x={branch.x} y={branch.y + 4} textAnchor="middle">
               {String(index + 1).padStart(2, "0")}
             </text>
@@ -282,7 +288,7 @@ export default function FinwizReactor({
               className={styles.nodeLabel}
               x={branch.labelX}
               y={branch.labelY}
-              textAnchor={branch.anchor}
+              textAnchor="middle"
             >{topic.shortLabel}</text>
           </g>
 
@@ -291,16 +297,12 @@ export default function FinwizReactor({
             role="button"
             tabIndex={0}
             aria-label={`${topic.label} subskill: ${child.label}`}
-            className={selected === branch.topic ? styles.childNodeActive : styles.childNode}
+            className={isActive ? styles.childNodeActive : styles.childNode}
             onClick={select}
             onKeyDown={(event) => activate(event, select)}
-            onMouseEnter={() => setHovered(branch.topic)}
-            onMouseLeave={() => setHovered(null)}
-            onFocus={() => setHovered(branch.topic)}
-            onBlur={() => setHovered(null)}
           >
-            <circle cx={child.x} cy={child.y} r="11" />
-            <circle className={styles.childNodeInner} cx={child.x} cy={child.y} r="4" />
+            <circle className={styles.childOuter} cx={child.x} cy={child.y} r="10" />
+            <circle className={styles.childInner} cx={child.x} cy={child.y} r="3" />
             <text
               className={styles.childLabel}
               x={child.labelX}
@@ -312,18 +314,11 @@ export default function FinwizReactor({
       })}
 
       <g className={styles.core} aria-hidden="true">
-        <circle className={styles.coreOuter} cx="500" cy="350" r="100" />
-        <circle className={styles.coreMiddle} cx="500" cy="350" r="77" />
-        <circle className={styles.coreInner} cx="500" cy="350" r="55" />
-        <path d="m500 309 35 61h-70l35-61Z" />
-        <circle cx="500" cy="350" r="17" />
-        <text className={styles.coreTitle} x="500" y="344" textAnchor="middle">FINWIZ</text>
-        <text className={styles.coreSubtitle} x="500" y="366" textAnchor="middle">AI</text>
-      </g>
-
-      <g className={styles.activeReadout} aria-live="polite">
-        <text x="500" y="475" textAnchor="middle">{active.label.toUpperCase()}</text>
-        <text className={styles.activeDescription} x="500" y="495" textAnchor="middle">{active.description}</text>
+        <circle className={styles.coreOuter} cx="500" cy="350" r="92" />
+        <circle className={styles.coreMiddle} cx="500" cy="350" r="70" />
+        <circle className={styles.coreInner} cx="500" cy="350" r="50" />
+        <text className={styles.coreTitle} x="500" y="346" textAnchor="middle">FINWIZ</text>
+        <text className={styles.coreSubtitle} x="500" y="369" textAnchor="middle">AI</text>
       </g>
     </svg>
   </section>;
