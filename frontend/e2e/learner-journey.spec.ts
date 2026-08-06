@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const PASSWORD = "Browser-acceptance-2026";
+const PORTFOLIO_TIMEOUT = 15_000;
 
 function uniqueEmail(label: string) {
   return `browser-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}@stoxsim.test`;
@@ -18,12 +19,13 @@ async function registerLearner(page: Page, label: string) {
 }
 
 async function expectIndiaAccount(page: Page) {
-  await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible();
-  await expect(page.getByRole("button", { name: /India/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("INDIA PORTFOLIO")).toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+  await expect(page.getByRole("button", { name: /India/ }))
+    .toHaveAttribute("aria-pressed", "true", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
-    .toContainText("₹5,00,000.00");
+    .toContainText("₹5,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Available cash" }))
-    .toContainText("₹5,00,000.00");
+    .toContainText("₹5,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
 }
 
 test("a learner can register, persist appearance and sign in again", async ({ page }) => {
@@ -73,11 +75,17 @@ test("a learner can switch between India and United States markets", async ({ pa
   test.setTimeout(process.env.EXPECT_US_MARKET_DATA === "true" ? 480_000 : 90_000);
   await registerLearner(page, "markets");
 
+  // Wait for the initial India portfolio request to settle before changing regions.
+  // Otherwise its late response can race the US request and temporarily render
+  // India's ₹5,00,000 portfolio through the USD formatter as $500,000.
+  await expectIndiaAccount(page);
+
   await page.getByRole("button", { name: /US/ }).click();
-  await expect(page.getByText("USA PORTFOLIO")).toBeVisible();
-  await expect(page.getByRole("button", { name: /US/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("USA PORTFOLIO")).toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+  await expect(page.getByRole("button", { name: /US/ }))
+    .toHaveAttribute("aria-pressed", "true", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
-    .toContainText("$10,000.00");
+    .toContainText("$10,000.00", { timeout: PORTFOLIO_TIMEOUT });
 
   if (process.env.EXPECT_US_MARKET_DATA === "true") {
     await expect(async () => {
