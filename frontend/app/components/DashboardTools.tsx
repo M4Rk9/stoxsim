@@ -182,6 +182,7 @@ export default function DashboardTools() {
   }
 
   if (!session) return null;
+  if (pathname === "/finwiz") return null;
 
   const initial = session.user.displayName.trim().slice(0, 1).toUpperCase() || "U";
   const isDashboard = pathname === "/";
@@ -256,17 +257,14 @@ export default function DashboardTools() {
 
       <a className={styles.finwizLauncher} href="/finwiz" aria-label="Ask Finwiz AI">
         <span className={styles.finwizCore} aria-hidden="true">
-          <svg viewBox="0 0 48 48">
-            <circle cx="24" cy="24" r="18" />
-            <circle cx="24" cy="24" r="11" />
-            <path d="M24 6v7M24 35v7M6 24h7M35 24h7M11.3 11.3l5 5M31.7 31.7l5 5M36.7 11.3l-5 5M16.3 31.7l-5 5" />
+          <svg viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="27" />
+            <circle cx="32" cy="32" r="21" />
+            <circle cx="32" cy="32" r="8" />
+            <path d="M32 5v9M32 50v9M5 32h9M50 32h9M12.9 12.9l6.4 6.4M44.7 44.7l6.4 6.4M51.1 12.9l-6.4 6.4M19.3 44.7l-6.4 6.4" />
+            <path d="m32 16 13.9 24H18.1L32 16Z" />
           </svg>
         </span>
-        <span className={styles.finwizCopy}>
-          <small>MARKET LEARNING AI</small>
-          <strong>Ask Finwiz</strong>
-        </span>
-        <span className={styles.finwizArrow} aria-hidden="true">↗</span>
       </a>
     </div>}
   </>;
