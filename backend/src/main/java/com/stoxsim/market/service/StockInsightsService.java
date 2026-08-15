@@ -1,5 +1,6 @@
 package com.stoxsim.market.service;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.upstox.ApiException;
 import com.stoxsim.instrument.domain.MarketExchange;
+import com.stoxsim.instrument.domain.TradableInstrument;
 import com.stoxsim.instrument.repository.TradableInstrumentRepository;
 import com.stoxsim.market.api.StockInsightsResponse;
 import com.stoxsim.market.api.StockInsightsResponse.CompanyProfile;
@@ -21,6 +23,7 @@ import com.stoxsim.market.api.StockInsightsResponse.FundamentalRatio;
 import com.stoxsim.market.api.StockInsightsResponse.FundamentalsStatus;
 import com.stoxsim.market.cache.StockInsightsCache;
 import com.stoxsim.market.domain.MarketRegion;
+import com.stoxsim.market.provider.sec.SecFundamentalsClient;
 import com.stoxsim.market.provider.upstox.UpstoxFundamentalsClient;
 import com.stoxsim.market.provider.upstox.UpstoxMarketDataProperties;
 
@@ -30,20 +33,26 @@ public class StockInsightsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(StockInsightsService.class);
 
     private final TradableInstrumentRepository instruments;
-    private final UpstoxFundamentalsClient client;
+    private final UpstoxFundamentalsClient upstox;
+    private final SecFundamentalsClient sec;
     private final StockInsightsCache cache;
     private final UpstoxMarketDataProperties properties;
+    private final MarketDataService marketData;
 
     public StockInsightsService(
         TradableInstrumentRepository instruments,
-        UpstoxFundamentalsClient client,
+        UpstoxFundamentalsClient upstox,
+        SecFundamentalsClient sec,
         StockInsightsCache cache,
-        UpstoxMarketDataProperties properties
+        UpstoxMarketDataProperties properties,
+        MarketDataService marketData
     ) {
         this.instruments = instruments;
-        this.client = client;
+        this.upstox = upstox;
+        this.sec = sec;
         this.cache = cache;
         this.properties = properties;
+        this.marketData = marketData;
     }
 
     public StockInsightsResponse get(
@@ -53,7 +62,7 @@ public class StockInsightsService {
         String requestedPeriod
     ) {
         String timePeriod = normalizePeriod(requestedPeriod);
-        var instrument = instruments
+        TradableInstrument instrument = instruments
             .findByMarketRegionAndExchangeAndTradingSymbolIgnoreCaseAndActiveTrue(
                 marketRegion,
                 exchange,
@@ -64,6 +73,56 @@ public class StockInsightsService {
                 "Instrument not found"
             ));
 
+        if (marketRegion == MarketRegion.UNITED_STATES) {
+            return getUnitedStates(instrument, timePeriod);
+        }
+        return getIndia(instrument, timePeriod);
+    }
+
+    private StockInsightsResponse getUnitedStates(
+        TradableInstrument instrument,
+        String timePeriod
+    ) {
+        String symbol = instrument.getTradingSymbol().toUpperCase(Locale.ROOT);
+        var cached = cache.find("SEC_EDGAR", symbol, timePeriod);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        BigDecimal lastPrice = null;
+        try {
+            lastPrice = marketData.latestQuote(instrument).lastPrice();
+        } catch (RuntimeException exception) {
+            LOGGER.info(
+                "SEC fundamentals for {} will be returned without a price-derived P/E ratio",
+                symbol
+            );
+        }
+
+        try {
+            StockInsightsResponse response = sec.get(symbol, timePeriod, lastPrice);
+            Duration ttl = response.status() == FundamentalsStatus.AVAILABLE
+                ? Duration.ofHours(properties.getFundamentalsTtlHours())
+                : Duration.ofMinutes(30);
+            cache.store("SEC_EDGAR", symbol, timePeriod, response, ttl);
+            return response;
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not retrieve SEC EDGAR fundamentals for {}", symbol, exception);
+            StockInsightsResponse response = unavailable(
+                "SEC_EDGAR",
+                symbol,
+                null,
+                "SEC EDGAR fundamentals are temporarily unavailable for this company."
+            );
+            cache.store("SEC_EDGAR", symbol, timePeriod, response, Duration.ofMinutes(10));
+            return response;
+        }
+    }
+
+    private StockInsightsResponse getIndia(
+        TradableInstrument instrument,
+        String timePeriod
+    ) {
         String isin = instrument.getIsin();
         if (isin == null || isin.isBlank()) {
             return unavailable(
@@ -74,7 +133,7 @@ public class StockInsightsService {
             );
         }
 
-        var cached = cache.find(isin, timePeriod);
+        var cached = cache.find("UPSTOX", isin, timePeriod);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -85,19 +144,19 @@ public class StockInsightsService {
         int failures = 0;
 
         try {
-            profile = client.getProfile(isin);
+            profile = upstox.getProfile(isin);
         } catch (ApiException exception) {
             failures++;
             logFailure("profile", isin, exception);
         }
         try {
-            ratios = client.getRatios(isin);
+            ratios = upstox.getRatios(isin);
         } catch (ApiException exception) {
             failures++;
             logFailure("ratios", isin, exception);
         }
         try {
-            financials = client.getFinancials(isin, timePeriod);
+            financials = upstox.getFinancials(isin, timePeriod);
         } catch (ApiException exception) {
             failures++;
             logFailure("income statement", isin, exception);
@@ -130,7 +189,7 @@ public class StockInsightsService {
         Duration ttl = status == FundamentalsStatus.AVAILABLE
             ? Duration.ofHours(properties.getFundamentalsTtlHours())
             : Duration.ofMinutes(failures > 0 ? 15 : 60);
-        cache.store(isin, timePeriod, response, ttl);
+        cache.store("UPSTOX", isin, timePeriod, response, ttl);
         return response;
     }
 
