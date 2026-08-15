@@ -1,6 +1,7 @@
 package com.stoxsim.market.cache;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -25,36 +26,56 @@ public class StockInsightsCache {
         this.objectMapper = objectMapper;
     }
 
-    public Optional<StockInsightsResponse> find(String isin, String timePeriod) {
+    public Optional<StockInsightsResponse> find(
+        String provider,
+        String identifier,
+        String timePeriod
+    ) {
         try {
-            String encoded = redis.opsForValue().get(key(isin, timePeriod));
+            String encoded = redis.opsForValue().get(key(provider, identifier, timePeriod));
             return encoded == null
                 ? Optional.empty()
                 : Optional.of(objectMapper.readValue(encoded, StockInsightsResponse.class));
         } catch (Exception exception) {
-            LOGGER.warn("Could not read cached fundamentals for {}", isin, exception);
+            LOGGER.warn(
+                "Could not read cached {} fundamentals for {}",
+                provider,
+                identifier,
+                exception
+            );
             return Optional.empty();
         }
     }
 
     public void store(
-        String isin,
+        String provider,
+        String identifier,
         String timePeriod,
         StockInsightsResponse response,
         Duration ttl
     ) {
         try {
             redis.opsForValue().set(
-                key(isin, timePeriod),
+                key(provider, identifier, timePeriod),
                 objectMapper.writeValueAsString(response),
                 ttl
             );
         } catch (Exception exception) {
-            LOGGER.warn("Could not cache fundamentals for {}", isin, exception);
+            LOGGER.warn(
+                "Could not cache {} fundamentals for {}",
+                provider,
+                identifier,
+                exception
+            );
         }
     }
 
-    private String key(String isin, String timePeriod) {
-        return "market:fundamentals:UPSTOX:" + isin + ":" + timePeriod;
+    private String key(String provider, String identifier, String timePeriod) {
+        return "market:fundamentals:"
+            + provider.toUpperCase(Locale.ROOT)
+            + ":"
+            + identifier.toUpperCase(Locale.ROOT)
+            + ":"
+            + timePeriod;
     }
 }
