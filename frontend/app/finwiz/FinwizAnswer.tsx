@@ -44,6 +44,13 @@ function cleanText(value: string) {
     .trim();
 }
 
+function textFragment(value: string) {
+  const leading = /^\s/.test(value) ? " " : "";
+  const trailing = /\s$/.test(value) ? " " : "";
+  const cleaned = cleanText(value);
+  return cleaned ? `${leading}${cleaned}${trailing}` : "";
+}
+
 function formatInline(value: string): ReactNode[] {
   const nodes: ReactNode[] = [];
   const expression = /(\*\*.*?\*\*|__.*?__|`.*?`|\[.*?\]\(.*?\))/g;
@@ -52,7 +59,7 @@ function formatInline(value: string): ReactNode[] {
 
   while ((match = expression.exec(value)) !== null) {
     if (match.index > cursor) {
-      nodes.push(cleanText(value.slice(cursor, match.index)));
+      nodes.push(textFragment(value.slice(cursor, match.index)));
     }
 
     const token = match[0];
@@ -67,7 +74,7 @@ function formatInline(value: string): ReactNode[] {
     cursor = expression.lastIndex;
   }
 
-  if (cursor < value.length) nodes.push(cleanText(value.slice(cursor)));
+  if (cursor < value.length) nodes.push(textFragment(value.slice(cursor)));
   return nodes.filter((node) => node !== "");
 }
 

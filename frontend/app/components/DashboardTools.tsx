@@ -129,14 +129,13 @@ export default function DashboardTools() {
     }
 
     const scanSelectedStock = () => {
-      const symbol = document
-        .querySelector(".quoteCard .quoteTop h3")
-        ?.textContent
-        ?.trim();
+      const quoteCard = document.querySelector<HTMLElement>(".quoteCard");
+      const symbol = quoteCard?.querySelector(".quoteTop h3")?.textContent?.trim();
+      const exchange = quoteCard?.dataset.exchange?.trim().toUpperCase();
       setSelectedStock((current) => {
-        if (!symbol) return current == null ? current : null;
-        if (current?.symbol === symbol && current.exchange === "NSE") return current;
-        return { exchange: "NSE", symbol };
+        if (!symbol || !exchange) return current == null ? current : null;
+        if (current?.symbol === symbol && current.exchange === exchange) return current;
+        return { exchange, symbol };
       });
     };
 

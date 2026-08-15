@@ -75,9 +75,6 @@ test("a learner can switch between India and United States markets", async ({ pa
   test.setTimeout(process.env.EXPECT_US_MARKET_DATA === "true" ? 480_000 : 90_000);
   await registerLearner(page, "markets");
 
-  // Wait for the initial India portfolio request to settle before changing regions.
-  // Otherwise its late response can race the US request and temporarily render
-  // India's ₹5,00,000 portfolio through the USD formatter as $500,000.
   await expectIndiaAccount(page);
 
   await page.getByRole("button", { name: /US/ }).click();
@@ -97,6 +94,10 @@ test("a learner can switch between India and United States markets", async ({ pa
       timeout: 300_000,
       intervals: [5_000, 10_000],
     });
+
+    await page.locator(".searchResults button").filter({ hasText: /^AAPL/ }).first().click();
+    await expect(page.getByRole("link", { name: /Study AAPL in detail/ }))
+      .toHaveAttribute("href", "/stocks/NASDAQ/AAPL", { timeout: 10_000 });
 
     await page.getByRole("button", { name: /India/ }).click();
     await page.getByRole("button", { name: /US/ }).click();
@@ -145,6 +146,7 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   const report = page.locator("#finwiz-response");
   await expect(report).toBeVisible();
   await expect(report.getByRole("heading", { name: "Evaluate valuation" })).toBeVisible();
+  await expect(report).toContainText("A high-quality company can still be overpriced.");
   await expect(report).toContainText("P/E Ratio = (Share Price ÷ Earnings Per Share)");
   await expect(report).not.toContainText("###");
   await expect(report).not.toContainText("**");

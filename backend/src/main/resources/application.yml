@@ -49,6 +49,8 @@ stoxsim:
     max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
     thinking-level: ${FINWIZ_THINKING_LEVEL:minimal}
   market-data:
+    sec:
+      user-agent: ${SEC_USER_AGENT:StoxSim/1.0 contact@stoxsim.com}
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
       nse-instrument-master-url: ${UPSTOX_NSE_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz}
