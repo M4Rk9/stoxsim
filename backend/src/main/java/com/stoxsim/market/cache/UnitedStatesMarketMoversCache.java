@@ -18,7 +18,7 @@ public class UnitedStatesMarketMoversCache {
     private static final Logger LOGGER = LoggerFactory.getLogger(
         UnitedStatesMarketMoversCache.class
     );
-    private static final String KEY = "market:movers:united-states:stocks";
+    private static final String KEY = "market:movers:united-states:sp500:v1";
     private static final Duration RETENTION = Duration.ofDays(7);
 
     private final StringRedisTemplate redis;
@@ -42,7 +42,7 @@ public class UnitedStatesMarketMoversCache {
                     MarketMoversResponse.class
                 ));
         } catch (RuntimeException exception) {
-            LOGGER.warn("Could not read USA market movers cache", exception);
+            LOGGER.warn("Could not read USA S&P 500 market movers cache", exception);
             return Optional.empty();
         }
     }
@@ -55,7 +55,7 @@ public class UnitedStatesMarketMoversCache {
                 RETENTION
             );
         } catch (RuntimeException exception) {
-            LOGGER.warn("Could not store USA market movers cache", exception);
+            LOGGER.warn("Could not store USA S&P 500 market movers cache", exception);
         }
     }
 }
