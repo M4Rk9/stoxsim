@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -43,7 +42,7 @@ public class UnitedStatesMarketMoverService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final int RESULT_LIMIT = 10;
     private static final int QUOTE_BATCH_SIZE = 100;
-    private static final String UNIVERSE = "SP_500";
+    private static final String UNIVERSE = "US_MARKET";
 
     private final TradableInstrumentRepository instruments;
     private final MarketDataProviderRegistry providers;
