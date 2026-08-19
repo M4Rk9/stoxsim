@@ -98,6 +98,13 @@ test("a learner can switch between India and United States markets", async ({ pa
     await page.locator(".searchResults button").filter({ hasText: /^AAPL/ }).first().click();
     await expect(page.getByRole("link", { name: /Study AAPL in detail/ }))
       .toHaveAttribute("href", "/stocks/NASDAQ/AAPL", { timeout: 10_000 });
+    const fundamentals = page.locator(".fundamentalsSection");
+    await expect(fundamentals)
+      .toContainText("SEC EDGAR filings", { timeout: 120_000 });
+    await expect(fundamentals)
+      .toContainText("USD million", { timeout: 120_000 });
+    await expect(fundamentals)
+      .not.toContainText("INR crore");
 
     await page.getByRole("button", { name: /India/ }).click();
     await page.getByRole("button", { name: /US/ }).click();
