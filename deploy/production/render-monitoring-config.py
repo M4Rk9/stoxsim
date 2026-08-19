@@ -84,8 +84,11 @@ def main() -> None:
     if "__" in rendered:
         raise SystemExit("An Alertmanager template placeholder was not rendered")
 
-    atomic_write(ALERTMANAGER_FILE, rendered)
-    atomic_write(TOKEN_FILE, scrape_token + "\n")
+    os.chmod(MONITORING_DIR, 0o700)
+    # Containers run as non-root users and must read these bind-mounted files.
+    # The parent directory remains owner-only on the host.
+    atomic_write(ALERTMANAGER_FILE, rendered, 0o644)
+    atomic_write(TOKEN_FILE, scrape_token + "\n", 0o644)
     print("Rendered protected monitoring configuration")
 
 
