@@ -33,6 +33,14 @@ management:
     health:
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: stoxsim-api
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 100ms,500ms,1s,2s,5s
 
 stoxsim:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
