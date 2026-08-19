@@ -106,6 +106,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Authentication and account lifecycle](docs/AUTHENTICATION.md)
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)
+- [Market-data public-release permission gate](docs/MARKET_DATA_PERMISSION.md)
 - [India paper-trading engine](docs/TRADING.md)
 - [Simulated Indian charges](docs/CHARGES.md)
 - [Testing and acceptance](docs/TESTING.md)
@@ -114,7 +115,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 
 ## Current milestone
 
-The India learning journey now includes persistent watchlists, real-time WebSocket updates, previous-close index moves, NIFTY 100 market movers, dedicated stock research pages, editable account settings, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. A provider-neutral private staging bundle adds automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, backups, restore, immutable-image deployment and verified rollback.
+The release candidate includes public legal disclosures, enforceable versioned registration consent and a fail-closed market-data permission gate. The India learning journey includes persistent watchlists, real-time WebSocket updates, previous-close index moves, NIFTY 100 market movers, dedicated stock research pages, editable account settings, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. A provider-neutral private staging bundle adds automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, backups, restore, immutable-image deployment and verified rollback.
 
 ## License
 
