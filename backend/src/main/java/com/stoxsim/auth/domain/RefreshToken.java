@@ -28,6 +28,18 @@ public class RefreshToken {
     @Column(name = "token_hash", nullable = false, unique = true, length = 64)
     private String tokenHash;
 
+    @Column(name = "session_id", nullable = false)
+    private UUID sessionId;
+
+    @Column(name = "session_started_at", nullable = false)
+    private Instant sessionStartedAt;
+
+    @Column(name = "last_used_at", nullable = false)
+    private Instant lastUsedAt;
+
+    @Column(name = "user_agent", nullable = false, length = 200)
+    private String userAgent;
+
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
@@ -40,15 +52,54 @@ public class RefreshToken {
     protected RefreshToken() {
     }
 
-    public RefreshToken(AppUser user, String tokenHash, Instant expiresAt) {
+    public RefreshToken(
+        AppUser user,
+        String tokenHash,
+        Instant expiresAt,
+        UUID sessionId,
+        Instant sessionStartedAt,
+        String userAgent
+    ) {
         this.user = user;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
+        this.sessionId = sessionId;
+        this.sessionStartedAt = sessionStartedAt;
+        this.userAgent = userAgent;
         this.createdAt = Instant.now();
+        this.lastUsedAt = this.createdAt;
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     public AppUser getUser() {
         return user;
+    }
+
+    public String getTokenHash() {
+        return tokenHash;
+    }
+
+    public UUID getSessionId() {
+        return sessionId;
+    }
+
+    public Instant getSessionStartedAt() {
+        return sessionStartedAt;
+    }
+
+    public Instant getLastUsedAt() {
+        return lastUsedAt;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
     }
 
     public boolean isActive(Instant now) {
@@ -58,6 +109,7 @@ public class RefreshToken {
     public void revoke(Instant now) {
         if (revokedAt == null) {
             revokedAt = now;
+            lastUsedAt = now;
         }
     }
 }

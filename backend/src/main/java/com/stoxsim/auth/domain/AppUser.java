@@ -27,6 +27,9 @@ public class AppUser {
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
 
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -60,6 +63,14 @@ public class AppUser {
         return displayName;
     }
 
+    public Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -68,10 +79,20 @@ public class AppUser {
         return updatedAt;
     }
 
-    public void updateProfile(String email, String displayName) {
+    public boolean updateProfile(String email, String displayName) {
+        boolean emailChanged = !this.email.equalsIgnoreCase(email);
         this.email = email;
         this.displayName = displayName;
+        if (emailChanged) {
+            this.emailVerifiedAt = null;
+        }
         this.updatedAt = Instant.now();
+        return emailChanged;
+    }
+
+    public void markEmailVerified() {
+        this.emailVerifiedAt = Instant.now();
+        this.updatedAt = this.emailVerifiedAt;
     }
 
     public void changePassword(String passwordHash) {

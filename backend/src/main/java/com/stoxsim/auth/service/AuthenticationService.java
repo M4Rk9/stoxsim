@@ -32,23 +32,31 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final AccountService accountService;
     private final TokenService tokenService;
+    private final AccountLifecycleService lifecycleService;
 
     public AuthenticationService(
         AppUserRepository userRepository,
         RefreshTokenRepository refreshTokenRepository,
         PasswordEncoder passwordEncoder,
         AccountService accountService,
-        TokenService tokenService
+        TokenService tokenService,
+        AccountLifecycleService lifecycleService
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.accountService = accountService;
         this.tokenService = tokenService;
+        this.lifecycleService = lifecycleService;
     }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        return register(request, "Unknown device");
+    }
+
+    @Transactional
+    public AuthResponse register(RegisterRequest request, String userAgent) {
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ConflictException("An account already exists for this email");
@@ -60,11 +68,19 @@ public class AuthenticationService {
             request.displayName().trim()
         ));
         List<VirtualAccount> accounts = accountService.createDefaultAccounts(user);
-        return response(user, accounts, tokenService.issueTokenPair(user));
+        userRepository.flush();
+        lifecycleService.audit(user.getId(), "ACCOUNT_REGISTERED", null);
+        lifecycleService.sendVerification(user.getId());
+        return response(user, accounts, tokenService.issueTokenPair(user, userAgent));
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        return login(request, "Unknown device");
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest request, String userAgent) {
         var user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
             .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
@@ -72,15 +88,21 @@ public class AuthenticationService {
             throw new UnauthorizedException("Invalid email or password");
         }
 
+        lifecycleService.audit(user.getId(), "SIGNED_IN", userAgent);
         return response(
             user,
             accountService.findByUserId(user.getId()),
-            tokenService.issueTokenPair(user)
+            tokenService.issueTokenPair(user, userAgent)
         );
     }
 
     @Transactional
     public AuthResponse refresh(String rawRefreshToken) {
+        return refresh(rawRefreshToken, "Unknown device");
+    }
+
+    @Transactional
+    public AuthResponse refresh(String rawRefreshToken, String userAgent) {
         var storedToken = refreshTokenRepository.findByTokenHash(tokenService.hash(rawRefreshToken))
             .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
@@ -94,14 +116,17 @@ public class AuthenticationService {
         return response(
             user,
             accountService.findByUserId(user.getId()),
-            tokenService.issueTokenPair(user)
+            tokenService.rotateTokenPair(user, storedToken, userAgent)
         );
     }
 
     @Transactional
     public void logout(String rawRefreshToken) {
         refreshTokenRepository.findByTokenHash(tokenService.hash(rawRefreshToken))
-            .ifPresent(token -> token.revoke(Instant.now()));
+            .ifPresent(token -> {
+                token.revoke(Instant.now());
+                lifecycleService.audit(token.getUser().getId(), "SIGNED_OUT", token.getUserAgent());
+            });
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +144,15 @@ public class AuthenticationService {
             .ifPresent(existing -> {
                 throw new ConflictException("An account already exists for this email");
             });
-        user.updateProfile(email, request.displayName().trim());
+        boolean emailChanged = user.updateProfile(email, request.displayName().trim());
+        lifecycleService.audit(
+            userId,
+            emailChanged ? "EMAIL_CHANGED" : "PROFILE_UPDATED",
+            null
+        );
+        if (emailChanged) {
+            lifecycleService.sendVerification(userId);
+        }
         return UserResponse.from(user, accountService.findByUserId(userId));
     }
 
@@ -130,6 +163,8 @@ public class AuthenticationService {
             throw new UnauthorizedException("Current password is incorrect");
         }
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        lifecycleService.revokeAllSessions(userId);
+        lifecycleService.audit(userId, "PASSWORD_CHANGED", null);
     }
 
     private AppUser requireUser(UUID userId) {
