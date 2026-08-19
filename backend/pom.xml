@@ -20,6 +20,7 @@
     <properties>
         <java.version>21</java.version>
         <upstox.version>1.27</upstox.version>
+        <postgresql.version>42.7.12</postgresql.version>
     </properties>
 
     <dependencies>
