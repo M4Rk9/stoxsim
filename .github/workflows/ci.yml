@@ -58,7 +58,8 @@ jobs:
       - name: Validate monitoring configuration
         run: |
           docker run --rm --entrypoint /bin/promtool \
-            -v "$PWD/deploy/production/monitoring:/etc/prometheus:ro" \
+            -v "$PWD/deploy/production/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/deploy/production/monitoring/rules.yml:/etc/prometheus/rules.yml:ro" \
             -v "$PWD/deploy/production/monitoring/metrics-scrape-token:/run/secrets/metrics-scrape-token:ro" \
             prom/prometheus:v3.14.0 \
             check config /etc/prometheus/prometheus.yml
