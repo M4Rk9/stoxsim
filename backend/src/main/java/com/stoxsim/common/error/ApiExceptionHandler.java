@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -43,6 +44,16 @@ public class ApiExceptionHandler {
             .forEach(error -> fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
         recordError(HttpStatus.BAD_REQUEST, "validation");
         return response(HttpStatus.BAD_REQUEST, "Request validation failed", fields);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException exception) {
+        HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+        recordError(status, "response_status");
+        String message = exception.getReason() == null
+            ? status.getReasonPhrase()
+            : exception.getReason();
+        return response(status, message, Map.of());
     }
 
     @ExceptionHandler(Exception.class)
