@@ -1,0 +1,8 @@
+# Default ownership for this single-maintainer public beta.
+* @M4Rk9
+
+# Release and security-sensitive areas.
+/.github/ @M4Rk9
+/deploy/ @M4Rk9
+/backend/src/main/resources/db/migration/ @M4Rk9
+/backend/src/main/java/com/stoxsim/auth/ @M4Rk9
