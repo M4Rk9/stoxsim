@@ -5,6 +5,8 @@ API_URL="${STAGING_API_URL:?Set STAGING_API_URL, for example https://api.staging
 WEB_URL="${STAGING_WEB_URL:?Set STAGING_WEB_URL, for example https://staging.stoxsim.com}"
 API_URL="${API_URL%/}"
 WEB_URL="${WEB_URL%/}"
+COOKIE_JAR=$(mktemp)
+trap 'rm -f "$COOKIE_JAR"' EXIT
 
 retry() {
   local attempts=0
@@ -42,11 +44,15 @@ REGISTER_BODY=$(jq -nc \
 
 echo "Checking registration and virtual-account creation"
 AUTH=$(curl --fail --silent --show-error \
+  --cookie-jar "$COOKIE_JAR" \
   -H "Content-Type: application/json" \
   -d "$REGISTER_BODY" \
   "${API_URL}/api/v1/auth/register")
 ACCESS_TOKEN=$(jq -er '.accessToken' <<<"$AUTH")
-REFRESH_TOKEN=$(jq -er '.refreshToken' <<<"$AUTH")
+if ! grep -Fq "stoxsim_refresh" "$COOKIE_JAR"; then
+  echo "::error::Registration did not issue the stoxsim_refresh cookie"
+  exit 1
+fi
 jq -e '
   (.user.accounts | length) == 2
   and any(.user.accounts[]; .marketRegion == "INDIA" and .availableCash == 500000)
@@ -95,10 +101,10 @@ if [[ "$FINWIZ_OK" != true ]]; then
   exit 1
 fi
 
-REFRESH_BODY=$(jq -nc --arg refreshToken "$REFRESH_TOKEN" '{refreshToken: $refreshToken}')
 ROTATED=$(curl --fail --silent --show-error \
-  -H "Content-Type: application/json" \
-  -d "$REFRESH_BODY" \
+  --request POST \
+  --cookie "$COOKIE_JAR" \
+  --cookie-jar "$COOKIE_JAR" \
   "${API_URL}/api/v1/auth/refresh")
 jq -e '.accessToken | type == "string" and length > 20' <<<"$ROTATED" >/dev/null
 
