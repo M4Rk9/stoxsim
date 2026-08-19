@@ -10,6 +10,9 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -34,6 +37,7 @@ public class UpstoxMarketStream {
     private final UpstoxStreamMapper mapper;
     private final MarketDataCache cache;
     private final MarketTickBroadcaster broadcaster;
+    private final MeterRegistry meterRegistry;
     private final Set<Consumer<MarketTick>> listeners = new CopyOnWriteArraySet<>();
     private final Map<String, Integer> referenceCounts = new ConcurrentHashMap<>();
     private final Map<String, Mode> desiredModes = new ConcurrentHashMap<>();
@@ -46,13 +50,20 @@ public class UpstoxMarketStream {
         UpstoxClientFactory clientFactory,
         UpstoxStreamMapper mapper,
         MarketDataCache cache,
-        MarketTickBroadcaster broadcaster
+        MarketTickBroadcaster broadcaster,
+        MeterRegistry meterRegistry
     ) {
         this.properties = properties;
         this.clientFactory = clientFactory;
         this.mapper = mapper;
         this.cache = cache;
         this.broadcaster = broadcaster;
+        this.meterRegistry = meterRegistry;
+        Gauge.builder(
+            "stoxsim.market_stream.connected",
+            this,
+            stream -> stream.connected ? 1 : 0
+        ).tag("provider", "upstox").register(meterRegistry);
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -74,20 +85,53 @@ public class UpstoxMarketStream {
             streamer = new MarketDataStreamerV3(clientFactory.createClient(), initialKeys, Mode.FULL);
             streamer.setOnMarketUpdateListener(this::handleUpdate);
             streamer.setOnOpenListener(this::handleOpen);
-            streamer.setOnErrorListener(error -> LOGGER.error("Upstox market stream error", error));
+            streamer.setOnErrorListener(error -> {
+                meterRegistry.counter(
+                    "stoxsim.market_provider.failures",
+                    "provider",
+                    "upstox",
+                    "operation",
+                    "stream"
+                ).increment();
+                LOGGER.error("Upstox market stream error", error);
+            });
             streamer.setOnCloseListener((status, reason) -> {
                 connected = false;
+                meterRegistry.counter(
+                    "stoxsim.market_stream.disconnects",
+                    "provider",
+                    "upstox"
+                ).increment();
                 LOGGER.warn("Upstox market stream closed: status={}, reason={}", status, reason);
             });
-            streamer.setOnReconnectingListener(message -> LOGGER.warn("Upstox reconnecting: {}", message));
-            streamer.setOnAutoReconnectStoppedListener(
-                message -> LOGGER.error("Upstox auto-reconnect stopped: {}", message)
-            );
+            streamer.setOnReconnectingListener(message -> {
+                meterRegistry.counter(
+                    "stoxsim.market_stream.reconnect_attempts",
+                    "provider",
+                    "upstox"
+                ).increment();
+                LOGGER.warn("Upstox reconnecting: {}", message);
+            });
+            streamer.setOnAutoReconnectStoppedListener(message -> {
+                meterRegistry.counter(
+                    "stoxsim.market_stream.reconnect_exhausted",
+                    "provider",
+                    "upstox"
+                ).increment();
+                LOGGER.error("Upstox auto-reconnect stopped: {}", message);
+            });
             streamer.autoReconnect(true, 10, 10);
             streamer.connect();
         } catch (RuntimeException exception) {
             streamer = null;
             connected = false;
+            meterRegistry.counter(
+                "stoxsim.market_provider.failures",
+                "provider",
+                "upstox",
+                "operation",
+                "connect"
+            ).increment();
             LOGGER.error("Could not start Upstox market stream", exception);
         }
     }
@@ -142,6 +186,11 @@ public class UpstoxMarketStream {
 
     private void handleOpen() {
         connected = true;
+        meterRegistry.counter(
+            "stoxsim.market_stream.connections",
+            "provider",
+            "upstox"
+        ).increment();
         LOGGER.info("Upstox market stream connected");
         MarketDataStreamerV3 current = streamer;
         desiredModes.forEach((key, mode) -> current.subscribe(Set.of(key), mode));
