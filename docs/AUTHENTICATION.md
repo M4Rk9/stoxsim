@@ -14,7 +14,7 @@
 | POST | `/api/v1/auth/email-verification/resend` | Bearer access token |
 | GET/PATCH/DELETE | `/api/v1/auth/me` | Bearer access token |
 | PATCH | `/api/v1/auth/me/password` | Bearer access token |
-| GET | `/api/v1/auth/me/export` | Bearer access token |
+| POST | `/api/v1/auth/me/export` | Bearer access token |
 | GET | `/api/v1/auth/sessions` | Bearer access token |
 | DELETE | `/api/v1/auth/sessions/{sessionId}` | Bearer access token |
 | POST | `/api/v1/auth/logout-all` | Bearer access token |
