@@ -10,7 +10,6 @@ type FinancialPeriod = "quarterly" | "yearly";
 
 interface StoredSession {
   accessToken: string;
-  refreshToken: string;
   expiresInSeconds: number;
   user: unknown;
 }
@@ -117,7 +116,7 @@ const crore = (value?: number) => value == null || !Number.isFinite(value)
 
 function readSession(): StoredSession | null {
   try {
-    const value = window.localStorage.getItem("stoxsim-session");
+    const value = window.sessionStorage.getItem("stoxsim-session");
     return value ? JSON.parse(value) as StoredSession : null;
   } catch {
     return null;
@@ -126,6 +125,7 @@ function readSession(): StoredSession | null {
 
 async function raw<T>(path: string, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
+    credentials: "include",
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!response.ok) {
@@ -178,11 +178,11 @@ export default function StockPage() {
       const refreshed = await fetch(`${API_URL}/api/v1/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: active.refreshToken }),
+        credentials: "include",
       });
       if (!refreshed.ok) throw cause;
       const next = await refreshed.json() as StoredSession;
-      window.localStorage.setItem("stoxsim-session", JSON.stringify(next));
+      window.sessionStorage.setItem("stoxsim-session", JSON.stringify(next));
       setSession(next);
       return raw<T>(path, next.accessToken);
     }

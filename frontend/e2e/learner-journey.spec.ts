@@ -32,6 +32,21 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   test.setTimeout(150_000);
   const email = await registerLearner(page, "auth");
 
+  const browserSession = await page.evaluate(() =>
+    window.sessionStorage.getItem("stoxsim-session")
+  );
+  expect(browserSession).not.toBeNull();
+  expect(JSON.parse(browserSession ?? "{}").refreshToken).toBeUndefined();
+  expect(await page.evaluate(() =>
+    window.localStorage.getItem("stoxsim-session")
+  )).toBeNull();
+
+  const refreshCookie = (await page.context().cookies()).find(
+    (cookie) => cookie.name === "stoxsim_refresh",
+  );
+  expect(refreshCookie?.httpOnly).toBe(true);
+  expect(refreshCookie?.sameSite).toBe("Strict");
+
   await expectIndiaAccount(page);
   await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /Switch to (dark|light) mode/ })).toHaveCount(0);

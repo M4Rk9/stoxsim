@@ -10,7 +10,6 @@ type ThemePreference = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
 
 interface StoredSession {
-  refreshToken: string;
   user: {
     email: string;
     displayName: string;
@@ -24,7 +23,7 @@ interface SelectedStock {
 
 function readSession(): StoredSession | null {
   try {
-    const value = window.localStorage.getItem("stoxsim-session");
+    const value = window.sessionStorage.getItem("stoxsim-session");
     return value ? JSON.parse(value) as StoredSession : null;
   } catch {
     return null;
@@ -168,15 +167,11 @@ export default function DashboardTools() {
   }
 
   async function signOut() {
-    const active = readSession();
-    if (active?.refreshToken) {
-      await fetch(`${API_URL}/api/v1/auth/logout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: active.refreshToken }),
-      }).catch(() => undefined);
-    }
-    window.localStorage.removeItem("stoxsim-session");
+    await fetch(`${API_URL}/api/v1/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => undefined);
+    window.sessionStorage.removeItem("stoxsim-session");
     window.location.assign("/");
   }
 

@@ -63,6 +63,8 @@ services:
       REDIS_PORT: 6379
       FRONTEND_URL: https://${STAGING_WEB_DOMAIN:?Set STAGING_WEB_DOMAIN}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
       GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}

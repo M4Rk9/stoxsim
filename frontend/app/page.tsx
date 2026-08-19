@@ -32,7 +32,6 @@ interface User {
 
 interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   expiresInSeconds: number;
   user: User;
 }
@@ -295,6 +294,7 @@ class ApiError extends Error {
 
 async function rawRequest<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
+    credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -438,15 +438,21 @@ export default function Home() {
   }, [market?.phase, indices]);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("stoxsim-session");
-    if (!saved) return;
-    try {
-      const restored = JSON.parse(saved) as AuthResponse;
-      sessionRef.current = restored;
-      setSession(restored);
-    } catch {
-      window.localStorage.removeItem("stoxsim-session");
+    const saved = window.sessionStorage.getItem("stoxsim-session");
+    if (saved) {
+      try {
+        const restored = JSON.parse(saved) as AuthResponse;
+        sessionRef.current = restored;
+        setSession(restored);
+        return;
+      } catch {
+        window.sessionStorage.removeItem("stoxsim-session");
+      }
     }
+
+    void rawRequest<AuthResponse>("/api/v1/auth/refresh", {
+      method: "POST",
+    }).then(persistSession).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -553,9 +559,9 @@ export default function Home() {
     sessionRef.current = next;
     setSession(next);
     if (next) {
-      window.localStorage.setItem("stoxsim-session", JSON.stringify(next));
+      window.sessionStorage.setItem("stoxsim-session", JSON.stringify(next));
     } else {
-      window.localStorage.removeItem("stoxsim-session");
+      window.sessionStorage.removeItem("stoxsim-session");
     }
   }
 
@@ -566,7 +572,7 @@ export default function Home() {
 
     refreshPromiseRef.current = rawRequest<AuthResponse>("/api/v1/auth/refresh", {
       method: "POST",
-      body: JSON.stringify({ refreshToken: active.refreshToken }),
+      credentials: "include",
     }).then((next) => {
       persistSession(next);
       return next;
@@ -935,7 +941,7 @@ export default function Home() {
     if (session) {
       await rawRequest<void>(
         "/api/v1/auth/logout",
-        { method: "POST", body: JSON.stringify({ refreshToken: session.refreshToken }) },
+        { method: "POST" },
       ).catch(() => undefined);
     }
     persistSession(null);
