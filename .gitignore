@@ -17,3 +17,5 @@ deploy/staging/backups/
 deploy/staging/.previous-image-tag
 deploy/production/backups/
 deploy/production/.previous-image-tag
+deploy/production/monitoring/alertmanager.yml
+deploy/production/monitoring/metrics-scrape-token
