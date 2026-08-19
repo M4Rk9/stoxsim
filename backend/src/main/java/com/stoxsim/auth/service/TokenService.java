@@ -26,6 +26,8 @@ import com.stoxsim.auth.repository.RefreshTokenRepository;
 @Service
 public class TokenService {
 
+    public static final String ISSUER = "stoxsim";
+
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int MAX_USER_AGENT_LENGTH = 200;
 
@@ -80,7 +82,7 @@ public class TokenService {
         Instant accessExpiry = issuedAt.plus(Duration.ofMinutes(properties.getAccessTokenMinutes()));
 
         var claims = JwtClaimsSet.builder()
-            .issuer("stoxsim")
+            .issuer(ISSUER)
             .subject(user.getId().toString())
             .issuedAt(issuedAt)
             .expiresAt(accessExpiry)
