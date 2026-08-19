@@ -5,7 +5,7 @@ RUN mvn -B dependency:go-offline
 COPY src src
 RUN mvn -B package -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 RUN addgroup -S stoxsim && adduser -S stoxsim -G stoxsim
 COPY --from=build /app/target/*.jar app.jar
