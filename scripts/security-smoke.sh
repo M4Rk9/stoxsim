@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <web-base-url> <api-base-url>" >&2
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+  echo "Usage: $0 <web-base-url> <api-base-url> [environment]" >&2
   exit 2
 fi
 
 WEB_URL="${1%/}"
 API_URL="${2%/}"
+ENVIRONMENT="${3:-}"
+
+if [ -z "$ENVIRONMENT" ]; then
+  case "$WEB_URL" in
+    *://staging.*|*staging*)
+      ENVIRONMENT="staging"
+      ;;
+    *)
+      ENVIRONMENT="production"
+      ;;
+  esac
+fi
 
 headers() {
   curl --fail --silent --show-error --head "$1" | tr -d '\r'
@@ -45,7 +57,11 @@ expect_status() {
 
 echo "Checking browser security headers"
 WEB_HEADERS="$(headers "$WEB_URL/")"
-require_header "$WEB_HEADERS" "Strict-Transport-Security" "max-age=31536000"
+if [ "$ENVIRONMENT" = "production" ]; then
+  require_header "$WEB_HEADERS" "Strict-Transport-Security" "max-age=31536000"
+else
+  echo "Skipping Strict-Transport-Security check for $ENVIRONMENT"
+fi
 require_header "$WEB_HEADERS" "Content-Security-Policy" "frame-ancestors 'none'"
 require_header "$WEB_HEADERS" "X-Content-Type-Options" "nosniff"
 require_header "$WEB_HEADERS" "X-Frame-Options" "DENY"

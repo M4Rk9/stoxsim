@@ -48,7 +48,7 @@ jobs:
 
       - name: Verify public security contract
         run: |
-          bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"
+          bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"             "${{ inputs.environment }}"
 
       - name: Run OWASP ZAP passive baseline
         uses: zaproxy/action-baseline@v0.15.0
