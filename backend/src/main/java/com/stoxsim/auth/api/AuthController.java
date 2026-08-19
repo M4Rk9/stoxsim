@@ -182,7 +182,7 @@ public class AuthController {
         return lifecycleService.events(userId(jwt));
     }
 
-    @GetMapping("/me/export")
+    @PostMapping("/me/export")
     public ResponseEntity<Map<String, Object>> exportAccount(
         @AuthenticationPrincipal Jwt jwt
     ) {
