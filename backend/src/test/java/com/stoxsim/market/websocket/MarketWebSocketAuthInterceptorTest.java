@@ -62,6 +62,7 @@ class MarketWebSocketAuthInterceptorTest {
         if (authorization != null) {
             accessor.setNativeHeader("Authorization", authorization);
         }
+        accessor.setLeaveMutable(true);
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 
