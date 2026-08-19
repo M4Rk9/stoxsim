@@ -59,7 +59,7 @@ Before public launch, the release owner must check:
 - [ ] Cache retention and WebSocket fan-out match the approved rights.
 - [ ] A fallback exists to disable a source without breaking authentication or account access.
 - [ ] Legal counsel or the accountable operator has reviewed the public Terms, Privacy Notice, Cookie Notice and Risk Disclaimer.
-- [ ] `privacy@stoxsim.com` and `support@stoxsim.com` receive inbound mail.
+- [ ] `support.stoxsim@gmail.com` receives inbound mail; switch the public contact to domain aliases when they are configured.
 - [ ] The legal operator name and contact details are confirmed before the draft PR is made ready.
 
 If any required item is unchecked, keep the release private. A provider outage is an operational issue; missing redistribution permission is a release blocker.

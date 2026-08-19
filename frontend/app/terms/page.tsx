@@ -86,7 +86,7 @@ export default function TermsPage() {
         <p>
           These Terms are governed by the laws of India, without overriding mandatory rights that
           apply where you live. Before starting formal proceedings, contact
-          <a href="mailto:support@stoxsim.com"> support@stoxsim.com</a> so we can try to resolve the issue.
+          <a href="mailto:support.stoxsim@gmail.com"> support.stoxsim@gmail.com</a> so we can try to resolve the issue.
         </p>
       </section>
       <section>

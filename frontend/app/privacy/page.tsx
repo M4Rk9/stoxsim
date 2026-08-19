@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         <h2>1. Who is responsible</h2>
         <p>
           StoxSim is operated from India by the owner of the StoxSim service. For privacy
-          questions or requests, email <a href="mailto:privacy@stoxsim.com">privacy@stoxsim.com</a>.
+          questions or requests, email <a href="mailto:support.stoxsim@gmail.com">support.stoxsim@gmail.com</a>.
         </p>
       </section>
       <section>
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
           Account settings let you update your profile, change your password, review or revoke
           sessions, export your account data and request permanent deletion. Depending on applicable
           law, you may also request access, correction, erasure or grievance handling. Email
-          <a href="mailto:privacy@stoxsim.com"> privacy@stoxsim.com</a> from your registered address.
+          <a href="mailto:support.stoxsim@gmail.com"> support.stoxsim@gmail.com</a> from your registered address.
           We may need to verify your identity before acting.
         </p>
       </section>

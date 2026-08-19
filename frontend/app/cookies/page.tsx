@@ -52,7 +52,7 @@ export default function CookiesPage() {
         <h2>5. Contact</h2>
         <p>
           Questions about storage technologies can be sent to
-          <a href="mailto:privacy@stoxsim.com"> privacy@stoxsim.com</a>.
+          <a href="mailto:support.stoxsim@gmail.com"> support.stoxsim@gmail.com</a>.
         </p>
       </section>
     </LegalDocument>
