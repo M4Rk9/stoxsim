@@ -13,6 +13,7 @@ async function registerLearner(page: Page, label: string) {
   await page.getByLabel("Display name").fill("Browser Learner");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("checkbox", { name: /I agree to the Terms of Use/ }).check();
   const registrationResponsePromise = page.waitForResponse((response) =>
     response.request().method() === "POST"
     && response.url().endsWith("/api/v1/auth/register")
