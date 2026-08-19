@@ -190,8 +190,10 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await expect(page.getByText("Email verification pending")).toBeVisible();
   await expect(page.getByText("This browser")).toBeVisible({ timeout: 15_000 });
 
+  const exportRequest = page.waitForRequest("**/api/v1/auth/me/export");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download account data" }).click();
+  await expect((await exportRequest).method()).toBe("POST");
   await expect((await download).suggestedFilename()).toBe("stoxsim-account-export.json");
 
   await page.getByRole("button", { name: "Log out all devices" }).click();
