@@ -52,6 +52,10 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .primaryButton:hover { background: var(--green-dark); }
 .wide { width: 100%; margin-top: 5px; }
 .authCard small { display: block; text-align: center; color: #87958e; margin-top: 18px; line-height: 1.5; font-size: .69rem; }
+.legalConsent { grid-template-columns: 18px 1fr; align-items: start; gap: 9px; margin: 4px 0 15px; font-size: .7rem; font-weight: 600; line-height: 1.5; }
+.legalConsent input { width: 16px; height: 16px; margin: 2px 0 0; padding: 0; accent-color: var(--green); }
+.legalConsent a, .legalFooter a { color: var(--green-dark); font-weight: 750; }
+.legalConsent a:hover, .legalFooter a:hover { text-decoration: underline; }
 
 .appShell { width: min(1440px, 100%); margin: auto; padding: 0 24px; }
 .appHeader { min-height: 74px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid var(--line); }
@@ -349,6 +353,10 @@ td small.unavailable { color: var(--red); }
 .learnCard p { margin: 0; color: #aec0cb; font-size: .69rem; line-height: 1.6; }
 
 footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); font-size: .62rem; }
+.legalFooter { align-items: center; gap: 18px; }
+.legalFooter nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.legalFooter a { text-decoration: none; }
+.welcomeLegalFooter { width: min(1180px, calc(100% - 40px)); margin: -58px auto 0; padding-bottom: 22px; }
 
 @media (max-width: 1050px) {
   .welcomeGrid { grid-template-columns: 1fr 420px; gap: 40px; }
