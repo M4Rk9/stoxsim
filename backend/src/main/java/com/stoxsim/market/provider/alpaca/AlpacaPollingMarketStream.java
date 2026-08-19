@@ -10,6 +10,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,17 +34,25 @@ public class AlpacaPollingMarketStream {
     private final AlpacaMarketDataProperties properties;
     private final AlpacaRestClient client;
     private final AlpacaQuoteMapper mapper;
+    private final MeterRegistry meterRegistry;
     private final Map<InstrumentKey, CopyOnWriteArrayList<Consumer<MarketTick>>> listeners =
         new ConcurrentHashMap<>();
 
     public AlpacaPollingMarketStream(
         AlpacaMarketDataProperties properties,
         AlpacaRestClient client,
-        AlpacaQuoteMapper mapper
+        AlpacaQuoteMapper mapper,
+        MeterRegistry meterRegistry
     ) {
         this.properties = properties;
         this.client = client;
         this.mapper = mapper;
+        this.meterRegistry = meterRegistry;
+        Gauge.builder(
+            "stoxsim.market_stream.subscriptions",
+            listeners,
+            Map::size
+        ).tag("provider", "alpaca").register(meterRegistry);
     }
 
     public void subscribe(
@@ -76,6 +88,7 @@ public class AlpacaPollingMarketStream {
     }
 
     private void pollBatch(Collection<InstrumentKey> instruments) {
+        Timer.Sample sample = Timer.start(meterRegistry);
         try {
             Map<String, tools.jackson.databind.JsonNode> snapshots = client.getSnapshots(
                 instruments.stream().map(InstrumentKey::value).toList()
@@ -104,7 +117,22 @@ public class AlpacaPollingMarketStream {
                 }
             }
         } catch (RuntimeException exception) {
+            meterRegistry.counter(
+                "stoxsim.market_provider.failures",
+                "provider",
+                "alpaca",
+                "operation",
+                "snapshot_poll"
+            ).increment();
             LOGGER.warn("Could not poll subscribed Alpaca instruments", exception);
+        } finally {
+            sample.stop(meterRegistry.timer(
+                "stoxsim.market_provider.latency",
+                "provider",
+                "alpaca",
+                "operation",
+                "snapshot_poll"
+            ));
         }
     }
 }
