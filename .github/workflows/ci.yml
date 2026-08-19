@@ -72,7 +72,7 @@ jobs:
         run: npm ci
       - name: Install Chromium test dependencies
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Start complete application stack
         run: docker compose up --build --detach --wait --wait-timeout 180
       - name: Run authenticated learner journey
