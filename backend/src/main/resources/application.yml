@@ -28,7 +28,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       probes:
@@ -36,6 +36,8 @@ management:
 
 stoxsim:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  monitoring:
+    scrape-token: ${METRICS_SCRAPE_TOKEN:}
   auth:
     jwt-secret: ${JWT_SECRET:local-development-only-change-this-secret-2026}
     access-token-minutes: 15
