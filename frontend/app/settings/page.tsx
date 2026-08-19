@@ -255,7 +255,7 @@ export default function SettingsPage() {
     setSecurityMessage("");
     setSecurityError("");
     try {
-      const data = await authorized<Record<string, unknown>>("/api/v1/auth/me/export");
+      const data = await authorized<Record<string, unknown>>("/api/v1/auth/me/export", { method: "POST" });
       const url = URL.createObjectURL(new Blob(
         [JSON.stringify(data, null, 2)],
         { type: "application/json" },
