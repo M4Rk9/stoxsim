@@ -75,7 +75,7 @@ fi
 
 echo "Validating the production edge configuration"
 if ! "${COMPOSE[@]}" run --rm --no-deps caddy \
-  validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
   write_env_value STOXSIM_IMAGE_TAG "$PREVIOUS_TAG"
   exit 1
 fi
