@@ -16,6 +16,7 @@ EMAIL="${local_part}+production-smoke-$(date +%s)-${RANDOM}@${domain_part}"
 
 cleanup() {
   local status=$?
+  trap - EXIT
   set +e
   if [[ -n "$ACCESS_TOKEN" ]]; then
     DELETE_BODY=$(jq -nc --arg password "$PASSWORD" '{password: $password}')
