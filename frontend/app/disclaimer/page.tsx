@@ -57,7 +57,7 @@ export default function DisclaimerPage() {
         <h2>Contact</h2>
         <p>
           Report a material data or content issue to
-          <a href="mailto:support@stoxsim.com"> support@stoxsim.com</a>.
+          <a href="mailto:support.stoxsim@gmail.com"> support.stoxsim@gmail.com</a>.
         </p>
       </section>
     </LegalDocument>
