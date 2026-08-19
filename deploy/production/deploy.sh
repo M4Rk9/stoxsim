@@ -15,6 +15,12 @@ if [[ ! "$TARGET_TAG" =~ ^[0-9a-f]{40}$ ]]; then
   exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Python 3 is required to render protected monitoring configuration." >&2
+  exit 1
+fi
+python3 "${DEPLOY_DIR}/render-monitoring-config.py"
+
 read_env_value() {
   local key="$1"
   sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1
