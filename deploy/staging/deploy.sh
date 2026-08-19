@@ -53,8 +53,17 @@ if ! "${COMPOSE[@]}" pull; then
   exit 1
 fi
 
+echo "Validating the staging edge configuration"
+if ! "${COMPOSE[@]}" run --rm --no-deps caddy \
+  validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
+  write_env_value STOXSIM_IMAGE_TAG "$PREVIOUS_TAG"
+  exit 1
+fi
+
 echo "Starting private staging services"
-if "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600; then
+if "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600 \
+  && "${COMPOSE[@]}" up --detach --no-deps --force-recreate caddy \
+  && "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600; then
   "${COMPOSE[@]}" ps
   docker image prune --force --filter "until=168h" >/dev/null
   echo "StoxSim staging is healthy on ${TARGET_TAG}"
