@@ -95,6 +95,16 @@ Flyway migrations must remain backward compatible with the previous application 
 
 Run `deploy/staging/backup.sh` on a daily schedule and copy its custom-format PostgreSQL dump plus checksum to encrypted off-host storage. Regularly prove the restore procedure with `restore.sh`; an untested local-only dump is not a recovery plan.
 
+## Public production checkpoint
+
+The first public-beta production checkpoint uses the separate bundle under `deploy/production`. It is designed for a cost-conscious AWS Lightsail deployment with one API replica, automatic HTTPS, internal-only PostgreSQL and Redis, authenticated Redis, immutable image tags, pre-deploy database backups and automatic application rollback.
+
+Use a dedicated instance with at least 2 vCPUs, 4 GB RAM, 80 GB SSD and swap. Point `stoxsim.com`, `www.stoxsim.com` and `api.stoxsim.com` at its static IP before deployment. Configure the protected `production` GitHub environment, encrypted off-host backup storage and the mode-`600` host `.env` before running either production workflow.
+
+Build the candidate from `main`, then deploy the exact commit SHA produced by that workflow. Do not deploy the movable `production-candidate` tag directly. Follow the [public production operations runbook](../deploy/production/README.md) for provisioning, secrets, DNS, backups, promotion, rollback and disaster recovery.
+
+A single Lightsail host is an intentional public-beta tradeoff, not the long-term high-availability topology. Migrate PostgreSQL and Redis to managed services with automated recovery before usage or recovery requirements outgrow a single host.
+
 ## Monitoring and alerts
 
 Alert on:
