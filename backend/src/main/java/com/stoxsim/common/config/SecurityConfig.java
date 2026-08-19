@@ -125,7 +125,12 @@ public class SecurityConfig {
         var configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(frontendUrl));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
+        configuration.setAllowedHeaders(List.of(
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "X-Request-ID"
+        ));
         configuration.setAllowCredentials(true);
         configuration.setExposedHeaders(List.of(
             "X-RateLimit-Limit",
