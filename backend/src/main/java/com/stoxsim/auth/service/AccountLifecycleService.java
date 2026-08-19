@@ -146,7 +146,9 @@ public class AccountLifecycleService {
         export.put("exportedAt", Instant.now());
         export.put("profile", jdbcTemplate.queryForMap(
             """
-            SELECT id, email, display_name, email_verified_at, created_at, updated_at
+            SELECT id, email, display_name, email_verified_at,
+                   terms_accepted_at, terms_version, privacy_version,
+                   created_at, updated_at
             FROM app_user
             WHERE id = ?
             """,
