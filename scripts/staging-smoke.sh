@@ -40,7 +40,7 @@ REGISTER_BODY=$(jq -nc \
   --arg displayName "Staging Smoke" \
   --arg email "$EMAIL" \
   --arg password "Staging-smoke-2026" \
-  '{displayName: $displayName, email: $email, password: $password}')
+  '{displayName: $displayName, email: $email, password: $password, termsAccepted: true}')
 
 echo "Checking registration and virtual-account creation"
 AUTH=$(curl --fail --silent --show-error \
