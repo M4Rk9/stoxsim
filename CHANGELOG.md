@@ -14,6 +14,7 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Persistent watchlists, research pages, portfolio analytics, and trade history.
 - Private staging deployment with backups, restore, smoke testing, and verified rollback.
 - Public production deployment with automatic HTTPS, authenticated Redis, protected promotion workflows, off-host backup enforcement, production smoke testing, and automatic rollback.
+- Production observability with structured request-correlated logs, protected Prometheus metrics, Grafana dashboards, host and dependency alerts, external uptime checks, a public status page, and an incident-response runbook.
 - Authenticated browser acceptance testing in CI.
 
 ### Security
