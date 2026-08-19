@@ -1,0 +1,78 @@
+# Security verification and release gate
+
+Milestone 6 turns security checks into evidence that can be reviewed before public release. It does not deploy production.
+
+## Automated merge gates
+
+Every pull request to main must pass:
+
+- backend tests, including JWT issuer and refresh-cookie regression tests;
+- frontend typecheck, production build, and authenticated browser journey;
+- CodeQL extended queries for Java and JavaScript/TypeScript;
+- dependency review for newly introduced high-severity vulnerabilities;
+- Gitleaks scanning across complete Git history;
+- Trivy filesystem scanning for high/critical dependency and configuration findings;
+- deployment Compose, Caddy, monitoring, and shell validation.
+
+Do not suppress a result merely to make a check green. Record why it is a false positive, scope the narrowest possible exception, and add an expiry/review date.
+
+## On-demand deployed verification
+
+The Security DAST workflow only accepts the repository's approved staging or production URLs.
+
+For staging:
+
+1. Deploy the exact candidate commit to staging.
+2. In GitHub, open **Actions → Security DAST → Run workflow**.
+3. Select **staging**.
+4. Confirm the security smoke contract passes:
+   - HTTPS security headers are present;
+   - protected APIs reject missing and invalid bearer tokens;
+   - /actuator/prometheus is not public;
+   - authentication responses are marked no-store;
+   - an untrusted CORS origin is not reflected.
+5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
+6. Run a two-user authorization exercise: one learner must not be able to read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export.
+
+After production deployment, repeat the workflow with **production** before enabling public announcements.
+
+## Host and secret review
+
+On the deployment host and in the Lightsail firewall:
+
+- expose TCP 80 and 443 publicly; expose UDP 443 only when HTTP/3 is desired;
+- restrict TCP 22 to the administrator's current IP or an approved management network;
+- do not expose 3000, 3001, 5432, 6379, 8080, 9090, or 9093;
+- confirm Grafana, Prometheus, and Alertmanager listen only on 127.0.0.1;
+- use unique random values for database, Redis, JWT, metrics, and Grafana credentials;
+- keep Resend, Gemini, Upstox, Alpaca, and deploy credentials out of shell history, logs, backups, and the repository;
+- rotate any credential that was ever pasted into a public location or committed, even if later removed;
+- require GitHub environment approval for production deployment and give workflows only the permissions they need.
+
+## Release acceptance criteria
+
+Milestone 6 is complete only when:
+
+- all automated security jobs pass on the milestone PR;
+- CodeQL, Dependabot, dependency review, Gitleaks, and Trivy show no unresolved actionable high or critical finding;
+- staging DAST and the two-account authorization exercise pass against the candidate commit;
+- the public port scan matches the intended Caddy-only exposure;
+- a current backup restore test is recorded;
+- security reporting through GitHub private vulnerability reporting is available;
+- the reviewer records the candidate commit SHA, workflow run links, findings, exceptions, and approval date.
+
+Market-data redistribution permission is a separate public-release gate and remains mandatory even when every security check passes.
+
+## Sign-off record
+
+Copy this section into the release issue or release PR:
+
+- Candidate commit:
+- Automated security run:
+- Staging DAST run:
+- Two-account authorization result:
+- External port-scan result:
+- Backup restore evidence:
+- Open findings or approved exceptions:
+- Reviewer:
+- Approval date:
