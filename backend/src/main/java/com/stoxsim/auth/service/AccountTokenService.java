@@ -1,6 +1,7 @@
 package com.stoxsim.auth.service;
 
 import java.security.SecureRandom;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -40,7 +41,7 @@ public class AccountTokenService {
               AND purpose = ?
               AND consumed_at IS NULL
             """,
-            now,
+            Timestamp.from(now),
             userId,
             purpose
         );
@@ -56,8 +57,8 @@ public class AccountTokenService {
             userId,
             purpose,
             tokenService.hash(rawToken),
-            now.plus(lifetime),
-            now
+            Timestamp.from(now.plus(lifetime)),
+            Timestamp.from(now)
         );
         return rawToken;
     }

@@ -1,5 +1,6 @@
 package com.stoxsim.auth.service;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -262,7 +263,7 @@ public class AccountLifecycleService {
             userId,
             type,
             safeDetail,
-            Instant.now()
+            Timestamp.from(Instant.now())
         );
     }
 
