@@ -58,7 +58,7 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and company fundamentals. Set `
 - `DELETE /api/v1/auth/sessions/{sessionId}`
 - `POST /api/v1/auth/logout-all`
 - `GET /api/v1/auth/events`
-- `GET /api/v1/auth/me/export`
+- `POST /api/v1/auth/me/export`
 - `DELETE /api/v1/auth/me`
 
 ### Instruments and market data
