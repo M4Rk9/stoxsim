@@ -1,0 +1,25 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: __MAIL_SMARTHOST__
+  smtp_from: __MAIL_FROM__
+  smtp_auth_username: __MAIL_USERNAME__
+  smtp_auth_identity: __MAIL_USERNAME__
+  smtp_auth_password: __MAIL_PASSWORD__
+  smtp_require_tls: true
+
+route:
+  receiver: operations-email
+  group_by:
+    - alertname
+    - severity
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: operations-email
+    email_configs:
+      - to: __ALERT_EMAIL_TO__
+        send_resolved: true
+        headers:
+          subject: "[StoxSim] {{ .Status | toUpper }}: {{ .CommonLabels.alertname }}"
