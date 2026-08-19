@@ -27,6 +27,7 @@ interface User {
   id: string;
   email: string;
   displayName: string;
+  emailVerified: boolean;
   accounts: Account[];
 }
 
@@ -981,6 +982,7 @@ export default function Home() {
             )}
             <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
             <label>Password<input required minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
+            {authMode === "login" && <a className="authHelpLink" href="/forgot-password">Forgot password?</a>}
             {error && <div className="message errorMessage">{error}</div>}
             <button className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start Now!" : "Open dashboard"}</button>
             <small>StoxSim is an educational simulator. No real orders or investment advice.</small>
@@ -1028,6 +1030,9 @@ export default function Home() {
         })}
       </section>
 
+      {!session.user.emailVerified && <div className="message verificationMessage">
+        Verify your email to secure account recovery. <a href="/settings">Open settings</a>
+      </div>}
       {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
 
       <section className="dashboardHeading">

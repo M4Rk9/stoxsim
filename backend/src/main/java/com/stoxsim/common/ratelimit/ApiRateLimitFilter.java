@@ -105,7 +105,11 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     }
 
     RateLimitPolicy policyFor(String method, String path) {
-        if (path.equals("/api/v1/auth/register") || path.equals("/api/v1/auth/login")) {
+        if (path.equals("/api/v1/auth/register")
+            || path.equals("/api/v1/auth/login")
+            || path.equals("/api/v1/auth/password/forgot")
+            || path.equals("/api/v1/auth/password/reset")
+            || path.startsWith("/api/v1/auth/email-verification/")) {
             return new RateLimitPolicy("auth", properties.getAuthPerMinute());
         }
         if (path.equals("/api/v1/auth/refresh") || path.equals("/api/v1/auth/logout")) {

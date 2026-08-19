@@ -410,3 +410,27 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
   .financialLegend { gap: 13px; }
   .financialBars i { width: 14px; }
 }
+
+
+.authHelpLink {
+  display: inline-block;
+  margin-top: 10px;
+  color: #0b8f55;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.authHelpLink:hover {
+  text-decoration: underline;
+}
+
+.verificationMessage {
+  background: #fff5d8;
+  color: #765400;
+}
+
+.verificationMessage a {
+  color: inherit;
+  font-weight: 850;
+}
