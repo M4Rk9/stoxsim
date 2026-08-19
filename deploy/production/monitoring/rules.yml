@@ -1,0 +1,129 @@
+groups:
+  - name: stoxsim-availability
+    rules:
+      - alert: PublicEndpointDown
+        expr: probe_success{job="public-https"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Public StoxSim endpoint is unavailable"
+          description: "{{ $labels.instance }} has failed external HTTPS probes for two minutes."
+
+      - alert: ApiMetricsUnavailable
+        expr: up{job="stoxsim-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "StoxSim API metrics are unavailable"
+          description: "Prometheus cannot scrape the backend. Check the API container and metrics token."
+
+      - alert: HighHttp5xxRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 0.01)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "StoxSim HTTP 5xx rate is above 5%"
+          description: "More than 5% of API requests have returned server errors for five minutes."
+
+      - alert: HighApiLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "StoxSim API p95 latency is above two seconds"
+          description: "The API p95 request latency has remained above the public-beta objective."
+
+  - name: stoxsim-dependencies
+    rules:
+      - alert: DatabasePoolSaturation
+        expr: |
+          hikaricp_connections_active
+          /
+          clamp_min(hikaricp_connections_max, 1) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool is saturated"
+          description: "More than 85% of database connections have been active for five minutes."
+
+      - alert: RateLimitStorageUnavailable
+        expr: increase(stoxsim_rate_limit_storage_failures_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis-backed rate limiting is failing open"
+          description: "At least one request bypassed rate limiting because Redis was unavailable."
+
+      - alert: MarketProviderFailures
+        expr: increase(stoxsim_market_provider_failures_total[10m]) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "Market-data provider failures are elevated"
+          description: "A market-data provider recorded more than five failures in ten minutes."
+
+      - alert: UpstoxReconnectExhausted
+        expr: increase(stoxsim_market_stream_reconnect_exhausted_total{provider="upstox"}[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Upstox automatic reconnect stopped"
+          description: "The India live market stream exhausted automatic reconnect attempts."
+
+      - alert: FinwizProviderFallbacks
+        expr: |
+          sum(
+            increase(
+              stoxsim_finwiz_responses_total{
+                provider="fallback",
+                result=~"provider.*"
+              }[15m]
+            )
+          ) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "Finwiz provider fallbacks are elevated"
+          description: "Gemini failures caused more than five educational fallbacks in fifteen minutes."
+
+  - name: stoxsim-host
+    rules:
+      - alert: HostDiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/rootfs"}
+            /
+            node_filesystem_size_bytes{mountpoint="/rootfs"}
+          ) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Production disk space is below 15%"
+          description: "Free space on the Lightsail root filesystem is running low."
+
+      - alert: HostMemoryLow
+        expr: |
+          node_memory_MemAvailable_bytes
+          /
+          node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Production available memory is below 10%"
+          description: "The Lightsail instance has sustained low available memory."
