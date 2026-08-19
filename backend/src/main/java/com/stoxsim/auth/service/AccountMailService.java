@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -32,6 +33,7 @@ public class AccountMailService {
         this.frontendUrl = frontendUrl;
     }
 
+    @Async
     public void sendVerification(AppUser user, String token) {
         String link = frontendUrl + "/verify-email?token=" + encode(token);
         send(
@@ -44,6 +46,7 @@ public class AccountMailService {
         );
     }
 
+    @Async
     public void sendPasswordReset(AppUser user, String token) {
         String link = frontendUrl + "/reset-password?token=" + encode(token);
         send(
