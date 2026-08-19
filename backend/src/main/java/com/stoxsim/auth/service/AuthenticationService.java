@@ -19,6 +19,7 @@ import com.stoxsim.auth.api.dto.ProfileUpdateRequest;
 import com.stoxsim.auth.api.dto.RegisterRequest;
 import com.stoxsim.auth.api.dto.UserResponse;
 import com.stoxsim.auth.domain.AppUser;
+import com.stoxsim.auth.domain.LegalDocumentVersions;
 import com.stoxsim.auth.repository.AppUserRepository;
 import com.stoxsim.auth.repository.RefreshTokenRepository;
 import com.stoxsim.common.error.ConflictException;
@@ -62,14 +63,24 @@ public class AuthenticationService {
             throw new ConflictException("An account already exists for this email");
         }
 
-        var user = userRepository.save(new AppUser(
+        var user = new AppUser(
             email,
             passwordEncoder.encode(request.password()),
             request.displayName().trim()
-        ));
+        );
+        user.acceptLegalDocuments(
+            LegalDocumentVersions.TERMS,
+            LegalDocumentVersions.PRIVACY
+        );
+        user = userRepository.save(user);
         List<VirtualAccount> accounts = accountService.createDefaultAccounts(user);
         userRepository.flush();
-        lifecycleService.audit(user.getId(), "ACCOUNT_REGISTERED", null);
+        lifecycleService.audit(
+            user.getId(),
+            "ACCOUNT_REGISTERED",
+            "terms=" + LegalDocumentVersions.TERMS
+                + ";privacy=" + LegalDocumentVersions.PRIVACY
+        );
         lifecycleService.sendVerification(user.getId());
         return response(user, accounts, tokenService.issueTokenPair(user, userAgent));
     }

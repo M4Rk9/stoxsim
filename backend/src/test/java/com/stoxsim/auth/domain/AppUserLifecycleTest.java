@@ -1,6 +1,8 @@
 package com.stoxsim.auth.domain;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,21 @@ class AppUserLifecycleTest {
 
         assertTrue(changed);
         assertFalse(user.isEmailVerified());
+    }
+
+    @Test
+    void recordsVersionedLegalAcceptance() {
+        var user = new AppUser(
+            "learner@example.com",
+            "password-hash",
+            "Market Learner"
+        );
+
+        user.acceptLegalDocuments("2026-08-19", "2026-08-19");
+
+        assertNotNull(user.getTermsAcceptedAt());
+        assertEquals("2026-08-19", user.getTermsVersion());
+        assertEquals("2026-08-19", user.getPrivacyVersion());
     }
 
     @Test

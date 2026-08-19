@@ -371,7 +371,12 @@ export default function Home() {
   const sessionRef = useRef<AuthResponse | null>(null);
   const refreshPromiseRef = useRef<Promise<AuthResponse> | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
-  const [authForm, setAuthForm] = useState({ displayName: "", email: "", password: "" });
+  const [authForm, setAuthForm] = useState({
+    displayName: "",
+    email: "",
+    password: "",
+    termsAccepted: false,
+  });
   const [marketRegion, setMarketRegion] = useState<MarketRegion>("INDIA");
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [market, setMarket] = useState<MarketStatus | null>(null);
@@ -982,12 +987,35 @@ export default function Home() {
             )}
             <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
             <label>Password<input required minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
+            {authMode === "register" && (
+              <label className="legalConsent">
+                <input
+                  required
+                  type="checkbox"
+                  checked={authForm.termsAccepted}
+                  onChange={(event) => setAuthForm({ ...authForm, termsAccepted: event.target.checked })}
+                />
+                <span>
+                  I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms of Use</a> and
+                  consent to the processing described in the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Notice</a>.
+                </span>
+              </label>
+            )}
             {authMode === "login" && <a className="authHelpLink" href="/forgot-password">Forgot password?</a>}
             {error && <div className="message errorMessage">{error}</div>}
             <button className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start Now!" : "Open dashboard"}</button>
             <small>StoxSim is an educational simulator. No real orders or investment advice.</small>
           </form>
         </section>
+        <footer className="legalFooter welcomeLegalFooter">
+          <span>StoxSim · Educational paper trading</span>
+          <nav aria-label="Legal">
+            <a href="/terms">Terms</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/cookies">Cookies</a>
+            <a href="/disclaimer">Risk disclaimer</a>
+          </nav>
+        </footer>
       </main>
     );
   }
@@ -1151,13 +1179,22 @@ export default function Home() {
           <article className="learnCard"><span>STOXSIM NOTE</span><h3>Charges change the lesson.</h3><p>Buy charges are included in your cost basis. Sell charges reduce realized returns. Every schedule is versioned and marked simulated.</p></article>
         </aside>
       </section>
-      <footer><span>StoxSim · Educational paper trading</span><span>Quotes may be live, stale or unavailable. Not investment advice.</span></footer>
+      <footer className="legalFooter">
+        <span>StoxSim · Educational paper trading</span>
+        <nav aria-label="Legal">
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/cookies">Cookies</a>
+          <a href="/disclaimer">Risk disclaimer</a>
+        </nav>
+        <span>Quotes may be live, stale or unavailable. Not investment advice.</span>
+      </footer>
     </main>
   );
 }
 
 function Brand() {
-  return <a className="brand" href="#" aria-label="StoxSim home"><span className="brandMark"><i /><i /><i /></span><span>Stox<span>Sim</span></span></a>;
+  return <a className="brand" href="/" aria-label="StoxSim home"><span className="brandMark"><i /><i /><i /></span><span>Stox<span>Sim</span></span></a>;
 }
 
 function Metric({ label, value, sub, tone = "" }: { label: string; value: string; sub: string; tone?: string }) {

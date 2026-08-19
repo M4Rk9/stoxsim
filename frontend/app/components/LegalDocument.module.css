@@ -1,0 +1,151 @@
+.shell {
+  width: min(920px, calc(100% - 32px));
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+.header {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 850;
+  letter-spacing: -.05em;
+}
+
+.brand span,
+.back,
+.content a,
+.footer a {
+  color: var(--green);
+}
+
+.back,
+.footer a {
+  font-size: .78rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.document {
+  margin: 42px 0;
+  padding: clamp(24px, 5vw, 56px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: 0 20px 60px rgba(26, 50, 39, .08);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--green);
+  font-size: .67rem;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+
+.document h1 {
+  margin: 10px 0 14px;
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  letter-spacing: -.055em;
+}
+
+.summary {
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.updated {
+  margin: 22px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  font-size: .73rem;
+  font-weight: 750;
+}
+
+.content {
+  margin-top: 36px;
+}
+
+.content section {
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+}
+
+.content section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.content h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  letter-spacing: -.025em;
+}
+
+.content p,
+.content li {
+  color: #47564f;
+  font-size: .88rem;
+  line-height: 1.75;
+}
+
+.content p {
+  margin: 8px 0 0;
+}
+
+.content ul {
+  margin: 10px 0 0;
+  padding-left: 21px;
+}
+
+.content strong {
+  color: var(--ink);
+}
+
+.content a {
+  font-weight: 750;
+}
+
+.footer {
+  margin: 0 0 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  color: var(--muted);
+  font-size: .7rem;
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+@media (max-width: 620px) {
+  .header {
+    min-height: 68px;
+  }
+
+  .document {
+    margin: 24px 0;
+  }
+
+  .footer {
+    display: grid;
+  }
+}

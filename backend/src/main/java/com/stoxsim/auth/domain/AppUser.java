@@ -30,6 +30,15 @@ public class AppUser {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
+    @Column(name = "terms_version", length = 32)
+    private String termsVersion;
+
+    @Column(name = "privacy_version", length = 32)
+    private String privacyVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -71,6 +80,18 @@ public class AppUser {
         return emailVerifiedAt != null;
     }
 
+    public Instant getTermsAcceptedAt() {
+        return termsAcceptedAt;
+    }
+
+    public String getTermsVersion() {
+        return termsVersion;
+    }
+
+    public String getPrivacyVersion() {
+        return privacyVersion;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -93,6 +114,13 @@ public class AppUser {
     public void markEmailVerified() {
         this.emailVerifiedAt = Instant.now();
         this.updatedAt = this.emailVerifiedAt;
+    }
+
+    public void acceptLegalDocuments(String termsVersion, String privacyVersion) {
+        this.termsAcceptedAt = Instant.now();
+        this.termsVersion = termsVersion;
+        this.privacyVersion = privacyVersion;
+        this.updatedAt = this.termsAcceptedAt;
     }
 
     public void changePassword(String passwordHash) {
