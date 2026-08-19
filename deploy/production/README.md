@@ -76,6 +76,23 @@ Secrets:
 
 SMTP, database, Redis, JWT and Upstox secrets remain in the mode-`600` host `.env`. They are not copied through GitHub Actions.
 
+## Monitoring and alerting
+
+Python 3 is required on the host to render protected monitoring configuration. Add the monitoring variables from `.env.example`, using independent random values for `METRICS_SCRAPE_TOKEN` and `GRAFANA_ADMIN_PASSWORD`. Alerts are delivered through the existing Resend SMTP account to `support.stoxsim@gmail.com`.
+
+The production stack includes Prometheus, Alertmanager, Blackbox Exporter, Node Exporter and Grafana. Their web interfaces bind only to `127.0.0.1`; use SSH tunnels rather than opening their ports in the Lightsail firewall:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 \
+    -L 9090:127.0.0.1:9090 \
+    -L 9093:127.0.0.1:9093 \
+    deploy@your-production-host
+```
+
+Open Grafana at `http://127.0.0.1:3001`, Prometheus at `http://127.0.0.1:9090` and Alertmanager at `http://127.0.0.1:9093`. All Prometheus targets must be **UP**, and a Resend test alert must reach the Gmail inbox before public launch.
+
+After production is live, set the repository Actions variable `PRODUCTION_UPTIME_ENABLED=true` to activate the independent five-minute external probe. Follow the [production operations and incident-response runbook](../../docs/OPERATIONS.md) for objectives, alert response, log rotation, diagnostics and recovery.
+
 ## Release procedure
 
 1. Merge only a commit with green CI, CodeQL and dependency review.
