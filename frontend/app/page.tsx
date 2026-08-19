@@ -1219,31 +1219,51 @@ function StockFundamentals({
   period: FinancialPeriod;
   onPeriodChange: (period: FinancialPeriod) => void;
 }) {
+  const providerLabel = insights?.provider === "SEC_EDGAR"
+    ? "SEC EDGAR filings"
+    : insights?.provider?.startsWith("UPSTOX")
+      ? "Upstox"
+      : insights?.provider?.replaceAll("_", " ") ?? "the configured provider";
+  const profile = insights?.profile;
+  const showSector = Boolean(profile?.sector);
+  const showSectorMarketCap = profile?.sectorMarketCapInrFormatted != null
+    || profile?.sectorMarketCapInrCrore != null;
+
   return <section className="stockSection fundamentalsSection">
     <div className="stockSectionHeading">
-      <div><h4>Fundamentals</h4><p>Company and sector data supplied by Upstox</p></div>
+      <div><h4>Fundamentals</h4><p>Company filing data supplied by {providerLabel}</p></div>
       {insights && <span className={`insightsStatus ${insights.status.toLowerCase()}`}>{insights.status}</span>}
     </div>
     {loading && !insights && <div className="insightsLoading"><span className="chartLoader" />Loading company fundamentals…</div>}
     {!loading && !insights && <div className="insightsEmpty">Company fundamentals are temporarily unavailable.</div>}
     {insights && <>
       {insights.message && <p className="insightsNotice">{insights.message}</p>}
-      {insights.profile && <div className="companyProfile">
-        <div><span>Sector</span><strong>{insights.profile.sector ?? "—"}</strong></div>
-        <div><span>Sector market cap</span><strong>{insights.profile.sectorMarketCapInrFormatted ?? crore(insights.profile.sectorMarketCapInrCrore)}</strong></div>
-        {insights.profile.description && <p>{insights.profile.description}</p>}
+      {profile && <div className="companyProfile">
+        {showSector && <div><span>Sector</span><strong>{profile.sector}</strong></div>}
+        {showSectorMarketCap && <div><span>Sector market cap</span><strong>{profile.sectorMarketCapInrFormatted ?? crore(profile.sectorMarketCapInrCrore)}</strong></div>}
+        {profile.description && <p>{profile.description}</p>}
       </div>}
       <div className="ratioGrid">
         {insights.ratios.map((ratio) => <div key={ratio.name} className="ratioItem">
-          <span>{ratio.name}</span><strong>{ratio.companyValue ?? "—"}</strong><small>Sector {ratio.sectorValue ?? "—"}</small>
+          <span>{ratio.name}</span><strong>{ratio.companyValue ?? "—"}</strong>
+          {ratio.sectorValue && <small>Sector {ratio.sectorValue}</small>}
         </div>)}
         {!insights.ratios.length && <div className="insightsEmpty compact">Valuation ratios are unavailable for this stock.</div>}
       </div>
       <div className="financialSection">
-        <div className="financialHeader"><div><h4>Financial performance</h4><p>Consolidated revenue and net profit in INR crore</p></div><div className="financialTabs"><button type="button" className={period === "quarterly" ? "active" : ""} onClick={() => onPeriodChange("quarterly")}>Quarterly</button><button type="button" className={period === "yearly" ? "active" : ""} onClick={() => onPeriodChange("yearly")}>Yearly</button></div></div>
+        <div className="financialHeader">
+          <div>
+            <h4>Financial performance</h4>
+            <p>{insights.financials?.statementType ?? "Reported financial statements"} · {insights.financials?.unitsIn ?? "reported units"}</p>
+          </div>
+          <div className="financialTabs">
+            <button type="button" className={period === "quarterly" ? "active" : ""} onClick={() => onPeriodChange("quarterly")}>Quarterly</button>
+            <button type="button" className={period === "yearly" ? "active" : ""} onClick={() => onPeriodChange("yearly")}>Yearly</button>
+          </div>
+        </div>
         <FinancialChart financials={insights.financials} loading={loading} />
       </div>
-      <small className="insightsAsOf">Source: {insights.provider} · refreshed {dateTime(insights.asOf)}</small>
+      <small className="insightsAsOf">Source: {providerLabel} · refreshed {dateTime(insights.asOf)}</small>
     </>}
   </section>;
 }
@@ -1255,14 +1275,36 @@ function FinancialChart({
   financials?: FinancialPerformance;
   loading: boolean;
 }) {
-  const revenue = financials?.metrics.find((metric) => metric.category === "revenue");
-  const profit = financials?.metrics.find((metric) => metric.category === "net_profit");
+  const metricKey = (category: string) => category
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "_")
+    .replaceAll(/^_+|_+$/g, "");
+  const revenue = financials?.metrics.find((metric) => metricKey(metric.category) === "revenue");
+  const profit = financials?.metrics.find((metric) =>
+    ["net_profit", "net_income"].includes(metricKey(metric.category))
+  );
   const revenuePoints = [...(revenue?.history ?? [])].reverse().slice(-5);
   const profitByPeriod = new Map((profit?.history ?? []).map((point) => [point.period, point]));
   const maximum = Math.max(
     1,
-    ...revenuePoints.flatMap((point) => [point.value, profitByPeriod.get(point.period)?.value ?? 0]),
+    ...revenuePoints.flatMap((point) => [
+      Math.abs(point.value),
+      Math.abs(profitByPeriod.get(point.period)?.value ?? 0),
+    ]),
   );
+
+  const formatted = (value?: number) => {
+    if (value == null || !Number.isFinite(value)) return "—";
+    const units = financials?.unitsIn?.toLowerCase() ?? "";
+    const formattedValue = new Intl.NumberFormat(
+      units.includes("usd") ? "en-US" : "en-IN",
+      { maximumFractionDigits: 2 },
+    ).format(value);
+    if (units.includes("usd")) return `$${formattedValue}M`;
+    if (units.includes("crore")) return `₹${formattedValue} Cr`;
+    return financials?.unitsIn ? `${formattedValue} ${financials.unitsIn}` : formattedValue;
+  };
 
   if (loading && !financials) return <div className="financialEmpty"><span className="chartLoader" />Updating financial history…</div>;
   if (!revenuePoints.length) return <div className="financialEmpty">Financial history is unavailable for this stock.</div>;
@@ -1271,16 +1313,16 @@ function FinancialChart({
   const latestProfit = latestRevenue ? profitByPeriod.get(latestRevenue.period) : undefined;
   return <div className="financialChart">
     <div className="financialLegend">
-      <div><i className="revenue" /><span>Revenue</span><strong>{crore(latestRevenue?.value)} <small className={latestRevenue?.change?.startsWith("-") ? "negative" : "positive"}>{latestRevenue?.change}</small></strong></div>
-      <div><i className="profit" /><span>Net profit</span><strong>{crore(latestProfit?.value)} <small className={latestProfit?.change?.startsWith("-") ? "negative" : "positive"}>{latestProfit?.change}</small></strong></div>
+      <div><i className="revenue" /><span>Revenue</span><strong>{formatted(latestRevenue?.value)} <small className={latestRevenue?.change?.startsWith("-") ? "negative" : "positive"}>{latestRevenue?.change}</small></strong></div>
+      <div><i className="profit" /><span>Net profit</span><strong>{formatted(latestProfit?.value)} <small className={latestProfit?.change?.startsWith("-") ? "negative" : "positive"}>{latestProfit?.change}</small></strong></div>
     </div>
     <div className="financialPlot">
       {revenuePoints.map((point) => {
         const profitPoint = profitByPeriod.get(point.period);
         return <div className="financialGroup" key={point.period}>
           <div className="financialBars">
-            <i className="revenue" title={`Revenue ${crore(point.value)}`} style={{ height: `${Math.max(5, (point.value / maximum) * 100)}%` }} />
-            <i className="profit" title={`Net profit ${crore(profitPoint?.value)}`} style={{ height: `${Math.max(3, ((profitPoint?.value ?? 0) / maximum) * 100)}%` }} />
+            <i className="revenue" title={`Revenue ${formatted(point.value)}`} style={{ height: `${Math.max(5, (Math.abs(point.value) / maximum) * 100)}%` }} />
+            <i className="profit" title={`Net profit ${formatted(profitPoint?.value)}`} style={{ height: `${Math.max(3, (Math.abs(profitPoint?.value ?? 0) / maximum) * 100)}%` }} />
           </div>
           <span>{point.period}</span>
         </div>;

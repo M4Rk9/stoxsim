@@ -5,15 +5,11 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +34,6 @@ public class SecFundamentalsClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(SecFundamentalsClient.class);
     private static final Duration TICKER_INDEX_TTL = Duration.ofHours(24);
     private static final BigDecimal MILLION = new BigDecimal("1000000");
-    private static final Set<String> QUARTERLY_FORMS = Set.of("10-Q", "10-Q/A");
-    private static final Set<String> YEARLY_FORMS = Set.of("10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A");
 
     private final RestClient secData;
     private final RestClient secFiles;
@@ -162,23 +156,71 @@ public class SecFundamentalsClient {
         return new CompanyProfile(description, industry, null, null);
     }
 
-    private List<FundamentalRatio> ratios(JsonNode facts, BigDecimal lastPrice) {
-        BigDecimal eps = latestValue(facts, "us-gaap", List.of("EarningsPerShareDiluted", "EarningsPerShareBasic"), "USD/shares");
-        BigDecimal revenue = latestValue(facts, "us-gaap", revenueTags(), "USD");
-        BigDecimal netIncome = latestValue(facts, "us-gaap", List.of("NetIncomeLoss", "ProfitLoss"), "USD");
-        BigDecimal operatingIncome = latestValue(facts, "us-gaap", List.of("OperatingIncomeLoss"), "USD");
-        BigDecimal operatingCashFlow = latestValue(facts, "us-gaap", List.of("NetCashProvidedByUsedInOperatingActivities"), "USD");
-        BigDecimal assets = latestValue(facts, "us-gaap", List.of("Assets"), "USD");
-        BigDecimal liabilities = latestValue(facts, "us-gaap", List.of("Liabilities"), "USD");
+    List<FundamentalRatio> ratios(JsonNode facts, BigDecimal lastPrice) {
+        BigDecimal eps = SecFactSeries.trailingTwelveMonths(
+            facts,
+            "us-gaap",
+            List.of("EarningsPerShareDiluted", "EarningsPerShareBasic"),
+            "USD/shares"
+        );
+        BigDecimal revenue = SecFactSeries.trailingTwelveMonths(
+            facts,
+            "us-gaap",
+            revenueTags(),
+            "USD"
+        );
+        BigDecimal netIncome = SecFactSeries.trailingTwelveMonths(
+            facts,
+            "us-gaap",
+            List.of("NetIncomeLoss", "ProfitLoss"),
+            "USD"
+        );
+        BigDecimal operatingIncome = SecFactSeries.trailingTwelveMonths(
+            facts,
+            "us-gaap",
+            List.of("OperatingIncomeLoss"),
+            "USD"
+        );
+        BigDecimal operatingCashFlow = SecFactSeries.trailingTwelveMonths(
+            facts,
+            "us-gaap",
+            List.of("NetCashProvidedByUsedInOperatingActivities"),
+            "USD"
+        );
+        BigDecimal assets = SecFactSeries.latestInstant(
+            facts,
+            "us-gaap",
+            List.of("Assets"),
+            "USD"
+        );
+        BigDecimal liabilities = SecFactSeries.latestInstant(
+            facts,
+            "us-gaap",
+            List.of("Liabilities"),
+            "USD"
+        );
 
         List<FundamentalRatio> ratios = new ArrayList<>();
         if (lastPrice != null && eps != null && eps.signum() > 0) {
-            ratios.add(ratio("P/E (trailing filing EPS)", lastPrice.divide(eps, 2, RoundingMode.HALF_UP)));
+            ratios.add(ratio(
+                "P/E (TTM)",
+                lastPrice.divide(eps, 2, RoundingMode.HALF_UP)
+            ));
         }
-        if (eps != null) ratios.add(ratio("Diluted EPS", eps.setScale(2, RoundingMode.HALF_UP)));
+        if (eps != null) {
+            ratios.add(ratio(
+                "Diluted EPS (TTM)",
+                eps.setScale(2, RoundingMode.HALF_UP)
+            ));
+        }
         addPercentRatio(ratios, "Net margin", netIncome, revenue);
         addPercentRatio(ratios, "Operating margin", operatingIncome, revenue);
-        addPercentRatio(ratios, "Operating cash-flow margin", operatingCashFlow, revenue);
+        addPercentRatio(
+            ratios,
+            "Operating cash-flow margin",
+            operatingCashFlow,
+            revenue
+        );
         addPercentRatio(ratios, "Liabilities / assets", liabilities, assets);
         return List.copyOf(ratios);
     }
@@ -199,24 +241,47 @@ public class SecFundamentalsClient {
         target.add(new FundamentalRatio(name, value.toPlainString() + "%", null));
     }
 
-    private FinancialPerformance financials(JsonNode facts, String requestedPeriod) {
+    FinancialPerformance financials(JsonNode facts, String requestedPeriod) {
         boolean yearly = "yearly".equalsIgnoreCase(requestedPeriod);
-        List<FactPoint> revenue = history(facts, "us-gaap", revenueTags(), "USD", yearly);
-        List<FactPoint> netIncome = history(facts, "us-gaap", List.of("NetIncomeLoss", "ProfitLoss"), "USD", yearly);
-        List<FactPoint> operatingIncome = history(facts, "us-gaap", List.of("OperatingIncomeLoss"), "USD", yearly);
-        List<FactPoint> operatingCashFlow = history(facts, "us-gaap", List.of("NetCashProvidedByUsedInOperatingActivities"), "USD", yearly);
-        List<FactPoint> capex = history(facts, "us-gaap", List.of(
-            "PaymentsToAcquirePropertyPlantAndEquipment",
-            "PaymentsForAdditionsToPropertyPlantAndEquipment"
-        ), "USD", yearly);
+        List<SecFactSeries.Point> revenue = series(
+            facts,
+            revenueTags(),
+            yearly
+        );
+        List<SecFactSeries.Point> netIncome = series(
+            facts,
+            List.of("NetIncomeLoss", "ProfitLoss"),
+            yearly
+        );
+        List<SecFactSeries.Point> operatingIncome = series(
+            facts,
+            List.of("OperatingIncomeLoss"),
+            yearly
+        );
+        List<SecFactSeries.Point> operatingCashFlow = series(
+            facts,
+            List.of("NetCashProvidedByUsedInOperatingActivities"),
+            yearly
+        );
+        List<SecFactSeries.Point> capex = series(
+            facts,
+            List.of(
+                "PaymentsToAcquirePropertyPlantAndEquipment",
+                "PaymentsForAdditionsToPropertyPlantAndEquipment"
+            ),
+            yearly
+        );
 
         List<FinancialMetric> metrics = new ArrayList<>();
-        addMetric(metrics, "Revenue", revenue);
-        addMetric(metrics, "Net income", netIncome);
-        addMetric(metrics, "Operating income", operatingIncome);
-        addMetric(metrics, "Operating cash flow", operatingCashFlow);
-        List<FactPoint> freeCashFlow = subtractByPeriod(operatingCashFlow, capex);
-        addMetric(metrics, "Free cash flow", freeCashFlow);
+        addMetric(metrics, "revenue", revenue);
+        addMetric(metrics, "net_profit", netIncome);
+        addMetric(metrics, "operating_profit", operatingIncome);
+        addMetric(metrics, "operating_cash_flow", operatingCashFlow);
+        addMetric(
+            metrics,
+            "free_cash_flow",
+            subtractByPeriod(operatingCashFlow, capex)
+        );
         if (metrics.isEmpty()) return null;
         return new FinancialPerformance(
             "SEC XBRL financial statements",
@@ -226,11 +291,21 @@ public class SecFundamentalsClient {
         );
     }
 
-    private void addMetric(List<FinancialMetric> target, String category, List<FactPoint> points) {
+    private List<SecFactSeries.Point> series(
+        JsonNode facts,
+        List<String> tags,
+        boolean yearly
+    ) {
+        return yearly
+            ? SecFactSeries.yearly(facts, "us-gaap", tags, "USD")
+            : SecFactSeries.quarterly(facts, "us-gaap", tags, "USD");
+    }
+
+    private void addMetric(List<FinancialMetric> target, String category, List<SecFactSeries.Point> points) {
         if (points.isEmpty()) return;
         List<FinancialHistoryPoint> history = new ArrayList<>();
         for (int index = 0; index < points.size(); index++) {
-            FactPoint point = points.get(index);
+            SecFactSeries.Point point = points.get(index);
             BigDecimal change = index + 1 < points.size()
                 ? percentChange(point.value(), points.get(index + 1).value())
                 : null;
@@ -250,115 +325,18 @@ public class SecFundamentalsClient {
             .divide(previous.abs(), 1, RoundingMode.HALF_UP);
     }
 
-    private List<FactPoint> subtractByPeriod(List<FactPoint> left, List<FactPoint> right) {
+    private List<SecFactSeries.Point> subtractByPeriod(List<SecFactSeries.Point> left, List<SecFactSeries.Point> right) {
         if (left.isEmpty() || right.isEmpty()) return List.of();
         Map<LocalDate, BigDecimal> rightByEnd = new LinkedHashMap<>();
         right.forEach(point -> rightByEnd.put(point.end(), point.value()));
         return left.stream()
             .filter(point -> rightByEnd.containsKey(point.end()))
-            .map(point -> new FactPoint(
+            .map(point -> new SecFactSeries.Point(
                 point.end(),
                 point.value().subtract(rightByEnd.get(point.end())),
                 point.filed()
             ))
             .toList();
-    }
-
-    private BigDecimal latestValue(
-        JsonNode facts,
-        String taxonomy,
-        List<String> tags,
-        String unit
-    ) {
-        List<FactPoint> points = rawPoints(facts, taxonomy, tags, unit);
-        return points.stream()
-            .max(Comparator.comparing(FactPoint::end).thenComparing(FactPoint::filed))
-            .map(FactPoint::value)
-            .orElse(null);
-    }
-
-    private List<FactPoint> history(
-        JsonNode facts,
-        String taxonomy,
-        List<String> tags,
-        String unit,
-        boolean yearly
-    ) {
-        Set<String> forms = yearly ? YEARLY_FORMS : QUARTERLY_FORMS;
-        Map<LocalDate, FactPoint> byEnd = new LinkedHashMap<>();
-        for (FactPoint point : rawPoints(facts, taxonomy, tags, unit, forms, yearly)) {
-            FactPoint existing = byEnd.get(point.end());
-            if (existing == null || point.filed().isAfter(existing.filed())) {
-                byEnd.put(point.end(), point);
-            }
-        }
-        return byEnd.values().stream()
-            .sorted(Comparator.comparing(FactPoint::end).reversed())
-            .limit(5)
-            .toList();
-    }
-
-    private List<FactPoint> rawPoints(
-        JsonNode facts,
-        String taxonomy,
-        List<String> tags,
-        String unit
-    ) {
-        return rawPoints(facts, taxonomy, tags, unit, Set.of(), false);
-    }
-
-    private List<FactPoint> rawPoints(
-        JsonNode facts,
-        String taxonomy,
-        List<String> tags,
-        String unit,
-        Set<String> forms,
-        boolean yearly
-    ) {
-        JsonNode taxonomyNode = facts == null ? null : facts.path("facts").path(taxonomy);
-        if (taxonomyNode == null || taxonomyNode.isMissingNode()) return List.of();
-
-        for (String tag : tags) {
-            JsonNode values = taxonomyNode.path(tag).path("units").path(unit);
-            if (!values.isArray()) continue;
-            List<FactPoint> points = new ArrayList<>();
-            for (JsonNode value : values) {
-                String endText = text(value, "end");
-                BigDecimal amount = decimal(value.get("val"));
-                String form = text(value, "form");
-                if (endText == null || amount == null) continue;
-                if (!forms.isEmpty() && (form == null || !forms.contains(form))) continue;
-                LocalDate end;
-                try {
-                    end = LocalDate.parse(endText);
-                } catch (RuntimeException ignored) {
-                    continue;
-                }
-                String startText = text(value, "start");
-                if (!forms.isEmpty() && startText != null) {
-                    try {
-                        long days = ChronoUnit.DAYS.between(LocalDate.parse(startText), end);
-                        if (yearly && (days < 300 || days > 430)) continue;
-                        if (!yearly && (days < 55 || days > 130)) continue;
-                    } catch (RuntimeException ignored) {
-                        continue;
-                    }
-                }
-                Instant filed = parseFiled(text(value, "filed"));
-                points.add(new FactPoint(end, amount, filed));
-            }
-            if (!points.isEmpty()) return List.copyOf(points);
-        }
-        return List.of();
-    }
-
-    private Instant parseFiled(String value) {
-        if (value == null) return Instant.EPOCH;
-        try {
-            return LocalDate.parse(value).atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
-        } catch (RuntimeException ignored) {
-            return Instant.EPOCH;
-        }
     }
 
     private List<String> revenueTags() {
@@ -367,15 +345,6 @@ public class SecFundamentalsClient {
             "Revenues",
             "SalesRevenueNet"
         );
-    }
-
-    private BigDecimal decimal(JsonNode value) {
-        if (value == null || value.isNull() || !value.isNumber()) return null;
-        try {
-            return value.decimalValue();
-        } catch (RuntimeException ignored) {
-            return null;
-        }
     }
 
     private String text(JsonNode node, String field) {
@@ -402,6 +371,4 @@ public class SecFundamentalsClient {
     private record CompanyKey(String cik, String ticker, String title) {
     }
 
-    private record FactPoint(LocalDate end, BigDecimal value, Instant filed) {
-    }
 }
