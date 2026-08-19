@@ -12,6 +12,8 @@ import com.stoxsim.auth.config.AuthProperties;
 import com.stoxsim.common.ratelimit.ApiRateLimitFilter;
 import com.stoxsim.common.ratelimit.RateLimitProperties;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -54,6 +56,7 @@ public class SecurityConfig {
                     "/api/v1/system/status",
                     "/actuator/health",
                     "/actuator/health/**",
+                    "/actuator/prometheus",
                     "/ws/market",
                     "/ws/market/**"
                 ).permitAll()
@@ -102,9 +105,10 @@ public class SecurityConfig {
     @Bean
     ApiRateLimitFilter apiRateLimitFilter(
         StringRedisTemplate redisTemplate,
-        RateLimitProperties properties
+        RateLimitProperties properties,
+        MeterRegistry meterRegistry
     ) {
-        return new ApiRateLimitFilter(redisTemplate, properties);
+        return new ApiRateLimitFilter(redisTemplate, properties, meterRegistry);
     }
 
     @Bean
@@ -127,6 +131,7 @@ public class SecurityConfig {
             "X-RateLimit-Limit",
             "X-RateLimit-Remaining",
             "X-RateLimit-Reset",
+            "X-Request-ID",
             "Retry-After"
         ));
 
