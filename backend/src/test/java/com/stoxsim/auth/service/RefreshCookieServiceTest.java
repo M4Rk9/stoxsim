@@ -1,6 +1,7 @@
 package com.stoxsim.auth.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
@@ -27,7 +28,7 @@ class RefreshCookieServiceTest {
         assertEquals("Strict", cookie.getSameSite());
         assertEquals("/api/v1/auth", cookie.getPath());
         assertEquals(Duration.ofDays(30), cookie.getMaxAge());
-        assertEquals("", cookie.getDomain());
+        assertNull(cookie.getDomain());
     }
 
     @Test
