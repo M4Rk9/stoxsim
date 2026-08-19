@@ -1,0 +1,184 @@
+name: Production deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Tested 40-character commit SHA published by Production candidate
+        required: true
+      confirmation:
+        description: Enter DEPLOY to authorize production rollout
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stoxsim-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_WEB_URL }}
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      DEPLOY_CONFIRMATION: ${{ inputs.confirmation }}
+      PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+      SSH_PORT: ${{ secrets.PRODUCTION_PORT || '22' }}
+      PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+      GHCR_USER: ${{ secrets.PRODUCTION_GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.PRODUCTION_GHCR_TOKEN }}
+      PRODUCTION_SMOKE_EMAIL: ${{ secrets.PRODUCTION_SMOKE_EMAIL }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }}
+      GEMINI_BASE_URL: ${{ vars.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com' }}
+      FINWIZ_AI_ENABLED: ${{ vars.FINWIZ_AI_ENABLED || 'true' }}
+      FINWIZ_MAX_QUESTION_CHARACTERS: ${{ vars.FINWIZ_MAX_QUESTION_CHARACTERS || '2000' }}
+      FINWIZ_MAX_OUTPUT_TOKENS: ${{ vars.FINWIZ_MAX_OUTPUT_TOKENS || '900' }}
+      FINWIZ_THINKING_LEVEL: ${{ vars.FINWIZ_THINKING_LEVEL || 'minimal' }}
+      ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
+      ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+      ALPACA_DATA_FEED: ${{ vars.ALPACA_DATA_FEED || 'iex' }}
+      ALPACA_INSTRUMENT_SYNC_ON_STARTUP: ${{ vars.ALPACA_INSTRUMENT_SYNC_ON_STARTUP || 'true' }}
+      ALPACA_POLLING_ENABLED: ${{ vars.ALPACA_POLLING_ENABLED || 'true' }}
+      ALPACA_POLLING_INTERVAL_MILLIS: ${{ vars.ALPACA_POLLING_INTERVAL_MILLIS || '5000' }}
+      REMOTE_DIR: ${{ vars.PRODUCTION_REMOTE_DIR || 'stoxsim-production' }}
+      PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL }}
+      PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate production authorization and configuration
+        run: |
+          [[ "$DEPLOY_CONFIRMATION" == "DEPLOY" ]]
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SSH_PORT" =~ ^[0-9]+$ ]]
+          [[ "$REMOTE_DIR" =~ ^[A-Za-z0-9._/-]+$ ]]
+          [[ "$PRODUCTION_API_URL" == "https://api.stoxsim.com" ]]
+          [[ "$PRODUCTION_WEB_URL" == "https://stoxsim.com" ]]
+          [[ "$GEMINI_BASE_URL" == https://* ]]
+          [[ "$ALPACA_DATA_FEED" =~ ^(iex|sip|delayed_sip)$ ]]
+          [[ "$ALPACA_INSTRUMENT_SYNC_ON_STARTUP" =~ ^(true|false)$ ]]
+          [[ "$ALPACA_POLLING_ENABLED" =~ ^(true|false)$ ]]
+          [[ "$ALPACA_POLLING_INTERVAL_MILLIS" =~ ^[0-9]+$ ]]
+          [[ "$FINWIZ_AI_ENABLED" =~ ^(true|false)$ ]]
+          [[ "$FINWIZ_MAX_QUESTION_CHARACTERS" =~ ^[0-9]+$ ]]
+          [[ "$FINWIZ_MAX_OUTPUT_TOKENS" =~ ^[0-9]+$ ]]
+          [[ "$FINWIZ_THINKING_LEVEL" =~ ^(minimal|low|medium|high)$ ]]
+          : "${PRODUCTION_HOST:?Set the PRODUCTION_HOST environment secret}"
+          : "${PRODUCTION_USER:?Set the PRODUCTION_USER environment secret}"
+          : "${SSH_PRIVATE_KEY:?Set the PRODUCTION_SSH_PRIVATE_KEY environment secret}"
+          : "${SSH_KNOWN_HOSTS:?Set the PRODUCTION_SSH_KNOWN_HOSTS environment secret}"
+          : "${GHCR_USER:?Set the PRODUCTION_GHCR_USERNAME environment secret}"
+          : "${GHCR_TOKEN:?Set the PRODUCTION_GHCR_TOKEN environment secret}"
+          : "${PRODUCTION_SMOKE_EMAIL:?Set the PRODUCTION_SMOKE_EMAIL environment secret}"
+          : "${GEMINI_API_KEY:?Set the GEMINI_API_KEY environment secret}"
+          : "${ALPACA_API_KEY_ID:?Set the ALPACA_API_KEY_ID environment secret}"
+          : "${ALPACA_API_SECRET_KEY:?Set the ALPACA_API_SECRET_KEY environment secret}"
+
+      - name: Verify Gemini key and model
+        run: |
+          RESPONSE_FILE=$(mktemp)
+          trap 'rm -f "$RESPONSE_FILE"' EXIT
+          REQUEST_BODY=$(jq -nc             --arg prompt "Reply with exactly: FINWIZ_GEMINI_OK"             --argjson maxOutputTokens 64             --arg thinkingLevel "$FINWIZ_THINKING_LEVEL"             '{
+              contents: [{role: "user", parts: [{text: $prompt}]}],
+              generationConfig: {
+                maxOutputTokens: $maxOutputTokens,
+                thinkingConfig: {thinkingLevel: $thinkingLevel}
+              }
+            }')
+
+          for attempt in 1 2 3 4 5; do
+            : > "$RESPONSE_FILE"
+            HTTP_STATUS=$(curl --silent --show-error               --connect-timeout 10               --max-time 90               --output "$RESPONSE_FILE"               --write-out '%{http_code}'               --request POST               --header "x-goog-api-key: $GEMINI_API_KEY"               --header "Content-Type: application/json"               --data "$REQUEST_BODY"               "$GEMINI_BASE_URL/v1beta/models/$GEMINI_MODEL:generateContent") || HTTP_STATUS=000
+
+            if [[ "$HTTP_STATUS" =~ ^2 ]] && jq -e               '[.candidates[]?.content.parts[]? | select(.thought != true) | .text?] | any(. != null and contains("FINWIZ_GEMINI_OK"))'               "$RESPONSE_FILE" >/dev/null; then
+              echo "Gemini preflight passed for $GEMINI_MODEL"
+              break
+            fi
+            if [[ "$attempt" -eq 5 ]]; then
+              echo "::error::Gemini production preflight failed with HTTP $HTTP_STATUS"
+              jq -r '.error.message // .' "$RESPONSE_FILE" || cat "$RESPONSE_FILE"
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+
+      - name: Verify Alpaca credentials and SPY snapshot
+        run: bash scripts/alpaca-preflight.sh
+
+      - name: Configure pinned SSH host identity
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Upload versioned production bundle
+        run: |
+          ARCHIVE="/tmp/stoxsim-production-${GITHUB_RUN_ID}.tgz"
+          tar -C deploy/production -czf "$ARCHIVE" .
+          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST" "mkdir -p '$REMOTE_DIR'"
+          scp -P "$SSH_PORT" "$ARCHIVE" "$PRODUCTION_USER@$PRODUCTION_HOST:$ARCHIVE"
+          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             "tar -xzf '$ARCHIVE' -C '$REMOTE_DIR' && rm '$ARCHIVE' && chmod +x '$REMOTE_DIR'/*.sh && test -f '$REMOTE_DIR'/.env"
+
+      - name: Synchronize provider credentials and settings
+        run: |
+          scp -P "$SSH_PORT"             .github/scripts/sync_staging_market_data_secrets.py             "$PRODUCTION_USER@$PRODUCTION_HOST:/tmp/sync_stoxsim_provider_secrets.py"
+          python3 - <<'PY' | ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             "python3 /tmp/sync_stoxsim_provider_secrets.py '$REMOTE_DIR/.env' && rm /tmp/sync_stoxsim_provider_secrets.py"
+          import json
+          import os
+
+          print(json.dumps({
+              "GEMINI_API_KEY": os.environ["GEMINI_API_KEY"],
+              "GEMINI_MODEL": os.environ["GEMINI_MODEL"],
+              "GEMINI_BASE_URL": os.environ["GEMINI_BASE_URL"],
+              "FINWIZ_AI_ENABLED": os.environ["FINWIZ_AI_ENABLED"],
+              "FINWIZ_MAX_QUESTION_CHARACTERS": os.environ["FINWIZ_MAX_QUESTION_CHARACTERS"],
+              "FINWIZ_MAX_OUTPUT_TOKENS": os.environ["FINWIZ_MAX_OUTPUT_TOKENS"],
+              "FINWIZ_THINKING_LEVEL": os.environ["FINWIZ_THINKING_LEVEL"],
+              "ALPACA_API_KEY_ID": os.environ["ALPACA_API_KEY_ID"],
+              "ALPACA_API_SECRET_KEY": os.environ["ALPACA_API_SECRET_KEY"],
+              "ALPACA_DATA_FEED": os.environ["ALPACA_DATA_FEED"],
+              "ALPACA_INSTRUMENT_SYNC_ON_STARTUP": os.environ["ALPACA_INSTRUMENT_SYNC_ON_STARTUP"],
+              "ALPACA_POLLING_ENABLED": os.environ["ALPACA_POLLING_ENABLED"],
+              "ALPACA_POLLING_INTERVAL_MILLIS": os.environ["ALPACA_POLLING_INTERVAL_MILLIS"],
+          }))
+          PY
+
+      - name: Authenticate production host to GHCR
+        run: |
+          printf '%s' "$GHCR_TOKEN" | ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+      - name: Deploy immutable production candidate
+        id: remote-deploy
+        run: |
+          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             "cd '$REMOTE_DIR' && ./deploy.sh '$IMAGE_TAG'"
+
+      - name: Run self-cleaning HTTPS production smoke checks
+        run: bash scripts/production-smoke.sh
+
+      - name: Capture production diagnostics
+        if: failure() && steps.remote-deploy.outcome == 'success'
+        run: |
+          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             "cd '$REMOTE_DIR' && docker compose --env-file .env -f compose.yml logs --no-color --tail=500 backend caddy | grep -Ei 'alpaca|gemini|finwiz|market data|exception|error|warn' || true"
+
+      - name: Roll back after external verification failure
+        if: failure() && steps.remote-deploy.outcome == 'success'
+        run: |
+          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             "cd '$REMOTE_DIR' && ./rollback.sh"
+
+      - name: Record deployed version
+        if: success()
+        run: |
+          echo "## Production deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image tag: $IMAGE_TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "Web: $PRODUCTION_WEB_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API: $PRODUCTION_API_URL" >> "$GITHUB_STEP_SUMMARY"

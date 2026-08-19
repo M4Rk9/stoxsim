@@ -15,3 +15,5 @@ frontend/test-results/
 frontend/blob-report/
 deploy/staging/backups/
 deploy/staging/.previous-image-tag
+deploy/production/backups/
+deploy/production/.previous-image-tag

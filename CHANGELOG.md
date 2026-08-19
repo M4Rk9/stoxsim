@@ -13,6 +13,7 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Multi-market paper trading for Indian and United States instruments.
 - Persistent watchlists, research pages, portfolio analytics, and trade history.
 - Private staging deployment with backups, restore, smoke testing, and verified rollback.
+- Public production deployment with automatic HTTPS, authenticated Redis, protected promotion workflows, off-host backup enforcement, production smoke testing, and automatic rollback.
 - Authenticated browser acceptance testing in CI.
 
 ### Security

@@ -1,0 +1,31 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$PRODUCTION_WWW_DOMAIN} {
+	redir https://{$PRODUCTION_WEB_DOMAIN}{uri} permanent
+}
+
+{$PRODUCTION_WEB_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	reverse_proxy frontend:3000
+}
+
+{$PRODUCTION_API_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	reverse_proxy backend:8080
+}
