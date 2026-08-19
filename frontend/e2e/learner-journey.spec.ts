@@ -13,8 +13,19 @@ async function registerLearner(page: Page, label: string) {
   await page.getByLabel("Display name").fill("Browser Learner");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
+  const registrationResponsePromise = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && response.url().endsWith("/api/v1/auth/register")
+  );
   await page.getByRole("button", { name: "Start Now!", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
+  const registrationResponse = await registrationResponsePromise;
+  if (!registrationResponse.ok()) {
+    throw new Error(
+      `Registration failed with ${registrationResponse.status()}: ${await registrationResponse.text()}`,
+    );
+  }
+  await expect(page.getByRole("heading", { name: "Good day, Browser." }))
+    .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
   return email;
 }
 
