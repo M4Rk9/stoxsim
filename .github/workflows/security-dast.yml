@@ -1,0 +1,59 @@
+name: Security DAST
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployed environment to scan
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-dast-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: Baseline scan (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select approved target
+        id: target
+        shell: bash
+        run: |
+          case "${{ inputs.environment }}" in
+            staging)
+              echo "web_url=https://staging.stoxsim.com" >> "$GITHUB_OUTPUT"
+              echo "api_url=https://api.staging.stoxsim.com" >> "$GITHUB_OUTPUT"
+              ;;
+            production)
+              echo "web_url=https://stoxsim.com" >> "$GITHUB_OUTPUT"
+              echo "api_url=https://api.stoxsim.com" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported environment" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Verify public security contract
+        run: |
+          bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"
+
+      - name: Run OWASP ZAP passive baseline
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: ${{ steps.target.outputs.web_url }}
+          allow_issue_writing: false
+          fail_action: true
+          cmd_options: -a
