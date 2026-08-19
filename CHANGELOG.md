@@ -7,6 +7,7 @@ All notable changes to StoxSim will be documented in this file. The project foll
 ### Added
 
 - Repository governance, dependency update automation, dependency review, and CodeQL scanning.
+- Email verification, enumeration-safe password recovery, active-session management, security-event history, account export, and permanent account deletion.
 - Multi-market paper trading for Indian and United States instruments.
 - Persistent watchlists, research pages, portfolio analytics, and trade history.
 - Private staging deployment with backups, restore, smoke testing, and verified rollback.
@@ -18,3 +19,5 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - JWT-authenticated STOMP connections.
 - Redis-backed endpoint rate limits.
 - Private vulnerability reporting policy and security ownership boundaries.
+- Single-use, time-limited verification and password-reset tokens.
+- All refresh sessions are revoked after password changes and resets.

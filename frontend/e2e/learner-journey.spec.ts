@@ -177,3 +177,25 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   await page.getByRole("link", { name: "Back to dashboard" }).click();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
 });
+
+
+test("account settings expose recovery, sessions and portable data", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "lifecycle");
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await page.getByRole("menuitem", { name: /Account settings/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Profile & security" })).toBeVisible();
+  await expect(page.getByText("Email verification pending")).toBeVisible();
+  await expect(page.getByText("This browser")).toBeVisible({ timeout: 15_000 });
+
+  const exportRequest = page.waitForRequest("**/api/v1/auth/me/export");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download account data" }).click();
+  await expect((await exportRequest).method()).toBe("POST");
+  await expect((await download).suggestedFilename()).toBe("stoxsim-account-export.json");
+
+  await page.getByRole("button", { name: "Log out all devices" }).click();
+  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+});

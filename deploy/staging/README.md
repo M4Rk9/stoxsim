@@ -113,3 +113,8 @@ docker compose --env-file .env -f compose.yml logs --tail=200 backend caddy
 ```
 
 The current image tag lives in `.env`; the immediately previous immutable tag lives in `.previous-image-tag`.
+
+
+## Account email delivery
+
+Configure the SMTP variables in `.env` before public registration. Verification and password-recovery links are single-use and are never written to logs.

@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.UUID;
 
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -15,6 +16,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.stoxsim.auth.config.AuthProperties;
 import com.stoxsim.auth.domain.AppUser;
@@ -25,6 +27,7 @@ import com.stoxsim.auth.repository.RefreshTokenRepository;
 public class TokenService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int MAX_USER_AGENT_LENGTH = 200;
 
     private final JwtEncoder jwtEncoder;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -41,7 +44,39 @@ public class TokenService {
     }
 
     public TokenPair issueTokenPair(AppUser user) {
-        Instant issuedAt = Instant.now();
+        return issueTokenPair(user, "Unknown device");
+    }
+
+    public TokenPair issueTokenPair(AppUser user, String userAgent) {
+        Instant now = Instant.now();
+        return createTokenPair(user, UUID.randomUUID(), now, userAgent, now);
+    }
+
+    public TokenPair rotateTokenPair(
+        AppUser user,
+        RefreshToken previous,
+        String userAgent
+    ) {
+        Instant now = Instant.now();
+        String resolvedAgent = StringUtils.hasText(userAgent)
+            ? userAgent
+            : previous.getUserAgent();
+        return createTokenPair(
+            user,
+            previous.getSessionId(),
+            previous.getSessionStartedAt(),
+            resolvedAgent,
+            now
+        );
+    }
+
+    private TokenPair createTokenPair(
+        AppUser user,
+        UUID sessionId,
+        Instant sessionStartedAt,
+        String userAgent,
+        Instant issuedAt
+    ) {
         Instant accessExpiry = issuedAt.plus(Duration.ofMinutes(properties.getAccessTokenMinutes()));
 
         var claims = JwtClaimsSet.builder()
@@ -51,6 +86,7 @@ public class TokenService {
             .expiresAt(accessExpiry)
             .claim("email", user.getEmail())
             .claim("displayName", user.getDisplayName())
+            .claim("emailVerified", user.isEmailVerified())
             .build();
 
         var header = JwsHeader.with(MacAlgorithm.HS256).build();
@@ -59,9 +95,15 @@ public class TokenService {
             .getTokenValue();
 
         String rawRefreshToken = generateRefreshToken();
-        String tokenHash = hash(rawRefreshToken);
         Instant refreshExpiry = issuedAt.plus(Duration.ofDays(properties.getRefreshTokenDays()));
-        refreshTokenRepository.save(new RefreshToken(user, tokenHash, refreshExpiry));
+        refreshTokenRepository.save(new RefreshToken(
+            user,
+            hash(rawRefreshToken),
+            refreshExpiry,
+            sessionId,
+            sessionStartedAt,
+            sanitizeUserAgent(userAgent)
+        ));
 
         return new TokenPair(
             accessToken,
@@ -84,6 +126,11 @@ public class TokenService {
         byte[] bytes = new byte[48];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String sanitizeUserAgent(String userAgent) {
+        String value = StringUtils.hasText(userAgent) ? userAgent.trim() : "Unknown device";
+        return value.substring(0, Math.min(value.length(), MAX_USER_AGENT_LENGTH));
     }
 
     public record TokenPair(

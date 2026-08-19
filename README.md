@@ -50,6 +50,16 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and company fundamentals. Set `
 - `GET /api/v1/auth/me`
 - `PATCH /api/v1/auth/me`
 - `PATCH /api/v1/auth/me/password`
+- `POST /api/v1/auth/email-verification/confirm`
+- `POST /api/v1/auth/email-verification/resend`
+- `POST /api/v1/auth/password/forgot`
+- `POST /api/v1/auth/password/reset`
+- `GET /api/v1/auth/sessions`
+- `DELETE /api/v1/auth/sessions/{sessionId}`
+- `POST /api/v1/auth/logout-all`
+- `GET /api/v1/auth/events`
+- `POST /api/v1/auth/me/export`
+- `DELETE /api/v1/auth/me`
 
 ### Instruments and market data
 
@@ -93,7 +103,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 
 - [Product definition](docs/PRODUCT.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [Authentication](docs/AUTHENTICATION.md)
+- [Authentication and account lifecycle](docs/AUTHENTICATION.md)
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)
 - [India paper-trading engine](docs/TRADING.md)

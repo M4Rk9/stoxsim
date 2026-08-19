@@ -11,6 +11,7 @@ public record UserResponse(
     UUID id,
     String email,
     String displayName,
+    boolean emailVerified,
     Instant createdAt,
     List<AccountResponse> accounts
 ) {
@@ -19,6 +20,7 @@ public record UserResponse(
             user.getId(),
             user.getEmail(),
             user.getDisplayName(),
+            user.isEmailVerified(),
             user.getCreatedAt(),
             accounts.stream().map(AccountResponse::from).toList()
         );
