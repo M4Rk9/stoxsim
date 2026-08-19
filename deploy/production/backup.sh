@@ -77,6 +77,9 @@ else
   echo "WARNING: backup exists only on this host." >&2
 fi
 
-find "$BACKUP_DIR" -maxdepth 1 -type f   $( -name 'stoxsim-production-*.dump' -o -name 'stoxsim-production-*.dump.sha256' $)   -mtime "+${RETENTION_DAYS}" -delete
+find "$BACKUP_DIR" -maxdepth 1 -type f -name 'stoxsim-production-*.dump' \
+  -mtime "+${RETENTION_DAYS}" -delete
+find "$BACKUP_DIR" -maxdepth 1 -type f -name 'stoxsim-production-*.dump.sha256' \
+  -mtime "+${RETENTION_DAYS}" -delete
 
 echo "Production backup completed and checksum verified"
