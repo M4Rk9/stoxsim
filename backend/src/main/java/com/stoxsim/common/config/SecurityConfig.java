@@ -9,8 +9,12 @@ import javax.crypto.spec.SecretKeySpec;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.stoxsim.auth.config.AuthProperties;
+import com.stoxsim.common.ratelimit.ApiRateLimitFilter;
+import com.stoxsim.common.ratelimit.RateLimitProperties;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,6 +28,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -39,7 +44,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ApiRateLimitFilter rateLimitFilter) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
@@ -61,6 +66,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
+            .addFilterAfter(rateLimitFilter, BearerTokenAuthenticationFilter.class)
             .build();
     }
 
@@ -91,12 +97,35 @@ public class SecurityConfig {
     }
 
     @Bean
+    ApiRateLimitFilter apiRateLimitFilter(
+        StringRedisTemplate redisTemplate,
+        RateLimitProperties properties
+    ) {
+        return new ApiRateLimitFilter(redisTemplate, properties);
+    }
+
+    @Bean
+    FilterRegistrationBean<ApiRateLimitFilter> rateLimitFilterRegistration(
+        ApiRateLimitFilter filter
+    ) {
+        var registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     CorsConfigurationSource corsConfigurationSource() {
         var configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(frontendUrl));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of(
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+            "Retry-After"
+        ));
 
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

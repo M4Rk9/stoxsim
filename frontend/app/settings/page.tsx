@@ -24,7 +24,6 @@ interface User {
 
 interface StoredSession {
   accessToken: string;
-  refreshToken: string;
   expiresInSeconds: number;
   user: User;
 }
@@ -37,7 +36,7 @@ class ApiError extends Error {
 
 function readSession(): StoredSession | null {
   try {
-    const value = window.localStorage.getItem("stoxsim-session");
+    const value = window.sessionStorage.getItem("stoxsim-session");
     return value ? JSON.parse(value) as StoredSession : null;
   } catch {
     return null;
@@ -50,6 +49,7 @@ async function request<T>(
   token?: string,
 ): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
+    credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -94,7 +94,7 @@ export default function SettingsPage() {
   }, []);
 
   function persist(next: StoredSession) {
-    window.localStorage.setItem("stoxsim-session", JSON.stringify(next));
+    window.sessionStorage.setItem("stoxsim-session", JSON.stringify(next));
     setSession(next);
   }
 
@@ -107,7 +107,7 @@ export default function SettingsPage() {
       if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
       const refreshed = await request<StoredSession>("/api/v1/auth/refresh", {
         method: "POST",
-        body: JSON.stringify({ refreshToken: active.refreshToken }),
+        credentials: "include",
       });
       persist(refreshed);
       return request<T>(path, options, refreshed.accessToken);

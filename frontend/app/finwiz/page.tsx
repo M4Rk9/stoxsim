@@ -12,7 +12,6 @@ type ExperienceLevel = "BEGINNER" | "INTERMEDIATE";
 
 interface StoredSession {
   accessToken: string;
-  refreshToken: string;
   expiresInSeconds: number;
   user: {
     displayName: string;
@@ -39,7 +38,7 @@ class ApiError extends Error {
 
 function readSession(): StoredSession | null {
   try {
-    const value = window.localStorage.getItem("stoxsim-session");
+    const value = window.sessionStorage.getItem("stoxsim-session");
     return value ? JSON.parse(value) as StoredSession : null;
   } catch {
     return null;
@@ -110,6 +109,7 @@ export default function FinwizPage() {
     if (!active) throw new ApiError("Please sign in again", 401);
 
     let response = await fetch(`${API_URL}${path}`, {
+      credentials: "include",
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -120,18 +120,18 @@ export default function FinwizPage() {
     if (response.status !== 401) return response;
 
     const refresh = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+      credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: active.refreshToken }),
     });
     if (!refresh.ok) {
-      window.localStorage.removeItem("stoxsim-session");
+      window.sessionStorage.removeItem("stoxsim-session");
       throw new ApiError("Your session expired. Please sign in again.", 401);
     }
 
     const refreshed = await refresh.json() as StoredSession;
     active = refreshed;
-    window.localStorage.setItem("stoxsim-session", JSON.stringify(refreshed));
+    window.sessionStorage.setItem("stoxsim-session", JSON.stringify(refreshed));
     setSession(refreshed);
 
     return fetch(`${API_URL}${path}`, {

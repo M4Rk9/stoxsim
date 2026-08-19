@@ -37,6 +37,15 @@ stoxsim:
     jwt-secret: ${JWT_SECRET:local-development-only-change-this-secret-2026}
     access-token-minutes: 15
     refresh-token-days: 30
+    cookie-secure: ${AUTH_COOKIE_SECURE:false}
+  security:
+    rate-limit:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      general-per-minute: ${RATE_LIMIT_GENERAL_PER_MINUTE:300}
+      auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:20}
+      refresh-per-minute: ${RATE_LIMIT_REFRESH_PER_MINUTE:60}
+      finwiz-per-minute: ${RATE_LIMIT_FINWIZ_PER_MINUTE:15}
+      writes-per-minute: ${RATE_LIMIT_WRITES_PER_MINUTE:120}
   accounts:
     india-starting-balance: 500000.00
     united-states-starting-balance: 10000.00
