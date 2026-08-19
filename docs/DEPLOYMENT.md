@@ -107,17 +107,22 @@ A single Lightsail host is an intentional public-beta tradeoff, not the long-ter
 
 ## Monitoring and alerts
 
+Production exports token-protected Prometheus metrics and structured ECS JSON logs with an `X-Request-ID` correlation value. Caddy blocks the metrics endpoint from public access. The production bundle provisions Prometheus, Alertmanager, Blackbox Exporter, Node Exporter and a Grafana operations dashboard on localhost-only ports.
+
 Alert on:
 
-- readiness or liveness failures
-- PostgreSQL or Redis connection failures
-- Flyway migration failures
+- readiness, liveness or external HTTPS probe failures
+- elevated HTTP 5xx rate or p95 API latency
+- PostgreSQL pool saturation or Redis-backed rate limiting failing open
 - Upstox disconnects and exhausted reconnect attempts
+- elevated Alpaca, Gemini or other provider failures
 - quotes older than the configured stale threshold
 - instrument synchronization failures before market open
-- elevated authentication failures and HTTP 5xx responses
+- low host memory or disk space
 
-Application logs must not contain access tokens, JWT secrets, passwords or full authorization headers.
+The public-beta targets are 99.5% monthly availability, p95 API latency below two seconds, a two-hour recovery-time objective and a 24-hour recovery-point objective. Follow the [production operations and incident-response runbook](OPERATIONS.md) for access, alert triage, log rotation, severity, recovery and review.
+
+Application logs must not contain access tokens, JWT secrets, passwords, reset or verification tokens, full authorization headers, request bodies or email addresses.
 
 ## Market-data permission
 

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -48,20 +50,29 @@ public class FinwizService {
 
     private final FinwizProperties properties;
     private final FinwizContextService contexts;
+    private final MeterRegistry meterRegistry;
     private final RestClient client;
 
     public FinwizService(
         FinwizProperties properties,
-        FinwizContextService contexts
+        FinwizContextService contexts,
+        MeterRegistry meterRegistry
     ) {
         this.properties = properties;
         this.contexts = contexts;
+        this.meterRegistry = meterRegistry;
         this.client = RestClient.builder()
             .baseUrl(properties.getBaseUrl())
             .build();
     }
 
     public FinwizResponse ask(FinwizRequest request) {
+        return meterRegistry.timer("stoxsim.finwiz.latency").record(
+            () -> askObserved(request)
+        );
+    }
+
+    private FinwizResponse askObserved(FinwizRequest request) {
         String question = request.question().trim();
         if (question.length() > properties.getMaxQuestionCharacters()) {
             throw new ResponseStatusException(
@@ -72,6 +83,13 @@ public class FinwizService {
 
         ContextSnapshot context = contexts.build(request);
         if (!properties.isEnabled() || !properties.hasApiKey()) {
+            meterRegistry.counter(
+                "stoxsim.finwiz.responses",
+                "provider",
+                "fallback",
+                "result",
+                "not_configured"
+            ).increment();
             return fallback(request, context, question);
         }
 
@@ -87,6 +105,13 @@ public class FinwizService {
             if (answer == null || answer.isBlank()) {
                 throw new IllegalStateException("Gemini response contained no output text: " + responseSummary(root));
             }
+            meterRegistry.counter(
+                "stoxsim.finwiz.responses",
+                "provider",
+                "gemini",
+                "result",
+                "success"
+            ).increment();
             return response(
                 answer.trim(),
                 "GEMINI",
@@ -95,6 +120,13 @@ public class FinwizService {
                 suggestions(request.topic())
             );
         } catch (RestClientResponseException exception) {
+            meterRegistry.counter(
+                "stoxsim.finwiz.responses",
+                "provider",
+                "fallback",
+                "result",
+                "provider_http_error"
+            ).increment();
             LOGGER.warn(
                 "Gemini request for Finwiz AI failed with HTTP {}: {}; using educational fallback",
                 exception.getStatusCode().value(),
@@ -102,6 +134,13 @@ public class FinwizService {
             );
             return fallback(request, context, question);
         } catch (RestClientException | IllegalStateException exception) {
+            meterRegistry.counter(
+                "stoxsim.finwiz.responses",
+                "provider",
+                "fallback",
+                "result",
+                "provider_error"
+            ).increment();
             LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback: {}", exception.getMessage());
             return fallback(request, context, question);
         }

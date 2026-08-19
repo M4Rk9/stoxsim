@@ -5,6 +5,8 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,7 @@ public class OrderApplicationService {
     private final ChargeCalculator charges;
     private final OrderSettlementService settlement;
     private final ApplicationEventPublisher events;
+    private final MeterRegistry meterRegistry;
 
     public OrderApplicationService(
         VirtualAccountRepository accounts,
@@ -58,7 +61,8 @@ public class OrderApplicationService {
         ExecutionPriceCalculator prices,
         ChargeCalculator charges,
         OrderSettlementService settlement,
-        ApplicationEventPublisher events
+        ApplicationEventPublisher events,
+        MeterRegistry meterRegistry
     ) {
         this.accounts = accounts;
         this.instruments = instruments;
@@ -70,6 +74,7 @@ public class OrderApplicationService {
         this.charges = charges;
         this.settlement = settlement;
         this.events = events;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
@@ -153,6 +158,17 @@ public class OrderApplicationService {
         if (order.isOpen()) {
             events.publishEvent(new OrderOpenedEvent(key(order)));
         }
+        meterRegistry.counter(
+            "stoxsim.orders.accepted",
+            "market",
+            request.marketRegion().name(),
+            "side",
+            request.side().name(),
+            "type",
+            request.orderType().name(),
+            "status",
+            order.getStatus().name()
+        ).increment();
         return OrderResponse.from(order);
     }
 

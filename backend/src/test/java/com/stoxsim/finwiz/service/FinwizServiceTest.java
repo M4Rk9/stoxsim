@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,7 +54,7 @@ class FinwizServiceTest {
         );
         when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
 
-        var response = new FinwizService(properties, contexts).ask(request);
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry()).ask(request);
 
         assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
         assertThat(response.answer()).contains("Operating cash flow");
@@ -92,7 +94,7 @@ class FinwizServiceTest {
         );
         when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
 
-        var response = new FinwizService(properties, contexts).ask(request);
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry()).ask(request);
 
         assertThat(response.provider()).isEqualTo("GEMINI");
         assertThat(response.model()).isEqualTo("gemini-3.6-flash");
@@ -121,7 +123,7 @@ class FinwizServiceTest {
         );
         when(contexts.build(request)).thenReturn(context);
 
-        var response = new FinwizService(properties, contexts).ask(request);
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry()).ask(request);
 
         assertThat(response.answer()).contains("What the verified StoxSim data says");
         assertThat(response.answer()).contains("lastPrice=100.00");
@@ -141,7 +143,7 @@ class FinwizServiceTest {
             null
         );
 
-        assertThatThrownBy(() -> new FinwizService(properties, contexts).ask(request))
+        assertThatThrownBy(() -> new FinwizService(properties, contexts, new SimpleMeterRegistry()).ask(request))
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Question is too long");
     }

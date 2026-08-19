@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -38,13 +40,16 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
 
     private final StringRedisTemplate redisTemplate;
     private final RateLimitProperties properties;
+    private final MeterRegistry meterRegistry;
 
     public ApiRateLimitFilter(
         StringRedisTemplate redisTemplate,
-        RateLimitProperties properties
+        RateLimitProperties properties,
+        MeterRegistry meterRegistry
     ) {
         this.redisTemplate = redisTemplate;
         this.properties = properties;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -70,6 +75,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         try {
             count = increment(key);
         } catch (RuntimeException exception) {
+            meterRegistry.counter("stoxsim.rate_limit.storage_failures").increment();
             LOGGER.warn("Rate-limit storage is unavailable; allowing request", exception);
             filterChain.doFilter(request, response);
             return;
@@ -82,6 +88,11 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Reset", String.valueOf(resetAt));
 
         if (count > policy.limit()) {
+            meterRegistry.counter(
+                "stoxsim.rate_limit.rejections",
+                "policy",
+                policy.name()
+            ).increment();
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(WINDOW_SECONDS));
             response.setContentType("application/json");

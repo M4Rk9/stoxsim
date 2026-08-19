@@ -112,11 +112,12 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Testing and acceptance](docs/TESTING.md)
 - [Private staging operations](deploy/staging/README.md)
 - [Public production operations](deploy/production/README.md)
+- [Production operations and incident response](docs/OPERATIONS.md)
 - [Production deployment](docs/DEPLOYMENT.md)
 
 ## Current milestone
 
-The release candidate includes public legal disclosures, enforceable versioned registration consent and a fail-closed market-data permission gate. The India learning journey includes persistent watchlists, real-time WebSocket updates, previous-close index moves, NIFTY 100 market movers, dedicated stock research pages, editable account settings, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. Provider-neutral staging and public-production bundles add automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, encrypted off-host backup support, immutable-image deployment, protected release workflows and verified rollback.
+The release candidate includes public legal disclosures, enforceable versioned registration consent and a fail-closed market-data permission gate. The India learning journey includes persistent watchlists, real-time WebSocket updates, previous-close index moves, NIFTY 100 market movers, dedicated stock research pages, editable account settings, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. Provider-neutral staging and public-production bundles add automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, encrypted off-host backup support, immutable-image deployment, protected release workflows and verified rollback. Production observability adds structured request-correlated logs, private Prometheus metrics, a Grafana dashboard, Resend incident alerts, independent uptime checks and a public status page.
 
 ## License
 

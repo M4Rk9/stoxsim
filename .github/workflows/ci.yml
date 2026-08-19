@@ -44,11 +44,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate deployment scripts
-        run: bash -n deploy/staging/*.sh deploy/production/*.sh scripts/staging-smoke.sh scripts/production-smoke.sh
+        run: |
+          bash -n deploy/staging/*.sh deploy/production/*.sh scripts/staging-smoke.sh scripts/production-smoke.sh
+          python3 -m py_compile deploy/production/render-monitoring-config.py
       - name: Validate staging Compose interpolation
         run: docker compose --env-file deploy/staging/.env.example -f deploy/staging/compose.yml config --quiet
+      - name: Render non-secret monitoring fixtures
+        run: |
+          cp deploy/production/.env.example deploy/production/.env
+          python3 deploy/production/render-monitoring-config.py
       - name: Validate production Compose interpolation
         run: docker compose --env-file deploy/production/.env.example -f deploy/production/compose.yml config --quiet
+      - name: Validate monitoring configuration
+        run: |
+          docker run --rm --entrypoint /bin/promtool \
+            -v "$PWD/deploy/production/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/deploy/production/monitoring/rules.yml:/etc/prometheus/rules.yml:ro" \
+            -v "$PWD/deploy/production/monitoring/metrics-scrape-token:/run/secrets/metrics-scrape-token:ro" \
+            prom/prometheus:v3.14.0 \
+            check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/amtool \
+            -v "$PWD/deploy/production/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \
+            prom/alertmanager:v0.34.0 \
+            check-config /etc/alertmanager/alertmanager.yml
+          jq empty deploy/production/monitoring/grafana/dashboards/stoxsim-production.json
       - name: Validate staging Caddy configuration
         run: |
           docker run --rm \
@@ -66,6 +85,12 @@ jobs:
             -e PRODUCTION_WWW_DOMAIN=www.stoxsim.test \
             -v "$PWD/deploy/production/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+      - name: Remove rendered monitoring fixtures
+        if: always()
+        run: |
+          rm -f deploy/production/.env
+          rm -f deploy/production/monitoring/alertmanager.yml
+          rm -f deploy/production/monitoring/metrics-scrape-token
 
   browser-acceptance:
     needs: [backend, frontend, staging-bundle]

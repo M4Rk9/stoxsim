@@ -4,22 +4,36 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import io.micrometer.core.instrument.MeterRegistry;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
+    private final MeterRegistry meterRegistry;
+
+    public ApiExceptionHandler(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
+
     @ExceptionHandler(ConflictException.class)
     ResponseEntity<ApiError> handleConflict(ConflictException exception) {
+        recordError(HttpStatus.CONFLICT, "conflict");
         return response(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     ResponseEntity<ApiError> handleUnauthorized(UnauthorizedException exception) {
+        recordError(HttpStatus.UNAUTHORIZED, "unauthorized");
         return response(HttpStatus.UNAUTHORIZED, exception.getMessage(), Map.of());
     }
 
@@ -28,7 +42,42 @@ public class ApiExceptionHandler {
         Map<String, String> fields = new LinkedHashMap<>();
         exception.getBindingResult().getFieldErrors()
             .forEach(error -> fields.putIfAbsent(error.getField(), error.getDefaultMessage()));
+        recordError(HttpStatus.BAD_REQUEST, "validation");
         return response(HttpStatus.BAD_REQUEST, "Request validation failed", fields);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException exception) {
+        HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+        recordError(status, "response_status");
+        String message = exception.getReason() == null
+            ? status.getReasonPhrase()
+            : exception.getReason();
+        return response(status, message, Map.of());
+    }
+
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ApiError> handleUnexpected(Exception exception) {
+        recordError(HttpStatus.INTERNAL_SERVER_ERROR, "unhandled");
+        LOGGER.error(
+            "Unhandled API exception: type={}",
+            exception.getClass().getName()
+        );
+        return response(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "An unexpected error occurred. Use the X-Request-ID response header when contacting support.",
+            Map.of()
+        );
+    }
+
+    private void recordError(HttpStatus status, String category) {
+        meterRegistry.counter(
+            "stoxsim.api.errors",
+            "status",
+            String.valueOf(status.value()),
+            "category",
+            category
+        ).increment();
     }
 
     private ResponseEntity<ApiError> response(

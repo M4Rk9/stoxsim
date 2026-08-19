@@ -1,0 +1,44 @@
+name: Production uptime
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    if: github.event_name == 'workflow_dispatch' || vars.PRODUCTION_UPTIME_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify public web and API
+        env:
+          WEB_URL: https://stoxsim.com
+          API_URL: https://api.stoxsim.com
+        run: |
+          set -Eeuo pipefail
+          headers=$(mktemp)
+          trap 'rm -f "$headers"' EXIT
+
+          curl --fail --silent --show-error             --retry 4 --retry-all-errors --retry-delay 5             --connect-timeout 10 --max-time 30             "$WEB_URL" | grep -Fq "StoxSim"
+
+          readiness=$(curl --fail --silent --show-error             --retry 4 --retry-all-errors --retry-delay 5             --connect-timeout 10 --max-time 30             --dump-header "$headers"             "$API_URL/actuator/health/readiness")
+          jq -e '.status == "UP"' <<<"$readiness" >/dev/null
+          grep -Eiq '^x-request-id: [A-Za-z0-9._-]{8,128}' "$headers"
+
+          status=$(curl --fail --silent --show-error             --connect-timeout 10 --max-time 30             "$API_URL/api/v1/system/status")
+          jq -e '.status == "UP"' <<<"$status" >/dev/null
+
+      - name: Verify private metrics remain private
+        env:
+          API_URL: https://api.stoxsim.com
+        run: |
+          code=$(curl --silent --show-error             --output /dev/null --write-out '%{http_code}'             --connect-timeout 10 --max-time 30             "$API_URL/actuator/prometheus")
+          [[ "$code" == "404" ]]

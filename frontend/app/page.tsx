@@ -1014,6 +1014,7 @@ export default function Home() {
             <a href="/privacy">Privacy</a>
             <a href="/cookies">Cookies</a>
             <a href="/disclaimer">Risk disclaimer</a>
+            <a href="/status">Status</a>
           </nav>
         </footer>
       </main>
@@ -1186,6 +1187,7 @@ export default function Home() {
           <a href="/privacy">Privacy</a>
           <a href="/cookies">Cookies</a>
           <a href="/disclaimer">Risk disclaimer</a>
+            <a href="/status">Status</a>
         </nav>
         <span>Quotes may be live, stale or unavailable. Not investment advice.</span>
       </footer>

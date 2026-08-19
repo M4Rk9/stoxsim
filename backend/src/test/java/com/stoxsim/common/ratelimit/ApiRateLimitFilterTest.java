@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -47,7 +49,7 @@ class ApiRateLimitFilterTest {
         long count,
         RateLimitProperties properties
     ) {
-        return new ApiRateLimitFilter(null, properties) {
+        return new ApiRateLimitFilter(null, properties, new SimpleMeterRegistry()) {
             @Override
             long increment(String key) {
                 return count;
