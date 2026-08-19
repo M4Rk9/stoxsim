@@ -27,5 +27,8 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-Server
 	}
+	@private_metrics path /actuator/prometheus
+	respond @private_metrics 404
+
 	reverse_proxy backend:8080
 }
