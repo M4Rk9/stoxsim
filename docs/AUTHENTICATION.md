@@ -20,6 +20,12 @@
 | POST | `/api/v1/auth/logout-all` | Bearer access token |
 | GET | `/api/v1/auth/events` | Bearer access token |
 
+## Registration consent
+
+Registration requires `termsAccepted: true`. The API rejects missing or false acceptance even if a client bypasses the browser checkbox. Each new account stores `terms_accepted_at`, `terms_version`, and `privacy_version`; the account export includes those fields. Existing private-staging accounts remain valid and may have null acceptance fields.
+
+Changing a legal document version requires updating both the public page effective date and `LegalDocumentVersions`. If the change is material, add a signed-in re-acceptance flow before public deployment rather than silently treating earlier consent as current.
+
 ## Token boundaries
 
 - Access tokens are HS256 JWTs with a 15-minute lifetime and remain in tab-scoped `sessionStorage`.
@@ -47,6 +53,6 @@ Account registration, sign-in, sign-out, verification, recovery, profile/passwor
 
 ## Export and deletion
 
-The export endpoint returns JSON containing the profile, virtual accounts, holdings, orders, trades, ledger entries, watchlists, and recent security events. It never includes password hashes or authentication tokens.
+The export endpoint returns JSON containing the profile (including legal-acceptance timestamp and versions), virtual accounts, holdings, orders, trades, ledger entries, watchlists, and recent security events. It never includes password hashes or authentication tokens.
 
 Confirmed deletion permanently removes the user and all user-owned simulator data through database cascades. The security-event rows are detached from the deleted user and identifying detail is cleared, retaining only anonymous event type and time for operational integrity.
