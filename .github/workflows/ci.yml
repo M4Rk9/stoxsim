@@ -57,11 +57,11 @@ jobs:
         run: docker compose --env-file deploy/production/.env.example -f deploy/production/compose.yml config --quiet
       - name: Validate monitoring configuration
         run: |
-          docker run --rm \
+          docker run --rm --entrypoint /bin/promtool \
             -v "$PWD/deploy/production/monitoring:/etc/prometheus:ro" \
             -v "$PWD/deploy/production/monitoring/metrics-scrape-token:/run/secrets/metrics-scrape-token:ro" \
             prom/prometheus:v3.14.0 \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml
           docker run --rm --entrypoint /bin/amtool \
             -v "$PWD/deploy/production/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \
             prom/alertmanager:v0.34.0 \
