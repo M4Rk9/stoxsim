@@ -1,0 +1,111 @@
+name: Performance and recovery verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run only the load baseline, or include the guarded staging database restore drill
+        required: true
+        default: load-only
+        type: choice
+        options:
+          - load-only
+          - load-and-restore
+      restore_confirmation:
+        description: For load-and-restore, type exactly replace-staging-database
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stoxsim-private-staging
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+      STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+      STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      STAGING_PORT: ${{ secrets.STAGING_PORT || '22' }}
+      STAGING_USER: ${{ secrets.STAGING_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+      REMOTE_DIR: ${{ vars.STAGING_REMOTE_DIR || 'stoxsim-staging' }}
+      RESTORE_CONFIRMATION: ${{ inputs.restore_confirmation }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate protected verification configuration
+        shell: bash
+        run: |
+          [[ "$STAGING_API_URL" == https://* ]]
+          [[ "$STAGING_WEB_URL" == https://* ]]
+          [[ "$STAGING_PORT" =~ ^[0-9]+$ ]]
+          [[ "$REMOTE_DIR" =~ ^[A-Za-z0-9._/-]+$ ]]
+          if [[ "${{ inputs.mode }}" == "load-and-restore" ]]; then
+            [[ "$RESTORE_CONFIRMATION" == "replace-staging-database" ]] || {
+              echo "::error::Type replace-staging-database to authorize the staging restore drill"
+              exit 1
+            }
+            : "${STAGING_HOST:?Set the STAGING_HOST environment secret}"
+            : "${STAGING_USER:?Set the STAGING_USER environment secret}"
+            : "${SSH_PRIVATE_KEY:?Set the STAGING_SSH_PRIVATE_KEY environment secret}"
+            : "${SSH_KNOWN_HOSTS:?Set the STAGING_SSH_KNOWN_HOSTS environment secret}"
+          fi
+
+      - name: Run bounded authenticated load baseline
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          docker run --rm --pull=always --network host \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            -e STAGING_API_URL \
+            -e STAGING_WEB_URL \
+            grafana/k6:2.2.0 \
+            run --summary-export=/work/artifacts/k6-summary.json /work/scripts/staging-load.mjs
+
+      - name: Configure pinned SSH host identity
+        if: inputs.mode == 'load-and-restore'
+        shell: bash
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Run guarded staging backup and restore drill
+        if: inputs.mode == 'load-and-restore'
+        env:
+          EVIDENCE_FILE: artifacts/restore-evidence.txt
+        run: bash scripts/staging-recovery-drill.sh
+
+      - name: Upload Milestone 7 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: milestone-7-performance-recovery-${{ github.run_id }}
+          path: artifacts
+          if-no-files-found: warn
+
+      - name: Record verification result
+        if: always()
+        shell: bash
+        run: |
+          echo "## Milestone 7 verification" >> "$GITHUB_STEP_SUMMARY"
+          echo "Mode: \`${{ inputs.mode }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: \`${{ job.status }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Load profile: 4 virtual users for 3 minutes" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ inputs.mode }}" == "load-and-restore" ]]; then
+            echo "Restore drill: guarded staging replacement with marker recovery" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Restore drill: not run" >> "$GITHUB_STEP_SUMMARY"
+          fi
