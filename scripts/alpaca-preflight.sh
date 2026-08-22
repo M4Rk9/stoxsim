@@ -14,11 +14,17 @@ AUTH_HEADERS=(
 )
 
 curl --fail-with-body --silent --show-error \
+  --retry 5 \
+  --retry-delay 2 \
+  --retry-max-time 90 \
   "${AUTH_HEADERS[@]}" \
   "https://paper-api.alpaca.markets/v2/assets/SPY" \
   -o "$TMP_DIR/asset.json"
 
 curl --fail-with-body --silent --show-error \
+  --retry 5 \
+  --retry-delay 2 \
+  --retry-max-time 90 \
   "${AUTH_HEADERS[@]}" \
   "https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY&feed=${ALPACA_DATA_FEED}" \
   -o "$TMP_DIR/snapshot.json"
