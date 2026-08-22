@@ -23,7 +23,7 @@ The Security DAST workflow only accepts the repository's approved staging or pro
 For staging:
 
 1. Deploy the exact candidate commit to staging.
-2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The authorization exercise requires the authoritative Alpaca clock to report the market open and both temporary orders to execute, so holdings, portfolio and ledger isolation are tested with real owner data.
+2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The workflow queries Alpaca's clock once with environment-scoped credentials; it does not expose that provider call through a learner API. Both temporary orders must execute so holdings, portfolio and ledger isolation are tested with real owner data.
 3. Select **staging**.
 4. Confirm the security smoke contract passes:
    - HTTPS security headers are present;
@@ -32,7 +32,8 @@ For staging:
    - authentication responses are marked no-store;
    - an untrusted CORS origin is not reflected.
 5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
-6. Confirm the automated two-user authorization exercise passes: both temporary orders must execute, both learners must have non-empty holdings and ledger data, and neither learner may read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise verifies deletion of both temporary accounts on exit.
+6. Confirm the public-port audit reports only TCP 80 and 443 open. TCP 22, 3000, 3001, 5432, 6379, 8080, 9090 and 9093 must be closed or filtered from the GitHub-hosted runner.
+7. Confirm the automated two-user authorization exercise passes: both temporary orders must execute, both learners must have non-empty holdings and ledger data, and neither learner may read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise verifies deletion of both temporary accounts on exit.
 
 After production deployment, repeat the workflow with **production** before enabling public announcements.
 
@@ -51,7 +52,7 @@ The other INFO entries cover documented framework behavior or non-security metad
 
 On the deployment host and in the Lightsail firewall:
 
-- expose TCP 80 and 443 publicly; expose UDP 443 only when HTTP/3 is desired;
+- expose TCP 80 and 443 publicly; expose UDP 443 only when HTTP/3 is desired. The Security DAST workflow automatically verifies the TCP contract against the environment's `STAGING_HOST` or `PRODUCTION_HOST` secret;
 - restrict TCP 22 to the administrator's current IP or an approved management network;
 - do not expose 3000, 3001, 5432, 6379, 8080, 9090, or 9093;
 - confirm Grafana, Prometheus, and Alertmanager listen only on 127.0.0.1;

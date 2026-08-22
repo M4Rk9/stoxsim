@@ -7,7 +7,12 @@ if [[ -z "$API_URL" ]]; then
   exit 2
 fi
 API_URL="${API_URL%/}"
-ALLOW_MARKET_CLOSED_SKIP="${ALLOW_MARKET_CLOSED_SKIP:-false}"
+AUTHORITATIVE_MARKET_OPEN="${AUTHORITATIVE_MARKET_OPEN:-false}"
+
+if [[ "$AUTHORITATIVE_MARKET_OPEN" != "true" ]]; then
+  echo "::error::Authorization isolation requires a protected authoritative market-open preflight" >&2
+  exit 1
+fi
 
 TMP_DIR=$(mktemp -d)
 RUN_ID="$(date +%s)-${RANDOM}-${RANDOM}"
@@ -188,25 +193,10 @@ echo "Registering two isolated staging learners"
 register_user A "$EMAIL_A" "$TMP_DIR/register-a.json"
 TOKEN_A=$(jq -er '.accessToken' "$TMP_DIR/register-a.json")
 
-expect_success "Read authoritative US market clock" "$TOKEN_A" GET "/api/v1/market/status/united-states/authoritative" "$TMP_DIR/authoritative-market-clock.json"
-if ! jq -e '.open == true' "$TMP_DIR/authoritative-market-clock.json" >/dev/null; then
-  next_open=$(jq -r '.nextOpen // "unknown"' "$TMP_DIR/authoritative-market-clock.json")
-  if [[ "$ALLOW_MARKET_CLOSED_SKIP" == "true" ]]; then
-    echo "::warning::Skipping authorization holdings and ledger isolation because Alpaca reports the US market closed; next open is ${next_open}"
-    exit 0
-  fi
-  echo "::error::Authorization holdings and ledger isolation requires Alpaca to report the US market open; next open is ${next_open}" >&2
-  exit 1
-fi
-
 expect_success "Read US market session" "$TOKEN_A" GET "/api/v1/market/status?exchange=NASDAQ" "$TMP_DIR/market-status.json"
 if ! jq -e '.phase == "REGULAR"' "$TMP_DIR/market-status.json" >/dev/null; then
   phase=$(jq -r '.phase // "UNKNOWN"' "$TMP_DIR/market-status.json")
   next_transition=$(jq -r '.nextTransition // "unknown"' "$TMP_DIR/market-status.json")
-  if [[ "$ALLOW_MARKET_CLOSED_SKIP" == "true" ]]; then
-    echo "::warning::Skipping authorization holdings and ledger isolation because the US market session is ${phase}; next transition is ${next_transition}"
-    exit 0
-  fi
   echo "::error::Authorization holdings and ledger isolation must run during the regular US session; current phase is ${phase}, next transition is ${next_transition}" >&2
   exit 1
 fi
