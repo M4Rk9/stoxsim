@@ -32,7 +32,7 @@ For staging:
    - authentication responses are marked no-store;
    - an untrusted CORS origin is not reflected.
 5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
-6. Confirm the complete TCP 1–65535 port audit reports only TCP 80 and 443 open. The environment's configured SSH port and every application, database, cache or monitoring listener must be closed or filtered from the GitHub-hosted runner.
+6. Confirm the complete TCP 1–65535 port audit reports exactly TCP 80, 443, and the environment's configured deployment SSH port open. The GitHub-hosted deployment runner requires that SSH path. Every application, database, cache, monitoring, and other listener must remain closed or filtered.
 7. Confirm the automated two-user authorization exercise passes: both temporary orders must execute, both learners must have non-empty holdings and ledger data, and neither learner may read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise verifies deletion of both temporary accounts on exit.
 
 After production deployment, repeat the workflow with **production** before enabling public announcements.
@@ -53,7 +53,8 @@ The other INFO entries cover documented framework behavior or non-security metad
 On the deployment host and in the Lightsail firewall:
 
 - expose TCP 80 and 443 publicly; expose UDP 443 only when HTTP/3 is desired. The Security DAST workflow automatically verifies the TCP contract against the environment's `STAGING_HOST` or `PRODUCTION_HOST` secret;
-- restrict TCP 22 to the administrator's current IP or an approved management network;
+- under the current GitHub-hosted deployment architecture, expose only the configured deployment SSH port in addition to 80/443. Use a dedicated non-root deploy user and key, disable SSH password authentication and root login, pin the server host key in GitHub, and never reuse the deploy key;
+- when deployment moves to a private management network, AWS Systems Manager, or a self-hosted runner with a stable source address, remove unrestricted public SSH and allow it only from that management path;
 - do not expose 3000, 3001, 5432, 6379, 8080, 9090, or 9093;
 - confirm Grafana, Prometheus, and Alertmanager listen only on 127.0.0.1;
 - use unique random values for database, Redis, JWT, metrics, and Grafana credentials;
@@ -68,7 +69,7 @@ Milestone 6 is complete only when:
 - all automated security jobs pass on the milestone PR;
 - CodeQL, Dependabot, dependency review, Gitleaks, and Trivy show no unresolved actionable high or critical finding;
 - staging DAST and the two-account authorization exercise pass against the candidate commit;
-- the public port scan matches the intended Caddy-only exposure;
+- the public port scan matches the approved web-plus-deployment-SSH exposure and no other listener is public;
 - a current backup restore test is recorded;
 - security reporting through GitHub private vulnerability reporting is available;
 - the reviewer records the candidate commit SHA, workflow run links, findings, exceptions, and approval date.
