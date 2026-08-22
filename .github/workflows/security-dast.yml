@@ -50,9 +50,65 @@ jobs:
         run: |
           bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"
 
+      - name: Install complete port-audit dependency
+        run: |
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install --yes --no-install-recommends nmap
+
+      - name: Audit staging public host port exposure
+        if: inputs.environment == 'staging'
+        env:
+          PUBLIC_HOST: ${{ secrets.STAGING_HOST }}
+          SSH_PORT: ${{ secrets.STAGING_PORT || '22' }}
+        run: |
+          : "${PUBLIC_HOST:?Configure STAGING_HOST in the staging environment}"
+          bash scripts/public-port-audit.sh "$PUBLIC_HOST" "$SSH_PORT"
+
+      - name: Audit production public host port exposure
+        if: inputs.environment == 'production'
+        env:
+          PUBLIC_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_PORT || '22' }}
+        run: |
+          : "${PUBLIC_HOST:?Configure PRODUCTION_HOST in the production environment}"
+          bash scripts/public-port-audit.sh "$PUBLIC_HOST" "$SSH_PORT"
+
+      - name: Verify authoritative US market session
+        id: alpaca-clock
+        env:
+          ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
+          ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
+          ALPACA_TRADING_BASE_URL: ${{ vars.ALPACA_TRADING_BASE_URL || 'https://paper-api.alpaca.markets' }}
+        shell: bash
+        run: |
+          : "${ALPACA_API_KEY_ID:?Configure ALPACA_API_KEY_ID in this environment}"
+          : "${ALPACA_API_SECRET_KEY:?Configure ALPACA_API_SECRET_KEY in this environment}"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status=$(curl --silent --show-error --retry 3 --retry-all-errors \
+            --output "$response_file" --write-out '%{http_code}' \
+            --header "APCA-API-KEY-ID: ${ALPACA_API_KEY_ID}" \
+            --header "APCA-API-SECRET-KEY: ${ALPACA_API_SECRET_KEY}" \
+            "${ALPACA_TRADING_BASE_URL%/}/v2/clock")
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Alpaca market-clock preflight failed with HTTP ${status}"
+            exit 1
+          fi
+          jq -e '
+            (.is_open | type == "boolean")
+            and (.timestamp | type == "string" and length > 0)
+            and (.next_open | type == "string" and length > 0)
+            and (.next_close | type == "string" and length > 0)
+          ' "$response_file" >/dev/null
+          if [[ "$(jq -r '.is_open' "$response_file")" != "true" ]]; then
+            echo "::error::The authoritative US market is closed; next open is $(jq -r '.next_open' "$response_file")"
+            exit 1
+          fi
+          echo "open=true" >> "$GITHUB_OUTPUT"
+
       - name: Verify two-user authorization isolation
         env:
-          ALLOW_MARKET_CLOSED_SKIP: ${{ inputs.environment == 'staging' && 'true' || 'false' }}
+          AUTHORITATIVE_MARKET_OPEN: ${{ steps.alpaca-clock.outputs.open }}
         run: bash scripts/authorization-isolation-smoke.sh "${{ steps.target.outputs.api_url }}"
 
       - name: Run OWASP ZAP passive baseline
