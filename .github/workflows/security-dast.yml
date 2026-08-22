@@ -54,7 +54,8 @@ jobs:
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ steps.target.outputs.web_url }}
-          rules_file_name: .zap/rules.tsv
           allow_issue_writing: false
           fail_action: true
-          cmd_options: -a
+          # v0.15.0 only forwards rules_file_name when it contains IGNORE rules.
+          # Pass reviewed INFO rules directly while leaving unknown alerts fatal.
+          cmd_options: -a -c .zap/rules.tsv
