@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stoxsim.calendar.service.IndiaMarketSessionService;
 import com.stoxsim.calendar.service.MarketSessionSnapshot;
+import com.stoxsim.calendar.service.UnitedStatesMarketClockService;
+import com.stoxsim.calendar.service.UnitedStatesMarketClockSnapshot;
 import com.stoxsim.instrument.domain.MarketExchange;
 
 @RestController
@@ -14,9 +16,14 @@ import com.stoxsim.instrument.domain.MarketExchange;
 public class MarketStatusController {
 
     private final IndiaMarketSessionService sessions;
+    private final UnitedStatesMarketClockService unitedStatesClock;
 
-    public MarketStatusController(IndiaMarketSessionService sessions) {
+    public MarketStatusController(
+        IndiaMarketSessionService sessions,
+        UnitedStatesMarketClockService unitedStatesClock
+    ) {
         this.sessions = sessions;
+        this.unitedStatesClock = unitedStatesClock;
     }
 
     @GetMapping("/status")
@@ -24,5 +31,10 @@ public class MarketStatusController {
         @RequestParam(defaultValue = "NSE") MarketExchange exchange
     ) {
         return sessions.current(exchange);
+    }
+
+    @GetMapping("/status/united-states/authoritative")
+    public UnitedStatesMarketClockSnapshot authoritativeUnitedStatesStatus() {
+        return unitedStatesClock.current();
     }
 }

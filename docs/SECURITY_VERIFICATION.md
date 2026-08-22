@@ -23,7 +23,7 @@ The Security DAST workflow only accepts the repository's approved staging or pro
 For staging:
 
 1. Deploy the exact candidate commit to staging.
-2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The authorization exercise requires both temporary orders to execute so holdings, portfolio and ledger isolation are tested with real owner data.
+2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The authorization exercise requires the authoritative Alpaca clock to report the market open and both temporary orders to execute, so holdings, portfolio and ledger isolation are tested with real owner data.
 3. Select **staging**.
 4. Confirm the security smoke contract passes:
    - HTTPS security headers are present;

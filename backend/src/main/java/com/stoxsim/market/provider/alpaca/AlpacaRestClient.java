@@ -132,6 +132,21 @@ public class AlpacaRestClient {
         }
     }
 
+    public JsonNode getClock() {
+        requireCredentials();
+        try {
+            return tradingClient.get()
+                .uri("/v2/clock")
+                .retrieve()
+                .body(JsonNode.class);
+        } catch (RestClientException exception) {
+            throw new MarketDataUnavailableException(
+                "Could not retrieve the Alpaca market clock",
+                exception
+            );
+        }
+    }
+
     private RestClient client(String baseUrl) {
         return RestClient.builder()
             .baseUrl(baseUrl)
