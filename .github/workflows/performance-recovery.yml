@@ -41,6 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Verify recovery-script safeguards
+        shell: bash
+        run: bash scripts/test-staging-restore.sh
+
       - name: Validate protected verification configuration
         shell: bash
         run: |
