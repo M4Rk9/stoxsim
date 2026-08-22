@@ -50,12 +50,23 @@ jobs:
         run: |
           bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"
 
-      - name: Audit public host port exposure
+      - name: Audit staging public host port exposure
+        if: inputs.environment == 'staging'
         env:
-          PUBLIC_HOST: ${{ inputs.environment == 'staging' && secrets.STAGING_HOST || secrets.PRODUCTION_HOST }}
+          PUBLIC_HOST: ${{ secrets.STAGING_HOST }}
+          SSH_PORT: ${{ secrets.STAGING_PORT || '22' }}
         run: |
-          : "${PUBLIC_HOST:?Configure the environment-specific deployment host secret}"
-          bash scripts/public-port-audit.sh "$PUBLIC_HOST"
+          : "${PUBLIC_HOST:?Configure STAGING_HOST in the staging environment}"
+          bash scripts/public-port-audit.sh "$PUBLIC_HOST" "$SSH_PORT"
+
+      - name: Audit production public host port exposure
+        if: inputs.environment == 'production'
+        env:
+          PUBLIC_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_PORT || '22' }}
+        run: |
+          : "${PUBLIC_HOST:?Configure PRODUCTION_HOST in the production environment}"
+          bash scripts/public-port-audit.sh "$PUBLIC_HOST" "$SSH_PORT"
 
       - name: Verify authoritative US market session
         id: alpaca-clock

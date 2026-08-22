@@ -2,19 +2,25 @@
 set -Eeuo pipefail
 
 TARGET_HOST="${1:-}"
+SSH_PORT="${2:-22}"
 if [[ -z "$TARGET_HOST" ]]; then
-  echo "Usage: $0 <public-hostname-or-ip>" >&2
+  echo "Usage: $0 <public-hostname-or-ip> [ssh-port]" >&2
+  exit 2
+fi
+if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]] || (( SSH_PORT < 1 || SSH_PORT > 65535 )); then
+  echo "SSH port must be an integer from 1 through 65535" >&2
   exit 2
 fi
 
-TARGET_HOST="$TARGET_HOST" python3 - <<'PY'
+TARGET_HOST="$TARGET_HOST" SSH_PORT="$SSH_PORT" python3 - <<'PY'
 import os
 import socket
 import sys
 
 target = os.environ["TARGET_HOST"]
+ssh_port = int(os.environ["SSH_PORT"])
 required_open = (80, 443)
-required_closed = (22, 3000, 3001, 5432, 6379, 8080, 9090, 9093)
+required_closed = tuple(sorted({22, ssh_port, 3000, 3001, 5432, 6379, 8080, 9090, 9093}))
 
 try:
     addresses = sorted({
