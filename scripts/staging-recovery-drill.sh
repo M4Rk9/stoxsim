@@ -30,9 +30,13 @@ PASSWORD="Stoxsim-recovery-2026"
 EMAIL="recovery-$(date +%s)-${RANDOM}@stoxsim.test"
 ACCESS_TOKEN=""
 MARKER_MAY_EXIST=false
+REMOTE_DRILL_BACKUP="backups/.stoxsim-recovery-drill.dump"
 SSH=(ssh -p "$STAGING_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=20 "$STAGING_USER@$STAGING_HOST")
 
 cleanup() {
+  "${SSH[@]}" \
+    "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256' '${REMOTE_DRILL_BACKUP}.partial' .stoxsim-recovery-backup" \
+    >/dev/null 2>&1 || true
   if [[ "$MARKER_MAY_EXIST" == true ]]; then
     if [[ -z "$ACCESS_TOKEN" ]]; then
       curl --silent --show-error \
@@ -106,7 +110,7 @@ ACCESS_TOKEN=$(jq -er '.accessToken' "$TMP_DIR/register.json")
 MARKER_MAY_EXIST=true
 
 echo "Creating and verifying the staging backup"
-"${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
+"${SSH[@]}" bash -s -- "$REMOTE_DIR" "$REMOTE_DRILL_BACKUP" <<'REMOTE'
 set -Eeuo pipefail
 cd "$1"
 ./backup.sh >&2
@@ -120,8 +124,19 @@ if [[ ! "$backup_basename" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
   echo "The staging backup filename does not match the expected timestamped format." >&2
   exit 1
 fi
+
+drill_backup="$PWD/$2"
+drill_partial="${drill_backup}.partial"
 umask 077
-printf '%s\n' "$backup_basename" > .stoxsim-recovery-backup
+rm -f "$drill_partial"
+ln "$backup_file" "$drill_partial"
+mv -f "$drill_partial" "$drill_backup"
+(
+  cd "$(dirname "$drill_backup")"
+  sha256sum "$(basename "$drill_backup")" > "$(basename "${drill_backup}.sha256")"
+  sha256sum --check "$(basename "${drill_backup}.sha256")" >&2
+)
+echo "Pinned the verified recovery-drill backup on the staging host" >&2
 REMOTE
 
 echo "Deleting the marker before restore"
@@ -136,24 +151,14 @@ MARKER_MAY_EXIST=false
 
 STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "Restoring the verified staging backup"
-"${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
-set -Eeuo pipefail
-cd "$1"
-reference_file="$PWD/.stoxsim-recovery-backup"
-test -f "$reference_file"
-backup_basename=$(tr -d '\r\n' < "$reference_file")
-trap 'rm -f "$reference_file"' EXIT
-if [[ ! "$backup_basename" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
-  echo "The recorded staging backup filename is invalid." >&2
-  exit 1
-fi
-backup_file="$PWD/backups/$backup_basename"
-test -f "$backup_file"
-test -f "${backup_file}.sha256"
-CONFIRM_STAGING_RESTORE=restore ./restore.sh "$backup_file"
-REMOTE
+"${SSH[@]}" \
+  "cd '$REMOTE_DIR' && STOXSIM_DEPLOY_DIR=. CONFIRM_STAGING_RESTORE=restore bash -s -- '$REMOTE_DRILL_BACKUP'" \
+  < deploy/staging/restore.sh
 retry_readiness
 MARKER_MAY_EXIST=true
+
+"${SSH[@]}" \
+  "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256'"
 
 echo "Proving that the deleted marker returned from the backup"
 LOGIN_BODY=$(jq -nc --arg email "$EMAIL" --arg password "$PASSWORD" '{email: $email, password: $password}')
@@ -182,7 +187,7 @@ FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   echo "StoxSim staging backup/restore drill"
   echo "started_at=$STARTED_AT"
   echo "finished_at=$FINISHED_AT"
-  echo "backup_reference=verified-on-staging-host"
+  echo "backup_reference=pinned-and-verified-on-staging-host"
   echo "checksum=verified"
   echo "restored_marker_login=passed"
   echo "post_restore_readiness=passed"
