@@ -65,19 +65,19 @@ open_ports = {
     and port.find("state") is not None
     and port.find("state").get("state") == "open"
 }
-allowed = {80, 443}
+allowed = {80, 443, ssh_port}
 missing = allowed - open_ports
 unexpected = open_ports - allowed
 
 print("Open TCP ports: " + (", ".join(map(str, sorted(open_ports))) or "none"))
 for port in sorted(missing):
-    print(f"::error::Required Caddy port TCP {port} is not publicly reachable", file=sys.stderr)
+    role = "configured deployment SSH" if port == ssh_port else "required Caddy"
+    print(f"::error::TCP {port} ({role}) is not publicly reachable", file=sys.stderr)
 for port in sorted(unexpected):
-    role = "configured SSH" if port == ssh_port else "unexpected service"
-    print(f"::error::TCP {port} ({role}) is publicly reachable", file=sys.stderr)
+    print(f"::error::TCP {port} (unexpected service) is publicly reachable", file=sys.stderr)
 
 if missing or unexpected:
     raise SystemExit(1)
 
-print("Complete TCP exposure matches the Caddy-only contract")
+print("Complete TCP exposure matches the approved web-plus-deployment-SSH contract")
 PY
