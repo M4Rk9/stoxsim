@@ -121,11 +121,8 @@ REMOTE
 BACKUP_BASENAME=""
 while IFS= read -r output_line; do
   output_line="${output_line%$'\r'}"
-  if [[ "$output_line" == STOXSIM_RECOVERY_BACKUP=* ]]; then
-    candidate="${output_line#STOXSIM_RECOVERY_BACKUP=}"
-    if [[ "$candidate" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
-      BACKUP_BASENAME="$candidate"
-    fi
+  if [[ "$output_line" =~ STOXSIM_RECOVERY_BACKUP=(stoxsim-[A-Za-z0-9._-]+\.dump) ]]; then
+    BACKUP_BASENAME="${BASH_REMATCH[1]}"
   fi
 done <<< "$BACKUP_OUTPUT"
 if [[ -z "$BACKUP_BASENAME" ]]; then
