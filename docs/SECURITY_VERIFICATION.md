@@ -36,6 +36,17 @@ For staging:
 
 After production deployment, repeat the workflow with **production** before enabling public announcements.
 
+## Reviewed ZAP baseline exceptions
+
+The committed `.zap/rules.tsv` changes only the severity of reviewed alerts. The workflow passes it directly to ZAP and continues to fail on every unknown warning or failure.
+
+| Rule | Public-beta decision | Compensating control | Review deadline |
+| --- | --- | --- | --- |
+| 10019 Content-Type Header Missing | Accepted only for Next.js bodyless 308 canonical redirects. | Content-bearing pages and assets retain explicit content types. | Before general availability or 2026-11-22, whichever comes first. |
+| 10055 CSP `unsafe-inline` | Temporarily accepted because Next.js server-rendered bootstrap scripts require inline execution in the current static/Caddy deployment. | `default-src 'self'`, `object-src 'none'`, and `frame-ancestors 'none'` remain enforced. The security smoke test rejects broad HTTPS and wildcard image or script sources. | Replace with per-request CSP nonces before general availability or 2026-11-22, whichever comes first. |
+
+The other INFO entries cover documented framework behavior or non-security metadata. Re-review every entry before general availability and whenever the frontend framework, reverse proxy, or rendering mode changes.
+
 ## Host and secret review
 
 On the deployment host and in the Lightsail firewall:
