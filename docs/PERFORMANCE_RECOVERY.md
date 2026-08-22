@@ -37,12 +37,16 @@ This is the public-beta regression baseline for the current low-memory staging h
 The guarded drill:
 
 1. Creates a unique learner marker.
-2. Runs the existing staging `backup.sh` and verifies its SHA-256 checksum.
-3. Deletes the marker from the live database.
-4. Runs the confirmation-guarded `restore.sh` using that backup.
-5. Waits for API and web readiness.
-6. Proves the deleted marker was restored by signing in and reading its identity.
-7. Permanently deletes the marker again.
+2. Uploads versioned helper scripts and runs them as files, so Docker cannot consume the remote control script through standard input.
+3. Runs the existing staging `backup.sh` with detached input and pins a run-specific recovery copy.
+4. Verifies both the SHA-256 checksum and PostgreSQL archive before deleting any live data.
+5. Deletes the marker from the live database.
+6. Runs the confirmation-guarded `restore.sh` using the exact verified backup.
+7. Waits for API and web readiness.
+8. Proves the deleted marker was restored by signing in and reading its identity.
+9. Permanently deletes the marker and run-specific recovery files.
+
+The pre-deletion verification barrier is intentional: a failed, missing, stale, or malformed backup stops the drill while the marker still exists. Each workflow run uses unique remote helper and backup filenames, preventing concurrent or stale runs from selecting one another's artifacts.
 
 The workflow uploads `k6-summary.json` and, when applicable, `restore-evidence.txt`. These artifacts and the workflow URL belong in the release sign-off record.
 
