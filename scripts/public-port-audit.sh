@@ -11,64 +11,73 @@ if [[ ! "$SSH_PORT" =~ ^[0-9]+$ ]] || (( SSH_PORT < 1 || SSH_PORT > 65535 )); th
   echo "SSH port must be an integer from 1 through 65535" >&2
   exit 2
 fi
+if ! command -v nmap >/dev/null 2>&1; then
+  echo "::error::nmap is required for the complete TCP exposure audit" >&2
+  exit 2
+fi
 
-TARGET_HOST="$TARGET_HOST" SSH_PORT="$SSH_PORT" python3 - <<'PY'
+RESULT_FILE=$(mktemp)
+cleanup() {
+  rm -f "$RESULT_FILE"
+}
+trap cleanup EXIT
+
+echo "Scanning the complete public TCP range"
+if ! nmap \
+  -Pn \
+  -p 1-65535 \
+  --open \
+  --reason \
+  --max-retries 2 \
+  --host-timeout 12m \
+  -T4 \
+  -oX "$RESULT_FILE" \
+  "$TARGET_HOST" \
+  >/dev/null; then
+  echo "::error::The complete TCP port scan did not finish successfully" >&2
+  exit 1
+fi
+
+RESULT_FILE="$RESULT_FILE" SSH_PORT="$SSH_PORT" python3 - <<'PY'
 import os
-import socket
 import sys
+import xml.etree.ElementTree as ET
 
-target = os.environ["TARGET_HOST"]
+result_file = os.environ["RESULT_FILE"]
 ssh_port = int(os.environ["SSH_PORT"])
-required_open = (80, 443)
-required_closed = tuple(sorted({22, ssh_port, 3000, 3001, 5432, 6379, 8080, 9090, 9093}))
 
 try:
-    addresses = sorted({
-        item[4][0]
-        for item in socket.getaddrinfo(
-            target,
-            None,
-            family=socket.AF_UNSPEC,
-            type=socket.SOCK_STREAM,
-        )
-    })
-except socket.gaierror as error:
-    print(f"::error::Could not resolve the approved deployment host: {error}", file=sys.stderr)
+    root = ET.parse(result_file).getroot()
+except (ET.ParseError, OSError) as error:
+    print(f"::error::Could not parse nmap evidence: {error}", file=sys.stderr)
     raise SystemExit(1)
 
-if not addresses:
-    print("::error::The approved deployment host resolved to no addresses", file=sys.stderr)
+hosts = [host for host in root.findall("host") if host.find("status") is not None]
+if not hosts or not any(host.find("status").get("state") == "up" for host in hosts):
+    print("::error::The approved deployment host did not respond to the TCP audit", file=sys.stderr)
     raise SystemExit(1)
 
-def connects(address: str, port: int) -> bool:
-    family = socket.AF_INET6 if ":" in address else socket.AF_INET
-    for _ in range(2):
-        try:
-            with socket.socket(family, socket.SOCK_STREAM) as connection:
-                connection.settimeout(3)
-                connection.connect((address, port))
-                return True
-        except (TimeoutError, ConnectionRefusedError, OSError):
-            pass
-    return False
+open_ports = {
+    int(port.get("portid"))
+    for host in hosts
+    for port in host.findall("./ports/port")
+    if port.get("protocol") == "tcp"
+    and port.find("state") is not None
+    and port.find("state").get("state") == "open"
+}
+allowed = {80, 443}
+missing = allowed - open_ports
+unexpected = open_ports - allowed
 
-failures = []
-for port in required_open:
-    is_open = any(connects(address, port) for address in addresses)
-    print(f"TCP {port}: {'open' if is_open else 'closed/filtered'} (required open)")
-    if not is_open:
-        failures.append(f"TCP {port} is not publicly reachable")
+print("Open TCP ports: " + (", ".join(map(str, sorted(open_ports))) or "none"))
+for port in sorted(missing):
+    print(f"::error::Required Caddy port TCP {port} is not publicly reachable", file=sys.stderr)
+for port in sorted(unexpected):
+    role = "configured SSH" if port == ssh_port else "unexpected service"
+    print(f"::error::TCP {port} ({role}) is publicly reachable", file=sys.stderr)
 
-for port in required_closed:
-    is_open = any(connects(address, port) for address in addresses)
-    print(f"TCP {port}: {'OPEN' if is_open else 'closed/filtered'} (required closed)")
-    if is_open:
-        failures.append(f"TCP {port} is publicly reachable")
-
-if failures:
-    for failure in failures:
-        print(f"::error::{failure}", file=sys.stderr)
+if missing or unexpected:
     raise SystemExit(1)
 
-print("Public port exposure matches the Caddy-only contract")
+print("Complete TCP exposure matches the Caddy-only contract")
 PY

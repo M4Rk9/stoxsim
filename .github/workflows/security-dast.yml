@@ -50,6 +50,11 @@ jobs:
         run: |
           bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"
 
+      - name: Install complete port-audit dependency
+        run: |
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install --yes --no-install-recommends nmap
+
       - name: Audit staging public host port exposure
         if: inputs.environment == 'staging'
         env:

@@ -32,7 +32,7 @@ For staging:
    - authentication responses are marked no-store;
    - an untrusted CORS origin is not reflected.
 5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
-6. Confirm the public-port audit reports only TCP 80 and 443 open. TCP 22, the environment's configured SSH port, and TCP 3000, 3001, 5432, 6379, 8080, 9090 and 9093 must be closed or filtered from the GitHub-hosted runner.
+6. Confirm the complete TCP 1–65535 port audit reports only TCP 80 and 443 open. The environment's configured SSH port and every application, database, cache or monitoring listener must be closed or filtered from the GitHub-hosted runner.
 7. Confirm the automated two-user authorization exercise passes: both temporary orders must execute, both learners must have non-empty holdings and ledger data, and neither learner may read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise verifies deletion of both temporary accounts on exit.
 
 After production deployment, repeat the workflow with **production** before enabling public announcements.
