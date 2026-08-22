@@ -106,7 +106,7 @@ ACCESS_TOKEN=$(jq -er '.accessToken' "$TMP_DIR/register.json")
 MARKER_MAY_EXIST=true
 
 echo "Creating and verifying the staging backup"
-BACKUP_OUTPUT=$("${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
+"${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
 set -Eeuo pipefail
 cd "$1"
 ./backup.sh >&2
@@ -115,20 +115,14 @@ backup_file=$(find "$PWD/backups" -maxdepth 1 -type f -name 'stoxsim-*.dump' -pr
 test -n "$backup_file"
 test -f "${backup_file}.sha256"
 (cd "$(dirname "$backup_file")" && sha256sum --check "$(basename "${backup_file}.sha256")") >&2
-printf 'STOXSIM_RECOVERY_BACKUP=%s\n' "$(basename "$backup_file")"
-REMOTE
-)
-BACKUP_BASENAME=""
-while IFS= read -r output_line; do
-  output_line="${output_line%$'\r'}"
-  if [[ "$output_line" =~ STOXSIM_RECOVERY_BACKUP=(stoxsim-[A-Za-z0-9._-]+\.dump) ]]; then
-    BACKUP_BASENAME="${BASH_REMATCH[1]}"
-  fi
-done <<< "$BACKUP_OUTPUT"
-if [[ -z "$BACKUP_BASENAME" ]]; then
-  echo "The staging host returned an invalid recovery-backup filename." >&2
+backup_basename=$(basename "$backup_file")
+if [[ ! "$backup_basename" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
+  echo "The staging backup filename does not match the expected timestamped format." >&2
   exit 1
 fi
+umask 077
+printf '%s\n' "$backup_basename" > .stoxsim-recovery-backup
+REMOTE
 
 echo "Deleting the marker before restore"
 DELETE_BODY=$(jq -nc --arg password "$PASSWORD" '{password: $password}')
@@ -142,8 +136,22 @@ MARKER_MAY_EXIST=false
 
 STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "Restoring the verified staging backup"
-"${SSH[@]}" \
-  "cd '$REMOTE_DIR' && CONFIRM_STAGING_RESTORE=restore ./restore.sh 'backups/$BACKUP_BASENAME'"
+"${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
+set -Eeuo pipefail
+cd "$1"
+reference_file="$PWD/.stoxsim-recovery-backup"
+test -f "$reference_file"
+backup_basename=$(tr -d '\r\n' < "$reference_file")
+trap 'rm -f "$reference_file"' EXIT
+if [[ ! "$backup_basename" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
+  echo "The recorded staging backup filename is invalid." >&2
+  exit 1
+fi
+backup_file="$PWD/backups/$backup_basename"
+test -f "$backup_file"
+test -f "${backup_file}.sha256"
+CONFIRM_STAGING_RESTORE=restore ./restore.sh "$backup_file"
+REMOTE
 retry_readiness
 MARKER_MAY_EXIST=true
 
@@ -174,7 +182,7 @@ FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   echo "StoxSim staging backup/restore drill"
   echo "started_at=$STARTED_AT"
   echo "finished_at=$FINISHED_AT"
-  echo "backup_file=$BACKUP_BASENAME"
+  echo "backup_reference=verified-on-staging-host"
   echo "checksum=verified"
   echo "restored_marker_login=passed"
   echo "post_restore_readiness=passed"
