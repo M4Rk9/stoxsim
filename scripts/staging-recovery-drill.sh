@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=scripts/staging-readiness.sh
+source "$SCRIPT_DIR/staging-readiness.sh"
+
 API_URL="${STAGING_API_URL:?Set STAGING_API_URL}"
 WEB_URL="${STAGING_WEB_URL:?Set STAGING_WEB_URL}"
 STAGING_HOST="${STAGING_HOST:?Set STAGING_HOST}"
@@ -98,9 +102,7 @@ request_status() {
 
 retry_readiness() {
   local attempts=0
-  until curl --fail --silent --show-error "$API_URL/actuator/health/readiness" \
-      | jq -e '.status == "UP"' >/dev/null \
-    && curl --fail --silent --show-error "$WEB_URL" | grep -Fq "StoxSim"; do
+  until check_staging_readiness "$API_URL" "$WEB_URL" "$TMP_DIR"; do
     attempts=$((attempts + 1))
     if (( attempts >= 24 )); then
       echo "Staging did not recover within two minutes." >&2
@@ -147,8 +149,8 @@ STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "Restoring the verified staging backup"
 "${SSH[@]}" \
   "cd '$REMOTE_DIR' && STOXSIM_DEPLOY_DIR=. CONFIRM_STAGING_RESTORE=restore '$REMOTE_RESTORE_SCRIPT' '$REMOTE_DRILL_BACKUP'"
-retry_readiness
 MARKER_MAY_EXIST=true
+retry_readiness
 
 "${SSH[@]}" \
   "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256'; rm -f '$REMOTE_PREPARE_SCRIPT' '$REMOTE_RESTORE_SCRIPT'"
