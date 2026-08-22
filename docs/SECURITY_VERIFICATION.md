@@ -23,7 +23,7 @@ The Security DAST workflow only accepts the repository's approved staging or pro
 For staging:
 
 1. Deploy the exact candidate commit to staging.
-2. In GitHub, open **Actions → Security DAST → Run workflow**.
+2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The authorization exercise requires both temporary orders to execute so holdings, portfolio and ledger isolation are tested with real owner data.
 3. Select **staging**.
 4. Confirm the security smoke contract passes:
    - HTTPS security headers are present;
@@ -32,7 +32,7 @@ For staging:
    - authentication responses are marked no-store;
    - an untrusted CORS origin is not reflected.
 5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
-6. Confirm the automated two-user authorization exercise passes: one learner must not be able to read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise removes both temporary accounts on exit.
+6. Confirm the automated two-user authorization exercise passes: both temporary orders must execute, both learners must have non-empty holdings and ledger data, and neither learner may read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise verifies deletion of both temporary accounts on exit.
 
 After production deployment, repeat the workflow with **production** before enabling public announcements.
 
