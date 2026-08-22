@@ -118,6 +118,11 @@ test -f "${backup_file}.sha256"
 printf '%s\n' "$backup_file"
 REMOTE
 )
+BACKUP_BASENAME=$(basename "$BACKUP_FILE")
+if [[ ! "$BACKUP_BASENAME" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
+  echo "The staging host returned an invalid recovery-backup filename." >&2
+  exit 1
+fi
 
 echo "Deleting the marker before restore"
 DELETE_BODY=$(jq -nc --arg password "$PASSWORD" '{password: $password}')
@@ -131,11 +136,8 @@ MARKER_MAY_EXIST=false
 
 STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "Restoring the verified staging backup"
-"${SSH[@]}" bash -s -- "$REMOTE_DIR" "$BACKUP_FILE" <<'REMOTE'
-set -Eeuo pipefail
-cd "$1"
-CONFIRM_STAGING_RESTORE=restore ./restore.sh "$2"
-REMOTE
+"${SSH[@]}" \
+  "cd '$REMOTE_DIR' && CONFIRM_STAGING_RESTORE=restore ./restore.sh 'backups/$BACKUP_BASENAME'"
 retry_readiness
 MARKER_MAY_EXIST=true
 
@@ -166,7 +168,7 @@ FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   echo "StoxSim staging backup/restore drill"
   echo "started_at=$STARTED_AT"
   echo "finished_at=$FINISHED_AT"
-  echo "backup_file=$(basename "$BACKUP_FILE")"
+  echo "backup_file=$BACKUP_BASENAME"
   echo "checksum=verified"
   echo "restored_marker_login=passed"
   echo "post_restore_readiness=passed"
