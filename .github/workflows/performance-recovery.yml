@@ -45,6 +45,7 @@ jobs:
         shell: bash
         run: |
           bash scripts/test-staging-recovery-handoff.sh
+          bash scripts/test-staging-readiness.sh
           bash scripts/test-staging-restore.sh
 
       - name: Validate protected verification configuration
