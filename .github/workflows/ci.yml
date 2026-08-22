@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate deployment scripts
         run: |
-          bash -n deploy/staging/*.sh deploy/production/*.sh scripts/staging-smoke.sh scripts/production-smoke.sh scripts/security-smoke.sh
+          bash -n deploy/staging/*.sh deploy/production/*.sh scripts/*.sh
           python3 -m py_compile deploy/production/render-monitoring-config.py
       - name: Validate staging Compose interpolation
         run: docker compose --env-file deploy/staging/.env.example -f deploy/staging/compose.yml config --quiet

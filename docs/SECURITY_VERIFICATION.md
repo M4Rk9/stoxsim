@@ -32,7 +32,7 @@ For staging:
    - authentication responses are marked no-store;
    - an untrusted CORS origin is not reflected.
 5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
-6. Run a two-user authorization exercise: one learner must not be able to read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export.
+6. Confirm the automated two-user authorization exercise passes: one learner must not be able to read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise removes both temporary accounts on exit.
 
 After production deployment, repeat the workflow with **production** before enabling public announcements.
 
