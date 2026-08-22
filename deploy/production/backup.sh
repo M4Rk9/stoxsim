@@ -50,7 +50,7 @@ COMPOSE=(docker compose --env-file "$ENV_FILE" -f "${DEPLOY_DIR}/compose.yml")
 trap 'rm -f "$partial_file"' EXIT
 
 echo "Writing PostgreSQL backup to ${backup_file}"
-"${COMPOSE[@]}" exec -T postgres   pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"   --format=custom --compress=9 --no-owner > "$partial_file"
+"${COMPOSE[@]}" exec --interactive=false -T postgres   pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"   --format=custom --compress=9 --no-owner > "$partial_file"
 mv "$partial_file" "$backup_file"
 (
   cd "$BACKUP_DIR"
