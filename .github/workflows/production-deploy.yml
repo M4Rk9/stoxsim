@@ -52,7 +52,7 @@ jobs:
       PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL }}
       PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Validate production authorization and configuration
         run: |
