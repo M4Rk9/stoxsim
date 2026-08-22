@@ -13,20 +13,53 @@ headers() {
   curl --fail --silent --show-error --head "$1" | tr -d '\r'
 }
 
-require_header() {
+header_value() {
   local response="$1"
   local name="$2"
-  local expected="$3"
-  local value
-  value="$(printf '%s\n' "$response" | awk -F': *' -v header="$name" '
+  printf '%s\n' "$response" | awk -F': *' -v header="$name" '
     tolower($1) == tolower(header) {
       sub(/^[^:]*: */, "")
       print
       exit
     }
-  ')"
+  '
+}
+
+require_header() {
+  local response="$1"
+  local name="$2"
+  local expected="$3"
+  local value
+  value="$(header_value "$response" "$name")"
   if [ -z "$value" ] || [[ "$value" != *"$expected"* ]]; then
     echo "Missing or invalid $name header; expected to contain: $expected" >&2
+    exit 1
+  fi
+}
+
+forbid_header() {
+  local response="$1"
+  local name="$2"
+  local value
+  value="$(header_value "$response" "$name")"
+  if [ -n "$value" ]; then
+    echo "Unexpected $name response header" >&2
+    exit 1
+  fi
+}
+
+validate_csp_sources() {
+  local response="$1"
+  local csp
+  csp="$(header_value "$response" "Content-Security-Policy")"
+
+  require_header "$response" "Content-Security-Policy" "img-src 'self' data:"
+  if [[ "$csp" =~ img-src[^\;]*https: ]] || [[ "$csp" =~ img-src[^\;]*\* ]]; then
+    echo "Content-Security-Policy img-src must not allow broad HTTPS or wildcard sources" >&2
+    exit 1
+  fi
+  if [[ "$csp" =~ script-src[^\;]*https: ]] || [[ "$csp" =~ script-src[^\;]*\* ]]; then
+    echo "Content-Security-Policy script-src must not allow broad HTTPS or wildcard sources" >&2
     exit 1
   fi
 }
@@ -51,6 +84,8 @@ require_header "$WEB_HEADERS" "X-Content-Type-Options" "nosniff"
 require_header "$WEB_HEADERS" "X-Frame-Options" "DENY"
 require_header "$WEB_HEADERS" "Referrer-Policy" "strict-origin-when-cross-origin"
 require_header "$WEB_HEADERS" "Permissions-Policy" "camera=()"
+forbid_header "$WEB_HEADERS" "X-Powered-By"
+validate_csp_sources "$WEB_HEADERS"
 
 echo "Checking protected API behavior"
 expect_status 401 "$API_URL/api/v1/portfolio"
