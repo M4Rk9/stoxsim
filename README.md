@@ -113,6 +113,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Private staging operations](deploy/staging/README.md)
 - [Public production operations](deploy/production/README.md)
 - [Production operations and incident response](docs/OPERATIONS.md)
+- [Performance and recovery verification](docs/PERFORMANCE_RECOVERY.md)
 - [Production deployment](docs/DEPLOYMENT.md)
 
 ## Current milestone
