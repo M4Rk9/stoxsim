@@ -1,0 +1,8 @@
+# Reviewed ZAP Baseline rules for the public StoxSim web application.
+# Unknown and security-relevant alerts remain WARN by default and fail the workflow.
+10015	INFO	(Public static pages intentionally use Next.js cache directives)
+10049	INFO	(Next.js generated and error responses may be non-storable)
+10094	INFO	(Generated CSS and framework content contains non-secret base64 data)
+10109	INFO	(StoxSim is intentionally a modern client-rendered web application)
+90004	INFO	(Cross-origin isolation is not required by StoxSim)
+90005	INFO	(Sec-Fetch-Dest is a browser request header and is absent from ZAP requests)
