@@ -46,6 +46,8 @@ jobs:
       - name: Validate deployment scripts
         run: |
           bash -n deploy/staging/*.sh deploy/production/*.sh scripts/*.sh
+          bash scripts/test-staging-recovery-handoff.sh
+          bash scripts/test-staging-restore.sh
           node --check scripts/staging-load.mjs
           python3 -m py_compile deploy/production/render-monitoring-config.py
       - name: Validate staging Compose interpolation

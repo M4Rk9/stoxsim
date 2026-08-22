@@ -41,7 +41,7 @@ COMPOSE=(docker compose --env-file "$ENV_FILE" -f "${DEPLOY_DIR}/compose.yml")
 trap 'rm -f "$partial_file"' EXIT
 
 echo "Writing PostgreSQL backup to ${backup_file}"
-"${COMPOSE[@]}" exec -T postgres \
+"${COMPOSE[@]}" exec --interactive=false -T postgres \
   pg_dump --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   --format=custom --compress=9 --no-owner > "$partial_file"
 mv "$partial_file" "$backup_file"
@@ -49,9 +49,13 @@ mv "$partial_file" "$backup_file"
   cd "$BACKUP_DIR"
   sha256sum "$(basename "$backup_file")" > "$(basename "${backup_file}.sha256")"
 )
+(
+  cd "$BACKUP_DIR"
+  sha256sum --check "$(basename "${backup_file}.sha256")"
+)
 
 find "$BACKUP_DIR" -maxdepth 1 -type f \
   \( -name 'stoxsim-*.dump' -o -name 'stoxsim-*.dump.sha256' \) \
   -mtime "+${RETENTION_DAYS}" -delete
 
-echo "Backup completed and verified with SHA-256"
+echo "Backup completed and checksum verified"

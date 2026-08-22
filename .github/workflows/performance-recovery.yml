@@ -43,7 +43,9 @@ jobs:
 
       - name: Verify recovery-script safeguards
         shell: bash
-        run: bash scripts/test-staging-restore.sh
+        run: |
+          bash scripts/test-staging-recovery-handoff.sh
+          bash scripts/test-staging-restore.sh
 
       - name: Validate protected verification configuration
         shell: bash

@@ -8,6 +8,7 @@ STAGING_PORT="${STAGING_PORT:-22}"
 STAGING_USER="${STAGING_USER:?Set STAGING_USER}"
 REMOTE_DIR="${REMOTE_DIR:-stoxsim-staging}"
 EVIDENCE_FILE="${EVIDENCE_FILE:-artifacts/restore-evidence.txt}"
+RUN_ID="${GITHUB_RUN_ID:?Run this drill from GitHub Actions}"
 
 API_URL="${API_URL%/}"
 WEB_URL="${WEB_URL%/}"
@@ -23,6 +24,10 @@ if [[ ! "$REMOTE_DIR" =~ ^[A-Za-z0-9._/-]+$ ]]; then
   echo "REMOTE_DIR contains unsupported characters." >&2
   exit 2
 fi
+if [[ ! "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  echo "GITHUB_RUN_ID must contain only digits." >&2
+  exit 2
+fi
 
 mkdir -p "$(dirname "$EVIDENCE_FILE")"
 TMP_DIR=$(mktemp -d)
@@ -30,12 +35,15 @@ PASSWORD="Stoxsim-recovery-2026"
 EMAIL="recovery-$(date +%s)-${RANDOM}@stoxsim.test"
 ACCESS_TOKEN=""
 MARKER_MAY_EXIST=false
-REMOTE_DRILL_BACKUP="backups/.stoxsim-recovery-drill.dump"
+REMOTE_DRILL_BACKUP="backups/.stoxsim-recovery-${RUN_ID}.dump"
+REMOTE_PREPARE_SCRIPT="/tmp/stoxsim-prepare-recovery-${RUN_ID}.sh"
+REMOTE_RESTORE_SCRIPT="/tmp/stoxsim-restore-${RUN_ID}.sh"
 SSH=(ssh -p "$STAGING_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=20 "$STAGING_USER@$STAGING_HOST")
+SCP=(scp -P "$STAGING_PORT")
 
 cleanup() {
   "${SSH[@]}" \
-    "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256' '${REMOTE_DRILL_BACKUP}.partial' .stoxsim-recovery-backup" \
+    "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256' '${REMOTE_DRILL_BACKUP}.partial' .stoxsim-recovery-backup; rm -f '$REMOTE_PREPARE_SCRIPT' '$REMOTE_RESTORE_SCRIPT'" \
     >/dev/null 2>&1 || true
   if [[ "$MARKER_MAY_EXIST" == true ]]; then
     if [[ -z "$ACCESS_TOKEN" ]]; then
@@ -58,6 +66,13 @@ cleanup() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+
+echo "Uploading versioned recovery helpers"
+"${SCP[@]}" deploy/staging/prepare-recovery-backup.sh \
+  "$STAGING_USER@$STAGING_HOST:$REMOTE_PREPARE_SCRIPT"
+"${SCP[@]}" deploy/staging/restore.sh \
+  "$STAGING_USER@$STAGING_HOST:$REMOTE_RESTORE_SCRIPT"
+"${SSH[@]}" "chmod 700 '$REMOTE_PREPARE_SCRIPT' '$REMOTE_RESTORE_SCRIPT'"
 
 request_status() {
   local method="$1"
@@ -110,34 +125,13 @@ ACCESS_TOKEN=$(jq -er '.accessToken' "$TMP_DIR/register.json")
 MARKER_MAY_EXIST=true
 
 echo "Creating and verifying the staging backup"
-"${SSH[@]}" bash -s -- "$REMOTE_DIR" "$REMOTE_DRILL_BACKUP" <<'REMOTE'
-set -Eeuo pipefail
-cd "$1"
-./backup.sh >&2
-backup_file=$(find "$PWD/backups" -maxdepth 1 -type f -name 'stoxsim-*.dump' -printf '%T@ %p\n' \
-  | sort -nr | head -n 1 | cut -d' ' -f2-)
-test -n "$backup_file"
-test -f "${backup_file}.sha256"
-(cd "$(dirname "$backup_file")" && sha256sum --check "$(basename "${backup_file}.sha256")") >&2
-backup_basename=$(basename "$backup_file")
-if [[ ! "$backup_basename" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
-  echo "The staging backup filename does not match the expected timestamped format." >&2
-  exit 1
-fi
+"${SSH[@]}" \
+  "'$REMOTE_PREPARE_SCRIPT' '$REMOTE_DIR' '$REMOTE_DRILL_BACKUP'"
 
-drill_backup="$PWD/$2"
-drill_partial="${drill_backup}.partial"
-umask 077
-rm -f "$drill_partial"
-ln "$backup_file" "$drill_partial"
-mv -f "$drill_partial" "$drill_backup"
-(
-  cd "$(dirname "$drill_backup")"
-  sha256sum "$(basename "$drill_backup")" > "$(basename "${drill_backup}.sha256")"
-  sha256sum --check "$(basename "${drill_backup}.sha256")" >&2
-)
-echo "Pinned the verified recovery-drill backup on the staging host" >&2
-REMOTE
+echo "Applying the pre-restore verification barrier"
+"${SSH[@]}" \
+  "cd '$REMOTE_DIR' && test -f '$REMOTE_DRILL_BACKUP' && test -f '${REMOTE_DRILL_BACKUP}.sha256' && (cd backups && sha256sum --check '$(basename "${REMOTE_DRILL_BACKUP}.sha256")') && docker compose --env-file .env -f compose.yml exec -T postgres pg_restore --list < '$REMOTE_DRILL_BACKUP' >/dev/null"
+echo "Recovery backup checksum and PostgreSQL archive validated"
 
 echo "Deleting the marker before restore"
 DELETE_BODY=$(jq -nc --arg password "$PASSWORD" '{password: $password}')
@@ -152,13 +146,12 @@ MARKER_MAY_EXIST=false
 STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "Restoring the verified staging backup"
 "${SSH[@]}" \
-  "cd '$REMOTE_DIR' && STOXSIM_DEPLOY_DIR=. CONFIRM_STAGING_RESTORE=restore bash -s -- '$REMOTE_DRILL_BACKUP'" \
-  < deploy/staging/restore.sh
+  "cd '$REMOTE_DIR' && STOXSIM_DEPLOY_DIR=. CONFIRM_STAGING_RESTORE=restore '$REMOTE_RESTORE_SCRIPT' '$REMOTE_DRILL_BACKUP'"
 retry_readiness
 MARKER_MAY_EXIST=true
 
 "${SSH[@]}" \
-  "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256'"
+  "cd '$REMOTE_DIR' && rm -f '$REMOTE_DRILL_BACKUP' '${REMOTE_DRILL_BACKUP}.sha256'; rm -f '$REMOTE_PREPARE_SCRIPT' '$REMOTE_RESTORE_SCRIPT'"
 
 echo "Proving that the deleted marker returned from the backup"
 LOGIN_BODY=$(jq -nc --arg email "$EMAIL" --arg password "$PASSWORD" '{email: $email, password: $password}')
@@ -187,7 +180,7 @@ FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   echo "StoxSim staging backup/restore drill"
   echo "started_at=$STARTED_AT"
   echo "finished_at=$FINISHED_AT"
-  echo "backup_reference=pinned-and-verified-on-staging-host"
+  echo "backup_reference=pinned-and-verified-on-staging-host-for-run-${RUN_ID}"
   echo "checksum=verified"
   echo "restored_marker_login=passed"
   echo "post_restore_readiness=passed"
