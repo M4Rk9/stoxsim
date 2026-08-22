@@ -51,6 +51,8 @@ jobs:
           bash scripts/security-smoke.sh             "${{ steps.target.outputs.web_url }}"             "${{ steps.target.outputs.api_url }}"
 
       - name: Verify two-user authorization isolation
+        env:
+          ALLOW_MARKET_CLOSED_SKIP: ${{ inputs.environment == 'staging' && 'true' || 'false' }}
         run: bash scripts/authorization-isolation-smoke.sh "${{ steps.target.outputs.api_url }}"
 
       - name: Run OWASP ZAP passive baseline
