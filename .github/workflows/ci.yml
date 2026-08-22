@@ -46,6 +46,7 @@ jobs:
       - name: Validate deployment scripts
         run: |
           bash -n deploy/staging/*.sh deploy/production/*.sh scripts/*.sh
+          node --check scripts/staging-load.mjs
           python3 -m py_compile deploy/production/render-monitoring-config.py
       - name: Validate staging Compose interpolation
         run: docker compose --env-file deploy/staging/.env.example -f deploy/staging/compose.yml config --quiet
