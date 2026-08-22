@@ -106,7 +106,7 @@ ACCESS_TOKEN=$(jq -er '.accessToken' "$TMP_DIR/register.json")
 MARKER_MAY_EXIST=true
 
 echo "Creating and verifying the staging backup"
-BACKUP_FILE=$("${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
+BACKUP_OUTPUT=$("${SSH[@]}" bash -s -- "$REMOTE_DIR" <<'REMOTE'
 set -Eeuo pipefail
 cd "$1"
 ./backup.sh >&2
@@ -115,11 +115,20 @@ backup_file=$(find "$PWD/backups" -maxdepth 1 -type f -name 'stoxsim-*.dump' -pr
 test -n "$backup_file"
 test -f "${backup_file}.sha256"
 (cd "$(dirname "$backup_file")" && sha256sum --check "$(basename "${backup_file}.sha256")") >&2
-printf '%s\n' "$backup_file"
+printf 'STOXSIM_RECOVERY_BACKUP=%s\n' "$(basename "$backup_file")"
 REMOTE
 )
-BACKUP_BASENAME=$(basename "$BACKUP_FILE")
-if [[ ! "$BACKUP_BASENAME" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
+BACKUP_BASENAME=""
+while IFS= read -r output_line; do
+  output_line="${output_line%$'\r'}"
+  if [[ "$output_line" == STOXSIM_RECOVERY_BACKUP=* ]]; then
+    candidate="${output_line#STOXSIM_RECOVERY_BACKUP=}"
+    if [[ "$candidate" =~ ^stoxsim-[0-9]{8}T[0-9]{6}Z\.dump$ ]]; then
+      BACKUP_BASENAME="$candidate"
+    fi
+  fi
+done <<< "$BACKUP_OUTPUT"
+if [[ -z "$BACKUP_BASENAME" ]]; then
   echo "The staging host returned an invalid recovery-backup filename." >&2
   exit 1
 fi
