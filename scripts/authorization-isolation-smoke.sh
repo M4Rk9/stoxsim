@@ -119,24 +119,46 @@ expect_denied() {
 }
 
 delete_account() {
-  local token="$1"
+  local label="$1"
+  local token="$2"
   if [[ -z "$token" ]]; then
     return
   fi
-  api_call \
-    "$token" \
-    DELETE \
-    "/api/v1/auth/me" \
-    /dev/null \
-    "$(jq -nc --arg password "$PASSWORD" '{password: $password}')" \
-    >/dev/null || true
+  local output="$TMP_DIR/delete-${label}.json"
+  local body
+  local status
+  body=$(jq -nc --arg password "$PASSWORD" '{password: $password}')
+
+  for attempt in 1 2 3 4; do
+    status=$(api_call "$token" DELETE "/api/v1/auth/me" "$output" "$body") || status="000"
+    if [[ "$status" == "204" ]]; then
+      echo "Deleted temporary learner ${label}"
+      return 0
+    fi
+    if [[ ! "$status" =~ ^(000|429|500|502|503|504)$ ]] || [[ "$attempt" -eq 4 ]]; then
+      echo "::error::Failed to delete temporary learner ${label}; HTTP ${status}" >&2
+      sed -n '/^[Xx]-[Rr]equest-[Ii][Dd]:/p' "${output}.headers" >&2 || true
+      jq -c . "$output" 2>/dev/null || head -c 500 "$output" >&2 || true
+      echo >&2
+      return 1
+    fi
+    echo "::warning::Deleting temporary learner ${label} returned HTTP ${status} on attempt ${attempt}/4"
+    sleep $((attempt * 5))
+  done
 }
 
 cleanup() {
+  local original_status=$?
+  local cleanup_failed=0
+  trap - EXIT
   set +e
-  delete_account "$TOKEN_B"
-  delete_account "$TOKEN_A"
+  delete_account B "$TOKEN_B" || cleanup_failed=1
+  delete_account A "$TOKEN_A" || cleanup_failed=1
   rm -rf "$TMP_DIR"
+  if [[ "$original_status" -ne 0 ]]; then
+    exit "$original_status"
+  fi
+  exit "$cleanup_failed"
 }
 trap cleanup EXIT
 
@@ -163,8 +185,24 @@ register_user() {
 
 echo "Registering two isolated staging learners"
 register_user A "$EMAIL_A" "$TMP_DIR/register-a.json"
-register_user B "$EMAIL_B" "$TMP_DIR/register-b.json"
 TOKEN_A=$(jq -er '.accessToken' "$TMP_DIR/register-a.json")
+
+expect_success "Read authoritative US market clock" "$TOKEN_A" GET "/api/v1/market/status/united-states/authoritative" "$TMP_DIR/authoritative-market-clock.json"
+if ! jq -e '.open == true' "$TMP_DIR/authoritative-market-clock.json" >/dev/null; then
+  next_open=$(jq -r '.nextOpen // "unknown"' "$TMP_DIR/authoritative-market-clock.json")
+  echo "::error::Authorization holdings and ledger isolation requires Alpaca to report the US market open; next open is ${next_open}" >&2
+  exit 1
+fi
+
+expect_success "Read US market session" "$TOKEN_A" GET "/api/v1/market/status?exchange=NASDAQ" "$TMP_DIR/market-status.json"
+if ! jq -e '.phase == "REGULAR"' "$TMP_DIR/market-status.json" >/dev/null; then
+  phase=$(jq -r '.phase // "UNKNOWN"' "$TMP_DIR/market-status.json")
+  next_transition=$(jq -r '.nextTransition // "unknown"' "$TMP_DIR/market-status.json")
+  echo "::error::Authorization holdings and ledger isolation must run during the regular US session; current phase is ${phase}, next transition is ${next_transition}" >&2
+  exit 1
+fi
+
+register_user B "$EMAIL_B" "$TMP_DIR/register-b.json"
 TOKEN_B=$(jq -er '.accessToken' "$TMP_DIR/register-b.json")
 
 echo "Selecting a shared tradable instrument"
@@ -244,7 +282,7 @@ create_user_resources() {
     "$order_output" \
     "$order_body" \
     "Idempotency-Key: authorization-${label}-${RUN_ID}"
-  jq -e --arg symbol "$SYMBOL" '.id and .symbol == $symbol' "$order_output" >/dev/null
+  jq -e --arg symbol "$SYMBOL" '.id and .symbol == $symbol and .status == "EXECUTED" and .executedAt' "$order_output" >/dev/null
 
   expect_success \
     "Create learner ${label} watchlist item" \
@@ -304,6 +342,12 @@ jq -e --arg email "$EMAIL_A" '.email == $email' "$TMP_DIR/me-a.json" >/dev/null
 jq -e --arg email "$EMAIL_B" '.email == $email' "$TMP_DIR/me-b.json" >/dev/null
 jq -e --arg id "$ORDER_A" 'any(.[]; .id == $id)' "$TMP_DIR/orders-a.json" >/dev/null
 jq -e --arg id "$ORDER_B" 'any(.[]; .id == $id)' "$TMP_DIR/orders-b.json" >/dev/null
+jq -e 'length > 0 and all(.[]; .id and .quantity > 0)' "$TMP_DIR/holdings-a.json" >/dev/null
+jq -e 'length > 0 and all(.[]; .id and .quantity > 0)' "$TMP_DIR/holdings-b.json" >/dev/null
+jq -e '.holdings | length > 0 and all(.[]; .holdingId)' "$TMP_DIR/portfolio-a.json" >/dev/null
+jq -e '.holdings | length > 0 and all(.[]; .holdingId)' "$TMP_DIR/portfolio-b.json" >/dev/null
+jq -e 'length > 0 and all(.[]; .id)' "$TMP_DIR/ledger-a.json" >/dev/null
+jq -e 'length > 0 and all(.[]; .id)' "$TMP_DIR/ledger-b.json" >/dev/null
 
 USER_A_IDS="$TMP_DIR/user-a-ids.txt"
 {
