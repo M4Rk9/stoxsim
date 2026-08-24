@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class MetricsScrapeFilter extends OncePerRequestFilter {
 
     private static final String METRICS_PATH = "/actuator/prometheus";
+    private static final String METRICS_AUTHORIZATION_PREFIX = "Metrics ";
     private final String scrapeToken;
 
     public MetricsScrapeFilter(
@@ -43,8 +44,8 @@ public class MetricsScrapeFilter extends OncePerRequestFilter {
         FilterChain filterChain
     ) throws ServletException, IOException {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-        String supplied = authorization != null && authorization.startsWith("Bearer ")
-            ? authorization.substring(7)
+        String supplied = authorization != null && authorization.startsWith(METRICS_AUTHORIZATION_PREFIX)
+            ? authorization.substring(METRICS_AUTHORIZATION_PREFIX.length())
             : "";
 
         if (!StringUtils.hasText(scrapeToken)

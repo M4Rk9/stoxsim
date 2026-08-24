@@ -23,7 +23,7 @@ scrape_configs:
   - job_name: stoxsim-api
     metrics_path: /actuator/prometheus
     authorization:
-      type: Bearer
+      type: Metrics
       credentials_file: /run/secrets/metrics-scrape-token
     static_configs:
       - targets:
