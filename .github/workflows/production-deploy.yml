@@ -53,6 +53,12 @@ jobs:
       PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.image_tag }}
+
+      - name: Verify immutable production bundle revision
+        run: |
+          [[ "$(git rev-parse HEAD)" == "$IMAGE_TAG" ]]
 
       - name: Validate production authorization and configuration
         run: |
@@ -127,7 +133,28 @@ jobs:
           tar -C deploy/production -czf "$ARCHIVE" .
           ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST" "mkdir -p '$REMOTE_DIR'"
           scp -P "$SSH_PORT" "$ARCHIVE" "$PRODUCTION_USER@$PRODUCTION_HOST:$ARCHIVE"
-          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST"             "tar -xzf '$ARCHIVE' -C '$REMOTE_DIR' && rm '$ARCHIVE' && chmod +x '$REMOTE_DIR'/*.sh && test -f '$REMOTE_DIR'/.env"
+          ssh -p "$SSH_PORT" "$PRODUCTION_USER@$PRODUCTION_HOST" \
+            bash -s -- "$REMOTE_DIR" "$ARCHIVE" <<'REMOTE'
+          set -Eeuo pipefail
+          remote_dir="$1"
+          archive="$2"
+          previous=$(mktemp /tmp/stoxsim-previous-bundle.XXXXXX.tgz)
+          trap 'rm -f "$previous" "$archive"' EXIT
+          if [[ -f "$remote_dir/compose.yml" ]]; then
+            tar \
+              --exclude=.env \
+              --exclude=backups \
+              --exclude=.previous-image-tag \
+              --exclude=.previous-deployment-bundle.tgz \
+              --exclude=monitoring/alertmanager.yml \
+              --exclude=monitoring/metrics-scrape-token \
+              -C "$remote_dir" -czf "$previous" .
+            install -m 600 "$previous" "$remote_dir/.previous-deployment-bundle.tgz"
+          fi
+          tar -xzf "$archive" -C "$remote_dir"
+          chmod +x "$remote_dir"/*.sh
+          test -f "$remote_dir/.env"
+          REMOTE
 
       - name: Synchronize provider credentials and settings
         run: |
