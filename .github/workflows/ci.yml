@@ -60,6 +60,15 @@ jobs:
           python3 deploy/production/render-monitoring-config.py
       - name: Validate production Compose interpolation
         run: docker compose --env-file deploy/production/.env.example -f deploy/production/compose.yml config --quiet
+      - name: Validate production monitoring network topology
+        run: |
+          docker compose --env-file deploy/production/.env.example -f deploy/production/compose.yml config --format json \
+            | jq -e '.networks.monitoring.internal == true
+              and (.networks.management.internal // false) == false
+              and (.services.prometheus.networks | has("monitoring") and has("management"))
+              and (.services.grafana.networks | has("monitoring") and has("management"))
+              and (.services.prometheus.ports[0].host_ip == "127.0.0.1")
+              and (.services.grafana.ports[0].host_ip == "127.0.0.1")'
       - name: Validate monitoring configuration
         run: |
           docker run --rm --entrypoint /bin/promtool \
