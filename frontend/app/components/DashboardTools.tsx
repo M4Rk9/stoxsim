@@ -6,11 +6,11 @@ import styles from "./DashboardTools.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-type ThemePreference = "light" | "dark" | "system";
-type ResolvedTheme = "light" | "dark";
+type ThemePreference = "light" | "dark";
 
 interface StoredSession {
   user: {
+    id: string;
     email: string;
     displayName: string;
   };
@@ -30,55 +30,44 @@ function readSession(): StoredSession | null {
   }
 }
 
-function readThemePreference(): ThemePreference {
+function themeStorageKey(session: StoredSession | null) {
+  return session?.user.id ? `stoxsim-theme:${session.user.id}` : null;
+}
+
+function readThemePreference(session: StoredSession | null): ThemePreference {
   try {
-    const saved = window.localStorage.getItem("stoxsim-theme");
-    return saved === "light" || saved === "dark" || saved === "system"
-      ? saved
-      : "system";
+    const key = themeStorageKey(session);
+    const saved = key ? window.localStorage.getItem(key) : null;
+    return saved === "dark" ? "dark" : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 
-function resolveTheme(preference: ThemePreference, systemDark: boolean): ResolvedTheme {
-  return preference === "system"
-    ? systemDark ? "dark" : "light"
-    : preference;
-}
-
-function applyResolvedTheme(preference: ThemePreference, systemDark: boolean) {
-  const resolved = resolveTheme(preference, systemDark);
-  document.documentElement.dataset.theme = resolved;
+function applyTheme(preference: ThemePreference) {
+  document.documentElement.dataset.theme = preference;
   document.documentElement.dataset.themePreference = preference;
-  document.documentElement.style.colorScheme = resolved;
+  document.documentElement.style.colorScheme = preference;
 }
 
 const themeOptions: Array<{
   value: ThemePreference;
   label: string;
-  icon: "sun" | "moon" | "system";
+  icon: "sun" | "moon";
 }> = [
   { value: "light", label: "Light", icon: "sun" },
   { value: "dark", label: "Dark", icon: "moon" },
-  { value: "system", label: "System", icon: "system" },
 ];
 
-function ThemeIcon({ icon }: { icon: "sun" | "moon" | "system" }) {
+function ThemeIcon({ icon }: { icon: "sun" | "moon" }) {
   if (icon === "sun") {
     return <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="3.5" />
       <path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
     </svg>;
   }
-  if (icon === "moon") {
-    return <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M20.5 14.3A8.4 8.4 0 0 1 9.7 3.5 8.7 8.7 0 1 0 20.5 14.3Z" />
-    </svg>;
-  }
   return <svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="3.5" y="4.5" width="17" height="12" rx="2" />
-    <path d="M8.5 20h7M12 16.5V20" />
+    <path d="M20.5 14.3A8.4 8.4 0 0 1 9.7 3.5 8.7 8.7 0 1 0 20.5 14.3Z" />
   </svg>;
 }
 
@@ -87,7 +76,7 @@ export default function DashboardTools() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState<SelectedStock | null>(null);
-  const [themePreference, setThemePreference] = useState<ThemePreference>("system");
+  const [themePreference, setThemePreference] = useState<ThemePreference>("light");
   const wrapper = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,24 +91,15 @@ export default function DashboardTools() {
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
     const sync = () => {
-      const preference = readThemePreference();
+      const preference = readThemePreference(session);
       setThemePreference(preference);
-      applyResolvedTheme(preference, media.matches);
+      applyTheme(preference);
     };
-    const syncSystemTheme = () => {
-      if (readThemePreference() === "system") sync();
-    };
-
     sync();
     window.addEventListener("storage", sync);
-    media.addEventListener("change", syncSystemTheme);
-    return () => {
-      window.removeEventListener("storage", sync);
-      media.removeEventListener("change", syncSystemTheme);
-    };
-  }, []);
+    return () => window.removeEventListener("storage", sync);
+  }, [session?.user.id]);
 
   useEffect(() => {
     if (pathname !== "/") {
@@ -158,12 +138,10 @@ export default function DashboardTools() {
   }, []);
 
   function selectTheme(preference: ThemePreference) {
-    window.localStorage.setItem("stoxsim-theme", preference);
+    const key = themeStorageKey(session);
+    if (key) window.localStorage.setItem(key, preference);
     setThemePreference(preference);
-    applyResolvedTheme(
-      preference,
-      window.matchMedia("(prefers-color-scheme: dark)").matches,
-    );
+    applyTheme(preference);
   }
 
   async function signOut() {
@@ -172,6 +150,7 @@ export default function DashboardTools() {
       credentials: "include",
     }).catch(() => undefined);
     window.sessionStorage.removeItem("stoxsim-session");
+    applyTheme("light");
     window.location.assign("/");
   }
 
@@ -209,6 +188,15 @@ export default function DashboardTools() {
         {!isDashboard && <a className={styles.menuLink} href="/" role="menuitem">
           Dashboard <span>→</span>
         </a>}
+        <a
+          className={styles.menuLink}
+          href="/portfolio"
+          target="_blank"
+          rel="noopener noreferrer"
+          role="menuitem"
+        >
+          Portfolio <span>↗</span>
+        </a>
         <a className={styles.menuLink} href="/settings" role="menuitem">
           Account settings <span>→</span>
         </a>

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { Client, IMessage } from "@stomp/stompjs";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -1205,7 +1206,10 @@ export default function Home() {
 }
 
 function Brand() {
-  return <a className="brand" href="/" aria-label="StoxSim home"><span className="brandMark"><i /><i /><i /></span><span>Stox<span>Sim</span></span></a>;
+  return <a className="brand" href="/" aria-label="StoxSim home">
+    <Image className="brandLogo" src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
+    <span>Stox<span>Sim</span></span>
+  </a>;
 }
 
 function Metric({ label, value, sub, tone = "" }: { label: string; value: string; sub: string; tone?: string }) {
