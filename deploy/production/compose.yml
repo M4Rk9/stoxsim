@@ -196,6 +196,7 @@ services:
         condition: service_started
     networks:
       - monitoring
+      - management
 
   alertmanager:
     image: prom/alertmanager:v0.34.0
@@ -265,6 +266,7 @@ services:
         condition: service_started
     networks:
       - monitoring
+      - management
 
 networks:
   edge:
@@ -272,6 +274,7 @@ networks:
     internal: true
   monitoring:
     internal: true
+  management:
 
 volumes:
   postgres-data:
