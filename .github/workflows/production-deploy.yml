@@ -53,6 +53,12 @@ jobs:
       PRODUCTION_WEB_URL: ${{ vars.PRODUCTION_WEB_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.image_tag }}
+
+      - name: Verify immutable production bundle revision
+        run: |
+          [[ "$(git rev-parse HEAD)" == "$IMAGE_TAG" ]]
 
       - name: Validate production authorization and configuration
         run: |
