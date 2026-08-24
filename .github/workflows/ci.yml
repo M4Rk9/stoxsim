@@ -50,6 +50,7 @@ jobs:
           bash scripts/test-staging-readiness.sh
           bash scripts/test-staging-restore.sh
           bash scripts/test-production-uptime-workflow.sh
+          bash scripts/test-production-deploy-contract.sh
           node --check scripts/staging-load.mjs
           python3 -m py_compile deploy/production/render-monitoring-config.py
       - name: Validate staging Compose interpolation
