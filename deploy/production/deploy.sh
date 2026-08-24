@@ -83,6 +83,7 @@ fi
 echo "Starting production services"
 if "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600 \
   && "${COMPOSE[@]}" up --detach --no-deps --force-recreate caddy \
+  && "${COMPOSE[@]}" up --detach --no-deps --force-recreate alertmanager blackbox-exporter prometheus grafana \
   && "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600; then
   "${COMPOSE[@]}" ps
   docker image prune --force --filter "until=336h" >/dev/null
