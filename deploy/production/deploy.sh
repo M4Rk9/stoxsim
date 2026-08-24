@@ -4,6 +4,7 @@ set -Eeuo pipefail
 DEPLOY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ENV_FILE="${DEPLOY_DIR}/.env"
 COMPOSE=(docker compose --env-file "$ENV_FILE" -f "${DEPLOY_DIR}/compose.yml")
+PREVIOUS_BUNDLE="${DEPLOY_DIR}/.previous-deployment-bundle.tgz"
 TARGET_TAG="${1:-}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -45,6 +46,16 @@ write_env_value() {
   mv "$temporary" "$ENV_FILE"
 }
 
+restore_previous_bundle() {
+  if [[ ! -f "$PREVIOUS_BUNDLE" ]]; then
+    echo "No previous production bundle is available for rollback." >&2
+    return 1
+  fi
+  echo "Restoring the previous production bundle"
+  tar -xzf "$PREVIOUS_BUNDLE" -C "$DEPLOY_DIR"
+  python3 "${DEPLOY_DIR}/render-monitoring-config.py"
+}
+
 PREVIOUS_TAG=$(read_env_value STOXSIM_IMAGE_TAG)
 BACKUP_BEFORE_DEPLOY=$(read_env_value BACKUP_BEFORE_DEPLOY)
 BACKUP_BEFORE_DEPLOY="${BACKUP_BEFORE_DEPLOY:-true}"
@@ -70,6 +81,7 @@ write_env_value STOXSIM_IMAGE_TAG "$TARGET_TAG"
 echo "Pulling immutable StoxSim production images tagged ${TARGET_TAG}"
 if ! "${COMPOSE[@]}" pull; then
   write_env_value STOXSIM_IMAGE_TAG "$PREVIOUS_TAG"
+  restore_previous_bundle || true
   exit 1
 fi
 
@@ -77,6 +89,7 @@ echo "Validating the production edge configuration"
 if ! "${COMPOSE[@]}" run --rm --no-deps caddy \
   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; then
   write_env_value STOXSIM_IMAGE_TAG "$PREVIOUS_TAG"
+  restore_previous_bundle || true
   exit 1
 fi
 
@@ -94,9 +107,11 @@ fi
 echo "Production deployment failed internal health checks" >&2
 if [[ "$PREVIOUS_TAG" =~ ^[0-9a-f]{40}$ && "$PREVIOUS_TAG" != "$TARGET_TAG" ]]; then
   echo "Rolling back to ${PREVIOUS_TAG}" >&2
+  restore_previous_bundle || true
   write_env_value STOXSIM_IMAGE_TAG "$PREVIOUS_TAG"
   "${COMPOSE[@]}" pull
   "${COMPOSE[@]}" up --detach --remove-orphans --wait --wait-timeout 600
+  "${COMPOSE[@]}" up --detach --no-deps --force-recreate caddy alertmanager blackbox-exporter prometheus grafana
 else
   echo "No previous immutable image tag is available for automatic rollback" >&2
 fi
