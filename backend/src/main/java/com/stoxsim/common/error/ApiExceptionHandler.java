@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.stoxsim.order.service.TradingValidationException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -46,6 +48,18 @@ public class ApiExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, "Request validation failed", fields);
     }
 
+    @ExceptionHandler(TradingValidationException.class)
+    ResponseEntity<ApiError> handleTradingValidation(
+        TradingValidationException exception
+    ) {
+        recordError(HttpStatus.UNPROCESSABLE_ENTITY, "trading_validation");
+        return response(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            exception.getMessage(),
+            Map.of()
+        );
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException exception) {
         HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
@@ -59,10 +73,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> handleUnexpected(Exception exception) {
         recordError(HttpStatus.INTERNAL_SERVER_ERROR, "unhandled");
-        LOGGER.error(
-            "Unhandled API exception: type={}",
-            exception.getClass().getName()
-        );
+        LOGGER.error("Unhandled API exception", exception);
         return response(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "An unexpected error occurred. Use the X-Request-ID response header when contacting support.",

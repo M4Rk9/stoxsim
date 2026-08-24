@@ -25,9 +25,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           headers=$(mktemp)
-          trap 'rm -f "$headers"' EXIT
+          web_body=$(mktemp)
+          trap 'rm -f "$headers" "$web_body"' EXIT
 
-          curl --fail --silent --show-error             --retry 4 --retry-all-errors --retry-delay 5             --connect-timeout 10 --max-time 30             "$WEB_URL" | grep -Fq "StoxSim"
+          curl --fail --silent --show-error             --retry 4 --retry-all-errors --retry-delay 5             --connect-timeout 10 --max-time 30             --output "$web_body"             "$WEB_URL"
+          grep -Fq "StoxSim" "$web_body"
 
           readiness=$(curl --fail --silent --show-error             --retry 4 --retry-all-errors --retry-delay 5             --connect-timeout 10 --max-time 30             --dump-header "$headers"             "$API_URL/actuator/health/readiness")
           jq -e '.status == "UP"' <<<"$readiness" >/dev/null

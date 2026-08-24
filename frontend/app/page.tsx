@@ -288,7 +288,11 @@ interface Trade {
 }
 
 class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly requestId?: string,
+  ) {
     super(message);
   }
 }
@@ -305,7 +309,12 @@ async function rawRequest<T>(path: string, options: RequestInit = {}, token?: st
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new ApiError(payload?.message ?? `Request failed with status ${response.status}`, response.status);
+    const requestId = response.headers.get("X-Request-ID") ?? undefined;
+    const message = payload?.message ?? `Request failed with status ${response.status}`;
+    const actionableMessage = response.status >= 500 && requestId
+      ? `${message} Request ID: ${requestId}`
+      : message;
+    throw new ApiError(actionableMessage, response.status, requestId);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
