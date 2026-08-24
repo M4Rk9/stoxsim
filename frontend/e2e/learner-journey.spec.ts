@@ -61,31 +61,38 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
 
   await expectIndiaAccount(page);
   await expect(page.locator(".streamBadge")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("button", { name: /Switch to (dark|light) mode/ })).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
 
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
   await expect(page.getByRole("group", { name: "Appearance" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Use system appearance" })).toHaveCount(0);
   await page.getByRole("button", { name: "Use dark appearance" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "dark");
   await expect(page.locator(".marketBanner")).not.toHaveCSS("background-color", "rgb(240, 242, 239)");
   await expect(page.locator(".estimateBox")).not.toHaveCSS("background-color", "rgb(246, 248, 245)");
 
-  await page.getByRole("button", { name: "Use light appearance" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
-  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-
   await page.reload();
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "My Watchlist" })).toBeVisible();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "dark");
 
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-  await expect(page.getByRole("menuitem", { name: /Account settings/ })).toBeVisible();
+  const portfolioLink = page.getByRole("menuitem", { name: /Portfolio/ });
+  await expect(portfolioLink).toHaveAttribute("target", "_blank");
+  const portfolioPopup = page.waitForEvent("popup");
+  await portfolioLink.click();
+  const portfolioPage = await portfolioPopup;
+  await expect(portfolioPage.getByRole("heading", { name: "Your portfolio" }))
+    .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+  await expect(portfolioPage.getByRole("heading", { name: "India holdings" })).toBeVisible();
+  await portfolioPage.close();
+
   await page.getByRole("menuitem", { name: /Sign out/ }).click();
   await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
@@ -96,6 +103,8 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
 
   await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
   await expectIndiaAccount(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "dark");
 });
 
 test("a learner can switch between India and United States markets", async ({ page }) => {

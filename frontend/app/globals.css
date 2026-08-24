@@ -23,11 +23,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 
 .brand { color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 10px; font-size: 1.25rem; font-weight: 820; letter-spacing: -.05em; }
 .brand > span:last-child > span { color: var(--green); }
-.brandMark { width: 34px; height: 34px; border-radius: 10px; background: var(--navy); display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 8px; }
-.brandMark i { display: block; width: 4px; border-radius: 3px; background: #62d494; transform: skew(-12deg); }
-.brandMark i:nth-child(1) { height: 8px; }
-.brandMark i:nth-child(2) { height: 14px; }
-.brandMark i:nth-child(3) { height: 20px; }
+.brandLogo { width: 42px; height: 42px; object-fit: contain; }
 
 .welcomeShell { min-height: 100vh; background: radial-gradient(circle at 12% 14%, #e2f4e7, transparent 25rem), radial-gradient(circle at 90% 80%, #dce9f1, transparent 28rem), #f7f9f5; }
 .welcomeNav { width: min(1180px, calc(100% - 40px)); margin: auto; height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(23,33,29,.08); }

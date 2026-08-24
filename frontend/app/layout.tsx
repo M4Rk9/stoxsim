@@ -6,23 +6,26 @@ import "./theme.css";
 export const metadata: Metadata = {
   title: "StoxSim | Practise markets. Risk nothing.",
   description: "Paper trade Indian and US stocks with virtual capital.",
+  icons: {
+    icon: "/stoxsim-logo.png",
+    apple: "/stoxsim-logo.png",
+  },
 };
 
 const themeScript = `(() => {
   try {
-    const saved = window.localStorage.getItem("stoxsim-theme");
-    const preference = saved === "light" || saved === "dark" || saved === "system"
-      ? saved
-      : "system";
-    const resolved = preference === "system"
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-      : preference;
-    document.documentElement.dataset.theme = resolved;
+    const storedSession = window.sessionStorage.getItem("stoxsim-session");
+    const session = storedSession ? JSON.parse(storedSession) : null;
+    const userId = typeof session?.user?.id === "string" ? session.user.id : "";
+    const storageKey = userId ? "stoxsim-theme:" + userId : null;
+    const saved = storageKey ? window.localStorage.getItem(storageKey) : null;
+    const preference = saved === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = preference;
     document.documentElement.dataset.themePreference = preference;
-    document.documentElement.style.colorScheme = resolved;
+    document.documentElement.style.colorScheme = preference;
   } catch {
     document.documentElement.dataset.theme = "light";
-    document.documentElement.dataset.themePreference = "system";
+    document.documentElement.dataset.themePreference = "light";
     document.documentElement.style.colorScheme = "light";
   }
 })();`;
