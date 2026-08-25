@@ -13,6 +13,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -41,6 +42,7 @@ public class SecFundamentalsClient {
     private volatile Map<String, CompanyKey> tickerIndex = Map.of();
     private volatile Instant tickerIndexAt = Instant.EPOCH;
 
+    @Autowired
     public SecFundamentalsClient(
         @Value("${stoxsim.market-data.sec.user-agent:StoxSim/1.0 support.stoxsim@gmail.com}") String userAgent,
         @Value("${stoxsim.market-data.sec.max-requests-per-second:8}") int maxRequestsPerSecond
