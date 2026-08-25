@@ -10,7 +10,7 @@ Running provider SDKs or holding API credentials does not by itself grant StoxSi
 |---|---|---|---|
 | Upstox / Upstox Analytics | India quotes, candles, indices, movers, instrument catalogue and company fundamentals | Written approval or contract/plan language covering display to StoxSim end users, caching, derived movers/portfolio values, attribution and the intended public-beta user count | **Pending** |
 | Alpaca Market Data | United States quotes, bars, benchmarks, movers and derived portfolio values | Written approval or plan terms covering end-user display and redistribution for the selected feed, including any SIP/IEX limitations, caching and attribution | **Pending** |
-| SEC EDGAR | United States filing-derived fundamentals | Recorded review of SEC fair-access guidance, request identification, rate limits, source attribution and treatment of third-party material within filings | **Review pending** |
+| SEC EDGAR | United States filing-derived fundamentals | Recorded review of SEC fair-access guidance, request identification, rate limits, source attribution and treatment of filing-derived facts | **Reviewed 2026-08-25** — see [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md) |
 
 Useful provider references:
 
@@ -54,7 +54,7 @@ Before public launch, the release owner must check:
 
 - [ ] Upstox approval evidence is complete and the production plan matches it.
 - [ ] Alpaca approval evidence is complete and the production plan matches it.
-- [ ] SEC fair-access and attribution review is recorded.
+- [x] SEC fair-access and attribution review is recorded in [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md).
 - [ ] Required attribution appears in the product.
 - [ ] Cache retention and WebSocket fan-out match the approved rights.
 - [ ] A fallback exists to disable a source without breaking authentication or account access.
