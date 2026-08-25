@@ -37,22 +37,35 @@ public class SecFundamentalsClient {
 
     private final RestClient secData;
     private final RestClient secFiles;
+    private final SecRequestThrottle throttle;
     private volatile Map<String, CompanyKey> tickerIndex = Map.of();
     private volatile Instant tickerIndexAt = Instant.EPOCH;
 
     public SecFundamentalsClient(
-        @Value("${stoxsim.market-data.sec.user-agent:StoxSim/1.0 contact@stoxsim.com}") String userAgent
+        @Value("${stoxsim.market-data.sec.user-agent:StoxSim/1.0 support.stoxsim@gmail.com}") String userAgent,
+        @Value("${stoxsim.market-data.sec.max-requests-per-second:8}") int maxRequestsPerSecond
     ) {
+        String identifiedUserAgent = userAgent == null ? "" : userAgent.trim();
+        if (identifiedUserAgent.isBlank() || !identifiedUserAgent.contains("@")) {
+            throw new IllegalArgumentException(
+                "SEC_USER_AGENT must identify StoxSim and include a monitored contact email"
+            );
+        }
+        this.throttle = new SecRequestThrottle(maxRequestsPerSecond);
         this.secData = RestClient.builder()
             .baseUrl("https://data.sec.gov")
-            .defaultHeader("User-Agent", userAgent)
+            .defaultHeader("User-Agent", identifiedUserAgent)
             .defaultHeader("Accept-Encoding", "gzip, deflate")
             .build();
         this.secFiles = RestClient.builder()
             .baseUrl("https://www.sec.gov")
-            .defaultHeader("User-Agent", userAgent)
+            .defaultHeader("User-Agent", identifiedUserAgent)
             .defaultHeader("Accept-Encoding", "gzip, deflate")
             .build();
+    }
+
+    SecFundamentalsClient(String userAgent) {
+        this(userAgent, 8);
     }
 
     public StockInsightsResponse get(
@@ -134,6 +147,7 @@ public class SecFundamentalsClient {
     }
 
     private JsonNode getJson(RestClient client, String path) {
+        throttle.acquire();
         try {
             return client.get().uri(path).retrieve().body(JsonNode.class);
         } catch (RestClientException exception) {
