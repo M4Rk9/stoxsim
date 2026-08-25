@@ -17,6 +17,7 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Production observability with structured request-correlated logs, protected Prometheus metrics, Grafana dashboards, host and dependency alerts, external uptime checks, a public status page, and an incident-response runbook.
 - Protected staging load and backup/restore verification with release evidence artifacts.
 - Authenticated browser acceptance testing in CI.
+- SEC EDGAR fair-access documentation and a final public-release sign-off checklist.
 
 ### Security
 
@@ -26,3 +27,4 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Private vulnerability reporting policy and security ownership boundaries.
 - Single-use, time-limited verification and password-reset tokens.
 - All refresh sessions are revoked after password changes and resets.
+- SEC EDGAR requests use an identified contact and a tested process-wide rate limit below the SEC fair-access ceiling.
