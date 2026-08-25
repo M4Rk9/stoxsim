@@ -44,6 +44,8 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@stoxsim.com}
       MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
+      SEC_USER_AGENT: ${SEC_USER_AGENT:-StoxSim/1.0 support.stoxsim@gmail.com}
+      SEC_MAX_REQUESTS_PER_SECOND: ${SEC_MAX_REQUESTS_PER_SECOND:-8}
       UPSTOX_ANALYTICS_TOKEN: ${UPSTOX_ANALYTICS_TOKEN:-}
       UPSTOX_INSTRUMENT_MASTER_URL: ${UPSTOX_INSTRUMENT_MASTER_URL:-https://assets.upstox.com/market-quote/instruments/exchange/complete.json.gz}
       UPSTOX_STREAM_ENABLED: ${UPSTOX_STREAM_ENABLED:-false}

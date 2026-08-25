@@ -80,7 +80,8 @@ stoxsim:
     thinking-level: ${FINWIZ_THINKING_LEVEL:minimal}
   market-data:
     sec:
-      user-agent: ${SEC_USER_AGENT:StoxSim/1.0 contact@stoxsim.com}
+      user-agent: ${SEC_USER_AGENT:StoxSim/1.0 support.stoxsim@gmail.com}
+      max-requests-per-second: ${SEC_MAX_REQUESTS_PER_SECOND:8}
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
       nse-instrument-master-url: ${UPSTOX_NSE_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz}

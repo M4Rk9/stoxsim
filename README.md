@@ -107,6 +107,8 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)
 - [Market-data public-release permission gate](docs/MARKET_DATA_PERMISSION.md)
+- [SEC EDGAR access and attribution review](docs/SEC_EDGAR_COMPLIANCE.md)
+- [Public release sign-off](docs/RELEASE_CHECKLIST.md)
 - [India paper-trading engine](docs/TRADING.md)
 - [Simulated Indian charges](docs/CHARGES.md)
 - [Testing and acceptance](docs/TESTING.md)
