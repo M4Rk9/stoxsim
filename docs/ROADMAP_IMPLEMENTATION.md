@@ -9,8 +9,8 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Roadmap area | Status | Notes |
 | --- | --- | --- |
 | Core public-release platform | Implemented | Authentication, separate India/US portfolios, paper orders, holdings, watchlists, market status, FinWiz, deployment, recovery and observability exist. |
-| Guided onboarding | In progress | Current batch adds persisted introduction state and the first-trade walkthrough. |
-| StoxScore and portfolio risk | Next | First post-onboarding product batch; definitions and explainability must be designed before scoring code. |
+| Guided onboarding | Implemented | Persisted introduction state and the first-trade walkthrough were deployed in PR #91. |
+| StoxScore and portfolio risk | In progress | Current batch adds the versioned StoxScore v1 structure model, concentration analytics and dashboard explanation. |
 | FinWiz portfolio feedback | Missing | Must remain educational: diversification, risk, attribution and learning guidance only. |
 | Portfolio analytics | Partial | Core valuation and P/L exist; allocation, concentration, benchmark and risk views remain. |
 | Weekly portfolio reports | Missing | Requires a report snapshot model and delivery preference; email infrastructure already exists. |
@@ -40,8 +40,20 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - Market-data-dependent features stay behind provider-neutral boundaries until
   display and redistribution permission is documented.
 
+## Batch 2 — StoxScore and portfolio structure
+
+- Versioned and documented 0–100 StoxScore formula.
+- Breadth, weight-balance and largest-position concentration components.
+- Effective holdings, concentration index, largest-position and top-three
+  weights.
+- Explicit pricing coverage, confidence and limited-data behavior.
+- Authenticated market-scoped API and responsive dashboard card.
+- Educational disclaimer and no predictive or buy/sell language.
+- No new secret, provider, paid service or market-data redistribution.
+
 ## Next batch
 
-Define and implement StoxScore as an explainable educational score. The design
-must expose its components, data freshness and limitations, avoid predictive or
-advisory language, and degrade safely when provider data is unavailable.
+Add backend-authoritative FinWiz feedback after an accepted paper trade. The
+feedback will explain the trade's effect on diversification and concentration,
+use the versioned StoxScore components, and remain educational rather than
+providing personalized buy/sell instructions.

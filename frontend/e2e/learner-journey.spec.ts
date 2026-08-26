@@ -35,6 +35,8 @@ async function registerLearner(page: Page, label: string) {
   await expect(page.getByRole("dialog", { name: "Find a stock and place one paper trade." })).toBeVisible();
   await page.getByRole("button", { name: "Start first trade" }).click();
   await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "StoxScore" })).toBeVisible();
+  await expect(page.getByText("Not scored yet")).toBeVisible();
   return email;
 }
 
