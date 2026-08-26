@@ -33,6 +33,7 @@ import com.stoxsim.order.domain.OrderStatus;
 import com.stoxsim.order.domain.OrderType;
 import com.stoxsim.order.domain.PaperOrder;
 import com.stoxsim.order.repository.PaperOrderRepository;
+import com.stoxsim.onboarding.service.OnboardingService;
 import com.stoxsim.portfolio.domain.Holding;
 import com.stoxsim.portfolio.repository.HoldingRepository;
 
@@ -50,6 +51,7 @@ public class OrderApplicationService {
     private final OrderSettlementService settlement;
     private final ApplicationEventPublisher events;
     private final MeterRegistry meterRegistry;
+    private final OnboardingService onboarding;
 
     public OrderApplicationService(
         VirtualAccountRepository accounts,
@@ -62,7 +64,8 @@ public class OrderApplicationService {
         ChargeCalculator charges,
         OrderSettlementService settlement,
         ApplicationEventPublisher events,
-        MeterRegistry meterRegistry
+        MeterRegistry meterRegistry,
+        OnboardingService onboarding
     ) {
         this.accounts = accounts;
         this.instruments = instruments;
@@ -75,6 +78,7 @@ public class OrderApplicationService {
         this.settlement = settlement;
         this.events = events;
         this.meterRegistry = meterRegistry;
+        this.onboarding = onboarding;
     }
 
     @Transactional
@@ -151,6 +155,7 @@ public class OrderApplicationService {
             reservedCash,
             session.orderDate()
         ));
+        onboarding.recordFirstOrder(userId);
 
         if (session.executable()) {
             settlement.settleOpenOrder(order, account, quote);

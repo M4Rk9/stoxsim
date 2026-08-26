@@ -21,6 +21,10 @@ StoxSim is a multi-market paper-trading platform that helps people learn how Ind
 7. Track holdings, cash, orders and performance.
 8. Sell holdings and inspect the resulting trade and ledger entries.
 
+New learners first receive a three-part educational introduction, followed by a
+persisted two-step search-to-order walkthrough. The server, rather than the
+browser, records completion of the first accepted paper order.
+
 ## MVP scope
 
 - Email-based registration and login
@@ -35,6 +39,7 @@ StoxSim is a multi-market paper-trading platform that helps people learn how Ind
 - Market session enforcement
 - Explicit LIVE, DELAYED, CLOSED and STALE labels
 - Responsive web application
+- Resumable guided onboarding and first-trade walkthrough
 
 ## Out of scope
 

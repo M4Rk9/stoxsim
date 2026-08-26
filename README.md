@@ -103,6 +103,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 
 - [Product definition](docs/PRODUCT.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Feature roadmap implementation](docs/ROADMAP_IMPLEMENTATION.md)
 - [Authentication and account lifecycle](docs/AUTHENTICATION.md)
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)

@@ -3,6 +3,11 @@
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Client, IMessage } from "@stomp/stompjs";
+import {
+  FirstTradeCoach,
+  OnboardingJourney,
+  type OnboardingState,
+} from "./components/OnboardingJourney";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
@@ -418,6 +423,7 @@ export default function Home() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const selectedRef = useRef<Instrument | null>(null);
 
   const token = session?.accessToken;
@@ -635,6 +641,7 @@ export default function Home() {
     void authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${region}`, {}, accessToken).then(setIndices).catch(() => undefined);
     void authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken).then(setWatchlist).catch(() => undefined);
     void authorizedRequest<MarketMovers>(`/api/v1/market/movers?marketRegion=${region}`, {}, accessToken).then(setMovers).catch(() => undefined);
+    void authorizedRequest<OnboardingState>("/api/v1/onboarding", {}, accessToken).then(setOnboarding).catch(() => undefined);
 
     try {
       setPortfolio(await authorizedRequest<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, {}, accessToken));
@@ -909,7 +916,13 @@ export default function Home() {
           }),
         },
       );
-      setNotice(`${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
+      const wasFirstOrder = Boolean(onboarding && !onboarding.firstOrderCompleted);
+      const nextOnboarding = await authorizedRequest<OnboardingState>("/api/v1/onboarding")
+        .catch(() => null);
+      if (nextOnboarding) setOnboarding(nextOnboarding);
+      setNotice(wasFirstOrder && nextOnboarding?.firstOrderCompleted
+        ? `First paper trade complete. Your ${selected.tradingSymbol} order is now part of your learning history.`
+        : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
       await loadDashboard(token);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Order could not be submitted");
@@ -967,6 +980,46 @@ export default function Home() {
     setWatchlist(null);
     setIndices([]);
     setMovers(null);
+    setOnboarding(null);
+  }
+
+  async function completeOnboardingIntroduction() {
+    try {
+      const next = await authorizedRequest<OnboardingState>(
+        "/api/v1/onboarding/introduction/complete",
+        { method: "POST" },
+      );
+      setOnboarding(next);
+      window.requestAnimationFrame(() => {
+        document.getElementById("stock-search")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Onboarding progress could not be saved");
+    }
+  }
+
+  async function dismissOnboarding() {
+    try {
+      const next = await authorizedRequest<OnboardingState>(
+        "/api/v1/onboarding/dismiss",
+        { method: "POST" },
+      );
+      setOnboarding(next);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Onboarding preference could not be saved");
+    }
+  }
+
+  async function resumeOnboarding() {
+    try {
+      const next = await authorizedRequest<OnboardingState>(
+        "/api/v1/onboarding/resume",
+        { method: "POST" },
+      );
+      setOnboarding(next);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Onboarding could not be resumed");
+    }
   }
 
   if (!session) {
@@ -1033,6 +1086,11 @@ export default function Home() {
 
   return (
     <main className="appShell">
+      <OnboardingJourney
+        state={onboarding}
+        onCompleteIntroduction={completeOnboardingIntroduction}
+        onDismiss={dismissOnboarding}
+      />
       <header className="appHeader">
         <Brand />
         <div className="marketSwitch" aria-label="Market selection">
@@ -1117,8 +1175,9 @@ export default function Home() {
 
       <section className="workspaceGrid">
         <div className="leftRail">
-          <article className="panel searchPanel">
+          <article className="panel searchPanel" id="stock-search">
             <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
+            {onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
             <form className="searchBox" onSubmit={searchInstruments}><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, HDFC Bank…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
             {results.length > 0 && <div className="searchResults">{results.map((instrument) => <button key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
@@ -1171,8 +1230,9 @@ export default function Home() {
             </div>
           </article>
 
-          <form className="panel orderTicket" onSubmit={placeOrder}>
+          <form className="panel orderTicket" id="paper-order-ticket" onSubmit={placeOrder}>
             <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Order ticket</h2></div><span className="deliveryPill">DELIVERY</span></div>
+            {onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
             <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
             <div className="fieldGrid"><label>Order type<select value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market</option><option value="LIMIT">Limit</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
@@ -1187,7 +1247,7 @@ export default function Home() {
             <div className="orderList">{openOrders.map((order) => <div className="openOrder" key={order.id}><div><span className={`sidePill ${order.side.toLowerCase()}`}>{order.side}</span><strong>{order.symbol}</strong><small>{order.quantity} · {order.orderType}{order.limitPrice ? ` @ ${displayMoney(order.limitPrice)}` : ""}</small></div><button type="button" onClick={() => cancelOrder(order.id)}>Cancel</button></div>)}{!openOrders.length && <div className="emptyState compact">No cash or shares are currently blocked by open orders.</div>}</div>
           </article>
 
-          <article className="learnCard"><span>STOXSIM NOTE</span><h3>Charges change the lesson.</h3><p>Buy charges are included in your cost basis. Sell charges reduce realized returns. Every schedule is versioned and marked simulated.</p></article>
+          <article className="learnCard"><span>STOXSIM NOTE</span><h3>Charges change the lesson.</h3><p>Buy charges are included in your cost basis. Sell charges reduce realized returns. Every schedule is versioned and marked simulated.</p>{onboarding?.dismissed && <button type="button" onClick={() => void resumeOnboarding()}>Resume onboarding</button>}</article>
         </aside>
       </section>
       <footer className="legalFooter">
