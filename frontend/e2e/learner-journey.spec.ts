@@ -37,6 +37,7 @@ async function registerLearner(page: Page, label: string) {
   await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
   await expect(page.getByRole("heading", { name: "StoxScore" })).toBeVisible();
   await expect(page.getByText("Not scored yet")).toBeVisible();
+  await expect(page.getByText("stoxscore-portfolio-v1")).toBeVisible();
   return email;
 }
 
