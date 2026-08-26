@@ -27,6 +27,14 @@ async function registerLearner(page: Page, label: string) {
   }
   await expect(page.getByRole("heading", { name: "Good day, Browser." }))
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+  const guide = page.getByRole("dialog", { name: "Two markets. Zero real-money risk." });
+  await expect(guide).toBeVisible();
+  await guide.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("dialog", { name: "Know how fresh every price is." })).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByRole("dialog", { name: "Find a stock and place one paper trade." })).toBeVisible();
+  await page.getByRole("button", { name: "Start first trade" }).click();
+  await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
   return email;
 }
 
@@ -150,6 +158,28 @@ test("a learner can switch between India and United States markets", async ({ pa
 
   await page.getByRole("button", { name: /India/ }).click();
   await expectIndiaAccount(page);
+});
+
+test("guided onboarding progress and dismissal persist across sessions", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "onboarding");
+
+  await page.reload();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const coach = page.getByLabel("First trade walkthrough, step 1 of 2");
+  await expect(coach).toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+
+  const dismissResponse = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && response.url().endsWith("/api/v1/onboarding/dismiss")
+  );
+  await coach.getByRole("button", { name: "Dismiss guide" }).click();
+  await expect((await dismissResponse).ok()).toBe(true);
+  await expect(coach).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByLabel(/First trade walkthrough/)).toHaveCount(0);
 });
 
 test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {

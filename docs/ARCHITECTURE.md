@@ -26,6 +26,7 @@ com.stoxsim
 ├── portfolio
 ├── trade
 ├── watchlist
+├── onboarding
 └── common
 ```
 
@@ -60,6 +61,10 @@ com.stoxsim
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `GET /api/v1/onboarding`
+- `POST /api/v1/onboarding/introduction/complete`
+- `POST /api/v1/onboarding/dismiss`
+- `POST /api/v1/onboarding/resume`
 - `GET /api/v1/instruments/search`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
@@ -76,3 +81,7 @@ com.stoxsim
 ## Paper-order transaction
 
 Each execution locks the virtual account and order, then atomically settles reserved cash or shares, updates the holding, creates one trade, writes one ledger entry and closes the order. PostgreSQL constraints, pessimistic locks and idempotency keys prevent overspending, overselling and duplicate submissions.
+
+An accepted paper order records the learner's first-order milestone in the same
+database transaction. The browser may complete or dismiss the educational
+introduction, but it cannot claim first-trade completion.

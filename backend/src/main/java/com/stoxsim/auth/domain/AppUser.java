@@ -39,6 +39,15 @@ public class AppUser {
     @Column(name = "privacy_version", length = 32)
     private String privacyVersion;
 
+    @Column(name = "onboarding_intro_completed_at")
+    private Instant onboardingIntroCompletedAt;
+
+    @Column(name = "first_order_placed_at")
+    private Instant firstOrderPlacedAt;
+
+    @Column(name = "onboarding_dismissed_at")
+    private Instant onboardingDismissedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -92,6 +101,18 @@ public class AppUser {
         return privacyVersion;
     }
 
+    public Instant getOnboardingIntroCompletedAt() {
+        return onboardingIntroCompletedAt;
+    }
+
+    public Instant getFirstOrderPlacedAt() {
+        return firstOrderPlacedAt;
+    }
+
+    public Instant getOnboardingDismissedAt() {
+        return onboardingDismissedAt;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -121,6 +142,35 @@ public class AppUser {
         this.termsVersion = termsVersion;
         this.privacyVersion = privacyVersion;
         this.updatedAt = this.termsAcceptedAt;
+    }
+
+    public void completeOnboardingIntroduction() {
+        if (onboardingIntroCompletedAt == null) {
+            onboardingIntroCompletedAt = Instant.now();
+            onboardingDismissedAt = null;
+            updatedAt = onboardingIntroCompletedAt;
+        }
+    }
+
+    public void recordFirstOrderPlaced() {
+        if (firstOrderPlacedAt == null) {
+            firstOrderPlacedAt = Instant.now();
+            updatedAt = firstOrderPlacedAt;
+        }
+    }
+
+    public void dismissOnboarding() {
+        if (onboardingDismissedAt == null) {
+            onboardingDismissedAt = Instant.now();
+            updatedAt = onboardingDismissedAt;
+        }
+    }
+
+    public void resumeOnboarding() {
+        if (onboardingDismissedAt != null) {
+            onboardingDismissedAt = null;
+            updatedAt = Instant.now();
+        }
     }
 
     public void changePassword(String passwordHash) {

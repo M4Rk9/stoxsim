@@ -1,0 +1,182 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(7, 20, 34, .72);
+  backdrop-filter: blur(6px);
+}
+
+.dialog {
+  width: min(520px, 100%);
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 22px;
+  padding: 34px;
+  background: #0d2133;
+  color: white;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .38);
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-bottom: 30px;
+}
+
+.progress span {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .16);
+}
+
+.progress .progressActive {
+  background: #6ad99b;
+}
+
+.eyebrow {
+  color: #6ad99b;
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .14em;
+}
+
+.dialog h2 {
+  margin: 12px 0 10px;
+  font-size: clamp(1.7rem, 5vw, 2.35rem);
+  line-height: 1.08;
+  letter-spacing: -.04em;
+}
+
+.dialog > p {
+  margin: 0;
+  color: #bed0dd;
+  font-size: .87rem;
+  line-height: 1.7;
+}
+
+.note {
+  margin-top: 22px;
+  border: 1px solid rgba(106, 217, 155, .24);
+  border-radius: 10px;
+  padding: 11px 13px;
+  color: #b9e8ce;
+  background: rgba(106, 217, 155, .08);
+  font-size: .7rem;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.actions button {
+  border-radius: 10px;
+  padding: 11px 15px;
+  font-weight: 800;
+  font-size: .74rem;
+}
+
+.skip {
+  border: 1px solid rgba(255, 255, 255, .18);
+  color: #c4d0d8;
+  background: transparent;
+}
+
+.primary {
+  min-width: 140px;
+  border: 0;
+  color: #082017;
+  background: #6ad99b;
+}
+
+.coach {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  margin: 0 0 16px;
+  border: 1px solid #bfe6cf;
+  border-radius: 12px;
+  padding: 14px;
+  background: #f0fbf5;
+  color: #17392a;
+  box-shadow: 0 8px 24px rgba(16, 129, 75, .08);
+}
+
+.coachNumber {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: #10814b;
+  font-size: .7rem;
+  font-weight: 850;
+}
+
+.coach span,
+.coach strong,
+.coach p {
+  display: block;
+}
+
+.coach span {
+  color: #10814b;
+  font-size: .54rem;
+  font-weight: 850;
+  letter-spacing: .1em;
+}
+
+.coach strong {
+  margin-top: 4px;
+  font-size: .76rem;
+}
+
+.coach p {
+  margin: 5px 0 0;
+  color: #567065;
+  font-size: .62rem;
+  line-height: 1.5;
+}
+
+.coach a {
+  display: inline-block;
+  margin-top: 7px;
+  color: #10814b;
+  font-size: .6rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.coachDismiss {
+  border: 0;
+  padding: 3px;
+  color: #687b72;
+  background: transparent;
+  font-size: .57rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .dialog {
+    padding: 26px 22px;
+  }
+
+  .coach {
+    grid-template-columns: auto 1fr;
+  }
+
+  .coachDismiss {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

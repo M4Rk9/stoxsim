@@ -347,6 +347,8 @@ td small.unavailable { color: var(--red); }
 .learnCard > span { color: #69d597; font-size: .59rem; font-weight: 850; letter-spacing: .13em; }
 .learnCard h3 { margin: 10px 0 7px; font-size: 1.05rem; }
 .learnCard p { margin: 0; color: #aec0cb; font-size: .69rem; line-height: 1.6; }
+.learnCard button { margin-top: 15px; border: 1px solid rgba(105,213,151,.45); border-radius: 8px; padding: 8px 10px; color: #8be5b1; background: transparent; font-size: .62rem; font-weight: 800; }
+.learnCard button:hover { background: rgba(105,213,151,.09); }
 
 footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); font-size: .62rem; }
 .legalFooter { align-items: center; gap: 18px; }

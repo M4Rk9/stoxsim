@@ -56,4 +56,38 @@ class AppUserLifecycleTest {
         assertFalse(changed);
         assertTrue(user.isEmailVerified());
     }
+
+    @Test
+    void onboardingProgressIsIdempotentAndBackendOwned() {
+        var user = new AppUser(
+            "learner@example.com",
+            "password-hash",
+            "Market Learner"
+        );
+
+        user.completeOnboardingIntroduction();
+        var introductionTime = user.getOnboardingIntroCompletedAt();
+        user.completeOnboardingIntroduction();
+        user.recordFirstOrderPlaced();
+        var firstOrderTime = user.getFirstOrderPlacedAt();
+        user.recordFirstOrderPlaced();
+
+        assertNotNull(introductionTime);
+        assertEquals(introductionTime, user.getOnboardingIntroCompletedAt());
+        assertNotNull(firstOrderTime);
+        assertEquals(firstOrderTime, user.getFirstOrderPlacedAt());
+    }
+
+    @Test
+    void learnerCanPersistentlyDismissTheGuide() {
+        var user = new AppUser(
+            "learner@example.com",
+            "password-hash",
+            "Market Learner"
+        );
+
+        user.dismissOnboarding();
+
+        assertNotNull(user.getOnboardingDismissedAt());
+    }
 }
