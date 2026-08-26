@@ -36,7 +36,8 @@ expected performance or a recommendation to trade.
 - Pricing coverage is the percentage of invested value with a price that is
   not marked `UNAVAILABLE`.
 - Coverage below 80% returns `LIMITED_DATA` with low confidence.
-- An unavailable aggregate valuation also returns low confidence.
+- An unavailable aggregate valuation also returns `LIMITED_DATA` with low
+  confidence, even when holding-level coverage is complete.
 - Partial coverage or stale aggregate valuation returns medium confidence.
 - Complete, non-stale valuation returns high confidence.
 - Where a holding price is unavailable, the underlying portfolio valuation

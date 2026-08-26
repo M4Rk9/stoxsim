@@ -80,7 +80,9 @@ public class PortfolioAnalyticsService {
                 + concentrationScore * CONCENTRATION_WEIGHT
         );
 
-        String status = coverage < 0.80 ? "LIMITED_DATA" : "AVAILABLE";
+        String status = coverage < 0.80 || portfolio.dataStatus() == PricingStatus.UNAVAILABLE
+            ? "LIMITED_DATA"
+            : "AVAILABLE";
         String confidence = confidence(portfolio.dataStatus(), coverage);
         List<StoxScoreComponentResponse> components = List.of(
             new StoxScoreComponentResponse(

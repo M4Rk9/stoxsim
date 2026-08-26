@@ -78,6 +78,18 @@ class PortfolioAnalyticsServiceTest {
         assertThat(analytics.observations()).anyMatch(message -> message.contains("75%"));
     }
 
+    @Test
+    void marksAnUnavailableAggregateValuationAsLimitedEvenWithFullPositionCoverage() {
+        var analytics = service().analyze(portfolio(
+            List.of(position("FALLBACK", "1000", PricingStatus.LIVE)),
+            PricingStatus.UNAVAILABLE
+        ));
+
+        assertThat(analytics.status()).isEqualTo("LIMITED_DATA");
+        assertThat(analytics.confidence()).isEqualTo("LOW");
+        assertThat(analytics.dataCoveragePercent()).isEqualByComparingTo("100.00");
+    }
+
     private PortfolioAnalyticsService service() {
         return new PortfolioAnalyticsService(valuation);
     }
