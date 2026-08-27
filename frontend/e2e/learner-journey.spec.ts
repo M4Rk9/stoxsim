@@ -215,6 +215,38 @@ test("learning progression awards authoritative missions and daily check-ins onc
   await expect(page.getByText("1 day", { exact: true })).toBeVisible();
 });
 
+test("a learner can opt into the standard season and create a private league", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "competitions");
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await page.getByRole("menuitem", { name: /Competitions/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Learning competitions" })).toBeVisible();
+  await expect(page.getByText("standard-india-entry-return-v1", { exact: true })).toBeVisible();
+  const enrollmentResponse = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && response.url().endsWith("/api/v1/competitions/current/enroll")
+  );
+  await page.getByRole("button", { name: "Join standard leaderboard" }).click();
+  await expect((await enrollmentResponse).ok()).toBe(true);
+  await expect(page.getByRole("region", { name: "Your competition position" })).toBeVisible();
+  await expect(page.getByText("Browser Learner", { exact: true }).first()).toBeVisible();
+
+  await page.getByLabel("Create a league").fill("Browser Study Circle");
+  const creationResponse = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && response.url().endsWith("/api/v1/leagues")
+  );
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect((await creationResponse).ok()).toBe(true);
+  await expect(page.getByRole("status")).toContainText("SHOWN ONCE");
+  await expect(page.getByRole("status").locator("code")).toContainText(/^STX-/);
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: /Browser Study Circle/ })).toBeVisible();
+});
+
 test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   test.setTimeout(150_000);
   await registerLearner(page, "finwiz");

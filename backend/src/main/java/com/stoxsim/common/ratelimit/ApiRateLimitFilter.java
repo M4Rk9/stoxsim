@@ -135,6 +135,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
                 properties.getFinwizPerMinute()
             );
         }
+        if (path.equals("/api/v1/leagues/join")) {
+            return new RateLimitPolicy("league_join", properties.getAuthPerMinute());
+        }
         if (HttpMethod.POST.matches(method)
             || HttpMethod.PUT.matches(method)
             || HttpMethod.PATCH.matches(method)
