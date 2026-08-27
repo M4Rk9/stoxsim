@@ -59,10 +59,14 @@ public class AccountMailService {
         );
     }
 
-    private void send(AppUser user, String subject, String body) {
+    public boolean sendWeeklyPortfolioReport(AppUser user, String subject, String body) {
+        return send(user, subject, body);
+    }
+
+    private boolean send(AppUser user, String subject, String body) {
         if (!StringUtils.hasText(properties.getMailHost())) {
             LOGGER.warn("Account email not sent because MAIL_HOST is not configured");
-            return;
+            return false;
         }
 
         var sender = new JavaMailSenderImpl();
@@ -86,8 +90,10 @@ public class AccountMailService {
 
         try {
             sender.send(message);
+            return true;
         } catch (MailException exception) {
             LOGGER.error("Account email delivery failed for user {}", user.getId(), exception);
+            return false;
         }
     }
 

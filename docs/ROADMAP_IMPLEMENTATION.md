@@ -12,8 +12,8 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Guided onboarding | Implemented | Persisted introduction state and the first-trade walkthrough were deployed in PR #91. |
 | StoxScore and portfolio risk | Implemented | Versioned StoxScore v1 structure model, concentration analytics and dashboard explanation were deployed in PR #93. |
 | FinWiz portfolio feedback | Implemented | Backend-authoritative post-trade structure feedback for executed paper orders was deployed in PR #94. |
-| Portfolio analytics | In progress | Current batch adds cash/position allocation and fee-adjusted realized/unrealized attribution; benchmark and historical risk views remain provider-gated. |
-| Weekly portfolio reports | Missing | Requires a report snapshot model and delivery preference; email infrastructure already exists. |
+| Portfolio analytics | Implemented | Cash/position allocation and fee-adjusted realized/unrealized attribution were deployed in PR #95; benchmark and historical risk views remain provider-gated. |
+| Weekly portfolio reports | In progress | Current batch adds immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history. |
 | Challenges, missions, XP and achievements | Missing | Must use auditable backend events and anti-abuse rules. |
 | Improved leaderboards | Missing | Standard ₹5 lakh competition must remain isolated from paid sandboxes. |
 | Private leagues and campus competitions | Missing | Requires league ownership, membership, seasons and moderation controls. |
@@ -80,8 +80,22 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - No database migration, new secret, provider call or market-data
   redistribution.
 
+## Batch 5 — weekly portfolio learning reports
+
+- Immutable versioned snapshots for both isolated market accounts.
+- Explicit opt-in disabled by default and verified-email enforcement.
+- Timezone-aware Monday delivery with unique per-user weekly periods.
+- At most three delivery attempts, persisted status and safe scheduler retries.
+- Current preview and the latest twelve saved reports in account settings.
+- Account value, simulated P/L, allocation, activity count and data confidence;
+  no raw quote feed or new provider field is persisted.
+- Existing SMTP configuration is reused with no new paid service or secret.
+- Report preference and history are included in account export and deleted by
+  cascade with the account.
+
 ## Next batch
 
-Add weekly portfolio report snapshots and delivery preferences using the
-existing mail infrastructure. Benchmark and historical-risk analytics remain
-deferred until the required data rights are documented.
+Add backend-authoritative challenges, missions, XP, levels, streaks and
+achievements with an auditable event ledger and anti-abuse rules. Benchmark and
+historical-risk analytics remain deferred until the required data rights are
+documented.

@@ -245,6 +245,10 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
 
   await expect(page.getByRole("heading", { name: "Profile & security" })).toBeVisible();
   await expect(page.getByText("Email verification pending")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Portfolio reports" })).toBeVisible();
+  await expect(page.getByText("Verify your email address before enabling delivery.")).toBeVisible();
+  await page.getByRole("button", { name: "Preview current report" }).click();
+  await expect(page.getByText(/PREVIEW · weekly-portfolio-report-v1/)).toBeVisible();
   await expect(page.getByText("This browser")).toBeVisible({ timeout: 15_000 });
 
   const exportRequest = page.waitForRequest("**/api/v1/auth/me/export");

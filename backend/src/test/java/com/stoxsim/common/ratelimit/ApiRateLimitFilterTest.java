@@ -45,6 +45,18 @@ class ApiRateLimitFilterTest {
         assertEquals("4", response.getHeader("X-RateLimit-Remaining"));
     }
 
+    @Test
+    void appliesTheBoundedAnalyticsPolicyToWeeklyReportPreviews() {
+        RateLimitProperties properties = new RateLimitProperties();
+        properties.setFinwizPerMinute(15);
+        ApiRateLimitFilter filter = filterReturning(1, properties);
+
+        var policy = filter.policyFor("GET", "/api/v1/reports/weekly/preview");
+
+        assertEquals("report_preview", policy.name());
+        assertEquals(15, policy.limit());
+    }
+
     private ApiRateLimitFilter filterReturning(
         long count,
         RateLimitProperties properties

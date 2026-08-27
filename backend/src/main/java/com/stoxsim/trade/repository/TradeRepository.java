@@ -1,5 +1,6 @@
 package com.stoxsim.trade.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,5 +23,20 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
     List<Trade> findAllByAccountUserIdAndAccountMarketRegionOrderByExecutedAtDesc(
         @Param("userId") UUID userId,
         @Param("marketRegion") MarketRegion marketRegion
+    );
+
+    @Query("""
+        SELECT COUNT(trade)
+        FROM Trade trade
+        WHERE trade.account.user.id = :userId
+          AND trade.account.marketRegion = :marketRegion
+          AND trade.executedAt >= :from
+          AND trade.executedAt < :until
+        """)
+    long countForReport(
+        @Param("userId") UUID userId,
+        @Param("marketRegion") MarketRegion marketRegion,
+        @Param("from") Instant from,
+        @Param("until") Instant until
     );
 }

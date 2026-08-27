@@ -45,6 +45,54 @@ interface SecurityEvent {
   createdAt: string;
 }
 
+interface WeeklyReportPreference {
+  enabled: boolean;
+  zoneId: string;
+  schedule: string;
+  verifiedEmailRequired: boolean;
+  updatedAt?: string;
+}
+
+interface WeeklyMarketReport {
+  marketRegion: "INDIA" | "UNITED_STATES";
+  currency: "INR" | "USD";
+  accountValue: number;
+  accountValueChange?: number;
+  totalProfitLoss: number;
+  totalProfitLossChange?: number;
+  totalReturnPercent: number;
+  realizedProfitLoss: number;
+  unrealizedProfitLoss: number;
+  cashWeightPercent: number;
+  investedWeightPercent: number;
+  tradesExecuted: number;
+  largestAllocationSymbol?: string;
+  largestAllocationWeightPercent?: number;
+  largestContributionSymbol?: string;
+  largestContribution?: number;
+  status: string;
+  confidence: string;
+  dataCoveragePercent: number;
+}
+
+interface WeeklyReportSnapshot {
+  version: string;
+  periodStart: string;
+  periodEnd: string;
+  markets: WeeklyMarketReport[];
+  learningNotes: string[];
+  disclaimer: string;
+  generatedAt: string;
+}
+
+interface WeeklyPortfolioReport {
+  id: string;
+  deliveryStatus: "PENDING" | "SENT" | "FAILED";
+  deliveryAttempts: number;
+  deliveryAttemptedAt?: string;
+  snapshot: WeeklyReportSnapshot;
+}
+
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -93,6 +141,19 @@ const dateTime = (value: string) => new Intl.DateTimeFormat("en-IN", {
   timeStyle: "short",
 }).format(new Date(value));
 
+const reportPeriod = (start: string, end: string) => `${new Intl.DateTimeFormat("en-IN", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+}).format(new Date(`${start}T00:00:00Z`))} – ${new Intl.DateTimeFormat("en-IN", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+}).format(new Date(`${end}T00:00:00Z`))}`;
+
+const reportMoney = (value: number, currency: "INR" | "USD") => new Intl.NumberFormat(
+  currency === "INR" ? "en-IN" : "en-US",
+  { style: "currency", currency, maximumFractionDigits: 2 },
+).format(value);
+
 export default function SettingsPage() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [profile, setProfile] = useState({ displayName: "", email: "" });
@@ -104,15 +165,26 @@ export default function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [reportPreference, setReportPreference] = useState<WeeklyReportPreference>({
+    enabled: false,
+    zoneId: "Asia/Kolkata",
+    schedule: "Mondays after 08:00 in your selected timezone",
+    verifiedEmailRequired: true,
+  });
+  const [reportHistory, setReportHistory] = useState<WeeklyPortfolioReport[]>([]);
+  const [reportPreview, setReportPreview] = useState<WeeklyReportSnapshot | null>(null);
   const [profileWorking, setProfileWorking] = useState(false);
   const [passwordWorking, setPasswordWorking] = useState(false);
   const [dangerWorking, setDangerWorking] = useState(false);
+  const [reportWorking, setReportWorking] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
   const [securityMessage, setSecurityMessage] = useState("");
+  const [reportMessage, setReportMessage] = useState("");
   const [profileError, setProfileError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [securityError, setSecurityError] = useState("");
+  const [reportError, setReportError] = useState("");
 
   useEffect(() => {
     const active = readSession();
@@ -125,7 +197,10 @@ export default function SettingsPage() {
       displayName: active.user.displayName,
       email: active.user.email,
     });
-    void loadSecurity();
+    void (async () => {
+      await loadSecurity();
+      await loadReports();
+    })();
   }, []);
 
   function persist(next: StoredSession) {
@@ -158,6 +233,63 @@ export default function SettingsPage() {
       setEvents(securityEvents);
     } catch (cause) {
       setSecurityError(cause instanceof Error ? cause.message : "Security activity could not be loaded");
+    }
+  }
+
+  async function loadReports() {
+    try {
+      const [preference, history] = await Promise.all([
+        authorized<WeeklyReportPreference>("/api/v1/reports/weekly/preferences"),
+        authorized<WeeklyPortfolioReport[]>("/api/v1/reports/weekly"),
+      ]);
+      setReportPreference(preference);
+      setReportHistory(history);
+    } catch (cause) {
+      setReportError(cause instanceof Error ? cause.message : "Weekly reports could not be loaded");
+    }
+  }
+
+  async function saveReportPreference(event: FormEvent) {
+    event.preventDefault();
+    setReportWorking(true);
+    setReportMessage("");
+    setReportError("");
+    try {
+      const preference = await authorized<WeeklyReportPreference>(
+        "/api/v1/reports/weekly/preferences",
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            enabled: reportPreference.enabled,
+            zoneId: reportPreference.zoneId,
+          }),
+        },
+      );
+      setReportPreference(preference);
+      setReportMessage(preference.enabled
+        ? "Weekly portfolio reports are enabled."
+        : "Weekly portfolio reports are disabled.");
+    } catch (cause) {
+      setReportError(cause instanceof Error ? cause.message : "Report preference could not be saved");
+    } finally {
+      setReportWorking(false);
+    }
+  }
+
+  async function previewWeeklyReport() {
+    setReportWorking(true);
+    setReportMessage("");
+    setReportError("");
+    try {
+      const preview = await authorized<WeeklyReportSnapshot>(
+        `/api/v1/reports/weekly/preview?zoneId=${encodeURIComponent(reportPreference.zoneId)}`,
+      );
+      setReportPreview(preview);
+      setReportMessage("Current educational preview generated. It was not emailed or saved.");
+    } catch (cause) {
+      setReportError(cause instanceof Error ? cause.message : "Report preview could not be generated");
+    } finally {
+      setReportWorking(false);
     }
   }
 
@@ -384,6 +516,105 @@ export default function SettingsPage() {
           <button className={styles.submit} disabled={passwordWorking}>
             {passwordWorking ? "Updating…" : "Change password"}
           </button>
+        </form>
+
+        <form className={`${styles.card} ${styles.fullWidth}`} onSubmit={saveReportPreference}>
+          <div className={styles.reportHeading}>
+            <div>
+              <span className={styles.reportEyebrow}>WEEKLY LEARNING REVIEW</span>
+              <h2>Portfolio reports</h2>
+            </div>
+            <span className={reportPreference.enabled ? styles.reportEnabled : styles.reportDisabled}>
+              {reportPreference.enabled ? "Enabled" : "Disabled"}
+            </span>
+          </div>
+          <p>
+            Receive an educational summary of allocation, simulated performance and paper-trading
+            activity. Reports never include recommendations or forecasts.
+          </p>
+          <label className={styles.toggleRow}>
+            <input
+              type="checkbox"
+              checked={reportPreference.enabled}
+              disabled={!session.user.emailVerified}
+              onChange={(event) => setReportPreference({
+                ...reportPreference,
+                enabled: event.target.checked,
+              })}
+            />
+            <span>
+              Email my weekly portfolio report
+              <small>{session.user.emailVerified
+                ? reportPreference.schedule
+                : "Verify your email address before enabling delivery."}</small>
+            </span>
+          </label>
+          <label>
+            Report timezone
+            <select
+              value={reportPreference.zoneId}
+              onChange={(event) => setReportPreference({
+                ...reportPreference,
+                zoneId: event.target.value,
+              })}
+            >
+              <option value="Asia/Kolkata">India — Asia/Kolkata</option>
+              <option value="America/New_York">United States — America/New_York</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </label>
+          <div className={styles.reportActions}>
+            <button className={styles.submit} disabled={reportWorking}>
+              {reportWorking ? "Saving…" : "Save report preference"}
+            </button>
+            <button
+              className={styles.secondary}
+              type="button"
+              disabled={reportWorking}
+              onClick={previewWeeklyReport}
+            >Preview current report</button>
+          </div>
+          {reportMessage && <div className={`${styles.message} ${styles.success}`}>{reportMessage}</div>}
+          {reportError && <div className={`${styles.message} ${styles.error}`}>{reportError}</div>}
+
+          {reportPreview && <section className={styles.reportPreview} aria-labelledby="report-preview-title">
+            <div>
+              <span>PREVIEW · {reportPreview.version}</span>
+              <h3 id="report-preview-title">{reportPeriod(reportPreview.periodStart, reportPreview.periodEnd)}</h3>
+            </div>
+            <div className={styles.marketReportGrid}>
+              {reportPreview.markets.map((market) => <article key={market.marketRegion}>
+                <span>{market.marketRegion === "INDIA" ? "INDIA" : "UNITED STATES"}</span>
+                <strong>{reportMoney(market.accountValue, market.currency)}</strong>
+                <small className={market.totalProfitLoss >= 0 ? styles.reportPositive : styles.reportNegative}>
+                  {reportMoney(market.totalProfitLoss, market.currency)} simulated P/L
+                </small>
+                <small>{market.tradesExecuted} paper {market.tradesExecuted === 1 ? "trade" : "trades"} this period</small>
+                <small>{market.cashWeightPercent.toFixed(1)}% cash · {market.confidence} confidence</small>
+              </article>)}
+            </div>
+            <ul>{reportPreview.learningNotes.map((note) => <li key={note}>{note}</li>)}</ul>
+            <p>{reportPreview.disclaimer}</p>
+          </section>}
+
+          <section className={styles.reportHistory} aria-labelledby="report-history-title">
+            <div className={styles.reportHistoryHeading}>
+              <h3 id="report-history-title">Recent reports</h3>
+              <span>{reportHistory.length} saved</span>
+            </div>
+            {reportHistory.slice(0, 6).map((report) => <div className={styles.reportHistoryRow} key={report.id}>
+              <div>
+                <strong>{reportPeriod(report.snapshot.periodStart, report.snapshot.periodEnd)}</strong>
+                <small>{report.snapshot.version}</small>
+              </div>
+              <span className={report.deliveryStatus === "SENT" ? styles.reportSent : styles.reportPending}>
+                {eventLabel(report.deliveryStatus)}
+              </span>
+            </div>)}
+            {!reportHistory.length && <span className={styles.empty}>
+              No saved reports yet. The first one is generated after the next delivery window.
+            </span>}
+          </section>
         </form>
 
         <section className={`${styles.card} ${styles.fullWidth}`}>
