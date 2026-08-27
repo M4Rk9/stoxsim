@@ -225,6 +225,54 @@ class PostgresConcurrencyIntegrationTest {
     }
 
     @Test
+    void competitionEntryLockKeepsTheOwnedLeagueCapAtomic() throws Exception {
+        AppUser user = user("league-cap");
+        Instant now = Instant.now();
+        String seasonCode = "cap-" + UUID.randomUUID().toString().substring(0, 16);
+        transactions.executeWithoutResult(status -> competitionSeasons.ensureSeason(
+            seasonCode,
+            "League Cap Test Season",
+            now.minusSeconds(60),
+            now.plusSeconds(3600),
+            now
+        ));
+        var season = competitionSeasons.findByCode(seasonCode).orElseThrow();
+        transactions.executeWithoutResult(status -> competitionEntries.ensureEntry(
+            season.getId(), user.getId(), new BigDecimal("500000.00"), "CLOSED", now
+        ));
+        for (int index = 0; index < 4; index++) {
+            privateLeagues.saveAndFlush(new PrivateLeague(
+                season,
+                user,
+                "Existing League " + index,
+                String.format("%064d", index),
+                25,
+                now
+            ));
+        }
+
+        List<Boolean> results = runConcurrently(() -> transactions.execute(status -> {
+            competitionEntries.findForUpdate(season.getId(), user.getId()).orElseThrow();
+            if (privateLeagues.countByOwnerIdAndSeasonId(user.getId(), season.getId()) >= 5) {
+                return false;
+            }
+            privateLeagues.save(new PrivateLeague(
+                season,
+                user,
+                "Concurrent League",
+                UUID.randomUUID().toString().replace("-", ""),
+                25,
+                now
+            ));
+            return true;
+        }));
+
+        assertThat(results).containsExactlyInAnyOrder(true, false);
+        assertThat(privateLeagues.countByOwnerIdAndSeasonId(user.getId(), season.getId()))
+            .isEqualTo(5);
+    }
+
+    @Test
     void accountLockPreventsTwoOrdersFromSpendingTheSameCash() throws Exception {
         AppUser user = user("cash-lock");
         VirtualAccount account = accounts.save(new VirtualAccount(

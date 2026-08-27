@@ -224,6 +224,9 @@ test("a learner can opt into the standard season and create a private league", a
 
   await expect(page.getByRole("heading", { name: "Learning competitions" })).toBeVisible();
   await expect(page.getByText("standard-india-entry-return-v1", { exact: true })).toBeVisible();
+  await expect(page.getByText(/global display-name disclosure an explicit, separate choice/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Join", exact: true })).toBeDisabled();
   const enrollmentResponse = page.waitForResponse((response) =>
     response.request().method() === "POST"
     && response.url().endsWith("/api/v1/competitions/current/enroll")
@@ -231,6 +234,7 @@ test("a learner can opt into the standard season and create a private league", a
   await page.getByRole("button", { name: "Join standard leaderboard" }).click();
   await expect((await enrollmentResponse).ok()).toBe(true);
   await expect(page.getByRole("region", { name: "Your competition position" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toBeEnabled();
   await expect(page.getByText("Browser Learner", { exact: true }).first()).toBeVisible();
 
   await page.getByLabel("Create a league").fill("Browser Study Circle");
@@ -243,8 +247,16 @@ test("a learner can opt into the standard season and create a private league", a
   await expect(page.getByRole("status")).toContainText("SHOWN ONCE");
   await expect(page.getByRole("status").locator("code")).toContainText(/^STX-/);
 
+  let refreshRequests = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/api/v1/auth/refresh")) {
+      refreshRequests += 1;
+    }
+  });
+  await page.evaluate(() => window.sessionStorage.removeItem("stoxsim-session"));
   await page.reload();
   await expect(page.getByRole("button", { name: /Browser Study Circle/ })).toBeVisible();
+  expect(refreshRequests).toBe(1);
 });
 
 test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
