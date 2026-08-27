@@ -8,6 +8,7 @@ import {
   OnboardingJourney,
   type OnboardingState,
 } from "./components/OnboardingJourney";
+import StoxScoreCard, { type PortfolioAnalytics } from "./components/StoxScoreCard";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
@@ -424,6 +425,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
+  const [portfolioAnalytics, setPortfolioAnalytics] = useState<PortfolioAnalytics | null>();
   const selectedRef = useRef<Instrument | null>(null);
 
   const token = session?.accessToken;
@@ -633,6 +635,7 @@ export default function Home() {
   ) {
     setLoading(true);
     setError("");
+    setPortfolioAnalytics(undefined);
     const exchange = region === "INDIA" ? "NSE" : "NASDAQ";
 
     void authorizedRequest<MarketStatus>(`/api/v1/market/status?exchange=${exchange}`, {}, accessToken).then(setMarket).catch(() => undefined);
@@ -642,6 +645,9 @@ export default function Home() {
     void authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken).then(setWatchlist).catch(() => undefined);
     void authorizedRequest<MarketMovers>(`/api/v1/market/movers?marketRegion=${region}`, {}, accessToken).then(setMovers).catch(() => undefined);
     void authorizedRequest<OnboardingState>("/api/v1/onboarding", {}, accessToken).then(setOnboarding).catch(() => undefined);
+    void authorizedRequest<PortfolioAnalytics>(`/api/v1/portfolio/analytics?marketRegion=${region}`, {}, accessToken)
+      .then(setPortfolioAnalytics)
+      .catch(() => setPortfolioAnalytics(null));
 
     try {
       setPortfolio(await authorizedRequest<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, {}, accessToken));
@@ -960,6 +966,7 @@ export default function Home() {
     setIndices([]);
     setMovers(null);
     setPortfolio(null);
+    setPortfolioAnalytics(undefined);
     setOrders([]);
     setTrades([]);
     setError("");
@@ -981,6 +988,7 @@ export default function Home() {
     setIndices([]);
     setMovers(null);
     setOnboarding(null);
+    setPortfolioAnalytics(undefined);
   }
 
   async function completeOnboardingIntroduction() {
@@ -1143,6 +1151,8 @@ export default function Home() {
         <Metric label="Unrealized P/L" value={displayMoney(portfolio?.unrealizedProfitLoss)} tone={(portfolio?.unrealizedProfitLoss ?? 0) >= 0 ? "positive" : "negative"} sub="Across current holdings" />
         <Metric label="Total return" value={`${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${displayMoney(portfolio?.totalProfitLoss)} all time`} />
       </section>
+
+      <StoxScoreCard analytics={portfolioAnalytics} />
 
       <section className="panel moversPanel">
         <div className="moversHeader">

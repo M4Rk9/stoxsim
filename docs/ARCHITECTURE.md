@@ -71,6 +71,8 @@ com.stoxsim
 - `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
 - `WS /ws/market`
 - `GET /api/v1/market/status`
+- `GET /api/v1/portfolio`
+- `GET /api/v1/portfolio/analytics`
 - `POST /api/v1/orders`
 - `GET|PUT|DELETE /api/v1/orders/{id}`
 - `GET /api/v1/holdings`

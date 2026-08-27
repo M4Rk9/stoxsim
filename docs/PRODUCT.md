@@ -36,6 +36,7 @@ browser, records completion of the first accepted paper order.
 - Watchlists
 - Holdings, trades, orders and cash ledger
 - Realized and unrealized profit/loss
+- Explainable StoxScore portfolio-structure analytics
 - Market session enforcement
 - Explicit LIVE, DELAYED, CLOSED and STALE labels
 - Responsive web application
