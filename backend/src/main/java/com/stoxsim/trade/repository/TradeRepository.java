@@ -39,4 +39,15 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
         @Param("from") Instant from,
         @Param("until") Instant until
     );
+
+    @Query("""
+        SELECT COUNT(trade)
+        FROM Trade trade
+        WHERE trade.account.user.id = :userId
+          AND trade.account.marketRegion = :marketRegion
+        """)
+    long countByUserIdAndMarketRegion(
+        @Param("userId") UUID userId,
+        @Param("marketRegion") MarketRegion marketRegion
+    );
 }

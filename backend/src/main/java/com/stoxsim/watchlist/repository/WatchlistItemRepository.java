@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.stoxsim.watchlist.domain.WatchlistItem;
 
@@ -22,4 +23,11 @@ public interface WatchlistItemRepository extends JpaRepository<WatchlistItem, UU
 
     @Query("SELECT item FROM WatchlistItem item JOIN FETCH item.instrument")
     List<WatchlistItem> findAllWithInstrument();
+
+    @Query("""
+        SELECT COUNT(item)
+        FROM WatchlistItem item
+        WHERE item.watchlist.user.id = :userId
+        """)
+    long countByUserId(@Param("userId") UUID userId);
 }

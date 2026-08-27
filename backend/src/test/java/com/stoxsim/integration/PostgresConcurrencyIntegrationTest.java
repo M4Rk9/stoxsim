@@ -42,6 +42,9 @@ import com.stoxsim.order.domain.OrderType;
 import com.stoxsim.order.domain.PaperOrder;
 import com.stoxsim.order.repository.PaperOrderRepository;
 import com.stoxsim.order.service.TradingValidationException;
+import com.stoxsim.progression.domain.MissionCompletion;
+import com.stoxsim.progression.repository.LearnerProgressionRepository;
+import com.stoxsim.progression.repository.MissionCompletionRepository;
 import com.stoxsim.watchlist.domain.Watchlist;
 import com.stoxsim.watchlist.domain.WatchlistItem;
 import com.stoxsim.watchlist.repository.WatchlistItemRepository;
@@ -68,6 +71,8 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private PaperOrderRepository orders;
     @Autowired private WatchlistRepository watchlists;
     @Autowired private WatchlistItemRepository watchlistItems;
+    @Autowired private LearnerProgressionRepository progressions;
+    @Autowired private MissionCompletionRepository missionCompletions;
 
     @BeforeEach
     void resetDatabase() {
@@ -140,6 +145,31 @@ class PostgresConcurrencyIntegrationTest {
             Integer.class
         );
         assertThat(persisted).isEqualTo(supported.size());
+    }
+
+    @Test
+    void progressionInitializationAndMissionAwardsAreIdempotent() {
+        AppUser user = user("progression");
+        Instant now = Instant.now();
+
+        transactions.executeWithoutResult(status -> {
+            progressions.ensureExists(user.getId(), now);
+            progressions.ensureExists(user.getId(), now);
+        });
+        assertThat(progressions.findById(user.getId())).isPresent();
+
+        missionCompletions.saveAndFlush(new MissionCompletion(
+            user.getId(),
+            "FIRST_ORDER",
+            50,
+            now
+        ));
+        assertThatThrownBy(() -> missionCompletions.saveAndFlush(new MissionCompletion(
+            user.getId(),
+            "FIRST_ORDER",
+            50,
+            now
+        ))).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
