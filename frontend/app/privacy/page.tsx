@@ -24,7 +24,8 @@ export default function PrivacyPage() {
         <ul>
           <li>Account data: display name, email address, password hash and email-verification status.</li>
           <li>Security data: session identifiers, user-agent details and account-security events.</li>
-          <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings and ledger entries.</li>
+          <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings, ledger entries and saved weekly report snapshots.</li>
+          <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>
           <li>Technical data: service logs, request timing, IP-derived security signals and error diagnostics.</li>
           <li>Communications you send to our support or privacy addresses.</li>
         </ul>
@@ -35,6 +36,7 @@ export default function PrivacyPage() {
         <ul>
           <li>Provide and secure your account and paper-trading portfolios.</li>
           <li>Send email verification, password-reset and essential security messages.</li>
+          <li>Send optional weekly portfolio learning reports only when you explicitly enable them.</li>
           <li>Detect abuse, enforce rate limits, troubleshoot failures and protect the service.</li>
           <li>Meet legal obligations, respond to valid requests and establish or defend legal claims.</li>
           <li>Improve reliability using aggregated or de-identified operational information.</li>

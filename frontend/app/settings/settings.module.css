@@ -101,7 +101,8 @@
   font-weight: 800;
 }
 
-.card input {
+.card input,
+.card select {
   width: 100%;
   margin-top: 7px;
   padding: 12px 13px;
@@ -113,10 +114,174 @@
   box-sizing: border-box;
 }
 
-.card input:focus {
+.card input:focus,
+.card select:focus {
   border-color: #0b8f55;
   outline: 3px solid rgba(11, 143, 85, 0.12);
 }
+
+.reportHeading,
+.reportHistoryHeading,
+.reportHistoryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.reportEyebrow,
+.reportPreview > div:first-child > span,
+.marketReportGrid article > span {
+  color: #0b8f55;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.reportHeading h2 { margin-top: 5px; }
+
+.reportEnabled,
+.reportDisabled,
+.reportSent,
+.reportPending {
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.reportEnabled,
+.reportSent {
+  background: #e8f7ee;
+  color: #087241;
+}
+
+.reportDisabled,
+.reportPending {
+  background: #eef1ed;
+  color: #697970;
+}
+
+.toggleRow {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #dce4da;
+  border-radius: 12px;
+  background: #fbfcfa;
+}
+
+.toggleRow input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #0b8f55;
+}
+
+.toggleRow > span {
+  display: grid;
+  gap: 4px;
+  color: #14251f;
+}
+
+.toggleRow small {
+  color: #748178;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.reportActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.reportActions .submit,
+.reportActions .secondary {
+  width: auto;
+  margin-top: 0;
+}
+
+.reportPreview,
+.reportHistory {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #dce4da;
+  border-radius: 15px;
+  background: #f8faf7;
+}
+
+.reportPreview h3,
+.reportHistory h3 {
+  margin: 5px 0 0;
+  color: #14251f;
+  font-size: 16px;
+}
+
+.marketReportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.marketReportGrid article {
+  display: grid;
+  gap: 5px;
+  padding: 15px;
+  border: 1px solid #e0e7df;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.marketReportGrid article > strong {
+  margin: 3px 0;
+  color: #14251f;
+  font-size: 18px;
+}
+
+.marketReportGrid article > small {
+  color: #748178;
+  font-size: 11px;
+}
+
+.reportPositive { color: #087241 !important; }
+.reportNegative { color: #b53030 !important; }
+
+.reportPreview ul {
+  display: grid;
+  gap: 5px;
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: #4e6057;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.reportPreview > p {
+  margin: 14px 0 0;
+  color: #748178;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.reportHistoryHeading { margin-bottom: 12px; }
+.reportHistoryHeading > span { color: #748178; font-size: 11px; }
+
+.reportHistoryRow {
+  padding: 11px 0;
+  border-top: 1px solid #e0e7df;
+}
+
+.reportHistoryRow > div {
+  display: grid;
+  gap: 3px;
+}
+
+.reportHistoryRow strong { color: #14251f; font-size: 12px; }
+.reportHistoryRow small { color: #748178; font-size: 10px; }
 
 .submit {
   width: 100%;
@@ -179,6 +344,19 @@
   .card {
     padding: 22px;
   }
+
+  .reportHeading,
+  .reportActions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reportActions .submit,
+  .reportActions .secondary {
+    width: 100%;
+  }
+
+  .marketReportGrid { grid-template-columns: 1fr; }
 }
 
 

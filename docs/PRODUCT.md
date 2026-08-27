@@ -40,6 +40,7 @@ browser, records completion of the first accepted paper order.
 - Educational FinWiz feedback after an executed paper trade
 - Cash and position allocation views
 - Fee-adjusted realized and unrealized performance attribution
+- Opt-in weekly portfolio learning reports with delivery preferences
 - Market session enforcement
 - Explicit LIVE, DELAYED, CLOSED and STALE labels
 - Responsive web application

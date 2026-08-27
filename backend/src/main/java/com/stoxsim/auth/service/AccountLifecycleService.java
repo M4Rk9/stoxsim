@@ -212,6 +212,18 @@ public class AccountLifecycleService {
             """,
             userId
         ));
+        export.put("weeklyReportPreference", jdbcTemplate.queryForList(
+            "SELECT * FROM weekly_report_preference WHERE user_id = ?",
+            userId
+        ));
+        export.put("weeklyPortfolioReports", jdbcTemplate.queryForList(
+            """
+            SELECT * FROM weekly_portfolio_report
+            WHERE user_id = ?
+            ORDER BY period_end
+            """,
+            userId
+        ));
         export.put("securityEvents", events(userId));
         audit(userId, "ACCOUNT_DATA_EXPORTED", null);
         return export;

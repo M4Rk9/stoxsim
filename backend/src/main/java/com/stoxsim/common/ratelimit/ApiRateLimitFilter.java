@@ -129,6 +129,12 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/finwiz/ask")) {
             return new RateLimitPolicy("finwiz", properties.getFinwizPerMinute());
         }
+        if (path.equals("/api/v1/reports/weekly/preview")) {
+            return new RateLimitPolicy(
+                "report_preview",
+                properties.getFinwizPerMinute()
+            );
+        }
         if (HttpMethod.POST.matches(method)
             || HttpMethod.PUT.matches(method)
             || HttpMethod.PATCH.matches(method)

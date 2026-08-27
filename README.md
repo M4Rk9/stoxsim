@@ -94,10 +94,14 @@ Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and company fundamentals. Set `
 - `GET /api/v1/portfolio?marketRegion=INDIA`
 - `GET /api/v1/portfolio/analytics?marketRegion=INDIA`
 - `GET /api/v1/portfolio/insights?marketRegion=INDIA`
+- `GET /api/v1/reports/weekly/preferences`
+- `PUT /api/v1/reports/weekly/preferences`
+- `GET /api/v1/reports/weekly`
+- `GET /api/v1/reports/weekly/preview`
 
 Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling. Executions include an effective-dated simulated charge breakdown, and portfolio valuation incorporates charges into cost basis and realized returns.
 
-The connected dashboard supports registration, sign-in, automatic access-token refresh, editable profile and password settings, separate India and US portfolios, region-aware benchmark cards and market movers, persistent watchlists, real-time STOMP quote updates with reconnect health, multi-market stock search, interactive historical charts, provider-aware company fundamentals, standalone stock research pages, order entry, cancellation, holdings, explainable StoxScore structure analytics, educational FinWiz post-trade feedback, cash and position allocation, fee-adjusted performance attribution, portfolio metrics and trade history. Its data panels load independently, so a temporarily unavailable analytics endpoint does not block authentication or the rest of the portfolio experience.
+The connected dashboard supports registration, sign-in, automatic access-token refresh, editable profile and password settings, separate India and US portfolios, region-aware benchmark cards and market movers, persistent watchlists, real-time STOMP quote updates with reconnect health, multi-market stock search, interactive historical charts, provider-aware company fundamentals, standalone stock research pages, order entry, cancellation, holdings, explainable StoxScore structure analytics, educational FinWiz post-trade feedback, cash and position allocation, fee-adjusted performance attribution, opt-in weekly learning reports, portfolio metrics and trade history. Its data panels load independently, so a temporarily unavailable analytics endpoint does not block authentication or the rest of the portfolio experience.
 
 The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
 
@@ -108,6 +112,7 @@ The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kol
 - [Feature roadmap implementation](docs/ROADMAP_IMPLEMENTATION.md)
 - [StoxScore portfolio structure model](docs/STOXSCORE.md)
 - [Portfolio allocation and attribution](docs/PORTFOLIO_ANALYTICS.md)
+- [Weekly portfolio reports](docs/WEEKLY_PORTFOLIO_REPORTS.md)
 - [Authentication and account lifecycle](docs/AUTHENTICATION.md)
 - [Instruments and market data](docs/INSTRUMENTS.md)
 - [Upstox market-data integration](docs/MARKET_DATA.md)
