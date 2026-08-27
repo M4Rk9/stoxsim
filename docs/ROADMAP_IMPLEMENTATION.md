@@ -11,8 +11,8 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Core public-release platform | Implemented | Authentication, separate India/US portfolios, paper orders, holdings, watchlists, market status, FinWiz, deployment, recovery and observability exist. |
 | Guided onboarding | Implemented | Persisted introduction state and the first-trade walkthrough were deployed in PR #91. |
 | StoxScore and portfolio risk | Implemented | Versioned StoxScore v1 structure model, concentration analytics and dashboard explanation were deployed in PR #93. |
-| FinWiz portfolio feedback | In progress | Current batch adds backend-authoritative post-trade structure feedback for executed paper orders. |
-| Portfolio analytics | Partial | Core valuation and P/L exist; allocation, concentration, benchmark and risk views remain. |
+| FinWiz portfolio feedback | Implemented | Backend-authoritative post-trade structure feedback for executed paper orders was deployed in PR #94. |
+| Portfolio analytics | In progress | Current batch adds cash/position allocation and fee-adjusted realized/unrealized attribution; benchmark and historical risk views remain provider-gated. |
 | Weekly portfolio reports | Missing | Requires a report snapshot model and delivery preference; email infrastructure already exists. |
 | Challenges, missions, XP and achievements | Missing | Must use auditable backend events and anti-abuse rules. |
 | Improved leaderboards | Missing | Standard ₹5 lakh competition must remain isolated from paid sandboxes. |
@@ -66,8 +66,22 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - No database migration, new secret, provider call or market-data
   redistribution.
 
+## Batch 4 — portfolio allocation and performance attribution
+
+- Versioned `portfolio-insights-v1` contract isolated from the StoxScore formula.
+- Cash versus invested allocation and per-position invested/account weights.
+- Fee-adjusted realized contribution reconstructed from the complete trade ledger.
+- Unrealized contribution derived from current server-valued holdings.
+- Closed positions remain visible in realized attribution and totals reconcile to
+  the account source of truth.
+- Explicit confidence and pricing coverage when a quote uses the valuation
+  fallback.
+- India and United States accounts remain isolated.
+- No database migration, new secret, provider call or market-data
+  redistribution.
+
 ## Next batch
 
-Expand portfolio analytics with allocation views and performance attribution,
-using only existing portfolio and trade data before introducing benchmark or
-historical-risk features that may require additional data rights.
+Add weekly portfolio report snapshots and delivery preferences using the
+existing mail infrastructure. Benchmark and historical-risk analytics remain
+deferred until the required data rights are documented.

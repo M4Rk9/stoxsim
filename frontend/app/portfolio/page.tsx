@@ -53,6 +53,55 @@ interface Portfolio {
   holdings: Holding[];
 }
 
+interface PortfolioAllocation {
+  exchange: string;
+  symbol: string;
+  name: string;
+  marketValue: number;
+  investedWeightPercent: number;
+  accountWeightPercent: number;
+  unrealizedProfitLoss: number;
+  returnPercent: number;
+  pricingStatus: string;
+}
+
+interface PortfolioAttribution {
+  exchange: string;
+  symbol: string;
+  name: string;
+  realizedProfitLoss: number;
+  unrealizedProfitLoss: number;
+  totalContribution: number;
+  accountImpactPercent: number;
+  contributionType: "GAIN" | "LOSS" | "FLAT";
+}
+
+interface PortfolioInsights {
+  marketRegion: MarketRegion;
+  currency: CurrencyCode;
+  formulaVersion: string;
+  status: string;
+  confidence: string;
+  dataCoveragePercent: number;
+  cashValue: number;
+  cashWeightPercent: number;
+  investedWeightPercent: number;
+  realizedProfitLoss: number;
+  unrealizedProfitLoss: number;
+  totalProfitLoss: number;
+  allocations: PortfolioAllocation[];
+  attributions: PortfolioAttribution[];
+  observations: string[];
+  disclaimer: string;
+  valuedAt: string;
+}
+
+interface PortfolioBundle {
+  marketRegion: MarketRegion;
+  portfolio: Portfolio;
+  insights: PortfolioInsights;
+}
+
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -96,16 +145,24 @@ async function refreshSession() {
 }
 
 async function loadPortfolios(session: StoredSession) {
-  const load = (region: MarketRegion) =>
-    request<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, session.accessToken);
+  const load = async (region: MarketRegion, token: string): Promise<PortfolioBundle> => {
+    const [portfolio, insights] = await Promise.all([
+      request<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, token),
+      request<PortfolioInsights>(`/api/v1/portfolio/insights?marketRegion=${region}`, token),
+    ]);
+    return { marketRegion: region, portfolio, insights };
+  };
   try {
-    return await Promise.all([load("INDIA"), load("UNITED_STATES")]);
+    return await Promise.all([
+      load("INDIA", session.accessToken),
+      load("UNITED_STATES", session.accessToken),
+    ]);
   } catch (cause) {
     if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
     const refreshed = await refreshSession();
     return Promise.all([
-      request<Portfolio>("/api/v1/portfolio?marketRegion=INDIA", refreshed.accessToken),
-      request<Portfolio>("/api/v1/portfolio?marketRegion=UNITED_STATES", refreshed.accessToken),
+      load("INDIA", refreshed.accessToken),
+      load("UNITED_STATES", refreshed.accessToken),
     ]);
   }
 }
@@ -127,7 +184,7 @@ function dateTime(value: string) {
 
 export default function PortfolioPage() {
   const [session, setSession] = useState<StoredSession | null>(null);
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [portfolios, setPortfolios] = useState<PortfolioBundle[]>([]);
   const [region, setRegion] = useState<MarketRegion>("INDIA");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -151,10 +208,12 @@ export default function PortfolioPage() {
     return () => { active = false; };
   }, []);
 
-  const portfolio = useMemo(
+  const selected = useMemo(
     () => portfolios.find((item) => item.marketRegion === region),
     [portfolios, region],
   );
+  const portfolio = selected?.portfolio;
+  const insights = selected?.insights;
 
   return <main className={styles.shell}>
     <header className={styles.header}>
@@ -187,6 +246,76 @@ export default function PortfolioPage() {
         <article><span>Invested value</span><strong>{money(portfolio.investedValue, portfolio.currency)}</strong><small>Market value {money(portfolio.marketValue, portfolio.currency)}</small></article>
         <article><span>Total P/L</span><strong className={portfolio.totalProfitLoss >= 0 ? styles.positive : styles.negative}>{money(portfolio.totalProfitLoss, portfolio.currency)}</strong><small>{portfolio.totalReturnPercent.toFixed(2)}% total return</small></article>
       </section>
+
+      {insights && <section className={styles.analytics} aria-labelledby="portfolio-analytics-title">
+        <div className={styles.analyticsHeader}>
+          <div>
+            <span>PORTFOLIO ANALYTICS</span>
+            <h2 id="portfolio-analytics-title">Allocation and performance</h2>
+          </div>
+          <small>{insights.formulaVersion} · {insights.confidence} confidence · {insights.dataCoveragePercent.toFixed(0)}% pricing coverage</small>
+        </div>
+
+        <div className={styles.analyticsGrid}>
+          <article className={styles.allocationCard}>
+            <div className={styles.cardHeading}>
+              <div><span>ACCOUNT MIX</span><h3>Where the account sits</h3></div>
+              <strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong>
+            </div>
+            <div className={styles.accountBar} aria-label={`${insights.investedWeightPercent.toFixed(1)}% invested and ${insights.cashWeightPercent.toFixed(1)}% cash`}>
+              <span style={{ width: `${Math.max(0, Math.min(100, insights.investedWeightPercent))}%` }} />
+            </div>
+            <div className={styles.accountLegend}>
+              <div><i className={styles.investedDot} /><span>Invested</span><strong>{insights.investedWeightPercent.toFixed(1)}%</strong></div>
+              <div><i className={styles.cashDot} /><span>Cash</span><strong>{insights.cashWeightPercent.toFixed(1)}%</strong></div>
+            </div>
+
+            <div className={styles.allocationList}>
+              {insights.allocations.map((allocation) => <div className={styles.allocationRow} key={`${allocation.exchange}:${allocation.symbol}`}>
+                <div className={styles.allocationIdentity}>
+                  <strong>{allocation.symbol}</strong>
+                  <small>{allocation.name}</small>
+                </div>
+                <div className={styles.positionBar}><span style={{ width: `${Math.max(0, Math.min(100, allocation.investedWeightPercent))}%` }} /></div>
+                <div className={styles.allocationValue}>
+                  <strong>{allocation.investedWeightPercent.toFixed(1)}%</strong>
+                  <small>{money(allocation.marketValue, portfolio.currency)}</small>
+                </div>
+              </div>)}
+              {!insights.allocations.length && <p className={styles.analyticsEmpty}>Your first executed buy will create an allocation breakdown.</p>}
+            </div>
+          </article>
+
+          <article className={styles.attributionCard}>
+            <div className={styles.cardHeading}>
+              <div><span>PERFORMANCE ATTRIBUTION</span><h3>What shaped simulated P/L</h3></div>
+              <strong className={insights.totalProfitLoss >= 0 ? styles.positive : styles.negative}>{money(insights.totalProfitLoss, portfolio.currency)}</strong>
+            </div>
+            <div className={styles.pnlSplit}>
+              <div><span>Realized</span><strong className={insights.realizedProfitLoss >= 0 ? styles.positive : styles.negative}>{money(insights.realizedProfitLoss, portfolio.currency)}</strong></div>
+              <div><span>Unrealized</span><strong className={insights.unrealizedProfitLoss >= 0 ? styles.positive : styles.negative}>{money(insights.unrealizedProfitLoss, portfolio.currency)}</strong></div>
+            </div>
+            <div className={styles.attributionList}>
+              {insights.attributions.map((attribution) => <div className={styles.attributionRow} key={`${attribution.exchange}:${attribution.symbol}`}>
+                <div>
+                  <strong>{attribution.symbol}</strong>
+                  <small>{attribution.name}</small>
+                </div>
+                <div>
+                  <strong className={attribution.totalContribution >= 0 ? styles.positive : styles.negative}>{money(attribution.totalContribution, portfolio.currency)}</strong>
+                  <small>{attribution.accountImpactPercent >= 0 ? "+" : ""}{attribution.accountImpactPercent.toFixed(2)}% of starting capital</small>
+                </div>
+              </div>)}
+              {!insights.attributions.length && <p className={styles.analyticsEmpty}>No gain or loss contribution has been recorded yet.</p>}
+            </div>
+          </article>
+        </div>
+
+        <div className={styles.analyticsNotes}>
+          <ul>{insights.observations.map((observation) => <li key={observation}>{observation}</li>)}</ul>
+          <p>{insights.disclaimer}</p>
+        </div>
+      </section>}
 
       <section className={styles.holdings}>
         <div className={styles.sectionHeader}>
