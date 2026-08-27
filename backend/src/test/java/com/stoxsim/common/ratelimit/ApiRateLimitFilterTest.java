@@ -57,6 +57,18 @@ class ApiRateLimitFilterTest {
         assertEquals(15, policy.limit());
     }
 
+    @Test
+    void appliesTheBoundedAuthPolicyToPrivateLeagueJoinAttempts() {
+        RateLimitProperties properties = new RateLimitProperties();
+        properties.setAuthPerMinute(8);
+        ApiRateLimitFilter filter = filterReturning(1, properties);
+
+        var policy = filter.policyFor("POST", "/api/v1/leagues/join");
+
+        assertEquals("league_join", policy.name());
+        assertEquals(8, policy.limit());
+    }
+
     private ApiRateLimitFilter filterReturning(
         long count,
         RateLimitProperties properties

@@ -14,9 +14,9 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | FinWiz portfolio feedback | Implemented | Backend-authoritative post-trade structure feedback for executed paper orders was deployed in PR #94. |
 | Portfolio analytics | Implemented | Cash/position allocation and fee-adjusted realized/unrealized attribution were deployed in PR #95; benchmark and historical risk views remain provider-gated. |
 | Weekly portfolio reports | Implemented | Immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history were deployed in PR #96. |
-| Challenges, missions, XP and achievements | In progress | Current batch adds server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements. |
-| Improved leaderboards | Missing | Standard ₹5 lakh competition must remain isolated from paid sandboxes. |
-| Private leagues and campus competitions | Missing | Requires league ownership, membership, seasons and moderation controls. |
+| Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
+| Improved leaderboards | In progress | Current batch adds opt-in quarterly ranking based only on entry-relative performance of the standard ₹5 lakh account. |
+| Private leagues and campus competitions | In progress | Current batch adds capped invite-only leagues; campus administration and moderation remain future work. |
 | Plus and Pro architecture | Missing | Entitlements, billing-provider boundary and separate sandbox portfolios are required before charging users. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
 
@@ -111,6 +111,20 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 
 ## Next batch
 
-Add seasonal standard leaderboards and private leagues with strict separation
-from future Plus and Pro sandbox capital. Benchmark and historical-risk
-analytics remain deferred until the required data rights are documented.
+Add Plus and Pro entitlement architecture, billing-provider boundaries and
+separate sandbox accounts without enabling paid billing. Benchmark and
+historical-risk analytics remain deferred until the required data rights are
+documented.
+
+## Batch 7 — seasonal competitions and private leagues
+
+- UTC quarterly seasons with explicit global opt-in.
+- Entry-relative percentage ranking with visible join and valuation freshness.
+- Strict eligibility for the standard ₹5 lakh India account; future paid
+  sandbox capital cannot enter.
+- Invite-only 25-member leagues with member-only standings and owner controls.
+- High-entropy, one-time-visible invite codes stored only as SHA-256 hashes.
+- Bounded join attempts, idempotent enrollment and database uniqueness guards.
+- Competition data in account export with invite hashes excluded and account
+  cascade deletion.
+- No new secret, provider, paid service or market-data redistribution.

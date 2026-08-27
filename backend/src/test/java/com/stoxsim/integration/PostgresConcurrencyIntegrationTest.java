@@ -30,6 +30,12 @@ import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
+import com.stoxsim.competition.domain.LeagueMember;
+import com.stoxsim.competition.domain.PrivateLeague;
+import com.stoxsim.competition.repository.CompetitionEntryRepository;
+import com.stoxsim.competition.repository.CompetitionSeasonRepository;
+import com.stoxsim.competition.repository.LeagueMemberRepository;
+import com.stoxsim.competition.repository.PrivateLeagueRepository;
 import com.stoxsim.instrument.domain.InstrumentType;
 import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.instrument.domain.TradableInstrument;
@@ -73,6 +79,10 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private WatchlistItemRepository watchlistItems;
     @Autowired private LearnerProgressionRepository progressions;
     @Autowired private MissionCompletionRepository missionCompletions;
+    @Autowired private CompetitionSeasonRepository competitionSeasons;
+    @Autowired private CompetitionEntryRepository competitionEntries;
+    @Autowired private PrivateLeagueRepository privateLeagues;
+    @Autowired private LeagueMemberRepository leagueMembers;
 
     @BeforeEach
     void resetDatabase() {
@@ -169,6 +179,48 @@ class PostgresConcurrencyIntegrationTest {
             "FIRST_ORDER",
             50,
             now
+        ))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void competitionEnrollmentAndPrivateLeagueMembershipAreUnique() {
+        AppUser user = user("competition");
+        Instant now = Instant.now();
+        String seasonCode = "integration-" + UUID.randomUUID().toString().substring(0, 16);
+        transactions.executeWithoutResult(status -> {
+            competitionSeasons.ensureSeason(
+                seasonCode,
+                "Integration Learning Season",
+                now.minusSeconds(60),
+                now.plusSeconds(3600),
+                now
+            );
+        });
+        var season = competitionSeasons.findByCode(seasonCode).orElseThrow();
+
+        transactions.executeWithoutResult(status -> {
+            competitionEntries.ensureEntry(
+                season.getId(), user.getId(), new BigDecimal("500000.00"), "CLOSED", now
+            );
+            competitionEntries.ensureEntry(
+                season.getId(), user.getId(), new BigDecimal("500000.00"), "CLOSED", now
+            );
+        });
+        assertThat(competitionEntries.countBySeasonId(season.getId())).isEqualTo(1);
+
+        String inviteHash = "a".repeat(64);
+        PrivateLeague league = privateLeagues.saveAndFlush(new PrivateLeague(
+            season, user, "Integration League", inviteHash, 25, now
+        ));
+        leagueMembers.saveAndFlush(new LeagueMember(
+            league, user, LeagueMember.Role.OWNER, now
+        ));
+
+        assertThatThrownBy(() -> leagueMembers.saveAndFlush(new LeagueMember(
+            league, user, LeagueMember.Role.MEMBER, now
+        ))).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> privateLeagues.saveAndFlush(new PrivateLeague(
+            season, user, "Duplicate Invite", inviteHash, 25, now
         ))).isInstanceOf(DataIntegrityViolationException.class);
     }
 

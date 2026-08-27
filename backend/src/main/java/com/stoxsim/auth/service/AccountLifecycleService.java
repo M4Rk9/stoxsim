@@ -244,6 +244,40 @@ public class AccountLifecycleService {
             """,
             userId
         ));
+        export.put("competitionEntries", jdbcTemplate.queryForList(
+            """
+            SELECT entry.id, entry.season_id, season.code AS season_code,
+                   entry.baseline_value, entry.latest_value,
+                   entry.return_percent, entry.data_status,
+                   entry.joined_at, entry.valued_at
+            FROM competition_entry entry
+            JOIN competition_season season ON season.id = entry.season_id
+            WHERE entry.user_id = ?
+            ORDER BY entry.joined_at
+            """,
+            userId
+        ));
+        export.put("ownedPrivateLeagues", jdbcTemplate.queryForList(
+            """
+            SELECT league.id, league.season_id, league.name,
+                   league.max_members, league.created_at, league.updated_at
+            FROM private_league league
+            WHERE league.owner_user_id = ?
+            ORDER BY league.created_at
+            """,
+            userId
+        ));
+        export.put("privateLeagueMemberships", jdbcTemplate.queryForList(
+            """
+            SELECT member.id, member.league_id, league.name,
+                   member.member_role, member.joined_at
+            FROM league_member member
+            JOIN private_league league ON league.id = member.league_id
+            WHERE member.user_id = ?
+            ORDER BY member.joined_at
+            """,
+            userId
+        ));
         export.put("securityEvents", events(userId));
         audit(userId, "ACCOUNT_DATA_EXPORTED", null);
         return export;

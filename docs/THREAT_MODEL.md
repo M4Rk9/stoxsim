@@ -10,7 +10,7 @@ This model covers the public StoxSim web application, API, WebSocket market stre
 
 - password hashes, email addresses, profile details, legal-consent records, and security-event history;
 - access tokens, refresh-session records, email-verification tokens, and password-reset tokens;
-- virtual balances, orders, trades, holdings, watchlists, weekly report snapshots, delivery preferences, learning progression, mission completions, achievements, and account exports;
+- virtual balances, orders, trades, holdings, watchlists, weekly report snapshots, delivery preferences, learning progression, mission completions, achievements, competition entries, private-league memberships, and account exports;
 - PostgreSQL backups and operational logs;
 - JWT, database, Redis, SMTP, Gemini, Upstox, Alpaca, Grafana, and deployment credentials;
 - provider agreements and the authorization to redistribute market data;
@@ -41,6 +41,8 @@ Only Caddy ports 80 and 443 are intended to be public. Database, Redis, applicat
 | API abuse and provider cost exhaustion | Endpoint-specific limits, question/output bounds, provider timeouts, bounded logs and metrics | Exercise 429 behavior; investigate Redis fail-open alerts immediately |
 | Unwanted or duplicate report email | Explicit opt-in, verified-email requirement, unique weekly periods, persisted status and three-attempt cap | Confirm disabled-by-default settings and idempotent scheduler tests |
 | XP farming, duplicate awards, or client-forged progress | Server-owned mission rules, per-user row locks, unique mission/achievement constraints, no profit or volume rewards | Run concurrent/idempotency tests and reject any client-supplied XP or completion state |
+| Invite guessing or private-standing disclosure | 144-bit random codes, hash-only storage, bounded join attempts, member-bound lookups and foreign-resource `404` responses | Test invalid invites, rotation, league capacity and two-account authorization |
+| Paid capital influencing standard rank | Exact server-side standard-account eligibility and entry-relative percentage scoring independent of XP or plan | Reject non-₹5 lakh accounts and keep future sandbox account types structurally separate |
 | Database or monitoring exposure | Docker internal networks, no database host ports, localhost-only monitoring ports, Caddy metrics denial | Verify the Lightsail firewall and scan the public host from outside the server |
 | Supply-chain or deployment compromise | Protected main, required review/checks, commit-SHA image tags, restricted GitHub environments | Review workflow changes, verify image SHA, and preserve rollback evidence |
 | Backup or log disclosure | Restricted host access, log redaction, bounded retention, encrypted-provider storage where available | Restore-test backups and confirm logs contain no tokens, passwords, or account exports |

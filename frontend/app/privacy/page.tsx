@@ -11,6 +11,7 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy Notice"
       summary="This notice explains what personal data StoxSim handles, why it is needed, and the choices available to you."
+      effectiveDate="27 August 2026"
     >
       <section>
         <h2>1. Who is responsible</h2>
@@ -26,6 +27,7 @@ export default function PrivacyPage() {
           <li>Security data: session identifiers, user-agent details and account-security events.</li>
           <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings, ledger entries and saved weekly report snapshots.</li>
           <li>Learning data: XP, levels, check-in streaks, completed missions and unlocked achievements.</li>
+          <li>Competition data: season entry values, percentage returns, valuation freshness and private-league memberships.</li>
           <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>
           <li>Technical data: service logs, request timing, IP-derived security signals and error diagnostics.</li>
           <li>Communications you send to our support or privacy addresses.</li>
@@ -39,6 +41,7 @@ export default function PrivacyPage() {
           <li>Send email verification, password-reset and essential security messages.</li>
           <li>Send optional weekly portfolio learning reports only when you explicitly enable them.</li>
           <li>Record educational progression and prevent duplicate mission or achievement awards.</li>
+          <li>Operate optional learning competitions. When you opt in, your display name, entry-relative percentage return, join time and valuation freshness are visible in that season&apos;s standings. Private-league standings are visible only to league members.</li>
           <li>Detect abuse, enforce rate limits, troubleshoot failures and protect the service.</li>
           <li>Meet legal obligations, respond to valid requests and establish or defend legal claims.</li>
           <li>Improve reliability using aggregated or de-identified operational information.</li>

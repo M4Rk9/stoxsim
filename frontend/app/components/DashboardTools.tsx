@@ -200,6 +200,9 @@ export default function DashboardTools() {
         <a className={styles.menuLink} href="/progress" role="menuitem">
           Learning path <span>→</span>
         </a>
+        <a className={styles.menuLink} href="/competitions" role="menuitem">
+          Competitions <span>→</span>
+        </a>
         <a className={styles.menuLink} href="/settings" role="menuitem">
           Account settings <span>→</span>
         </a>

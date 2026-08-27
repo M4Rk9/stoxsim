@@ -42,6 +42,7 @@ browser, records completion of the first accepted paper order.
 - Fee-adjusted realized and unrealized performance attribution
 - Opt-in weekly portfolio learning reports with delivery preferences
 - Versioned challenges, missions, XP, levels, learning streaks and achievements
+- Opt-in seasonal standard leaderboards and invite-only private leagues
 - Market session enforcement
 - Explicit LIVE, DELAYED, CLOSED and STALE labels
 - Responsive web application
@@ -53,7 +54,7 @@ browser, records completion of the first accepted paper order.
 - Derivatives and options
 - Short selling, leverage and margin
 - Fractional shares
-- Social trading and leaderboards
+- Copy trading and public social feeds
 - AI-generated investment advice
 - Currency conversion between accounts
 
@@ -66,5 +67,7 @@ browser, records completion of the first accepted paper order.
 - The backend enforces sessions, quote freshness and authorization.
 - The backend owns mission completion and XP; profit and trading volume never
   determine learning progression.
+- Competition ranking uses only entry-relative percentage performance from the
+  standard ₹5 lakh India account; paid sandbox capital and XP are excluded.
 - Provider credentials never reach the browser.
 - StoxSim never calls a broker's real-order API.

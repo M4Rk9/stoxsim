@@ -7,10 +7,12 @@ export const LEGAL_EFFECTIVE_DATE = "19 August 2026";
 export default function LegalDocument({
   title,
   summary,
+  effectiveDate = LEGAL_EFFECTIVE_DATE,
   children,
 }: {
   title: string;
   summary: string;
+  effectiveDate?: string;
   children: ReactNode;
 }) {
   return (
@@ -25,7 +27,7 @@ export default function LegalDocument({
         <p className={styles.eyebrow}>PUBLIC BETA LEGAL</p>
         <h1>{title}</h1>
         <p className={styles.summary}>{summary}</p>
-        <p className={styles.updated}>Effective and last updated: {LEGAL_EFFECTIVE_DATE}</p>
+        <p className={styles.updated}>Effective and last updated: {effectiveDate}</p>
         <div className={styles.content}>{children}</div>
       </article>
       <footer className={styles.footer}>
