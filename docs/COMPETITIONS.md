@@ -44,8 +44,8 @@ required to value it.
 - A league belongs to the current quarterly season and supports at most 25
   members.
 - A learner can own at most five leagues per season.
-- Creating or joining a league also enrolls the same eligible standard account
-  in the season.
+- Creating or joining a league requires the learner to have separately opted
+  into the global season first. Private actions never create a global entry.
 - League existence and standings are available only to members. Unauthorized
   resource lookups return `404`.
 - Owners can rotate an invite or delete a league. Members can leave; owners must

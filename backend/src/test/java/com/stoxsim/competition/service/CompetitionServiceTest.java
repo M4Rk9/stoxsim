@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -133,6 +134,39 @@ class CompetitionServiceTest {
             .satisfies(cause -> assertThat(
                 ((ResponseStatusException) cause).getStatusCode().value()
             ).isEqualTo(404));
+    }
+
+    @Test
+    void creatingALeagueRequiresPriorExplicitGlobalEnrollment() {
+        when(entries.findForUpdate(SEASON_ID, USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service().createLeague(USER_ID, "Study Circle"))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("Join the standard leaderboard");
+
+        verify(leagues, never()).save(any());
+    }
+
+    @Test
+    void joiningALeagueRequiresPriorExplicitGlobalEnrollment() {
+        var league = mock(com.stoxsim.competition.domain.PrivateLeague.class);
+        when(tokens.hash("STX-private-invite-code"))
+            .thenReturn("a".repeat(64));
+        when(leagues.findByInviteCodeHashForUpdate("a".repeat(64)))
+            .thenReturn(Optional.of(league));
+        when(league.getSeason()).thenReturn(season);
+        when(league.getId()).thenReturn(UUID.randomUUID());
+        when(league.getMaxMembers()).thenReturn(25);
+        when(entries.findForUpdate(SEASON_ID, USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service().joinLeague(
+            USER_ID,
+            "STX-private-invite-code"
+        ))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("Join the standard leaderboard");
+
+        verify(members, never()).save(any());
     }
 
     private CompetitionService service() {

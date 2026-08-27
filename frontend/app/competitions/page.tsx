@@ -88,6 +88,8 @@ function storeSession(session: StoredSession) {
   window.sessionStorage.setItem("stoxsim-session", JSON.stringify(session));
 }
 
+let refreshInFlight: Promise<StoredSession> | null = null;
+
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     credentials: "include",
@@ -106,10 +108,15 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return response.json() as Promise<T>;
 }
 
-async function refreshSession() {
-  const session = await request<StoredSession>("/api/v1/auth/refresh", { method: "POST" });
-  storeSession(session);
-  return session;
+function refreshSession(): Promise<StoredSession> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = request<StoredSession>("/api/v1/auth/refresh", { method: "POST" })
+    .then((session) => {
+      storeSession(session);
+      return session;
+    })
+    .finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
 }
 
 async function authorized<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -280,9 +287,10 @@ export default function CompetitionsPage() {
 
       <section className={styles.leagueArea}>
         <div className={styles.sectionHeading}><div><span>INVITE-ONLY</span><h2>Private leagues</h2></div><small>Up to 25 learners</small></div>
+        {!board.enrolled && <p className={styles.leagueConsent}>Join the standard leaderboard above before creating or joining a private league. This keeps global display-name disclosure an explicit, separate choice.</p>}
         <div className={styles.forms}>
-          <form onSubmit={createLeague}><label htmlFor="league-name">Create a league</label><div><input id="league-name" value={name} onChange={(event) => setName(event.target.value)} minLength={3} maxLength={80} required placeholder="Campus finance club" /><button disabled={busy === "create"}>{busy === "create" ? "Creating…" : "Create"}</button></div></form>
-          <form onSubmit={joinLeague}><label htmlFor="invite-code">Join with a private code</label><div><input id="invite-code" value={joinCode} onChange={(event) => setJoinCode(event.target.value)} minLength={16} maxLength={80} required autoComplete="off" placeholder="STX-…" /><button disabled={busy === "join"}>{busy === "join" ? "Joining…" : "Join"}</button></div></form>
+          <form onSubmit={createLeague}><label htmlFor="league-name">Create a league</label><div><input id="league-name" value={name} onChange={(event) => setName(event.target.value)} minLength={3} maxLength={80} required disabled={!board.enrolled} placeholder="Campus finance club" /><button disabled={!board.enrolled || busy === "create"}>{busy === "create" ? "Creating…" : "Create"}</button></div></form>
+          <form onSubmit={joinLeague}><label htmlFor="invite-code">Join with a private code</label><div><input id="invite-code" value={joinCode} onChange={(event) => setJoinCode(event.target.value)} minLength={16} maxLength={80} required disabled={!board.enrolled} autoComplete="off" placeholder="STX-…" /><button disabled={!board.enrolled || busy === "join"}>{busy === "join" ? "Joining…" : "Join"}</button></div></form>
         </div>
 
         <div className={styles.leagueGrid}>{leagues.map((league) => <button type="button" className={styles.leagueCard} key={league.id} onClick={() => openLeague(league.id)} disabled={busy === `open-${league.id}`}>

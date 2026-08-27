@@ -122,14 +122,14 @@ public class CompetitionService {
     public LeagueCreatedResponse createLeague(UUID userId, String requestedName) {
         AppUser user = requireUser(userId);
         CompetitionSeason season = currentSeason();
+        ensureOpen(season);
+        requireEnrolledEntry(season, user);
         if (leagues.countByOwnerIdAndSeasonId(userId, season.getId()) >= MAX_OWNED_LEAGUES) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
                 "You can own at most five private leagues per season"
             );
         }
-        ensureOpen(season);
-        enrollEntry(season, user);
         String inviteCode = inviteCode();
         Instant now = clock.instant();
         PrivateLeague league = leagues.save(new PrivateLeague(
@@ -165,7 +165,7 @@ public class CompetitionService {
         if (members.countByLeagueId(league.getId()) >= league.getMaxMembers()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This league is full");
         }
-        enrollEntry(league.getSeason(), user);
+        requireEnrolledEntry(league.getSeason(), user);
         members.save(new LeagueMember(league, user, Role.MEMBER, clock.instant()));
         meterRegistry.counter("stoxsim.private_league.joined").increment();
         return detail(league, userId);
@@ -321,6 +321,18 @@ public class CompetitionService {
         );
         return entries.findForUpdate(season.getId(), user.getId())
             .orElseThrow(() -> new IllegalStateException("Competition entry could not be initialized"));
+    }
+
+    private CompetitionEntry requireEnrolledEntry(
+        CompetitionSeason season,
+        AppUser user
+    ) {
+        return entries.findForUpdate(season.getId(), user.getId())
+            .map(entry -> refresh(entry, season))
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Join the standard leaderboard before creating or joining a private league"
+            ));
     }
 
     private CompetitionEntry refresh(

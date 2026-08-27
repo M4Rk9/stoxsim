@@ -239,6 +239,16 @@
   gap: 16px;
 }
 
+.leagueConsent {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #d4a44d;
+  border-radius: 12px;
+  background: #fff8e9;
+  color: #6b4b13;
+  line-height: 1.5;
+}
+
 .forms form {
   padding: 18px;
   background: var(--surface-muted, #f3f6f2);
