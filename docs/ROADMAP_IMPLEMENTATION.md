@@ -13,8 +13,8 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | StoxScore and portfolio risk | Implemented | Versioned StoxScore v1 structure model, concentration analytics and dashboard explanation were deployed in PR #93. |
 | FinWiz portfolio feedback | Implemented | Backend-authoritative post-trade structure feedback for executed paper orders was deployed in PR #94. |
 | Portfolio analytics | Implemented | Cash/position allocation and fee-adjusted realized/unrealized attribution were deployed in PR #95; benchmark and historical risk views remain provider-gated. |
-| Weekly portfolio reports | In progress | Current batch adds immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history. |
-| Challenges, missions, XP and achievements | Missing | Must use auditable backend events and anti-abuse rules. |
+| Weekly portfolio reports | Implemented | Immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history were deployed in PR #96. |
+| Challenges, missions, XP and achievements | In progress | Current batch adds server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements. |
 | Improved leaderboards | Missing | Standard ₹5 lakh competition must remain isolated from paid sandboxes. |
 | Private leagues and campus competitions | Missing | Requires league ownership, membership, seasons and moderation controls. |
 | Plus and Pro architecture | Missing | Entitlements, billing-provider boundary and separate sandbox portfolios are required before charging users. |
@@ -93,9 +93,24 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - Report preference and history are included in account export and deleted by
   cascade with the account.
 
+## Batch 6 — challenges and learning progression
+
+- Versioned `learning-progression-v1` challenge and mission catalog.
+- XP is awarded only from backend-authoritative onboarding, watchlist, order,
+  trade, holding and consecutive-date state.
+- Per-user pessimistic locking plus unique mission and achievement constraints
+  prevent duplicate awards during concurrent requests.
+- Existing learner activity is reconciled automatically; no artificial reset is
+  required after deployment.
+- Five level thresholds, six persisted achievements and a responsive learning
+  path show progress without using profit, trade size, trade volume or rank.
+- Daily check-ins are idempotent and use the learner's report timezone or the
+  documented Asia/Kolkata default.
+- Progression data is included in account export and removed by account cascade.
+- No new secret, provider, paid service or market-data redistribution.
+
 ## Next batch
 
-Add backend-authoritative challenges, missions, XP, levels, streaks and
-achievements with an auditable event ledger and anti-abuse rules. Benchmark and
-historical-risk analytics remain deferred until the required data rights are
-documented.
+Add seasonal standard leaderboards and private leagues with strict separation
+from future Plus and Pro sandbox capital. Benchmark and historical-risk
+analytics remain deferred until the required data rights are documented.

@@ -224,6 +224,26 @@ public class AccountLifecycleService {
             """,
             userId
         ));
+        export.put("learningProgression", jdbcTemplate.queryForList(
+            "SELECT * FROM learner_progression WHERE user_id = ?",
+            userId
+        ));
+        export.put("missionCompletions", jdbcTemplate.queryForList(
+            """
+            SELECT * FROM mission_completion
+            WHERE user_id = ?
+            ORDER BY completed_at
+            """,
+            userId
+        ));
+        export.put("achievementUnlocks", jdbcTemplate.queryForList(
+            """
+            SELECT * FROM achievement_unlock
+            WHERE user_id = ?
+            ORDER BY unlocked_at
+            """,
+            userId
+        ));
         export.put("securityEvents", events(userId));
         audit(userId, "ACCOUNT_DATA_EXPORTED", null);
         return export;

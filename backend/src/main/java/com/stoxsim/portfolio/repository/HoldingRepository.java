@@ -43,4 +43,12 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
         @Param("marketRegion") MarketRegion marketRegion,
         @Param("minimumQuantity") long minimumQuantity
     );
+
+    @Query("""
+        SELECT COUNT(holding)
+        FROM Holding holding
+        WHERE holding.account.user.id = :userId
+          AND holding.quantity > 0
+        """)
+    long countActiveByUserId(@Param("userId") UUID userId);
 }

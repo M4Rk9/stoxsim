@@ -188,6 +188,33 @@ test("guided onboarding progress and dismissal persist across sessions", async (
   await expect(page.getByLabel(/First trade walkthrough/)).toHaveCount(0);
 });
 
+test("learning progression awards authoritative missions and daily check-ins once", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "progression");
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await page.getByRole("menuitem", { name: /Learning path/ }).click();
+
+  await expect(page.getByRole("heading", { name: "Learning path" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Level progress" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Learning foundations" })).toBeVisible();
+  await expect(page.getByText("learning-progression-v1", { exact: true })).toBeVisible();
+  await expect(page.getByText("50 XP", { exact: false }).first()).toBeVisible();
+
+  const checkInResponse = page.waitForResponse((response) =>
+    response.request().method() === "POST"
+    && response.url().endsWith("/api/v1/progression/check-in")
+  );
+  await page.getByRole("button", { name: "Record today’s check-in" }).click();
+  await expect((await checkInResponse).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Checked in today" })).toBeDisabled();
+  await expect(page.getByText("1 day", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Checked in today" })).toBeDisabled();
+  await expect(page.getByText("1 day", { exact: true })).toBeVisible();
+});
+
 test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   test.setTimeout(150_000);
   await registerLearner(page, "finwiz");

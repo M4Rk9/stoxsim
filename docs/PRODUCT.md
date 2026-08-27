@@ -41,6 +41,7 @@ browser, records completion of the first accepted paper order.
 - Cash and position allocation views
 - Fee-adjusted realized and unrealized performance attribution
 - Opt-in weekly portfolio learning reports with delivery preferences
+- Versioned challenges, missions, XP, levels, learning streaks and achievements
 - Market session enforcement
 - Explicit LIVE, DELAYED, CLOSED and STALE labels
 - Responsive web application
@@ -63,5 +64,7 @@ browser, records completion of the first accepted paper order.
 - Redis is used only for transient market data and caching.
 - Financial calculations use decimal arithmetic.
 - The backend enforces sessions, quote freshness and authorization.
+- The backend owns mission completion and XP; profit and trading volume never
+  determine learning progression.
 - Provider credentials never reach the browser.
 - StoxSim never calls a broker's real-order API.
