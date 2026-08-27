@@ -17,8 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
@@ -40,6 +38,7 @@ import com.stoxsim.report.repository.WeeklyReportPreferenceRepository;
 import com.stoxsim.trade.repository.TradeRepository;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class WeeklyReportService {
@@ -338,7 +337,7 @@ public class WeeklyReportService {
     private String serialize(WeeklyReportSnapshotResponse snapshot) {
         try {
             return objectMapper.writeValueAsString(snapshot);
-        } catch (JsonProcessingException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalStateException("Weekly report snapshot could not be serialized", exception);
         }
     }
@@ -346,7 +345,7 @@ public class WeeklyReportService {
     private WeeklyReportSnapshotResponse deserialize(String snapshotJson) {
         try {
             return objectMapper.readValue(snapshotJson, WeeklyReportSnapshotResponse.class);
-        } catch (JsonProcessingException exception) {
+        } catch (RuntimeException exception) {
             throw new IllegalStateException("Weekly report snapshot could not be read", exception);
         }
     }

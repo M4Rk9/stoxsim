@@ -24,7 +24,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
@@ -43,6 +42,7 @@ import com.stoxsim.report.repository.WeeklyReportPreferenceRepository;
 import com.stoxsim.trade.repository.TradeRepository;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyReportServiceTest {
@@ -64,7 +64,7 @@ class WeeklyReportServiceTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper().findAndRegisterModules();
+        objectMapper = new ObjectMapper();
         clock = Clock.fixed(NOW, ZoneOffset.UTC);
         meterRegistry = new SimpleMeterRegistry();
     }
