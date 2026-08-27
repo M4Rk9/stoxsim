@@ -198,7 +198,7 @@ test("learning progression awards authoritative missions and daily check-ins onc
   await expect(page.getByRole("heading", { name: "Learning path" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Level progress" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Learning foundations" })).toBeVisible();
-  await expect(page.getByText("learning-progression-v1")).toBeVisible();
+  await expect(page.getByText("learning-progression-v1", { exact: true })).toBeVisible();
   await expect(page.getByText("50 XP", { exact: false }).first()).toBeVisible();
 
   const checkInResponse = page.waitForResponse((response) =>
