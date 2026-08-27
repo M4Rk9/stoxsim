@@ -186,7 +186,7 @@ class PostgresConcurrencyIntegrationTest {
     void competitionEnrollmentAndPrivateLeagueMembershipAreUnique() {
         AppUser user = user("competition");
         Instant now = Instant.now();
-        String seasonCode = "integration-" + UUID.randomUUID();
+        String seasonCode = "integration-" + UUID.randomUUID().toString().substring(0, 16);
         transactions.executeWithoutResult(status -> {
             competitionSeasons.ensureSeason(
                 seasonCode,
