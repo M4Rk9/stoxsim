@@ -91,7 +91,10 @@ class CompetitionServiceTest {
             any(Pageable.class)
         )).thenReturn(List.of(entry));
         when(entries.countBySeasonId(SEASON_ID)).thenReturn(1L);
-        when(entries.countBySeasonIdAndReturnPercentGreaterThan(SEASON_ID, BigDecimal.ZERO))
+        when(entries.countBySeasonIdAndReturnPercentGreaterThan(
+            SEASON_ID,
+            new BigDecimal("0.0000")
+        ))
             .thenReturn(0L);
 
         var result = service().enroll(USER_ID);

@@ -36,7 +36,7 @@ CREATE TABLE private_league (
     season_id UUID NOT NULL REFERENCES competition_season(id) ON DELETE CASCADE,
     owner_user_id UUID NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
     name VARCHAR(80) NOT NULL,
-    invite_code_hash CHAR(64) NOT NULL,
+    invite_code_hash VARCHAR(64) NOT NULL,
     max_members INTEGER NOT NULL DEFAULT 25,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
