@@ -149,7 +149,7 @@ public class WeeklyReportService {
         }
 
         WeeklyPortfolioReport report = reports.findByUserIdAndPeriodEnd(userId, periodEnd)
-            .orElseGet(() -> createReport(user, periodEnd, zoneId));
+            .orElseGet(() -> createReport(userId, user, periodEnd, zoneId));
         if (report.getDeliveryStatus() == WeeklyReportDeliveryStatus.SENT
             || report.getDeliveryAttempts() >= 3) {
             return;
@@ -171,13 +171,14 @@ public class WeeklyReportService {
     }
 
     private WeeklyPortfolioReport createReport(
+        UUID userId,
         AppUser user,
         LocalDate periodEnd,
         ZoneId zoneId
     ) {
         LocalDate periodStart = periodEnd.minusDays(6);
         WeeklyReportSnapshotResponse snapshot = snapshot(
-            user.getId(),
+            userId,
             periodStart,
             periodEnd,
             zoneId
