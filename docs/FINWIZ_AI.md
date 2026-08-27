@@ -39,6 +39,20 @@ Example:
 
 The stock fields are optional. General lessons work without market context.
 
+## Post-trade portfolio feedback
+
+When an order executes immediately, `POST /api/v1/orders` includes an additive
+`finwizFeedback` object. The backend compares StoxScore snapshots from directly
+before and after settlement and explains changes in breadth, effective holdings
+and largest-position concentration. Open orders do not receive impact feedback
+until execution because they have not changed the portfolio.
+
+Post-trade feedback is deterministic and versioned as
+`finwiz-post-trade-v1`. It does not call Gemini, so provider latency, quota or
+availability cannot block a paper trade. If a portfolio snapshot is unavailable,
+the order still succeeds and the response omits feedback rather than inventing
+an effect.
+
 ## Gemini provider configuration
 
 ```text

@@ -9,6 +9,7 @@ import {
   type OnboardingState,
 } from "./components/OnboardingJourney";
 import StoxScoreCard, { type PortfolioAnalytics } from "./components/StoxScoreCard";
+import FinwizTradeFeedback, { type FinwizPortfolioFeedback } from "./components/FinwizTradeFeedback";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
@@ -278,6 +279,7 @@ interface PaperOrder {
   reservedCash: number;
   rejectionReason?: string;
   createdAt: string;
+  finwizFeedback?: FinwizPortfolioFeedback;
 }
 
 interface Trade {
@@ -426,6 +428,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [portfolioAnalytics, setPortfolioAnalytics] = useState<PortfolioAnalytics | null>();
+  const [tradeFeedback, setTradeFeedback] = useState<FinwizPortfolioFeedback | null>(null);
   const selectedRef = useRef<Instrument | null>(null);
 
   const token = session?.accessToken;
@@ -906,7 +909,7 @@ export default function Home() {
     setError("");
     setNotice("");
     try {
-      await authorizedRequest<PaperOrder>(
+      const placedOrder = await authorizedRequest<PaperOrder>(
         "/api/v1/orders",
         {
           method: "POST",
@@ -922,11 +925,14 @@ export default function Home() {
           }),
         },
       );
+      setTradeFeedback(placedOrder.finwizFeedback ?? null);
       const wasFirstOrder = Boolean(onboarding && !onboarding.firstOrderCompleted);
       const nextOnboarding = await authorizedRequest<OnboardingState>("/api/v1/onboarding")
         .catch(() => null);
       if (nextOnboarding) setOnboarding(nextOnboarding);
-      setNotice(wasFirstOrder && nextOnboarding?.firstOrderCompleted
+      setNotice(placedOrder.finwizFeedback
+        ? `${selected.tradingSymbol} executed. FinWiz portfolio feedback is ready below.`
+        : wasFirstOrder && nextOnboarding?.firstOrderCompleted
         ? `First paper trade complete. Your ${selected.tradingSymbol} order is now part of your learning history.`
         : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
       await loadDashboard(token);
@@ -967,6 +973,7 @@ export default function Home() {
     setMovers(null);
     setPortfolio(null);
     setPortfolioAnalytics(undefined);
+    setTradeFeedback(null);
     setOrders([]);
     setTrades([]);
     setError("");
@@ -989,6 +996,7 @@ export default function Home() {
     setMovers(null);
     setOnboarding(null);
     setPortfolioAnalytics(undefined);
+    setTradeFeedback(null);
   }
 
   async function completeOnboardingIntroduction() {
@@ -1153,6 +1161,7 @@ export default function Home() {
       </section>
 
       <StoxScoreCard analytics={portfolioAnalytics} />
+      {tradeFeedback && <FinwizTradeFeedback feedback={tradeFeedback} onDismiss={() => setTradeFeedback(null)} />}
 
       <section className="panel moversPanel">
         <div className="moversHeader">

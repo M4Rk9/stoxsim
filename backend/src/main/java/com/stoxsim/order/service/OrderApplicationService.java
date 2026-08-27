@@ -17,6 +17,8 @@ import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.calendar.service.IndiaMarketSessionService;
 import com.stoxsim.charge.ChargeCalculator;
+import com.stoxsim.finwiz.api.FinwizPortfolioFeedbackResponse;
+import com.stoxsim.finwiz.service.FinwizPortfolioFeedbackService;
 import com.stoxsim.instrument.domain.InstrumentType;
 import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.instrument.domain.TradableInstrument;
@@ -34,6 +36,7 @@ import com.stoxsim.order.domain.OrderType;
 import com.stoxsim.order.domain.PaperOrder;
 import com.stoxsim.order.repository.PaperOrderRepository;
 import com.stoxsim.onboarding.service.OnboardingService;
+import com.stoxsim.portfolio.api.PortfolioAnalyticsResponse;
 import com.stoxsim.portfolio.domain.Holding;
 import com.stoxsim.portfolio.repository.HoldingRepository;
 
@@ -52,6 +55,7 @@ public class OrderApplicationService {
     private final ApplicationEventPublisher events;
     private final MeterRegistry meterRegistry;
     private final OnboardingService onboarding;
+    private final FinwizPortfolioFeedbackService portfolioFeedback;
 
     public OrderApplicationService(
         VirtualAccountRepository accounts,
@@ -65,7 +69,8 @@ public class OrderApplicationService {
         OrderSettlementService settlement,
         ApplicationEventPublisher events,
         MeterRegistry meterRegistry,
-        OnboardingService onboarding
+        OnboardingService onboarding,
+        FinwizPortfolioFeedbackService portfolioFeedback
     ) {
         this.accounts = accounts;
         this.instruments = instruments;
@@ -79,6 +84,7 @@ public class OrderApplicationService {
         this.events = events;
         this.meterRegistry = meterRegistry;
         this.onboarding = onboarding;
+        this.portfolioFeedback = portfolioFeedback;
     }
 
     @Transactional
@@ -115,6 +121,11 @@ public class OrderApplicationService {
                 "Stale quote cannot be used for an order"
             );
         }
+
+        PortfolioAnalyticsResponse analyticsBefore = portfolioFeedback.snapshot(
+            userId,
+            request.marketRegion()
+        );
 
         BigDecimal reservedCash = BigDecimal.ZERO.setScale(
             4,
@@ -174,7 +185,15 @@ public class OrderApplicationService {
             "status",
             order.getStatus().name()
         ).increment();
-        return OrderResponse.from(order);
+        FinwizPortfolioFeedbackResponse feedback = order.getStatus() == OrderStatus.EXECUTED
+            ? portfolioFeedback.afterExecution(
+                userId,
+                order.getId(),
+                request.marketRegion(),
+                analyticsBefore
+            )
+            : null;
+        return OrderResponse.from(order, feedback);
     }
 
     @Transactional(readOnly = true)

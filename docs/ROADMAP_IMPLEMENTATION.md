@@ -10,8 +10,8 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | --- | --- | --- |
 | Core public-release platform | Implemented | Authentication, separate India/US portfolios, paper orders, holdings, watchlists, market status, FinWiz, deployment, recovery and observability exist. |
 | Guided onboarding | Implemented | Persisted introduction state and the first-trade walkthrough were deployed in PR #91. |
-| StoxScore and portfolio risk | In progress | Current batch adds the versioned StoxScore v1 structure model, concentration analytics and dashboard explanation. |
-| FinWiz portfolio feedback | Missing | Must remain educational: diversification, risk, attribution and learning guidance only. |
+| StoxScore and portfolio risk | Implemented | Versioned StoxScore v1 structure model, concentration analytics and dashboard explanation were deployed in PR #93. |
+| FinWiz portfolio feedback | In progress | Current batch adds backend-authoritative post-trade structure feedback for executed paper orders. |
 | Portfolio analytics | Partial | Core valuation and P/L exist; allocation, concentration, benchmark and risk views remain. |
 | Weekly portfolio reports | Missing | Requires a report snapshot model and delivery preference; email infrastructure already exists. |
 | Challenges, missions, XP and achievements | Missing | Must use auditable backend events and anti-abuse rules. |
@@ -51,9 +51,23 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - Educational disclaimer and no predictive or buy/sell language.
 - No new secret, provider, paid service or market-data redistribution.
 
+## Batch 3 — FinWiz post-trade portfolio feedback
+
+- Capture StoxScore snapshots immediately before and after an executed paper
+  order without weakening order validation or settlement.
+- Return additive, versioned feedback on the successful order response.
+- Explain score, breadth, effective-holdings and largest-position changes.
+- Do not claim an effect for an open order or when the before-trade snapshot is
+  unavailable.
+- Keep deterministic fallback behaviour so Gemini availability cannot block a
+  paper trade.
+- Display dismissible feedback beside the dashboard StoxScore with an explicit
+  educational disclaimer.
+- No database migration, new secret, provider call or market-data
+  redistribution.
+
 ## Next batch
 
-Add backend-authoritative FinWiz feedback after an accepted paper trade. The
-feedback will explain the trade's effect on diversification and concentration,
-use the versioned StoxScore components, and remain educational rather than
-providing personalized buy/sell instructions.
+Expand portfolio analytics with allocation views and performance attribution,
+using only existing portfolio and trade data before introducing benchmark or
+historical-risk features that may require additional data rights.

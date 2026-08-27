@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import com.stoxsim.finwiz.api.FinwizPortfolioFeedbackResponse;
 import com.stoxsim.order.domain.OrderSide;
 import com.stoxsim.order.domain.OrderStatus;
 import com.stoxsim.order.domain.OrderType;
@@ -32,9 +33,17 @@ public record OrderResponse(
     LocalDate submittedForDate,
     Instant createdAt,
     Instant updatedAt,
-    Instant executedAt
+    Instant executedAt,
+    FinwizPortfolioFeedbackResponse finwizFeedback
 ) {
     public static OrderResponse from(PaperOrder order) {
+        return from(order, null);
+    }
+
+    public static OrderResponse from(
+        PaperOrder order,
+        FinwizPortfolioFeedbackResponse finwizFeedback
+    ) {
         return new OrderResponse(
             order.getId(),
             order.getInstrument().getMarketRegion().name(),
@@ -55,7 +64,8 @@ public record OrderResponse(
             order.getSubmittedForDate(),
             order.getCreatedAt(),
             order.getUpdatedAt(),
-            order.getExecutedAt()
+            order.getExecutedAt(),
+            finwizFeedback
         );
     }
 }
