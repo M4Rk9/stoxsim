@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.portfolio.service.PortfolioAnalyticsService;
+import com.stoxsim.portfolio.service.PortfolioInsightsService;
 import com.stoxsim.portfolio.service.PortfolioValuationService;
 
 @RestController
@@ -19,13 +20,16 @@ public class PortfolioSummaryController {
 
     private final PortfolioValuationService valuation;
     private final PortfolioAnalyticsService analytics;
+    private final PortfolioInsightsService insights;
 
     public PortfolioSummaryController(
         PortfolioValuationService valuation,
-        PortfolioAnalyticsService analytics
+        PortfolioAnalyticsService analytics,
+        PortfolioInsightsService insights
     ) {
         this.valuation = valuation;
         this.analytics = analytics;
+        this.insights = insights;
     }
 
     @GetMapping
@@ -42,5 +46,13 @@ public class PortfolioSummaryController {
         @RequestParam(defaultValue = "INDIA") MarketRegion marketRegion
     ) {
         return analytics.analyze(UUID.fromString(jwt.getSubject()), marketRegion);
+    }
+
+    @GetMapping("/insights")
+    public PortfolioInsightsResponse insights(
+        @AuthenticationPrincipal Jwt jwt,
+        @RequestParam(defaultValue = "INDIA") MarketRegion marketRegion
+    ) {
+        return insights.analyze(UUID.fromString(jwt.getSubject()), marketRegion);
     }
 }

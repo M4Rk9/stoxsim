@@ -139,6 +139,250 @@
 
 .metrics small { font-size: .66rem; }
 
+.analytics {
+  overflow: hidden;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.analyticsHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.analyticsHeader > div > span,
+.cardHeading span {
+  color: var(--green);
+  font-size: .65rem;
+  font-weight: 850;
+  letter-spacing: .11em;
+}
+
+.analyticsHeader h2 {
+  margin: 5px 0 0;
+  color: var(--ink);
+  font-size: 1.12rem;
+}
+
+.analyticsHeader > small {
+  color: var(--muted);
+  font-size: .66rem;
+  text-align: right;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+}
+
+.analyticsGrid > article {
+  min-width: 0;
+  padding: 22px;
+}
+
+.allocationCard { border-right: 1px solid var(--line); }
+
+.cardHeading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.cardHeading h3 {
+  margin: 5px 0 0;
+  color: var(--ink);
+  font-size: .96rem;
+}
+
+.cardHeading > strong {
+  color: var(--ink);
+  font-size: .95rem;
+  white-space: nowrap;
+}
+
+.accountBar {
+  height: 10px;
+  overflow: hidden;
+  margin: 22px 0 12px;
+  border-radius: 99px;
+  background: var(--surface-soft);
+}
+
+.accountBar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.accountLegend {
+  display: flex;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.accountLegend > div {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 110px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.accountLegend strong { color: var(--ink); }
+
+.accountLegend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.investedDot { background: var(--green); }
+.cashDot { background: var(--surface-soft); border: 1px solid var(--line); }
+
+.allocationList,
+.attributionList {
+  display: grid;
+  gap: 13px;
+  margin-top: 20px;
+}
+
+.allocationRow {
+  display: grid;
+  grid-template-columns: minmax(96px, .8fr) minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.allocationIdentity,
+.allocationValue,
+.attributionRow > div {
+  min-width: 0;
+}
+
+.allocationIdentity strong,
+.allocationIdentity small,
+.allocationValue strong,
+.allocationValue small,
+.attributionRow strong,
+.attributionRow small {
+  display: block;
+}
+
+.allocationIdentity strong,
+.allocationValue strong,
+.attributionRow strong {
+  color: var(--ink);
+  font-size: .75rem;
+}
+
+.allocationIdentity small,
+.allocationValue small,
+.attributionRow small {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allocationValue { text-align: right; }
+
+.positionBar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--surface-soft);
+}
+
+.positionBar span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--green) 72%, var(--ink));
+}
+
+.pnlSplit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+}
+
+.pnlSplit div {
+  padding: 13px;
+  background: var(--surface-subtle);
+}
+
+.pnlSplit span,
+.pnlSplit strong { display: block; }
+.pnlSplit span { color: var(--muted); font-size: .64rem; }
+.pnlSplit strong { margin-top: 5px; font-size: .78rem; }
+
+.attributionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.attributionRow:last-child { padding-bottom: 0; border-bottom: 0; }
+.attributionRow > div:last-child { text-align: right; }
+
+.analyticsEmpty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 9px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.5;
+}
+
+.analyticsNotes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, .42fr);
+  gap: 24px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-subtle);
+}
+
+.analyticsNotes ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: .67rem;
+  line-height: 1.45;
+}
+
+.analyticsNotes p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .64rem;
+  line-height: 1.5;
+}
+
 .holdings {
   overflow: hidden;
   border: 1px solid var(--line);
@@ -235,14 +479,21 @@
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metrics article:nth-child(2) { border-right: 0; }
   .metrics article:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .analyticsGrid { grid-template-columns: 1fr; }
+  .allocationCard { border-right: 0; border-bottom: 1px solid var(--line); }
 }
 
 @media (max-width: 640px) {
   .shell { width: min(100% - 24px, 1280px); }
-  .heading, .sectionHeader { display: grid; align-items: start; }
+  .heading, .sectionHeader, .analyticsHeader { display: grid; align-items: start; }
+  .analyticsHeader > small { text-align: left; }
   .marketTabs { width: 100%; }
   .marketTabs button { flex: 1; }
   .metrics { grid-template-columns: 1fr; }
   .metrics article { border-right: 0; border-bottom: 1px solid var(--line); }
   .metrics article:last-child { border-bottom: 0; }
+  .analyticsGrid > article { padding: 18px; }
+  .cardHeading { display: grid; }
+  .allocationRow { grid-template-columns: minmax(84px, .75fr) minmax(65px, 1fr) auto; gap: 8px; }
+  .analyticsNotes { grid-template-columns: 1fr; }
 }

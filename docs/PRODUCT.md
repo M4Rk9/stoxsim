@@ -38,6 +38,8 @@ browser, records completion of the first accepted paper order.
 - Realized and unrealized profit/loss
 - Explainable StoxScore portfolio-structure analytics
 - Educational FinWiz feedback after an executed paper trade
+- Cash and position allocation views
+- Fee-adjusted realized and unrealized performance attribution
 - Market session enforcement
 - Explicit LIVE, DELAYED, CLOSED and STALE labels
 - Responsive web application
