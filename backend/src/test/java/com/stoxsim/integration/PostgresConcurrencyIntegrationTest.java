@@ -52,6 +52,8 @@ import com.stoxsim.progression.domain.MissionCompletion;
 import com.stoxsim.progression.repository.LearnerProgressionRepository;
 import com.stoxsim.progression.repository.MissionCompletionRepository;
 import com.stoxsim.subscription.domain.SubscriptionPlan;
+import com.stoxsim.subscription.domain.UserSubscription;
+import com.stoxsim.subscription.repository.UserSubscriptionRepository;
 import com.stoxsim.watchlist.domain.Watchlist;
 import com.stoxsim.watchlist.domain.WatchlistItem;
 import com.stoxsim.watchlist.repository.WatchlistItemRepository;
@@ -84,6 +86,7 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private CompetitionEntryRepository competitionEntries;
     @Autowired private PrivateLeagueRepository privateLeagues;
     @Autowired private LeagueMemberRepository leagueMembers;
+    @Autowired private UserSubscriptionRepository subscriptions;
 
     @BeforeEach
     void resetDatabase() {
@@ -188,6 +191,15 @@ class PostgresConcurrencyIntegrationTest {
             MarketRegion.INDIA,
             SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR
         ))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void freeSubscriptionCanBeResolvedThroughItsOwnedUser() {
+        AppUser user = user("subscription-owner");
+        subscriptions.saveAndFlush(new UserSubscription(user));
+
+        UserSubscription saved = subscriptions.findByUserId(user.getId()).orElseThrow();
+        assertThat(saved.getPlan()).isEqualTo(SubscriptionPlan.FREE);
     }
 
     @Test
@@ -416,10 +428,3 @@ class PostgresConcurrencyIntegrationTest {
                 "INR",
                 1,
                 new BigDecimal("0.05"),
-                "NORMAL"
-            ),
-            UUID.randomUUID(),
-            Instant.now()
-        ));
-    }
-}
