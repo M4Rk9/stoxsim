@@ -25,6 +25,7 @@ public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
         FROM PaperOrder paperOrder
         WHERE paperOrder.account.user.id = :userId
           AND paperOrder.account.marketRegion = :marketRegion
+          AND paperOrder.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
         ORDER BY paperOrder.createdAt DESC
         """)
     List<PaperOrder> findAllByAccountUserIdAndAccountMarketRegionOrderByCreatedAtDesc(

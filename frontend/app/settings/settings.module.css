@@ -121,6 +121,7 @@
 }
 
 .reportHeading,
+.planHeading,
 .reportHistoryHeading,
 .reportHistoryRow {
   display: flex;
@@ -139,6 +140,103 @@
 }
 
 .reportHeading h2 { margin-top: 5px; }
+.planHeading h2 { margin-top: 5px; }
+
+.currentPlan {
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #e8f7ee;
+  color: #087241;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.integrityNote {
+  display: grid;
+  gap: 4px;
+  padding: 15px 16px;
+  border: 1px solid #b9ddc7;
+  border-radius: 13px;
+  background: #effaf3;
+}
+
+.integrityNote strong { color: #087241; font-size: 13px; }
+.integrityNote span { color: #4e6057; font-size: 11px; line-height: 1.5; }
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.planCard,
+.planCardCurrent {
+  display: grid;
+  align-content: start;
+  padding: 18px;
+  border: 1px solid #dce4da;
+  border-radius: 15px;
+  background: #fbfcfa;
+}
+
+.planCardCurrent {
+  border-color: #0b8f55;
+  box-shadow: inset 0 0 0 1px #0b8f55;
+  background: #f4fbf6;
+}
+
+.planCard > span,
+.planCardCurrent > span {
+  color: #0b8f55;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.planCard h3,
+.planCardCurrent h3 { margin: 5px 0 2px; font-size: 18px; }
+.planCard > strong,
+.planCardCurrent > strong { color: #0b2c3f; font-size: 14px; }
+.planCard ul,
+.planCardCurrent ul {
+  display: grid;
+  gap: 7px;
+  min-height: 112px;
+  margin: 15px 0;
+  padding-left: 17px;
+  color: #586a61;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.planCard button,
+.planCardCurrent button {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d5dfd4;
+  border-radius: 9px;
+  background: #eef1ed;
+  color: #697970;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sandboxList { margin-top: 22px; }
+.sandboxList h3 { margin: 0 0 8px; font-size: 15px; }
+.sandboxList > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #e0e7df;
+  font-size: 12px;
+}
+.sandboxList > div > span { display: grid; gap: 2px; }
+.sandboxList small { color: #748178; }
+.planNotice { margin: 16px 0 0 !important; font-size: 11px !important; }
 
 .reportEnabled,
 .reportDisabled,
@@ -346,6 +444,7 @@
   }
 
   .reportHeading,
+  .planHeading,
   .reportActions {
     align-items: flex-start;
     flex-direction: column;
@@ -357,6 +456,9 @@
   }
 
   .marketReportGrid { grid-template-columns: 1fr; }
+  .planGrid { grid-template-columns: 1fr; }
+  .planCard ul,
+  .planCardCurrent ul { min-height: 0; }
 }
 
 

@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.stoxsim.account.config.AccountProperties;
+import com.stoxsim.account.domain.AccountKind;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.domain.AppUser;
@@ -48,6 +49,13 @@ class AccountServiceTest {
         assertThat(accounts)
             .extracting(VirtualAccount::getAvailableCash)
             .containsExactly(new BigDecimal("500000.00"), new BigDecimal("10000.00"));
+        assertThat(accounts)
+            .allSatisfy(account -> {
+                assertThat(account.getAccountKind()).isEqualTo(AccountKind.STANDARD);
+                assertThat(account.isLeaderboardEligible()).isTrue();
+                assertThat(account.getStartingCapital())
+                    .isEqualByComparingTo(account.getAvailableCash());
+            });
 
         verify(repository).saveAll(accounts);
     }

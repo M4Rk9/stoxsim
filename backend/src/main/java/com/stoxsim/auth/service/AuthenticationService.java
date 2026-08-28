@@ -24,6 +24,7 @@ import com.stoxsim.auth.repository.AppUserRepository;
 import com.stoxsim.auth.repository.RefreshTokenRepository;
 import com.stoxsim.common.error.ConflictException;
 import com.stoxsim.common.error.UnauthorizedException;
+import com.stoxsim.subscription.service.SubscriptionService;
 
 @Service
 public class AuthenticationService {
@@ -34,6 +35,7 @@ public class AuthenticationService {
     private final AccountService accountService;
     private final TokenService tokenService;
     private final AccountLifecycleService lifecycleService;
+    private final SubscriptionService subscriptionService;
 
     public AuthenticationService(
         AppUserRepository userRepository,
@@ -41,7 +43,8 @@ public class AuthenticationService {
         PasswordEncoder passwordEncoder,
         AccountService accountService,
         TokenService tokenService,
-        AccountLifecycleService lifecycleService
+        AccountLifecycleService lifecycleService,
+        SubscriptionService subscriptionService
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -49,6 +52,7 @@ public class AuthenticationService {
         this.accountService = accountService;
         this.tokenService = tokenService;
         this.lifecycleService = lifecycleService;
+        this.subscriptionService = subscriptionService;
     }
 
     @Transactional
@@ -74,6 +78,7 @@ public class AuthenticationService {
         );
         user = userRepository.save(user);
         List<VirtualAccount> accounts = accountService.createDefaultAccounts(user);
+        subscriptionService.initializeFree(user);
         userRepository.flush();
         lifecycleService.audit(
             user.getId(),

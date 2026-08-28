@@ -17,6 +17,7 @@ public interface AccountLedgerRepository extends JpaRepository<AccountLedgerEntr
         FROM AccountLedgerEntry entry
         WHERE entry.account.user.id = :userId
           AND entry.account.marketRegion = :marketRegion
+          AND entry.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
         ORDER BY entry.createdAt DESC
         """)
     List<AccountLedgerEntry> findAllByAccountUserIdAndAccountMarketRegionOrderByCreatedAtDesc(

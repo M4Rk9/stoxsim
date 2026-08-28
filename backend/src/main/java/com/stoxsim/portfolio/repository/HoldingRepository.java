@@ -35,6 +35,7 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
         FROM Holding holding
         WHERE holding.account.user.id = :userId
           AND holding.account.marketRegion = :marketRegion
+          AND holding.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
           AND holding.quantity > :minimumQuantity
         ORDER BY holding.instrument.tradingSymbol
         """)
@@ -48,6 +49,7 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
         SELECT COUNT(holding)
         FROM Holding holding
         WHERE holding.account.user.id = :userId
+          AND holding.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
           AND holding.quantity > 0
         """)
     long countActiveByUserId(@Param("userId") UUID userId);

@@ -29,6 +29,49 @@ interface StoredSession {
   user: User;
 }
 
+type SubscriptionPlan = "FREE" | "PLUS" | "PRO";
+
+interface Entitlements {
+  standardCompetitiveCapitalInr: number;
+  sandboxCapitalInr?: number;
+  maximumSandboxPortfolios: number;
+  finwizTier: string;
+  analyticsTier: string;
+  privateLeagues: boolean;
+  scenarioLab: boolean;
+  multiplePortfolios: boolean;
+  premiumCompetitions: boolean;
+}
+
+interface SubscriptionAccount extends Account {
+  accountKind: "STANDARD" | "SANDBOX";
+  sandboxPlan?: SubscriptionPlan;
+  sandboxSlot: number;
+  accountLabel: string;
+  startingCapital: number;
+  active: boolean;
+  leaderboardEligible: boolean;
+}
+
+interface PlanDetails {
+  plan: SubscriptionPlan;
+  displayName: string;
+  monthlyPriceInr: number;
+  entitlements: Entitlements;
+}
+
+interface SubscriptionDetails {
+  version: "subscription-entitlements-v1";
+  plan: SubscriptionPlan;
+  status: "ACTIVE" | "PAST_DUE" | "CANCELED";
+  billingEnabled: boolean;
+  currentPeriodEnd?: string;
+  entitlements: Entitlements;
+  sandboxAccounts: SubscriptionAccount[];
+  plans: PlanDetails[];
+  notice: string;
+}
+
 interface ActiveSession {
   id: string;
   device: string;
@@ -98,6 +141,8 @@ class ApiError extends Error {
     super(message);
   }
 }
+
+let refreshInFlight: Promise<StoredSession> | null = null;
 
 function readSession(): StoredSession | null {
   try {
@@ -173,6 +218,7 @@ export default function SettingsPage() {
   });
   const [reportHistory, setReportHistory] = useState<WeeklyPortfolioReport[]>([]);
   const [reportPreview, setReportPreview] = useState<WeeklyReportSnapshot | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [profileWorking, setProfileWorking] = useState(false);
   const [passwordWorking, setPasswordWorking] = useState(false);
   const [dangerWorking, setDangerWorking] = useState(false);
@@ -198,8 +244,7 @@ export default function SettingsPage() {
       email: active.user.email,
     });
     void (async () => {
-      await loadSecurity();
-      await loadReports();
+      await Promise.all([loadSecurity(), loadReports(), loadSubscription()]);
     })();
   }, []);
 
@@ -215,9 +260,12 @@ export default function SettingsPage() {
       return await request<T>(path, options, active.accessToken);
     } catch (cause) {
       if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
-      const refreshed = await request<StoredSession>("/api/v1/auth/refresh", {
-        method: "POST",
-      });
+      if (!refreshInFlight) {
+        refreshInFlight = request<StoredSession>("/api/v1/auth/refresh", {
+          method: "POST",
+        }).finally(() => { refreshInFlight = null; });
+      }
+      const refreshed = await refreshInFlight;
       persist(refreshed);
       return request<T>(path, options, refreshed.accessToken);
     }
@@ -246,6 +294,14 @@ export default function SettingsPage() {
       setReportHistory(history);
     } catch (cause) {
       setReportError(cause instanceof Error ? cause.message : "Weekly reports could not be loaded");
+    }
+  }
+
+  async function loadSubscription() {
+    try {
+      setSubscription(await authorized<SubscriptionDetails>("/api/v1/subscription"));
+    } catch (cause) {
+      setSecurityError(cause instanceof Error ? cause.message : "Plan details could not be loaded");
     }
   }
 
@@ -517,6 +573,55 @@ export default function SettingsPage() {
             {passwordWorking ? "Updating…" : "Change password"}
           </button>
         </form>
+
+        {subscription && <section className={`${styles.card} ${styles.fullWidth}`} aria-labelledby="plan-title">
+          <div className={styles.planHeading}>
+            <div>
+              <span className={styles.reportEyebrow}>PLAN &amp; SANDBOXES</span>
+              <h2 id="plan-title">Your {subscription.plan.toLowerCase()} plan</h2>
+            </div>
+            <span className={styles.currentPlan}>{eventLabel(subscription.status)}</span>
+          </div>
+          <p>
+            Your competitive India portfolio always starts at ₹5 lakh. Paid-plan capital is
+            provisioned only in separate sandboxes and can never enter the standard leaderboard.
+          </p>
+          <div className={styles.integrityNote}>
+            <strong>Leaderboard integrity protected</strong>
+            <span>Standard capital: ₹5,00,000 · Sandbox balances are excluded by the API and database model.</span>
+          </div>
+          <div className={styles.planGrid}>
+            {subscription.plans.map((item) => <article
+              className={item.plan === subscription.plan ? styles.planCardCurrent : styles.planCard}
+              key={item.plan}
+            >
+              <span>{item.plan}</span>
+              <h3>{item.displayName}</h3>
+              <strong>{item.monthlyPriceInr === 0
+                ? "Free"
+                : `₹${item.monthlyPriceInr.toFixed(0)}/month`}</strong>
+              <ul>
+                <li>{item.entitlements.maximumSandboxPortfolios === 0
+                  ? "Standard ₹5 lakh portfolio"
+                  : `${item.entitlements.maximumSandboxPortfolios} sandbox ${item.entitlements.maximumSandboxPortfolios === 1 ? "portfolio" : "portfolios"} up to ${reportMoney(item.entitlements.sandboxCapitalInr ?? 0, "INR")}`}</li>
+                <li>{eventLabel(item.entitlements.finwizTier)} FinWiz</li>
+                <li>{eventLabel(item.entitlements.analyticsTier)} analytics</li>
+                {item.entitlements.scenarioLab && <li>Scenario Lab access</li>}
+              </ul>
+              <button type="button" disabled>
+                {item.plan === subscription.plan ? "Current plan" : "Billing not available yet"}
+              </button>
+            </article>)}
+          </div>
+          {subscription.sandboxAccounts.length > 0 && <div className={styles.sandboxList}>
+            <h3>Provisioned sandboxes</h3>
+            {subscription.sandboxAccounts.map((account) => <div key={account.id}>
+              <span><strong>{account.accountLabel}</strong><small>{account.active ? "Active" : "Locked"}</small></span>
+              <strong>{reportMoney(account.startingCapital, "INR")}</strong>
+            </div>)}
+          </div>}
+          <p className={styles.planNotice}>{subscription.notice}</p>
+        </section>}
 
         <form className={`${styles.card} ${styles.fullWidth}`} onSubmit={saveReportPreference}>
           <div className={styles.reportHeading}>
