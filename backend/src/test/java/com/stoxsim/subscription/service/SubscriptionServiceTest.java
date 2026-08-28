@@ -75,7 +75,6 @@ class SubscriptionServiceTest {
     @Test
     void nonActiveProviderStateLocksExistingSandboxes() {
         AppUser user = mock(AppUser.class);
-        when(user.getId()).thenReturn(USER_ID);
         UserSubscription subscription = new UserSubscription(user);
         VirtualAccount sandbox = VirtualAccount.sandbox(
             user,
