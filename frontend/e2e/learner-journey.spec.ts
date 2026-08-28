@@ -316,6 +316,10 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
 
   await expect(page.getByRole("heading", { name: "Profile & security" })).toBeVisible();
   await expect(page.getByText("Email verification pending")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your free plan" })).toBeVisible();
+  await expect(page.getByText("Leaderboard integrity protected")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Current plan" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Billing not available yet" })).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Portfolio reports" })).toBeVisible();
   await expect(page.getByText("Verify your email address before enabling delivery.")).toBeVisible();
   await page.getByRole("button", { name: "Preview current report" }).click();

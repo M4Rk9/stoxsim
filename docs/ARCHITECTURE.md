@@ -1,5 +1,10 @@
 # StoxSim Architecture
 
+Subscription entitlements and account-scope isolation are documented in
+`SUBSCRIPTIONS.md`. Standard trading APIs select only `STANDARD` accounts;
+future paid sandbox APIs must use an owned account ID and reject
+leaderboard-eligible accounts.
+
 ## Shape
 
 StoxSim begins as a modular monolith. This keeps transactions and development straightforward while retaining clear domain boundaries.

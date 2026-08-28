@@ -155,7 +155,17 @@ public class AccountLifecycleService {
             userId
         ));
         export.put("accounts", jdbcTemplate.queryForList(
-            "SELECT * FROM virtual_account WHERE user_id = ? ORDER BY market_region",
+            "SELECT * FROM virtual_account WHERE user_id = ? ORDER BY account_kind, market_region, sandbox_slot",
+            userId
+        ));
+        export.put("subscription", jdbcTemplate.queryForList(
+            """
+            SELECT plan, subscription_status, billing_provider,
+                   provider_customer_reference, provider_subscription_reference,
+                   current_period_end, created_at, updated_at
+            FROM user_subscription
+            WHERE user_id = ?
+            """,
             userId
         ));
         export.put("holdings", jdbcTemplate.queryForList(

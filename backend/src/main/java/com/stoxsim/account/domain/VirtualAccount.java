@@ -8,6 +8,7 @@ import java.util.UUID;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.order.service.TradingValidationException;
+import com.stoxsim.subscription.domain.SubscriptionPlan;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,6 +41,20 @@ public class VirtualAccount {
     @Column(name = "market_region", nullable = false, length = 24)
     private MarketRegion marketRegion;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_kind", nullable = false, length = 16)
+    private AccountKind accountKind;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sandbox_plan", length = 16)
+    private SubscriptionPlan sandboxPlan;
+
+    @Column(name = "sandbox_slot", nullable = false)
+    private int sandboxSlot;
+
+    @Column(name = "account_label", nullable = false, length = 80)
+    private String accountLabel;
+
     @Column(nullable = false, length = 3)
     private String currency;
 
@@ -51,6 +66,15 @@ public class VirtualAccount {
 
     @Column(name = "realized_profit_loss", nullable = false, precision = 19, scale = 4)
     private BigDecimal realizedProfitLoss;
+
+    @Column(name = "starting_capital", nullable = false, precision = 19, scale = 4)
+    private BigDecimal startingCapital;
+
+    @Column(nullable = false)
+    private boolean active;
+
+    @Column(name = "leaderboard_eligible", nullable = false)
+    private boolean leaderboardEligible;
 
     @Version
     @Column(nullable = false)
@@ -68,12 +92,58 @@ public class VirtualAccount {
     public VirtualAccount(AppUser user, MarketRegion marketRegion, BigDecimal startingBalance) {
         this.user = user;
         this.marketRegion = marketRegion;
+        this.accountKind = AccountKind.STANDARD;
+        this.sandboxPlan = null;
+        this.sandboxSlot = 0;
+        this.accountLabel = "Standard portfolio";
         this.currency = marketRegion.currency();
         this.availableCash = startingBalance;
         this.blockedCash = BigDecimal.ZERO;
         this.realizedProfitLoss = BigDecimal.ZERO;
+        this.startingCapital = startingBalance;
+        this.active = true;
+        this.leaderboardEligible = true;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
+    }
+
+    public static VirtualAccount sandbox(
+        AppUser user,
+        SubscriptionPlan plan,
+        int slot,
+        BigDecimal startingBalance
+    ) {
+        if (plan == SubscriptionPlan.FREE) {
+            throw new IllegalArgumentException("Free plans do not have paid sandboxes");
+        }
+        if (slot < 1 || slot > plan.maximumSandboxPortfolios()) {
+            throw new IllegalArgumentException("Sandbox slot is outside the plan allowance");
+        }
+        VirtualAccount account = new VirtualAccount(
+            user,
+            MarketRegion.INDIA,
+            startingBalance
+        );
+        account.accountKind = AccountKind.SANDBOX;
+        account.sandboxPlan = plan;
+        account.sandboxSlot = slot;
+        account.accountLabel = plan.displayName() + " sandbox " + slot;
+        account.leaderboardEligible = false;
+        return account;
+    }
+
+    public void activate() {
+        if (!active) {
+            active = true;
+            touch();
+        }
+    }
+
+    public void deactivate() {
+        if (active) {
+            active = false;
+            touch();
+        }
     }
 
     public void reserveCash(BigDecimal amount) {
@@ -148,6 +218,22 @@ public class VirtualAccount {
         return marketRegion;
     }
 
+    public AccountKind getAccountKind() {
+        return accountKind;
+    }
+
+    public SubscriptionPlan getSandboxPlan() {
+        return sandboxPlan;
+    }
+
+    public int getSandboxSlot() {
+        return sandboxSlot;
+    }
+
+    public String getAccountLabel() {
+        return accountLabel;
+    }
+
     public String getCurrency() {
         return currency;
     }
@@ -162,5 +248,17 @@ public class VirtualAccount {
 
     public BigDecimal getRealizedProfitLoss() {
         return realizedProfitLoss;
+    }
+
+    public BigDecimal getStartingCapital() {
+        return startingCapital;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public boolean isLeaderboardEligible() {
+        return leaderboardEligible;
     }
 }

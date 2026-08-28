@@ -51,6 +51,9 @@ import com.stoxsim.order.service.TradingValidationException;
 import com.stoxsim.progression.domain.MissionCompletion;
 import com.stoxsim.progression.repository.LearnerProgressionRepository;
 import com.stoxsim.progression.repository.MissionCompletionRepository;
+import com.stoxsim.subscription.domain.SubscriptionPlan;
+import com.stoxsim.subscription.domain.UserSubscription;
+import com.stoxsim.subscription.repository.UserSubscriptionRepository;
 import com.stoxsim.watchlist.domain.Watchlist;
 import com.stoxsim.watchlist.domain.WatchlistItem;
 import com.stoxsim.watchlist.repository.WatchlistItemRepository;
@@ -83,6 +86,7 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private CompetitionEntryRepository competitionEntries;
     @Autowired private PrivateLeagueRepository privateLeagues;
     @Autowired private LeagueMemberRepository leagueMembers;
+    @Autowired private UserSubscriptionRepository subscriptions;
 
     @BeforeEach
     void resetDatabase() {
@@ -155,6 +159,47 @@ class PostgresConcurrencyIntegrationTest {
             Integer.class
         );
         assertThat(persisted).isEqualTo(supported.size());
+    }
+
+    @Test
+    void paidSandboxCannotReplaceTheStandardCompetitionAccount() {
+        AppUser user = user("sandbox-isolation");
+        VirtualAccount standard = accounts.saveAndFlush(new VirtualAccount(
+            user,
+            MarketRegion.INDIA,
+            SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR
+        ));
+        VirtualAccount sandbox = accounts.saveAndFlush(VirtualAccount.sandbox(
+            user,
+            SubscriptionPlan.PLUS,
+            1,
+            SubscriptionPlan.PLUS.sandboxCapitalInr()
+        ));
+
+        VirtualAccount selected = accounts
+            .findByUserIdAndMarketRegion(user.getId(), MarketRegion.INDIA)
+            .orElseThrow();
+
+        assertThat(selected.getId()).isEqualTo(standard.getId());
+        assertThat(selected.isLeaderboardEligible()).isTrue();
+        assertThat(sandbox.isLeaderboardEligible()).isFalse();
+        assertThat(accounts.findSandboxesByUserId(user.getId()))
+            .extracting(VirtualAccount::getId)
+            .containsExactly(sandbox.getId());
+        assertThatThrownBy(() -> accounts.saveAndFlush(new VirtualAccount(
+            user,
+            MarketRegion.INDIA,
+            SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR
+        ))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void freeSubscriptionCanBeResolvedThroughItsOwnedUser() {
+        AppUser user = user("subscription-owner");
+        subscriptions.saveAndFlush(new UserSubscription(user));
+
+        UserSubscription saved = subscriptions.findByUserId(user.getId()).orElseThrow();
+        assertThat(saved.getPlan()).isEqualTo(SubscriptionPlan.FREE);
     }
 
     @Test

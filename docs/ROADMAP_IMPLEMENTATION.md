@@ -15,9 +15,9 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Portfolio analytics | Implemented | Cash/position allocation and fee-adjusted realized/unrealized attribution were deployed in PR #95; benchmark and historical risk views remain provider-gated. |
 | Weekly portfolio reports | Implemented | Immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history were deployed in PR #96. |
 | Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
-| Improved leaderboards | In progress | Current batch adds opt-in quarterly ranking based only on entry-relative performance of the standard ₹5 lakh account. |
-| Private leagues and campus competitions | In progress | Current batch adds capped invite-only leagues; campus administration and moderation remain future work. |
-| Plus and Pro architecture | Missing | Entitlements, billing-provider boundary and separate sandbox portfolios are required before charging users. |
+| Improved leaderboards | Implemented | Opt-in quarterly ranking uses only entry-relative performance of the standard ₹5 lakh account; deployed in PR #98 and hardened in PR #99. |
+| Private leagues and campus competitions | Partially implemented | Capped invite-only leagues are deployed; campus administration, moderation and institution verification remain future work. |
+| Plus and Pro architecture | In progress | Current batch adds persisted entitlements, a provider-neutral billing boundary and isolated sandbox account provisioning without enabling checkout. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
 
 ## Batch 1 — guided onboarding and first trade
@@ -109,13 +109,6 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - Progression data is included in account export and removed by account cascade.
 - No new secret, provider, paid service or market-data redistribution.
 
-## Next batch
-
-Add Plus and Pro entitlement architecture, billing-provider boundaries and
-separate sandbox accounts without enabling paid billing. Benchmark and
-historical-risk analytics remain deferred until the required data rights are
-documented.
-
 ## Batch 7 — seasonal competitions and private leagues
 
 - UTC quarterly seasons with explicit global opt-in.
@@ -128,3 +121,25 @@ documented.
 - Competition data in account export with invite hashes excluded and account
   cascade deletion.
 - No new secret, provider, paid service or market-data redistribution.
+
+## Batch 8 — subscription entitlements and sandbox isolation
+
+- Persisted Free, Plus and Pro plan state with a read-only authenticated API.
+- Versioned product entitlements for capital, FinWiz, analytics, private
+  leagues, Scenario Lab, multiple portfolios and premium competitions.
+- Explicit `STANDARD` and `SANDBOX` account scopes with database constraints.
+- Paid sandbox capital of ₹25 lakh for Plus and ₹1 crore for Pro, always marked
+  ineligible for the standard leaderboard.
+- Every existing user backfilled to Free and every existing account preserved as
+  a standard account.
+- Internal provider-neutral update boundary with no browser plan mutation and no
+  enabled checkout.
+- Responsive account-settings plan comparison and sandbox status view.
+- No new secret, provider, paid service or market-data redistribution.
+
+## Next batch
+
+Add account-ID-scoped sandbox order, holding and valuation routes plus a safe
+portfolio switcher. Paid checkout remains deferred until a billing provider and
+webhook operating model are explicitly approved. Campus administration and
+moderation can proceed independently.

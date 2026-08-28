@@ -18,6 +18,7 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
         FROM Trade trade
         WHERE trade.account.user.id = :userId
           AND trade.account.marketRegion = :marketRegion
+          AND trade.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
         ORDER BY trade.executedAt DESC
         """)
     List<Trade> findAllByAccountUserIdAndAccountMarketRegionOrderByExecutedAtDesc(
@@ -30,6 +31,7 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
         FROM Trade trade
         WHERE trade.account.user.id = :userId
           AND trade.account.marketRegion = :marketRegion
+          AND trade.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
           AND trade.executedAt >= :from
           AND trade.executedAt < :until
         """)
@@ -45,6 +47,7 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
         FROM Trade trade
         WHERE trade.account.user.id = :userId
           AND trade.account.marketRegion = :marketRegion
+          AND trade.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
         """)
     long countByUserIdAndMarketRegion(
         @Param("userId") UUID userId,
