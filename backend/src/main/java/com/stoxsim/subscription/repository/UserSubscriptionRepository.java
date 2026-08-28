@@ -14,7 +14,8 @@ import jakarta.persistence.LockModeType;
 
 public interface UserSubscriptionRepository extends JpaRepository<UserSubscription, UUID> {
 
-    Optional<UserSubscription> findByUserId(UUID userId);
+    @Query("SELECT subscription FROM UserSubscription subscription WHERE subscription.user.id = :userId")
+    Optional<UserSubscription> findByUserId(@Param("userId") UUID userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT subscription FROM UserSubscription subscription WHERE subscription.user.id = :userId")
