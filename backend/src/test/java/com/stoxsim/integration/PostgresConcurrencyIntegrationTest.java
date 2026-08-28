@@ -428,3 +428,10 @@ class PostgresConcurrencyIntegrationTest {
                 "INR",
                 1,
                 new BigDecimal("0.05"),
+                "NORMAL"
+            ),
+            UUID.randomUUID(),
+            Instant.now()
+        ));
+    }
+}
