@@ -226,7 +226,7 @@ class PostgresConcurrencyIntegrationTest {
         assertThat(accounts.findByUserIdAndProvisioningKey(
             user.getId(),
             "provision-once"
-        )).contains(provisioned);
+        ).orElseThrow().getId()).isEqualTo(provisioned.getId());
         assertThatThrownBy(() -> accounts.saveAndFlush(VirtualAccount.sandbox(
             user,
             SubscriptionPlan.PRO,

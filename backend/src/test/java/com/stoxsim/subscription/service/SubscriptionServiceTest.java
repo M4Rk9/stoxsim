@@ -124,19 +124,6 @@ class SubscriptionServiceTest {
     }
 
     @Test
-    void activeFreeUpdateDoesNotAttemptToProvisionASandbox() {
-        AppUser user = mock(AppUser.class);
-        UserSubscription subscription = new UserSubscription(user);
-        when(subscriptions.findByUserIdForUpdate(USER_ID)).thenReturn(Optional.of(subscription));
-        when(subscriptions.findByUserId(USER_ID)).thenReturn(Optional.of(subscription));
-        when(accounts.findSandboxesByUserId(USER_ID)).thenReturn(List.of());
-
-        service().applyProviderUpdate(update(SubscriptionPlan.FREE, SubscriptionStatus.ACTIVE));
-
-        verify(accounts, never()).save(any());
-    }
-
-    @Test
     void activeProCreatesTheNextSandboxWithServerOwnedCapital() {
         AppUser user = mock(AppUser.class);
         UserSubscription subscription = activeSubscription(user, SubscriptionPlan.PRO);

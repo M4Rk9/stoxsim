@@ -119,10 +119,18 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
         @Param("provisioningKey") String provisioningKey
     );
 
+    @Query("""
+        SELECT account
+        FROM VirtualAccount account
+        WHERE account.user.id = :userId
+          AND account.accountKind = :accountKind
+          AND account.sandboxPlan = :sandboxPlan
+          AND account.sandboxSlot = :sandboxSlot
+        """)
     Optional<VirtualAccount> findByUserIdAndAccountKindAndSandboxPlanAndSandboxSlot(
-        UUID userId,
-        AccountKind accountKind,
-        SubscriptionPlan sandboxPlan,
-        int sandboxSlot
+        @Param("userId") UUID userId,
+        @Param("accountKind") AccountKind accountKind,
+        @Param("sandboxPlan") SubscriptionPlan sandboxPlan,
+        @Param("sandboxSlot") int sandboxSlot
     );
 }
