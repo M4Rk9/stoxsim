@@ -25,10 +25,15 @@
 
 Pre-open orders are not matched as a reconstructed exchange auction. They become eligible against the first regular-session market data at or after 09:15.
 
-## Order submission
+## Account-scoped order submission
+
+The dashboard first loads `GET /api/v1/accounts`, then uses the selected owned
+account ID for orders, holdings, trades, ledger and valuation. This makes the
+portfolio boundary explicit when a learner has both the standard competitive
+account and a paid learning sandbox.
 
 ```http
-POST /api/v1/orders
+POST /api/v1/accounts/7bda8d96-2c4f-4f5a-9389-63f89a47bf86/orders
 Authorization: Bearer <access-token>
 Idempotency-Key: 04eb8ec9-69bb-4ab1-a1b8-227a41686a7f
 Content-Type: application/json
@@ -45,6 +50,18 @@ Content-Type: application/json
 ```
 
 Submitting the same key again for the same account returns the original order.
+Another user's account ID returns `404`. A locked sandbox remains readable but
+returns `409` for placement or modification. Standard `/api/v1/orders` routes
+remain available for backward compatibility and can resolve only `STANDARD`
+accounts.
+
+Account-scoped resources are:
+
+- `GET|POST /api/v1/accounts/{accountId}/orders`
+- `GET|PUT|DELETE /api/v1/accounts/{accountId}/orders/{orderId}`
+- `GET /api/v1/accounts/{accountId}/holdings`
+- `GET /api/v1/accounts/{accountId}/trades`
+- `GET /api/v1/accounts/{accountId}/ledger`
 
 ## Resource blocking
 
@@ -68,6 +85,12 @@ Resting orders subscribe through the provider-independent market-data boundary. 
 
 ## Portfolio valuation
 
-`GET /api/v1/portfolio?marketRegion=INDIA` returns cash, blocked cash, invested value, marked-to-market value, realized and unrealized profit/loss, account value, return percentage and position-level quote freshness.
+`GET /api/v1/accounts/{accountId}/portfolio` returns cash, blocked cash,
+invested value, marked-to-market value, realized and unrealized profit/loss,
+account value, return percentage and position-level quote freshness. The
+`/portfolio/analytics` and `/portfolio/insights` sub-resources use that same
+account boundary.
+
+Legacy market-scoped portfolio routes remain standard-only.
 
 When a quote is unavailable, that position is explicitly labelled `UNAVAILABLE` and temporarily valued at cost basis. It is never labelled live.

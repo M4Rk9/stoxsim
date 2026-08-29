@@ -17,7 +17,7 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
 | Improved leaderboards | Implemented | Opt-in quarterly ranking uses only entry-relative performance of the standard ₹5 lakh account; deployed in PR #98 and hardened in PR #99. |
 | Private leagues and campus competitions | Partially implemented | Capped invite-only leagues are deployed; campus administration, moderation and institution verification remain future work. |
-| Plus and Pro architecture | In progress | Current batch adds persisted entitlements, a provider-neutral billing boundary and isolated sandbox account provisioning without enabling checkout. |
+| Plus and Pro architecture | In progress | Entitlements and isolated accounts are deployed; the current batch adds account-scoped sandbox trading, valuation and safe switching without enabling checkout. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
 
 ## Batch 1 — guided onboarding and first trade
@@ -137,9 +137,25 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - Responsive account-settings plan comparison and sandbox status view.
 - No new secret, provider, paid service or market-data redistribution.
 
+## Batch 9 — account-scoped sandbox trading
+
+- Authenticated owned-account catalog for the Standard, Plus and Pro switcher.
+- Account-ID-scoped order placement, listing, lookup, modification and
+  cancellation with per-account idempotency.
+- Account-ID-scoped holdings, trades, ledger, valuation, StoxScore and portfolio
+  insights.
+- Wrong-owner account and order IDs return `404`; inactive sandboxes are
+  read-only and reject new or modified orders.
+- Legacy market-scoped APIs remain standard-only for backward compatibility.
+- Sandbox orders do not award standard onboarding/progression milestones or
+  generate feedback against the wrong portfolio.
+- Persistent responsive switchers label competitive and non-ranked contexts on
+  both the dashboard and detailed portfolio view.
+- No database migration, billing provider, secret or new market-data use.
+
 ## Next batch
 
-Add account-ID-scoped sandbox order, holding and valuation routes plus a safe
-portfolio switcher. Paid checkout remains deferred until a billing provider and
-webhook operating model are explicitly approved. Campus administration and
-moderation can proceed independently.
+Enforce released Plus and Pro feature tiers and add controlled Pro
+additional-portfolio creation. Paid checkout remains deferred until a billing
+provider and webhook operating model are explicitly approved. Campus
+administration and moderation can proceed independently.

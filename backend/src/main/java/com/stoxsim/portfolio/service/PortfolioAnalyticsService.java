@@ -37,6 +37,10 @@ public class PortfolioAnalyticsService {
         return analyze(valuation.value(userId, marketRegion));
     }
 
+    public PortfolioAnalyticsResponse analyzeForAccount(UUID userId, UUID accountId) {
+        return analyze(valuation.valueForAccount(userId, accountId));
+    }
+
     PortfolioAnalyticsResponse analyze(com.stoxsim.portfolio.api.PortfolioResponse portfolio) {
         List<PortfolioPositionResponse> positions = portfolio.holdings().stream()
             .filter(position -> position.marketValue().signum() > 0)

@@ -24,4 +24,16 @@ public interface AccountLedgerRepository extends JpaRepository<AccountLedgerEntr
         @Param("userId") UUID userId,
         @Param("marketRegion") MarketRegion marketRegion
     );
+
+    @Query("""
+        SELECT entry
+        FROM AccountLedgerEntry entry
+        WHERE entry.account.id = :accountId
+          AND entry.account.user.id = :userId
+        ORDER BY entry.createdAt DESC
+        """)
+    List<AccountLedgerEntry> findAllOwnedByAccountId(
+        @Param("userId") UUID userId,
+        @Param("accountId") UUID accountId
+    );
 }

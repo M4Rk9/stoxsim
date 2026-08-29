@@ -21,14 +21,23 @@ type OrderType = "MARKET" | "LIMIT";
 type MarketDataStatus = "LIVE" | "CLOSED" | "STALE" | "UNAVAILABLE";
 type ChartRange = 1 | 3 | 6 | 12 | 36 | 60;
 type FinancialPeriod = "quarterly" | "yearly";
+type AccountKind = "STANDARD" | "SANDBOX";
+type SubscriptionPlan = "FREE" | "PLUS" | "PRO";
 
 interface Account {
   id: string;
   marketRegion: MarketRegion;
+  accountKind: AccountKind;
+  sandboxPlan?: SubscriptionPlan;
+  sandboxSlot: number;
+  accountLabel: string;
   currency: string;
+  startingCapital: number;
   availableCash: number;
   blockedCash: number;
   realizedProfitLoss: number;
+  active: boolean;
+  leaderboardEligible: boolean;
 }
 
 interface User {
@@ -396,6 +405,8 @@ export default function Home() {
     termsAccepted: false,
   });
   const [marketRegion, setMarketRegion] = useState<MarketRegion>("INDIA");
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [activeAccountId, setActiveAccountId] = useState("");
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [market, setMarket] = useState<MarketStatus | null>(null);
   const [indices, setIndices] = useState<IndexQuote[]>([]);
@@ -434,6 +445,11 @@ export default function Home() {
   const token = session?.accessToken;
   const primaryExchange = marketRegion === "INDIA" ? "NSE" : "NASDAQ";
   const activeCurrency: CurrencyCode = marketRegion === "INDIA" ? "INR" : "USD";
+  const activeAccount = useMemo(
+    () => accounts.find((account) => account.id === activeAccountId),
+    [accounts, activeAccountId],
+  );
+  const standardAccount = activeAccount?.accountKind !== "SANDBOX";
   const marketName = marketRegion === "INDIA" ? "India" : "USA";
   const displayMoney = (value?: number) => money(value, activeCurrency);
   const displayMoneyOrDash = (value?: number) => moneyOrDash(value, activeCurrency);
@@ -488,8 +504,27 @@ export default function Home() {
 
   useEffect(() => {
     if (!token) return;
-    void loadDashboard(token, marketRegion);
-  }, [token, marketRegion]);
+    let active = true;
+    void authorizedRequest<Account[]>("/api/v1/accounts", {}, token)
+      .then((ownedAccounts) => {
+        if (!active) return;
+        setAccounts(ownedAccounts);
+        const savedId = window.sessionStorage.getItem("stoxsim-active-account");
+        const preferred = ownedAccounts.find((account) => account.id === savedId)
+          ?? ownedAccounts.find((account) => account.accountKind === "STANDARD" && account.marketRegion === "INDIA")
+          ?? ownedAccounts[0];
+        if (preferred) selectAccount(preferred.id, ownedAccounts);
+      })
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : "Portfolio accounts could not be loaded");
+      });
+    return () => { active = false; };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !activeAccount) return;
+    void loadDashboard(token, activeAccount);
+  }, [token, activeAccountId, accounts]);
 
   useEffect(() => {
     if (!token) {
@@ -634,26 +669,28 @@ export default function Home() {
 
   async function loadDashboard(
     accessToken: string,
-    region: MarketRegion = marketRegion,
+    account: Account,
   ) {
+    const region = account.marketRegion;
+    const accountPath = `/api/v1/accounts/${account.id}`;
     setLoading(true);
     setError("");
     setPortfolioAnalytics(undefined);
     const exchange = region === "INDIA" ? "NSE" : "NASDAQ";
 
     void authorizedRequest<MarketStatus>(`/api/v1/market/status?exchange=${exchange}`, {}, accessToken).then(setMarket).catch(() => undefined);
-    void authorizedRequest<PaperOrder[]>(`/api/v1/orders?marketRegion=${region}`, {}, accessToken).then(setOrders).catch(() => undefined);
-    void authorizedRequest<Trade[]>(`/api/v1/trades?marketRegion=${region}`, {}, accessToken).then(setTrades).catch(() => undefined);
+    void authorizedRequest<PaperOrder[]>(`${accountPath}/orders`, {}, accessToken).then(setOrders).catch(() => undefined);
+    void authorizedRequest<Trade[]>(`${accountPath}/trades`, {}, accessToken).then(setTrades).catch(() => undefined);
     void authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${region}`, {}, accessToken).then(setIndices).catch(() => undefined);
     void authorizedRequest<Watchlist>("/api/v1/watchlists/default", {}, accessToken).then(setWatchlist).catch(() => undefined);
     void authorizedRequest<MarketMovers>(`/api/v1/market/movers?marketRegion=${region}`, {}, accessToken).then(setMovers).catch(() => undefined);
     void authorizedRequest<OnboardingState>("/api/v1/onboarding", {}, accessToken).then(setOnboarding).catch(() => undefined);
-    void authorizedRequest<PortfolioAnalytics>(`/api/v1/portfolio/analytics?marketRegion=${region}`, {}, accessToken)
+    void authorizedRequest<PortfolioAnalytics>(`${accountPath}/portfolio/analytics`, {}, accessToken)
       .then(setPortfolioAnalytics)
       .catch(() => setPortfolioAnalytics(null));
 
     try {
-      setPortfolio(await authorizedRequest<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, {}, accessToken));
+      setPortfolio(await authorizedRequest<Portfolio>(`${accountPath}/portfolio`, {}, accessToken));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load your portfolio");
     } finally {
@@ -787,7 +824,6 @@ export default function Home() {
         body: JSON.stringify(body),
       });
       persistSession(authenticated);
-      void loadDashboard(authenticated.accessToken);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Authentication failed");
     } finally {
@@ -904,13 +940,13 @@ export default function Home() {
 
   async function placeOrder(event: FormEvent) {
     event.preventDefault();
-    if (!token || !selected) return;
+    if (!token || !selected || !activeAccount || !activeAccount.active) return;
     setWorking(true);
     setError("");
     setNotice("");
     try {
       const placedOrder = await authorizedRequest<PaperOrder>(
-        "/api/v1/orders",
+        `/api/v1/accounts/${activeAccount.id}/orders`,
         {
           method: "POST",
           headers: { "Idempotency-Key": crypto.randomUUID() },
@@ -926,16 +962,18 @@ export default function Home() {
         },
       );
       setTradeFeedback(placedOrder.finwizFeedback ?? null);
-      const wasFirstOrder = Boolean(onboarding && !onboarding.firstOrderCompleted);
-      const nextOnboarding = await authorizedRequest<OnboardingState>("/api/v1/onboarding")
-        .catch(() => null);
+      const wasFirstOrder = standardAccount
+        && Boolean(onboarding && !onboarding.firstOrderCompleted);
+      const nextOnboarding = standardAccount
+        ? await authorizedRequest<OnboardingState>("/api/v1/onboarding").catch(() => null)
+        : null;
       if (nextOnboarding) setOnboarding(nextOnboarding);
       setNotice(placedOrder.finwizFeedback
         ? `${selected.tradingSymbol} executed. FinWiz portfolio feedback is ready below.`
         : wasFirstOrder && nextOnboarding?.firstOrderCompleted
         ? `First paper trade complete. Your ${selected.tradingSymbol} order is now part of your learning history.`
         : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
-      await loadDashboard(token);
+      await loadDashboard(token, activeAccount);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Order could not be submitted");
     } finally {
@@ -944,13 +982,16 @@ export default function Home() {
   }
 
   async function cancelOrder(orderId: string) {
-    if (!token) return;
+    if (!token || !activeAccount) return;
     setWorking(true);
     setError("");
     try {
-      await authorizedRequest<PaperOrder>(`/api/v1/orders/${orderId}`, { method: "DELETE" });
+      await authorizedRequest<PaperOrder>(
+        `/api/v1/accounts/${activeAccount.id}/orders/${orderId}`,
+        { method: "DELETE" },
+      );
       setNotice("Order cancelled and blocked resources released.");
-      await loadDashboard(token);
+      await loadDashboard(token, activeAccount);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Order could not be cancelled");
     } finally {
@@ -958,9 +999,21 @@ export default function Home() {
     }
   }
 
-  function switchMarket(region: MarketRegion) {
-    if (region === marketRegion) return;
-    setMarketRegion(region);
+  function selectAccount(accountId: string, source: Account[] = accounts) {
+    const account = source.find((candidate) => candidate.id === accountId);
+    if (!account || account.id === activeAccountId) return;
+    const marketChanged = account.marketRegion !== marketRegion;
+    setActiveAccountId(account.id);
+    setMarketRegion(account.marketRegion);
+    window.sessionStorage.setItem("stoxsim-active-account", account.id);
+    setPortfolio(null);
+    setPortfolioAnalytics(undefined);
+    setTradeFeedback(null);
+    setOrders([]);
+    setTrades([]);
+    setError("");
+    setNotice("");
+    if (!marketChanged) return;
     setSelected(null);
     selectedRef.current = null;
     setQuote(null);
@@ -971,13 +1024,13 @@ export default function Home() {
     setSearch("");
     setIndices([]);
     setMovers(null);
-    setPortfolio(null);
-    setPortfolioAnalytics(undefined);
-    setTradeFeedback(null);
-    setOrders([]);
-    setTrades([]);
-    setError("");
-    setNotice("");
+  }
+
+  function switchMarket(region: MarketRegion) {
+    const target = accounts.find((account) =>
+      account.accountKind === "STANDARD" && account.marketRegion === region
+    );
+    if (target) selectAccount(target.id);
   }
 
   async function logout() {
@@ -988,6 +1041,9 @@ export default function Home() {
       ).catch(() => undefined);
     }
     persistSession(null);
+    setAccounts([]);
+    setActiveAccountId("");
+    window.sessionStorage.removeItem("stoxsim-active-account");
     setPortfolio(null);
     setOrders([]);
     setTrades([]);
@@ -1123,7 +1179,22 @@ export default function Home() {
             onClick={() => switchMarket("UNITED_STATES")}
           ><span>🇺🇸</span> US</button>
         </div>
-        <div aria-hidden="true" />
+        <label className="accountSwitcher">
+          <span>Portfolio</span>
+          <select
+            aria-label="Portfolio account"
+            value={activeAccountId}
+            disabled={!accounts.length}
+            onChange={(event) => selectAccount(event.target.value)}
+          >
+            {accounts.map((account) => <option key={account.id} value={account.id}>
+              {account.accountKind === "STANDARD"
+                ? `Standard ${account.marketRegion === "INDIA" ? "India" : "USA"}`
+                : account.accountLabel}
+              {!account.active ? " (locked)" : ""}
+            </option>)}
+          </select>
+        </label>
       </header>
 
       <section className={`marketBanner ${market?.phase === "REGULAR" ? "open" : "closed"}`}>
@@ -1147,9 +1218,12 @@ export default function Home() {
         Verify your email to secure account recovery. <a href="/settings">Open settings</a>
       </div>}
       {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
+      {activeAccount && !activeAccount.active && <div className="message accountLockedMessage">
+        This paid sandbox is locked. Its history remains visible, but new and modified orders are disabled until the entitlement is active.
+      </div>}
 
       <section className="dashboardHeading">
-        <div><span className="eyebrow">{marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
+        <div><span className="eyebrow">{activeAccount?.accountKind === "SANDBOX" ? "SANDBOX" : "STANDARD"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1><small className="portfolioScopeNote">{activeAccount?.leaderboardEligible ? "Competitive ₹5 lakh portfolio" : "Learning sandbox · excluded from standard rankings"}</small></div>
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus === "CLOSED" ? "MARKET CLOSED" : `${marketDataStatus} DATA`}</div>
       </section>
 
@@ -1196,7 +1270,7 @@ export default function Home() {
         <div className="leftRail">
           <article className="panel searchPanel" id="stock-search">
             <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
-            {onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
+            {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
             <form className="searchBox" onSubmit={searchInstruments}><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, HDFC Bank…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
             {results.length > 0 && <div className="searchResults">{results.map((instrument) => <button key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
@@ -1251,14 +1325,14 @@ export default function Home() {
 
           <form className="panel orderTicket" id="paper-order-ticket" onSubmit={placeOrder}>
             <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Order ticket</h2></div><span className="deliveryPill">DELIVERY</span></div>
-            {onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
+            {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
             <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
             <div className="fieldGrid"><label>Order type<select value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market</option><option value="LIMIT">Limit</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
             {orderType === "LIMIT" && <label>Limit price<input type="number" min="0.01" step={selected?.tickSize ?? 0.05} value={limitPrice} onChange={(event) => setLimitPrice(event.target.value)} /></label>}
             <div className="estimateBox"><div><span>Estimated turnover</span><strong>{displayMoney(chargeEstimate?.turnover)}</strong></div><div><span>Simulated charges</span><strong>{displayMoney(chargeEstimate?.totalCharges)}</strong></div><div className="estimateTotal"><span>{side === "BUY" ? "Estimated debit" : "Estimated credit"}</span><strong>{displayMoney(chargeEstimate ? chargeEstimate.turnover + (side === "BUY" ? chargeEstimate.totalCharges : -chargeEstimate.totalCharges) : 0)}</strong></div>{chargeEstimate && <small>{chargeEstimate.scheduleVersion} · final amount uses execution price</small>}</div>
-            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working}>{working ? "Working…" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
-            <p className="ticketNote">Market orders use disadvantageous simulated slippage. No real brokerage order is placed.</p>
+            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working || !activeAccount?.active}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
+            <p className="ticketNote">{activeAccount?.accountKind === "SANDBOX" ? "This sandbox is isolated from every standard leaderboard. " : ""}Market orders use disadvantageous simulated slippage. No real brokerage order is placed.</p>
           </form>
 
           <article className="panel">

@@ -9,6 +9,22 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 type MarketRegion = "INDIA" | "UNITED_STATES";
 type CurrencyCode = "INR" | "USD";
 
+interface Account {
+  id: string;
+  marketRegion: MarketRegion;
+  accountKind: "STANDARD" | "SANDBOX";
+  sandboxPlan?: "PLUS" | "PRO";
+  sandboxSlot: number;
+  accountLabel: string;
+  currency: CurrencyCode;
+  startingCapital: number;
+  availableCash: number;
+  blockedCash: number;
+  realizedProfitLoss: number;
+  active: boolean;
+  leaderboardEligible: boolean;
+}
+
 interface User {
   id: string;
   email: string;
@@ -97,7 +113,7 @@ interface PortfolioInsights {
 }
 
 interface PortfolioBundle {
-  marketRegion: MarketRegion;
+  account: Account;
   portfolio: Portfolio;
   insights: PortfolioInsights;
 }
@@ -145,25 +161,24 @@ async function refreshSession() {
 }
 
 async function loadPortfolios(session: StoredSession) {
-  const load = async (region: MarketRegion, token: string): Promise<PortfolioBundle> => {
+  const load = async (account: Account, token: string): Promise<PortfolioBundle> => {
+    const path = `/api/v1/accounts/${account.id}/portfolio`;
     const [portfolio, insights] = await Promise.all([
-      request<Portfolio>(`/api/v1/portfolio?marketRegion=${region}`, token),
-      request<PortfolioInsights>(`/api/v1/portfolio/insights?marketRegion=${region}`, token),
+      request<Portfolio>(path, token),
+      request<PortfolioInsights>(`${path}/insights`, token),
     ]);
-    return { marketRegion: region, portfolio, insights };
+    return { account, portfolio, insights };
+  };
+  const loadAll = async (token: string) => {
+    const accounts = await request<Account[]>("/api/v1/accounts", token);
+    return Promise.all(accounts.map((account) => load(account, token)));
   };
   try {
-    return await Promise.all([
-      load("INDIA", session.accessToken),
-      load("UNITED_STATES", session.accessToken),
-    ]);
+    return await loadAll(session.accessToken);
   } catch (cause) {
     if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
     const refreshed = await refreshSession();
-    return Promise.all([
-      load("INDIA", refreshed.accessToken),
-      load("UNITED_STATES", refreshed.accessToken),
-    ]);
+    return loadAll(refreshed.accessToken);
   }
 }
 
@@ -186,6 +201,7 @@ export default function PortfolioPage() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [portfolios, setPortfolios] = useState<PortfolioBundle[]>([]);
   const [region, setRegion] = useState<MarketRegion>("INDIA");
+  const [activeAccountId, setActiveAccountId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -197,7 +213,17 @@ export default function PortfolioPage() {
         if (!active) return;
         setSession(current);
         const values = await loadPortfolios(current);
-        if (active) setPortfolios(values);
+        if (active) {
+          setPortfolios(values);
+          const savedId = window.sessionStorage.getItem("stoxsim-active-account");
+          const preferred = values.find((item) => item.account.id === savedId)
+            ?? values.find((item) => item.account.accountKind === "STANDARD" && item.account.marketRegion === "INDIA")
+            ?? values[0];
+          if (preferred) {
+            setActiveAccountId(preferred.account.id);
+            setRegion(preferred.account.marketRegion);
+          }
+        }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Portfolio could not be loaded.");
       } finally {
@@ -209,11 +235,28 @@ export default function PortfolioPage() {
   }, []);
 
   const selected = useMemo(
-    () => portfolios.find((item) => item.marketRegion === region),
-    [portfolios, region],
+    () => portfolios.find((item) => item.account.id === activeAccountId),
+    [portfolios, activeAccountId],
   );
+  const account = selected?.account;
   const portfolio = selected?.portfolio;
   const insights = selected?.insights;
+
+  function selectAccount(accountId: string) {
+    const next = portfolios.find((item) => item.account.id === accountId);
+    if (!next) return;
+    setActiveAccountId(accountId);
+    setRegion(next.account.marketRegion);
+    window.sessionStorage.setItem("stoxsim-active-account", accountId);
+  }
+
+  function selectStandardMarket(nextRegion: MarketRegion) {
+    const next = portfolios.find((item) =>
+      item.account.accountKind === "STANDARD"
+      && item.account.marketRegion === nextRegion
+    );
+    if (next) selectAccount(next.account.id);
+  }
 
   return <main className={styles.shell}>
     <header className={styles.header}>
@@ -228,11 +271,24 @@ export default function PortfolioPage() {
       <div>
         <span>PORTFOLIO</span>
         <h1>Your portfolio</h1>
-        <p>{session ? `${session.user.displayName}, review your current holdings across both simulated markets.` : "Loading your current holdings…"}</p>
+        <p>{session ? `${session.user.displayName}, review each competitive portfolio and isolated learning sandbox.` : "Loading your current holdings…"}</p>
       </div>
-      <div className={styles.marketTabs} role="group" aria-label="Portfolio market">
-        <button type="button" className={region === "INDIA" ? styles.active : ""} aria-pressed={region === "INDIA"} onClick={() => setRegion("INDIA")}>India</button>
-        <button type="button" className={region === "UNITED_STATES" ? styles.active : ""} aria-pressed={region === "UNITED_STATES"} onClick={() => setRegion("UNITED_STATES")}>United States</button>
+      <div className={styles.portfolioControls}>
+        <label>
+          Portfolio
+          <select aria-label="Portfolio account" value={activeAccountId} onChange={(event) => selectAccount(event.target.value)}>
+            {portfolios.map((item) => <option key={item.account.id} value={item.account.id}>
+              {item.account.accountKind === "STANDARD"
+                ? `Standard ${item.account.marketRegion === "INDIA" ? "India" : "USA"}`
+                : item.account.accountLabel}
+              {!item.account.active ? " (locked)" : ""}
+            </option>)}
+          </select>
+        </label>
+        <div className={styles.marketTabs} role="group" aria-label="Portfolio market">
+          <button type="button" className={account?.accountKind === "STANDARD" && region === "INDIA" ? styles.active : ""} aria-pressed={account?.accountKind === "STANDARD" && region === "INDIA"} onClick={() => selectStandardMarket("INDIA")}>India</button>
+          <button type="button" className={account?.accountKind === "STANDARD" && region === "UNITED_STATES" ? styles.active : ""} aria-pressed={account?.accountKind === "STANDARD" && region === "UNITED_STATES"} onClick={() => selectStandardMarket("UNITED_STATES")}>United States</button>
+        </div>
       </div>
     </section>
 
@@ -240,6 +296,11 @@ export default function PortfolioPage() {
     {loading && <div className={styles.loading}>Loading current holdings…</div>}
 
     {portfolio && <>
+      <section className={styles.accountContext}>
+        <strong>{account?.accountKind === "SANDBOX" ? account.accountLabel : `Standard ${region === "INDIA" ? "India" : "USA"} portfolio`}</strong>
+        <span>{account?.leaderboardEligible ? "Eligible for the standard competition" : "Learning sandbox · excluded from standard rankings"}</span>
+        {!account?.active && <small>Locked: history is visible, but trading is disabled.</small>}
+      </section>
       <section className={styles.metrics}>
         <article><span>Account value</span><strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong><small>Started with {money(portfolio.startingCapital, portfolio.currency)}</small></article>
         <article><span>Available cash</span><strong>{money(portfolio.availableCash, portfolio.currency)}</strong><small>{money(portfolio.blockedCash, portfolio.currency)} blocked</small></article>

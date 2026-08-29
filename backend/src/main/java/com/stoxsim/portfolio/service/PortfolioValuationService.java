@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.instrument.domain.MarketExchange;
@@ -34,18 +33,15 @@ public class PortfolioValuationService {
     private final VirtualAccountRepository accounts;
     private final HoldingRepository holdings;
     private final MarketDataService marketData;
-    private final AccountProperties accountProperties;
 
     public PortfolioValuationService(
         VirtualAccountRepository accounts,
         HoldingRepository holdings,
-        MarketDataService marketData,
-        AccountProperties accountProperties
+        MarketDataService marketData
     ) {
         this.accounts = accounts;
         this.holdings = holdings;
         this.marketData = marketData;
-        this.accountProperties = accountProperties;
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +54,27 @@ public class PortfolioValuationService {
                 marketRegion,
                 0
             );
+
+        return value(account, owned);
+    }
+
+    @Transactional(readOnly = true)
+    public PortfolioResponse valueForAccount(UUID userId, UUID accountId) {
+        VirtualAccount account = accounts.findOwnedById(userId, accountId)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Account not found"
+            ));
+        List<Holding> owned = holdings.findAllOwnedByAccountIdAndQuantityGreaterThan(
+            userId,
+            accountId,
+            0
+        );
+        return value(account, owned);
+    }
+
+    private PortfolioResponse value(VirtualAccount account, List<Holding> owned) {
+        MarketRegion marketRegion = account.getMarketRegion();
 
         List<PortfolioPositionResponse> positions = new ArrayList<>();
         BigDecimal invested = money(BigDecimal.ZERO);
@@ -77,7 +94,7 @@ public class PortfolioValuationService {
             overallStatus = combine(overallStatus, position.pricingStatus());
         }
 
-        BigDecimal startingCapital = startingCapital(marketRegion);
+        BigDecimal startingCapital = account.getStartingCapital();
         BigDecimal accountValue = account.getAvailableCash()
             .add(account.getBlockedCash())
             .add(marketValue);
@@ -151,12 +168,6 @@ public class PortfolioValuationService {
         return marketRegion == MarketRegion.UNITED_STATES
             ? MarketExchange.NASDAQ
             : MarketExchange.NSE;
-    }
-
-    private BigDecimal startingCapital(MarketRegion marketRegion) {
-        return marketRegion == MarketRegion.INDIA
-            ? accountProperties.getIndiaStartingBalance()
-            : accountProperties.getUnitedStatesStartingBalance();
     }
 
     private PricingStatus combine(PricingStatus current, PricingStatus next) {

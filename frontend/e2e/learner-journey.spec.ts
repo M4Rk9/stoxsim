@@ -49,6 +49,8 @@ async function expectIndiaAccount(page: Page) {
     .toContainText("₹5,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Available cash" }))
     .toContainText("₹5,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
+  await expect(page.getByLabel("Portfolio account").locator("option:checked"))
+    .toHaveText("Standard India");
 }
 
 test("a learner can register, persist appearance and sign in again", async ({ page }) => {
@@ -133,6 +135,8 @@ test("a learner can switch between India and United States markets", async ({ pa
     .toHaveAttribute("aria-pressed", "true", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
     .toContainText("$10,000.00", { timeout: PORTFOLIO_TIMEOUT });
+  await expect(page.getByLabel("Portfolio account").locator("option:checked"))
+    .toHaveText("Standard USA");
 
   if (process.env.EXPECT_US_MARKET_DATA === "true") {
     await expect(async () => {
@@ -164,6 +168,71 @@ test("a learner can switch between India and United States markets", async ({ pa
 
   await page.getByRole("button", { name: /India/ }).click();
   await expectIndiaAccount(page);
+});
+
+test("the portfolio switcher keeps a paid sandbox visibly outside rankings", async ({ page }) => {
+  test.setTimeout(150_000);
+  const sandboxId = "11111111-2222-4333-8444-555555555555";
+  let standardIndiaId = "";
+
+  await page.route("**/api/v1/accounts", async (route) => {
+    const response = await route.fetch();
+    if (!response.ok()) {
+      await route.fulfill({ response });
+      return;
+    }
+    const accounts = await response.json();
+    const standard = accounts.find((account: { accountKind: string; marketRegion: string }) =>
+      account.accountKind === "STANDARD" && account.marketRegion === "INDIA"
+    );
+    standardIndiaId = standard?.id ?? "";
+    await route.fulfill({
+      response,
+      json: [...accounts, {
+        ...standard,
+        id: sandboxId,
+        accountKind: "SANDBOX",
+        sandboxPlan: "PLUS",
+        sandboxSlot: 1,
+        accountLabel: "Plus sandbox 1",
+        startingCapital: 2_500_000,
+        availableCash: 2_500_000,
+        leaderboardEligible: false,
+      }],
+    });
+  });
+  await page.route(`**/api/v1/accounts/${sandboxId}/**`, async (route) => {
+    if (!standardIndiaId) {
+      await route.abort();
+      return;
+    }
+    const mappedUrl = route.request().url().replace(sandboxId, standardIndiaId);
+    const response = await route.fetch({ url: mappedUrl });
+    const json = await response.json();
+    if (route.request().url().endsWith("/portfolio")) {
+      await route.fulfill({
+        response,
+        json: {
+          ...json,
+          startingCapital: 2_500_000,
+          availableCash: 2_500_000,
+          totalAccountValue: 2_500_000,
+        },
+      });
+      return;
+    }
+    await route.fulfill({ response, json });
+  });
+
+  await registerLearner(page, "sandbox-switcher");
+  await page.getByLabel("Portfolio account").selectOption({ label: "Plus sandbox 1" });
+
+  await expect(page.getByText("SANDBOX · INDIA PORTFOLIO"))
+    .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+  await expect(page.getByText("Learning sandbox · excluded from standard rankings"))
+    .toBeVisible();
+  await expect(page.locator(".metric").filter({ hasText: "Account value" }))
+    .toContainText("₹25,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
 });
 
 test("guided onboarding progress and dismissal persist across sessions", async ({ page }) => {

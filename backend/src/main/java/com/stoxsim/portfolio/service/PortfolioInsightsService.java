@@ -49,6 +49,13 @@ public class PortfolioInsightsService {
         );
     }
 
+    public PortfolioInsightsResponse analyzeForAccount(UUID userId, UUID accountId) {
+        return analyze(
+            valuation.valueForAccount(userId, accountId),
+            tradingQueries.tradesForAccount(userId, accountId)
+        );
+    }
+
     PortfolioInsightsResponse analyze(PortfolioResponse portfolio, List<TradeResponse> trades) {
         BigDecimal cashValue = money(portfolio.availableCash().add(portfolio.blockedCash()));
         BigDecimal accountValue = portfolio.totalAccountValue();

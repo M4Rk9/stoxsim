@@ -71,6 +71,30 @@
   line-height: 1.6;
 }
 
+.portfolioControls {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.portfolioControls label {
+  width: min(260px, 100%);
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.portfolioControls select {
+  margin-top: 5px;
+  padding: 9px 12px;
+  background: var(--panel);
+  font-size: .74rem;
+  font-weight: 750;
+  text-transform: none;
+}
+
 .marketTabs {
   display: flex;
   gap: 4px;
@@ -95,6 +119,21 @@
   color: var(--ink);
   box-shadow: 0 1px 2px var(--shadow-color);
 }
+
+.accountContext {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.accountContext strong { color: var(--ink); font-size: .78rem; }
+.accountContext span { color: var(--muted); font-size: .68rem; }
+.accountContext small { margin-left: auto; color: #8a6412; font-size: .65rem; font-weight: 750; }
 
 .metrics {
   display: grid;
@@ -489,6 +528,10 @@
   .analyticsHeader > small { text-align: left; }
   .marketTabs { width: 100%; }
   .marketTabs button { flex: 1; }
+  .portfolioControls { justify-items: stretch; }
+  .portfolioControls label { width: 100%; }
+  .accountContext { display: grid; gap: 4px; }
+  .accountContext small { margin-left: 0; }
   .metrics { grid-template-columns: 1fr; }
   .metrics article { border-right: 0; border-bottom: 1px solid var(--line); }
   .metrics article:last-child { border-bottom: 0; }

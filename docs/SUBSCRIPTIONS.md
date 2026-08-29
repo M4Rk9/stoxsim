@@ -44,6 +44,18 @@ lookup.
 
 There is deliberately no public plan-change endpoint.
 
+`GET /api/v1/accounts` returns every portfolio owned by the authenticated
+learner. The browser uses the account ID for sandbox-safe trading and valuation:
+
+- standard India and United States portfolios remain available to every user;
+- active paid sandboxes can place, modify and cancel their own orders;
+- inactive sandboxes retain read-only history and valuation;
+- an account owned by another user is indistinguishable from a missing account;
+- sandbox orders do not update onboarding or standard-portfolio FinWiz feedback.
+
+The dashboard and detailed portfolio page persist the selected account locally
+and always label whether it is competitive or excluded from rankings.
+
 ## Future billing adapter
 
 `BillingSubscriptionUpdate` and `SubscriptionService.applyProviderUpdate` form
@@ -61,7 +73,7 @@ must be added in its own reviewed batch and must:
 
 The internal service currently provisions or reactivates the first sandbox for
 an active paid entitlement and locks all sandboxes for a non-active status. Pro
-portfolio creation and sandbox trading routes remain separate future batches.
+additional-portfolio creation remains a separate future batch.
 
 Basic private leagues already released to Free learners remain available. Plus
 and Pro can introduce expanded league allowances in a later gating batch without

@@ -194,6 +194,65 @@ class PostgresConcurrencyIntegrationTest {
     }
 
     @Test
+    void accountScopedOrdersCannotLeakIntoStandardRoutes() {
+        AppUser user = user("scoped-orders");
+        VirtualAccount standard = accounts.saveAndFlush(new VirtualAccount(
+            user,
+            MarketRegion.INDIA,
+            SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR
+        ));
+        VirtualAccount sandbox = accounts.saveAndFlush(VirtualAccount.sandbox(
+            user,
+            SubscriptionPlan.PLUS,
+            1,
+            SubscriptionPlan.PLUS.sandboxCapitalInr()
+        ));
+        TradableInstrument instrument = instrument("RELIANCE", "NSE_EQ|SCOPED");
+        PaperOrder standardOrder = orders.saveAndFlush(new PaperOrder(
+            standard,
+            instrument,
+            "standard-order",
+            OrderSide.BUY,
+            OrderType.MARKET,
+            1,
+            null,
+            BigDecimal.ZERO,
+            LocalDate.now()
+        ));
+        PaperOrder sandboxOrder = orders.saveAndFlush(new PaperOrder(
+            sandbox,
+            instrument,
+            "sandbox-order",
+            OrderSide.BUY,
+            OrderType.MARKET,
+            1,
+            null,
+            BigDecimal.ZERO,
+            LocalDate.now()
+        ));
+
+        assertThat(orders
+            .findAllByAccountUserIdAndAccountMarketRegionOrderByCreatedAtDesc(
+                user.getId(),
+                MarketRegion.INDIA
+            ))
+            .extracting(PaperOrder::getId)
+            .containsExactly(standardOrder.getId());
+        assertThat(orders.findByIdAndAccountUserId(
+            sandboxOrder.getId(),
+            user.getId()
+        )).isEmpty();
+        assertThat(orders.findAllOwnedByAccountId(user.getId(), sandbox.getId()))
+            .extracting(PaperOrder::getId)
+            .containsExactly(sandboxOrder.getId());
+        assertThat(orders.findOwnedByIdAndAccountId(
+            user.getId(),
+            standard.getId(),
+            sandboxOrder.getId()
+        )).isEmpty();
+    }
+
+    @Test
     void freeSubscriptionCanBeResolvedThroughItsOwnedUser() {
         AppUser user = user("subscription-owner");
         subscriptions.saveAndFlush(new UserSubscription(user));
