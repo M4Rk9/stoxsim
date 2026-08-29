@@ -101,4 +101,8 @@ public class UserSubscription {
     public Instant getCurrentPeriodEnd() {
         return currentPeriodEnd;
     }
+
+    public boolean hasActiveEntitlement(SubscriptionFeature feature) {
+        return status == SubscriptionStatus.ACTIVE && plan.includes(feature);
+    }
 }

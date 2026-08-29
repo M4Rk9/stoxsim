@@ -17,7 +17,7 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
 | Improved leaderboards | Implemented | Opt-in quarterly ranking uses only entry-relative performance of the standard ₹5 lakh account; deployed in PR #98 and hardened in PR #99. |
 | Private leagues and campus competitions | Partially implemented | Capped invite-only leagues are deployed; campus administration, moderation and institution verification remain future work. |
-| Plus and Pro architecture | In progress | Entitlements and isolated accounts are deployed; the current batch adds account-scoped sandbox trading, valuation and safe switching without enabling checkout. |
+| Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning are deployed or in the current batch; checkout remains intentionally disabled. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
 
 ## Batch 1 — guided onboarding and first trade
@@ -153,9 +153,28 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
   both the dashboard and detailed portfolio view.
 - No database migration, billing provider, secret or new market-data use.
 
+## Batch 10 — premium capability enforcement and Pro portfolios
+
+- Backend-owned feature requirements distinguish active plan access from UI
+  visibility, beginning with the Pro-only multiple-portfolio capability.
+- Active Pro learners can provision slots 2–5; Free, Plus and inactive plans
+  are rejected by the authenticated API.
+- Server-owned slot allocation and ₹1 crore capital prevent request tampering.
+- Required idempotency keys and subscription row locking make retries and
+  concurrent requests safe while the database enforces the five-slot limit.
+- Plus and Pro slot identities are separated so plan transitions preserve
+  locked portfolio history without weakening standard-account uniqueness.
+- Provider entitlement refreshes reactivate every sandbox for the current plan
+  and never attempt to provision a sandbox for Free.
+- Settings shows authoritative capacity and creation status; every sandbox
+  remains visibly excluded from standard rankings.
+- Billing and public plan mutation remain disabled. No new secret, paid service
+  or market-data use is introduced.
+
 ## Next batch
 
-Enforce released Plus and Pro feature tiers and add controlled Pro
-additional-portfolio creation. Paid checkout remains deferred until a billing
-provider and webhook operating model are explicitly approved. Campus
-administration and moderation can proceed independently.
+Add campus competition administration, institution verification and moderation
+without changing standard leaderboard eligibility. Paid checkout remains
+deferred until a billing provider and webhook operating model are explicitly
+approved; market-data-dependent premium analytics remain behind the documented
+provider-permission gate.

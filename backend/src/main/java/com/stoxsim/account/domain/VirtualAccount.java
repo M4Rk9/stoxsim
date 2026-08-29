@@ -55,6 +55,9 @@ public class VirtualAccount {
     @Column(name = "account_label", nullable = false, length = 80)
     private String accountLabel;
 
+    @Column(name = "provisioning_key", length = 100)
+    private String provisioningKey;
+
     @Column(nullable = false, length = 3)
     private String currency;
 
@@ -113,6 +116,16 @@ public class VirtualAccount {
         int slot,
         BigDecimal startingBalance
     ) {
+        return sandbox(user, plan, slot, startingBalance, null);
+    }
+
+    public static VirtualAccount sandbox(
+        AppUser user,
+        SubscriptionPlan plan,
+        int slot,
+        BigDecimal startingBalance,
+        String provisioningKey
+    ) {
         if (plan == SubscriptionPlan.FREE) {
             throw new IllegalArgumentException("Free plans do not have paid sandboxes");
         }
@@ -128,6 +141,7 @@ public class VirtualAccount {
         account.sandboxPlan = plan;
         account.sandboxSlot = slot;
         account.accountLabel = plan.displayName() + " sandbox " + slot;
+        account.provisioningKey = provisioningKey;
         account.leaderboardEligible = false;
         return account;
     }
@@ -232,6 +246,10 @@ public class VirtualAccount {
 
     public String getAccountLabel() {
         return accountLabel;
+    }
+
+    public String getProvisioningKey() {
+        return provisioningKey;
     }
 
     public String getCurrency() {

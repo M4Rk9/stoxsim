@@ -101,4 +101,12 @@ public enum SubscriptionPlan {
     public boolean premiumCompetitions() {
         return premiumCompetitions;
     }
+
+    public boolean includes(SubscriptionFeature feature) {
+        return switch (feature.minimumPlan()) {
+            case FREE -> true;
+            case PLUS -> this == PLUS || this == PRO;
+            case PRO -> this == PRO;
+        };
+    }
 }

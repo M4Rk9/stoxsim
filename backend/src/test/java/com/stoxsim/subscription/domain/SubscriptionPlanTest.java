@@ -25,4 +25,20 @@ class SubscriptionPlanTest {
         assertThat(SubscriptionPlan.PRO.sandboxCapitalInr())
             .isEqualByComparingTo("10000000.0000");
     }
+
+    @Test
+    void enforcesFeatureTiersAtThePlanBoundary() {
+        assertThat(SubscriptionPlan.FREE.includes(
+            SubscriptionFeature.SANDBOX_PORTFOLIO
+        )).isFalse();
+        assertThat(SubscriptionPlan.PLUS.includes(
+            SubscriptionFeature.SANDBOX_PORTFOLIO
+        )).isTrue();
+        assertThat(SubscriptionPlan.PLUS.includes(
+            SubscriptionFeature.MULTIPLE_PORTFOLIOS
+        )).isFalse();
+        assertThat(SubscriptionPlan.PRO.includes(
+            SubscriptionFeature.MULTIPLE_PORTFOLIOS
+        )).isTrue();
+    }
 }

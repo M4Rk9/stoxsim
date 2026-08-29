@@ -404,3 +404,80 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await page.getByRole("button", { name: "Log out all devices" }).click();
   await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
 });
+
+test("an active Pro learner can provision an additional isolated sandbox", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "pro-provisioning");
+
+  let sandboxCount = 1;
+  const primary = {
+    id: "21111111-2222-4333-8444-555555555555",
+    marketRegion: "INDIA",
+    accountKind: "SANDBOX",
+    sandboxPlan: "PRO",
+    sandboxSlot: 1,
+    accountLabel: "Pro sandbox 1",
+    currency: "INR",
+    startingCapital: 10_000_000,
+    availableCash: 10_000_000,
+    blockedCash: 0,
+    realizedProfitLoss: 0,
+    active: true,
+    leaderboardEligible: false,
+  };
+  const created = {
+    ...primary,
+    id: "31111111-2222-4333-8444-555555555555",
+    sandboxSlot: 2,
+    accountLabel: "Pro sandbox 2",
+  };
+
+  await page.route("**/api/v1/subscription", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const accounts = sandboxCount === 1 ? [primary] : [primary, created];
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        version: "subscription-entitlements-v2",
+        plan: "PRO",
+        status: "ACTIVE",
+        entitlements: {
+          ...body.entitlements,
+          sandboxCapitalInr: 10_000_000,
+          maximumSandboxPortfolios: 5,
+          finwizTier: "FULL",
+          analyticsTier: "ADVANCED_RISK",
+          scenarioLab: true,
+          multiplePortfolios: true,
+          premiumCompetitions: true,
+        },
+        sandboxProvisioning: {
+          canCreateAdditional: true,
+          currentPlanSandboxes: sandboxCount,
+          maximumSandboxes: 5,
+          status: "AVAILABLE",
+        },
+        sandboxAccounts: accounts,
+      },
+    });
+  });
+  await page.route("**/api/v1/accounts/sandboxes", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().headers()["idempotency-key"]).toBeTruthy();
+    sandboxCount = 2;
+    await route.fulfill({ status: 201, contentType: "application/json", json: created });
+  });
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await page.getByRole("menuitem", { name: /Account settings/ }).click();
+  await expect(page.getByRole("heading", { name: "Your pro plan" })).toBeVisible();
+  await expect(page.getByText("1 of 5 provisioned")).toBeVisible();
+  await page.getByRole("button", { name: "Create Pro sandbox" }).click();
+
+  await expect(page.getByText("Pro sandbox 2 is ready and excluded from standard rankings."))
+    .toBeVisible();
+  await expect(page.getByText("2 of 5 provisioned")).toBeVisible();
+  await expect(page.getByText("Pro sandbox 2", { exact: true })).toBeVisible();
+});
