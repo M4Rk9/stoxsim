@@ -236,6 +236,21 @@
 }
 .sandboxList > div > span { display: grid; gap: 2px; }
 .sandboxList small { color: #748178; }
+.sandboxProvisioning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #dce4da;
+  border-radius: 13px;
+  background: #fbfcfa;
+}
+.sandboxProvisioning > div { display: grid; gap: 4px; }
+.sandboxProvisioning strong { color: #14251f; font-size: 13px; }
+.sandboxProvisioning span { color: #586a61; font-size: 11px; line-height: 1.45; }
+.sandboxProvisioning button { flex: 0 0 auto; margin: 0; }
 .planNotice { margin: 16px 0 0 !important; font-size: 11px !important; }
 
 .reportEnabled,
@@ -457,6 +472,7 @@
 
   .marketReportGrid { grid-template-columns: 1fr; }
   .planGrid { grid-template-columns: 1fr; }
+  .sandboxProvisioning { align-items: stretch; flex-direction: column; }
   .planCard ul,
   .planCardCurrent ul { min-height: 0; }
 }

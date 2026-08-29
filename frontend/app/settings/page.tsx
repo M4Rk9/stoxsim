@@ -61,12 +61,18 @@ interface PlanDetails {
 }
 
 interface SubscriptionDetails {
-  version: "subscription-entitlements-v1";
+  version: "subscription-entitlements-v2";
   plan: SubscriptionPlan;
   status: "ACTIVE" | "PAST_DUE" | "CANCELED";
   billingEnabled: boolean;
   currentPeriodEnd?: string;
   entitlements: Entitlements;
+  sandboxProvisioning: {
+    canCreateAdditional: boolean;
+    currentPlanSandboxes: number;
+    maximumSandboxes: number;
+    status: "AVAILABLE" | "PRO_REQUIRED" | "SUBSCRIPTION_INACTIVE" | "LIMIT_REACHED";
+  };
   sandboxAccounts: SubscriptionAccount[];
   plans: PlanDetails[];
   notice: string;
@@ -219,6 +225,9 @@ export default function SettingsPage() {
   const [reportHistory, setReportHistory] = useState<WeeklyPortfolioReport[]>([]);
   const [reportPreview, setReportPreview] = useState<WeeklyReportSnapshot | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
+  const [sandboxWorking, setSandboxWorking] = useState(false);
+  const [sandboxMessage, setSandboxMessage] = useState("");
+  const [sandboxError, setSandboxError] = useState("");
   const [profileWorking, setProfileWorking] = useState(false);
   const [passwordWorking, setPasswordWorking] = useState(false);
   const [dangerWorking, setDangerWorking] = useState(false);
@@ -302,6 +311,26 @@ export default function SettingsPage() {
       setSubscription(await authorized<SubscriptionDetails>("/api/v1/subscription"));
     } catch (cause) {
       setSecurityError(cause instanceof Error ? cause.message : "Plan details could not be loaded");
+    }
+  }
+
+  async function createProSandbox() {
+    setSandboxWorking(true);
+    setSandboxMessage("");
+    setSandboxError("");
+    try {
+      const created = await authorized<SubscriptionAccount>("/api/v1/accounts/sandboxes", {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      });
+      await loadSubscription();
+      setSandboxMessage(`${created.accountLabel} is ready and excluded from standard rankings.`);
+    } catch (cause) {
+      setSandboxError(cause instanceof Error
+        ? cause.message
+        : "The additional sandbox could not be created");
+    } finally {
+      setSandboxWorking(false);
     }
   }
 
@@ -620,6 +649,30 @@ export default function SettingsPage() {
               <strong>{reportMoney(account.startingCapital, "INR")}</strong>
             </div>)}
           </div>}
+          {subscription.plan === "PRO" && <div className={styles.sandboxProvisioning}>
+            <div>
+              <strong>Additional Pro portfolios</strong>
+              <span>
+                {subscription.sandboxProvisioning.currentPlanSandboxes} of {subscription.sandboxProvisioning.maximumSandboxes} provisioned · each starts with ₹1 crore and remains outside rankings.
+              </span>
+            </div>
+            <button
+              type="button"
+              className={styles.submit}
+              disabled={!subscription.sandboxProvisioning.canCreateAdditional || sandboxWorking}
+              onClick={() => void createProSandbox()}
+            >
+              {sandboxWorking
+                ? "Creating…"
+                : subscription.sandboxProvisioning.status === "LIMIT_REACHED"
+                  ? "Portfolio limit reached"
+                  : subscription.sandboxProvisioning.status === "SUBSCRIPTION_INACTIVE"
+                    ? "Active Pro required"
+                    : "Create Pro sandbox"}
+            </button>
+          </div>}
+          {sandboxMessage && <div className={`${styles.message} ${styles.success}`}>{sandboxMessage}</div>}
+          {sandboxError && <div className={`${styles.message} ${styles.error}`}>{sandboxError}</div>}
           <p className={styles.planNotice}>{subscription.notice}</p>
         </section>}
 

@@ -52,8 +52,11 @@ import com.stoxsim.progression.domain.MissionCompletion;
 import com.stoxsim.progression.repository.LearnerProgressionRepository;
 import com.stoxsim.progression.repository.MissionCompletionRepository;
 import com.stoxsim.subscription.domain.SubscriptionPlan;
+import com.stoxsim.subscription.domain.SubscriptionStatus;
 import com.stoxsim.subscription.domain.UserSubscription;
+import com.stoxsim.subscription.provider.BillingSubscriptionUpdate;
 import com.stoxsim.subscription.repository.UserSubscriptionRepository;
+import com.stoxsim.subscription.service.SubscriptionService;
 import com.stoxsim.watchlist.domain.Watchlist;
 import com.stoxsim.watchlist.domain.WatchlistItem;
 import com.stoxsim.watchlist.repository.WatchlistItemRepository;
@@ -87,6 +90,7 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private PrivateLeagueRepository privateLeagues;
     @Autowired private LeagueMemberRepository leagueMembers;
     @Autowired private UserSubscriptionRepository subscriptions;
+    @Autowired private SubscriptionService subscriptionService;
 
     @BeforeEach
     void resetDatabase() {
@@ -191,6 +195,77 @@ class PostgresConcurrencyIntegrationTest {
             MarketRegion.INDIA,
             SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR
         ))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void sandboxSlotsArePlanScopedAndProvisioningKeysAreIdempotent() {
+        AppUser user = user("plan-scoped-sandboxes");
+        VirtualAccount plus = accounts.saveAndFlush(VirtualAccount.sandbox(
+            user,
+            SubscriptionPlan.PLUS,
+            1,
+            SubscriptionPlan.PLUS.sandboxCapitalInr()
+        ));
+        VirtualAccount pro = accounts.saveAndFlush(VirtualAccount.sandbox(
+            user,
+            SubscriptionPlan.PRO,
+            1,
+            SubscriptionPlan.PRO.sandboxCapitalInr()
+        ));
+        VirtualAccount provisioned = accounts.saveAndFlush(VirtualAccount.sandbox(
+            user,
+            SubscriptionPlan.PRO,
+            2,
+            SubscriptionPlan.PRO.sandboxCapitalInr(),
+            "provision-once"
+        ));
+
+        assertThat(accounts.findSandboxesByUserId(user.getId()))
+            .extracting(VirtualAccount::getId)
+            .containsExactly(plus.getId(), pro.getId(), provisioned.getId());
+        assertThat(accounts.findByUserIdAndProvisioningKey(
+            user.getId(),
+            "provision-once"
+        ).orElseThrow().getId()).isEqualTo(provisioned.getId());
+        assertThatThrownBy(() -> accounts.saveAndFlush(VirtualAccount.sandbox(
+            user,
+            SubscriptionPlan.PRO,
+            3,
+            SubscriptionPlan.PRO.sandboxCapitalInr(),
+            "provision-once"
+        ))).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void subscriptionLockAllocatesDifferentSlotsToConcurrentProRequests() throws Exception {
+        AppUser user = user("concurrent-provisioning");
+        subscriptions.saveAndFlush(new UserSubscription(user));
+        Instant now = Instant.now();
+        subscriptionService.applyProviderUpdate(new BillingSubscriptionUpdate(
+            user.getId(),
+            SubscriptionPlan.PRO,
+            SubscriptionStatus.ACTIVE,
+            "integration-provider",
+            "customer-" + user.getId(),
+            "subscription-" + user.getId(),
+            now.plusSeconds(2_592_000)
+        ));
+
+        List<Boolean> results = runConcurrently(() -> {
+            subscriptionService.createAdditionalSandbox(
+                user.getId(),
+                UUID.randomUUID().toString()
+            );
+            return true;
+        });
+
+        assertThat(results).containsExactly(true, true);
+        assertThat(accounts.findSandboxesByUserIdAndPlan(
+            user.getId(),
+            SubscriptionPlan.PRO
+        ))
+            .extracting(VirtualAccount::getSandboxSlot)
+            .containsExactly(1, 2, 3);
     }
 
     @Test

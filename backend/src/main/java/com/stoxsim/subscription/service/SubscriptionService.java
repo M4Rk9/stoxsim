@@ -15,6 +15,7 @@ import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.api.dto.AccountResponse;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.subscription.api.SubscriptionResponse;
+import com.stoxsim.subscription.domain.SubscriptionFeature;
 import com.stoxsim.subscription.domain.SubscriptionPlan;
 import com.stoxsim.subscription.domain.SubscriptionStatus;
 import com.stoxsim.subscription.domain.UserSubscription;
@@ -72,11 +73,64 @@ public class SubscriptionService {
         subscription.apply(update, clock.instant());
 
         List<VirtualAccount> sandboxes = accounts.findSandboxesByUserId(update.userId());
-        sandboxes.forEach(VirtualAccount::deactivate);
-        if (update.status() == SubscriptionStatus.ACTIVE) {
+        sandboxes.forEach(account -> {
+            if (update.status() == SubscriptionStatus.ACTIVE
+                && account.getSandboxPlan() == update.plan()) {
+                account.activate();
+            } else {
+                account.deactivate();
+            }
+        });
+        if (update.status() == SubscriptionStatus.ACTIVE
+            && update.plan().includes(SubscriptionFeature.SANDBOX_PORTFOLIO)) {
             activatePrimarySandbox(subscription, update.plan());
         }
         return current(update.userId());
+    }
+
+    @Transactional
+    public AccountResponse createAdditionalSandbox(UUID userId, String idempotencyKey) {
+        String normalizedKey = normalizeIdempotencyKey(idempotencyKey);
+        UserSubscription subscription = subscriptions.findByUserIdForUpdate(userId)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Subscription state not found"
+            ));
+        requireActiveFeature(subscription, SubscriptionFeature.MULTIPLE_PORTFOLIOS);
+
+        var existing = accounts.findByUserIdAndProvisioningKey(userId, normalizedKey);
+        if (existing.isPresent()) {
+            return AccountResponse.from(existing.get());
+        }
+
+        List<VirtualAccount> currentPlanSandboxes = accounts
+            .findSandboxesByUserIdAndPlan(userId, subscription.getPlan());
+        if (currentPlanSandboxes.stream().noneMatch(account -> account.getSandboxSlot() == 1)) {
+            accounts.save(VirtualAccount.sandbox(
+                subscription.getUser(),
+                subscription.getPlan(),
+                1,
+                subscription.getPlan().sandboxCapitalInr()
+            ));
+        }
+
+        int slot = java.util.stream.IntStream
+            .rangeClosed(2, subscription.getPlan().maximumSandboxPortfolios())
+            .filter(candidate -> currentPlanSandboxes.stream()
+                .noneMatch(account -> account.getSandboxSlot() == candidate))
+            .findFirst()
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "The Pro sandbox portfolio limit has been reached"
+            ));
+        VirtualAccount sandbox = accounts.save(VirtualAccount.sandbox(
+            subscription.getUser(),
+            subscription.getPlan(),
+            slot,
+            subscription.getPlan().sandboxCapitalInr(),
+            normalizedKey
+        ));
+        return AccountResponse.from(sandbox);
     }
 
     private void activatePrimarySandbox(
@@ -97,5 +151,31 @@ public class SubscriptionService {
                 plan.sandboxCapitalInr()
             )));
         sandbox.activate();
+    }
+
+    private void requireActiveFeature(
+        UserSubscription subscription,
+        SubscriptionFeature feature
+    ) {
+        if (!subscription.hasActiveEntitlement(feature)) {
+            throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "This feature requires an active "
+                    + feature.minimumPlan().displayName()
+                    + " subscription"
+            );
+        }
+    }
+
+    private String normalizeIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null
+            || idempotencyKey.isBlank()
+            || idempotencyKey.length() > 100) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Idempotency-Key must contain between 1 and 100 characters"
+            );
+        }
+        return idempotencyKey.trim();
     }
 }

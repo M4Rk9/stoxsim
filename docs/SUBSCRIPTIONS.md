@@ -38,7 +38,8 @@ lookup.
 `GET /api/v1/subscription` is authenticated and read-only. It returns:
 
 - the current plan and status;
-- the `subscription-entitlements-v1` plan catalog and entitlements;
+- the `subscription-entitlements-v2` plan catalog and entitlements;
+- backend-authoritative additional-sandbox provisioning availability;
 - provisioned sandbox accounts, including whether they are active or locked;
 - `billingEnabled: false` while checkout is unavailable.
 
@@ -56,6 +57,17 @@ learner. The browser uses the account ID for sandbox-safe trading and valuation:
 The dashboard and detailed portfolio page persist the selected account locally
 and always label whether it is competitive or excluded from rankings.
 
+An active Pro learner may call `POST /api/v1/accounts/sandboxes` with an
+`Idempotency-Key` header to provision slots 2–5. The backend, not the browser,
+selects the next slot and fixed ₹1 crore starting capital. Provisioning is
+serialized under the subscription row lock, retry-safe, capped at five Pro
+sandboxes and always creates a leaderboard-ineligible account. Free, Plus and
+inactive subscriptions receive `403`; a full Pro allocation receives `409`.
+
+The settings page exposes this action only when the authenticated subscription
+response says it is available. This UI check is convenience only; the API
+enforces the active Pro entitlement independently.
+
 ## Future billing adapter
 
 `BillingSubscriptionUpdate` and `SubscriptionService.applyProviderUpdate` form
@@ -71,9 +83,9 @@ must be added in its own reviewed batch and must:
 7. cancel or settle open sandbox orders before locking a downgraded sandbox;
 8. keep provider secrets only in deployment secrets.
 
-The internal service currently provisions or reactivates the first sandbox for
-an active paid entitlement and locks all sandboxes for a non-active status. Pro
-additional-portfolio creation remains a separate future batch.
+The internal service provisions or reactivates the first sandbox for an active
+paid entitlement, reactivates every existing sandbox for the current active
+plan and locks sandboxes belonging to inactive or different plans.
 
 Basic private leagues already released to Free learners remain available. Plus
 and Pro can introduce expanded league allowances in a later gating batch without
@@ -88,6 +100,7 @@ opaque identifiers; payment card or bank details are never stored by StoxSim.
 ## Deployment
 
 Flyway migration `V107` backfills every existing learner to Free and marks all
-existing accounts as standard. It is additive except for replacing the former
-two-column account uniqueness constraint with a stricter scoped uniqueness
-index. No environment variable, secret or paid service is required.
+existing accounts as standard. Migration `V108` makes sandbox slots plan-scoped
+so Plus→Pro transitions preserve locked history, adds retry keys, and retains a
+separate partial uniqueness rule for standard accounts. No environment
+variable, secret or paid service is required.

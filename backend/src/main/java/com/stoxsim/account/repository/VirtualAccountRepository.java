@@ -95,10 +95,42 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
         """)
     List<VirtualAccount> findSandboxesByUserId(@Param("userId") UUID userId);
 
+    @Query("""
+        SELECT account
+        FROM VirtualAccount account
+        WHERE account.user.id = :userId
+          AND account.accountKind = com.stoxsim.account.domain.AccountKind.SANDBOX
+          AND account.sandboxPlan = :plan
+        ORDER BY account.sandboxSlot
+        """)
+    List<VirtualAccount> findSandboxesByUserIdAndPlan(
+        @Param("userId") UUID userId,
+        @Param("plan") SubscriptionPlan plan
+    );
+
+    @Query("""
+        SELECT account
+        FROM VirtualAccount account
+        WHERE account.user.id = :userId
+          AND account.provisioningKey = :provisioningKey
+        """)
+    Optional<VirtualAccount> findByUserIdAndProvisioningKey(
+        @Param("userId") UUID userId,
+        @Param("provisioningKey") String provisioningKey
+    );
+
+    @Query("""
+        SELECT account
+        FROM VirtualAccount account
+        WHERE account.user.id = :userId
+          AND account.accountKind = :accountKind
+          AND account.sandboxPlan = :sandboxPlan
+          AND account.sandboxSlot = :sandboxSlot
+        """)
     Optional<VirtualAccount> findByUserIdAndAccountKindAndSandboxPlanAndSandboxSlot(
-        UUID userId,
-        AccountKind accountKind,
-        SubscriptionPlan sandboxPlan,
-        int sandboxSlot
+        @Param("userId") UUID userId,
+        @Param("accountKind") AccountKind accountKind,
+        @Param("sandboxPlan") SubscriptionPlan sandboxPlan,
+        @Param("sandboxSlot") int sandboxSlot
     );
 }
