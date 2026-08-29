@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.stoxsim.account.domain.AccountKind;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
+import com.stoxsim.account.service.AccountService;
 import com.stoxsim.calendar.service.IndiaMarketSessionService;
 import com.stoxsim.charge.ChargeCalculator;
 import com.stoxsim.finwiz.api.FinwizPortfolioFeedbackResponse;
@@ -56,6 +58,7 @@ public class OrderApplicationService {
     private final MeterRegistry meterRegistry;
     private final OnboardingService onboarding;
     private final FinwizPortfolioFeedbackService portfolioFeedback;
+    private final AccountService accountAccess;
 
     public OrderApplicationService(
         VirtualAccountRepository accounts,
@@ -70,7 +73,8 @@ public class OrderApplicationService {
         ApplicationEventPublisher events,
         MeterRegistry meterRegistry,
         OnboardingService onboarding,
-        FinwizPortfolioFeedbackService portfolioFeedback
+        FinwizPortfolioFeedbackService portfolioFeedback,
+        AccountService accountAccess
     ) {
         this.accounts = accounts;
         this.instruments = instruments;
@@ -85,6 +89,7 @@ public class OrderApplicationService {
         this.meterRegistry = meterRegistry;
         this.onboarding = onboarding;
         this.portfolioFeedback = portfolioFeedback;
+        this.accountAccess = accountAccess;
     }
 
     @Transactional
@@ -102,6 +107,37 @@ public class OrderApplicationService {
                 HttpStatus.NOT_FOUND,
                 "Account not found"
             ));
+        return place(userId, account, idempotencyKey, request);
+    }
+
+    @Transactional
+    public OrderResponse placeForAccount(
+        UUID userId,
+        UUID accountId,
+        String idempotencyKey,
+        PlaceOrderRequest request
+    ) {
+        validateIdempotencyKey(idempotencyKey);
+        validateRequest(request);
+        VirtualAccount account = accounts.findOwnedForUpdate(userId, accountId)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Account not found"
+            ));
+        if (account.getMarketRegion() != request.marketRegion()) {
+            throw new TradingValidationException(
+                "Order market must match the selected portfolio"
+            );
+        }
+        return place(userId, account, idempotencyKey, request);
+    }
+
+    private OrderResponse place(
+        UUID userId,
+        VirtualAccount account,
+        String idempotencyKey,
+        PlaceOrderRequest request
+    ) {
         var existing = orders.findByAccountIdAndIdempotencyKey(
             account.getId(),
             idempotencyKey.trim()
@@ -109,6 +145,7 @@ public class OrderApplicationService {
         if (existing.isPresent()) {
             return OrderResponse.from(existing.get());
         }
+        AccountService.requireTradingEnabled(account);
 
         TradableInstrument instrument = findInstrument(request);
         validateTickSize(instrument, request.limitPrice());
@@ -122,10 +159,10 @@ public class OrderApplicationService {
             );
         }
 
-        PortfolioAnalyticsResponse analyticsBefore = portfolioFeedback.snapshot(
-            userId,
-            request.marketRegion()
-        );
+        boolean standardAccount = account.getAccountKind() == AccountKind.STANDARD;
+        PortfolioAnalyticsResponse analyticsBefore = standardAccount
+            ? portfolioFeedback.snapshot(userId, request.marketRegion())
+            : null;
 
         BigDecimal reservedCash = BigDecimal.ZERO.setScale(
             4,
@@ -166,7 +203,9 @@ public class OrderApplicationService {
             reservedCash,
             session.orderDate()
         ));
-        onboarding.recordFirstOrder(userId);
+        if (standardAccount) {
+            onboarding.recordFirstOrder(userId);
+        }
 
         if (session.executable()) {
             settlement.settleOpenOrder(order, account, quote);
@@ -183,9 +222,12 @@ public class OrderApplicationService {
             "type",
             request.orderType().name(),
             "status",
-            order.getStatus().name()
+            order.getStatus().name(),
+            "account_kind",
+            account.getAccountKind().name()
         ).increment();
-        FinwizPortfolioFeedbackResponse feedback = order.getStatus() == OrderStatus.EXECUTED
+        FinwizPortfolioFeedbackResponse feedback = standardAccount
+            && order.getStatus() == OrderStatus.EXECUTED
             ? portfolioFeedback.afterExecution(
                 userId,
                 order.getId(),
@@ -212,8 +254,32 @@ public class OrderApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderResponse> listForAccount(UUID userId, UUID accountId) {
+        accountAccess.requireOwned(userId, accountId);
+        return orders.findAllOwnedByAccountId(userId, accountId)
+            .stream()
+            .map(OrderResponse::from)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public OrderResponse get(UUID userId, UUID orderId) {
         return orders.findByIdAndAccountUserId(orderId, userId)
+            .map(OrderResponse::from)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Order not found"
+            ));
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponse getForAccount(
+        UUID userId,
+        UUID accountId,
+        UUID orderId
+    ) {
+        accountAccess.requireOwned(userId, accountId);
+        return ownedAccountOrder(userId, accountId, orderId)
             .map(OrderResponse::from)
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
@@ -228,10 +294,35 @@ public class OrderApplicationService {
         ModifyOrderRequest request
     ) {
         PaperOrder snapshot = ownedOrder(userId, orderId);
+        return modify(userId, snapshot, request);
+    }
+
+    @Transactional
+    public OrderResponse modifyForAccount(
+        UUID userId,
+        UUID accountId,
+        UUID orderId,
+        ModifyOrderRequest request
+    ) {
+        accountAccess.requireOwned(userId, accountId);
+        PaperOrder snapshot = ownedAccountOrder(userId, accountId, orderId)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Order not found"
+            ));
+        return modify(userId, snapshot, request);
+    }
+
+    private OrderResponse modify(
+        UUID userId,
+        PaperOrder snapshot,
+        ModifyOrderRequest request
+    ) {
         VirtualAccount account = accounts
             .findByIdForUpdate(snapshot.getAccount().getId())
             .orElseThrow();
-        PaperOrder order = orders.findByIdForUpdate(orderId).orElseThrow();
+        AccountService.requireTradingEnabled(account);
+        PaperOrder order = orders.findByIdForUpdate(snapshot.getId()).orElseThrow();
         ensureOwner(order, userId);
 
         var session = sessions.current(order.getInstrument().getExchange());
@@ -299,10 +390,29 @@ public class OrderApplicationService {
     @Transactional
     public OrderResponse cancel(UUID userId, UUID orderId) {
         PaperOrder snapshot = ownedOrder(userId, orderId);
+        return cancel(userId, snapshot);
+    }
+
+    @Transactional
+    public OrderResponse cancelForAccount(
+        UUID userId,
+        UUID accountId,
+        UUID orderId
+    ) {
+        accountAccess.requireOwned(userId, accountId);
+        PaperOrder snapshot = ownedAccountOrder(userId, accountId, orderId)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Order not found"
+            ));
+        return cancel(userId, snapshot);
+    }
+
+    private OrderResponse cancel(UUID userId, PaperOrder snapshot) {
         VirtualAccount account = accounts
             .findByIdForUpdate(snapshot.getAccount().getId())
             .orElseThrow();
-        PaperOrder order = orders.findByIdForUpdate(orderId).orElseThrow();
+        PaperOrder order = orders.findByIdForUpdate(snapshot.getId()).orElseThrow();
         ensureOwner(order, userId);
         ensureOrderChangesAllowed(
             sessions
@@ -356,6 +466,14 @@ public class OrderApplicationService {
                 HttpStatus.NOT_FOUND,
                 "Order not found"
             ));
+    }
+
+    private java.util.Optional<PaperOrder> ownedAccountOrder(
+        UUID userId,
+        UUID accountId,
+        UUID orderId
+    ) {
+        return orders.findOwnedByIdAndAccountId(userId, accountId, orderId);
     }
 
     private void ensureOwner(PaperOrder order, UUID userId) {

@@ -45,6 +45,21 @@ public interface HoldingRepository extends JpaRepository<Holding, UUID> {
         @Param("minimumQuantity") long minimumQuantity
     );
 
+    @EntityGraph(attributePaths = {"account", "instrument"})
+    @Query("""
+        SELECT holding
+        FROM Holding holding
+        WHERE holding.account.id = :accountId
+          AND holding.account.user.id = :userId
+          AND holding.quantity > :minimumQuantity
+        ORDER BY holding.instrument.tradingSymbol
+        """)
+    List<Holding> findAllOwnedByAccountIdAndQuantityGreaterThan(
+        @Param("userId") UUID userId,
+        @Param("accountId") UUID accountId,
+        @Param("minimumQuantity") long minimumQuantity
+    );
+
     @Query("""
         SELECT COUNT(holding)
         FROM Holding holding

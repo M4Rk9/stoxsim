@@ -13,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.stoxsim.account.config.AccountProperties;
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.domain.AppUser;
@@ -22,6 +21,7 @@ import com.stoxsim.market.data.MarketDataStatus;
 import com.stoxsim.market.domain.MarketRegion;
 import com.stoxsim.market.service.MarketDataService;
 import com.stoxsim.portfolio.repository.HoldingRepository;
+import com.stoxsim.subscription.domain.SubscriptionPlan;
 
 @ExtendWith(MockitoExtension.class)
 class PortfolioValuationServiceTest {
@@ -29,7 +29,6 @@ class PortfolioValuationServiceTest {
     @Mock private VirtualAccountRepository accounts;
     @Mock private HoldingRepository holdings;
     @Mock private MarketDataService marketData;
-    @Mock private AccountProperties properties;
 
     @Test
     void valuesAnEmptyIndiaPortfolioFromCash() {
@@ -42,7 +41,6 @@ class PortfolioValuationServiceTest {
             MarketRegion.INDIA,
             0
         )).thenReturn(List.of());
-        when(properties.getIndiaStartingBalance()).thenReturn(new BigDecimal("500000.00"));
         when(marketData.marketStatus(MarketRegion.INDIA, MarketExchange.NSE))
             .thenReturn(MarketDataStatus.CLOSED);
 
@@ -66,8 +64,6 @@ class PortfolioValuationServiceTest {
             MarketRegion.UNITED_STATES,
             0
         )).thenReturn(List.of());
-        when(properties.getUnitedStatesStartingBalance())
-            .thenReturn(new BigDecimal("10000.00"));
         when(marketData.marketStatus(
             MarketRegion.UNITED_STATES,
             MarketExchange.NASDAQ
@@ -81,12 +77,38 @@ class PortfolioValuationServiceTest {
         assertThat(response.holdings()).isEmpty();
     }
 
+    @Test
+    void valuesAnOwnedSandboxFromItsIsolatedStartingCapital() {
+        UUID userId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        var sandbox = VirtualAccount.sandbox(
+            new AppUser("plus@example.com", "hash", "Plus Learner"),
+            SubscriptionPlan.PLUS,
+            1,
+            SubscriptionPlan.PLUS.sandboxCapitalInr()
+        );
+        when(accounts.findOwnedById(userId, accountId))
+            .thenReturn(Optional.of(sandbox));
+        when(holdings.findAllOwnedByAccountIdAndQuantityGreaterThan(
+            userId,
+            accountId,
+            0
+        )).thenReturn(List.of());
+        when(marketData.marketStatus(MarketRegion.INDIA, MarketExchange.NSE))
+            .thenReturn(MarketDataStatus.CLOSED);
+
+        var response = service().valueForAccount(userId, accountId);
+
+        assertThat(response.startingCapital()).isEqualByComparingTo("2500000.0000");
+        assertThat(response.totalAccountValue()).isEqualByComparingTo("2500000.0000");
+        assertThat(response.totalProfitLoss()).isEqualByComparingTo("0.0000");
+    }
+
     private PortfolioValuationService service() {
         return new PortfolioValuationService(
             accounts,
             holdings,
-            marketData,
-            properties
+            marketData
         );
     }
 

@@ -2,8 +2,8 @@
 
 Subscription entitlements and account-scope isolation are documented in
 `SUBSCRIPTIONS.md`. Standard trading APIs select only `STANDARD` accounts;
-future paid sandbox APIs must use an owned account ID and reject
-leaderboard-eligible accounts.
+the portfolio switcher and paid sandbox APIs use an authenticated owned account
+ID. Sandbox accounts are structurally ineligible for standard rankings.
 
 ## Shape
 
@@ -78,6 +78,15 @@ com.stoxsim
 - `GET /api/v1/market/status`
 - `GET /api/v1/portfolio`
 - `GET /api/v1/portfolio/analytics`
+- `GET /api/v1/accounts`
+- `GET /api/v1/accounts/{accountId}/portfolio`
+- `GET /api/v1/accounts/{accountId}/portfolio/analytics`
+- `GET /api/v1/accounts/{accountId}/portfolio/insights`
+- `GET|POST /api/v1/accounts/{accountId}/orders`
+- `GET|PUT|DELETE /api/v1/accounts/{accountId}/orders/{orderId}`
+- `GET /api/v1/accounts/{accountId}/holdings`
+- `GET /api/v1/accounts/{accountId}/trades`
+- `GET /api/v1/accounts/{accountId}/ledger`
 - `POST /api/v1/orders`
 - `GET|PUT|DELETE /api/v1/orders/{id}`
 - `GET /api/v1/holdings`

@@ -27,6 +27,18 @@ public interface TradeRepository extends JpaRepository<Trade, UUID> {
     );
 
     @Query("""
+        SELECT trade
+        FROM Trade trade
+        WHERE trade.account.id = :accountId
+          AND trade.account.user.id = :userId
+        ORDER BY trade.executedAt DESC
+        """)
+    List<Trade> findAllOwnedByAccountId(
+        @Param("userId") UUID userId,
+        @Param("accountId") UUID accountId
+    );
+
+    @Query("""
         SELECT COUNT(trade)
         FROM Trade trade
         WHERE trade.account.user.id = :userId

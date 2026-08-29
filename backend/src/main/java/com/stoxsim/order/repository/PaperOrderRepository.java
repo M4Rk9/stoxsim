@@ -36,12 +36,38 @@ public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
     @Query("""
         SELECT paperOrder
         FROM PaperOrder paperOrder
+        WHERE paperOrder.account.id = :accountId
+          AND paperOrder.account.user.id = :userId
+        ORDER BY paperOrder.createdAt DESC
+        """)
+    List<PaperOrder> findAllOwnedByAccountId(
+        @Param("userId") UUID userId,
+        @Param("accountId") UUID accountId
+    );
+
+    @Query("""
+        SELECT paperOrder
+        FROM PaperOrder paperOrder
         WHERE paperOrder.id = :id
           AND paperOrder.account.user.id = :userId
+          AND paperOrder.account.accountKind = com.stoxsim.account.domain.AccountKind.STANDARD
         """)
     Optional<PaperOrder> findByIdAndAccountUserId(
         @Param("id") UUID id,
         @Param("userId") UUID userId
+    );
+
+    @Query("""
+        SELECT paperOrder
+        FROM PaperOrder paperOrder
+        WHERE paperOrder.id = :id
+          AND paperOrder.account.id = :accountId
+          AND paperOrder.account.user.id = :userId
+        """)
+    Optional<PaperOrder> findOwnedByIdAndAccountId(
+        @Param("userId") UUID userId,
+        @Param("accountId") UUID accountId,
+        @Param("id") UUID id
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
