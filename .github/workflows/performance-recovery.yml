@@ -39,7 +39,7 @@ jobs:
       REMOTE_DIR: ${{ vars.STAGING_REMOTE_DIR || 'stoxsim-staging' }}
       RESTORE_CONFIRMATION: ${{ inputs.restore_confirmation }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Verify recovery-script safeguards
         shell: bash
@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload Milestone 7 evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: milestone-7-performance-recovery-${{ github.run_id }}
           path: artifacts
