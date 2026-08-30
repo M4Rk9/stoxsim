@@ -16,8 +16,8 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 | Weekly portfolio reports | Implemented | Immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history were deployed in PR #96. |
 | Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
 | Improved leaderboards | Implemented | Opt-in quarterly ranking uses only entry-relative performance of the standard ₹5 lakh account; deployed in PR #98 and hardened in PR #99. |
-| Private leagues and campus competitions | Partially implemented | Capped invite-only leagues are deployed; campus administration, moderation and institution verification remain future work. |
-| Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning are deployed or in the current batch; checkout remains intentionally disabled. |
+| Private leagues and campus competitions | In progress | Capped invite-only leagues are deployed; the current batch adds institution verification and platform moderation before campus standings are opened. |
+| Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning were deployed through PR #102; checkout remains intentionally disabled. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
 
 ## Batch 1 — guided onboarding and first trade
@@ -171,10 +171,30 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 - Billing and public plan mutation remain disabled. No new secret, paid service
   or market-data use is introduced.
 
+## Batch 11 — campus institution verification foundation
+
+- Verified-email learners can submit one pending institution request with an
+  official domain and optional HTTPS website.
+- A default-deny `USER`/`ADMIN` platform role is enforced from the database on
+  every moderation request; no browser or public API can promote an account.
+- Administrators can review a bounded pending queue, approve requests or reject
+  them with a required reason.
+- Approval atomically creates a unique verified institution and scoped
+  `ORGANIZER` membership for the requester.
+- Institution names, domains, user memberships and pending requests have
+  database uniqueness constraints; review transitions use row locking.
+- Review actions create account audit events and aggregate metrics without
+  logging submitted personal data.
+- Campus request and membership data is included in account export and follows
+  account-deletion cascades while historical approvals survive reviewer deletion.
+- The competitions page exposes learner application status and an administrator
+  moderation queue without changing any leaderboard or portfolio query.
+- No new secret, provider, paid service or market-data use is introduced.
+
 ## Next batch
 
-Add campus competition administration, institution verification and moderation
-without changing standard leaderboard eligibility. Paid checkout remains
-deferred until a billing provider and webhook operating model are explicitly
-approved; market-data-dependent premium analytics remain behind the documented
-provider-permission gate.
+Add institution-scoped organizer controls, student membership requests and
+campus competition creation/standings using only the existing standard ₹5 lakh
+season entry. Paid checkout remains deferred until a billing provider and
+webhook operating model are explicitly approved; market-data-dependent premium
+analytics remain behind the documented provider-permission gate.

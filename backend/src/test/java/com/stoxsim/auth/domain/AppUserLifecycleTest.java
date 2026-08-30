@@ -10,6 +10,18 @@ import org.junit.jupiter.api.Test;
 class AppUserLifecycleTest {
 
     @Test
+    void newLearnersHaveNoPlatformAdministrationAuthority() {
+        var user = new AppUser(
+            "learner@example.com",
+            "password-hash",
+            "Market Learner"
+        );
+
+        assertEquals(PlatformRole.USER, user.getPlatformRole());
+        assertFalse(user.isPlatformAdmin());
+    }
+
+    @Test
     void changingEmailRequiresFreshVerification() {
         var user = new AppUser(
             "learner@example.com",

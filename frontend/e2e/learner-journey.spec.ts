@@ -328,6 +328,55 @@ test("a learner can opt into the standard season and create a private league", a
   expect(refreshRequests).toBe(1);
 });
 
+test("a verified learner can request campus institution verification", async ({ page }) => {
+  test.setTimeout(150_000);
+  await registerLearner(page, "campus-verification");
+
+  const profile = {
+    version: "campus-verification-v1",
+    platformAdmin: false,
+    emailVerified: true,
+    membership: null,
+    latestVerificationRequest: null,
+    notice: "Institution approval verifies organizational identity only. Competition results remain educational and use the standard ₹5 lakh portfolio.",
+  };
+  await page.route("**/api/v1/campus", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", json: profile });
+  });
+  await page.route("**/api/v1/campus/verification-requests", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    const body = route.request().postDataJSON();
+    expect(body).toEqual({
+      institutionName: "Birla Institute of Technology, Mesra",
+      emailDomain: "bitmesra.ac.in",
+      websiteUrl: "https://www.bitmesra.ac.in",
+    });
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      json: {
+        id: "41111111-2222-4333-8444-555555555555",
+        ...body,
+        status: "PENDING",
+        requesterDisplayName: "Browser Learner",
+        requesterEmail: "browser@example.com",
+        submittedAt: new Date().toISOString(),
+      },
+    });
+  });
+
+  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  await page.getByRole("menuitem", { name: /Competitions/ }).click();
+  await expect(page.getByRole("heading", { name: "Campus verification" })).toBeVisible();
+  await page.getByLabel("Institution name").fill("Birla Institute of Technology, Mesra");
+  await page.getByLabel("Official email domain").fill("bitmesra.ac.in");
+  await page.getByLabel("Official website").fill("https://www.bitmesra.ac.in");
+  await page.getByRole("button", { name: "Request verification" }).click();
+
+  await expect(page.getByText("Verification pending")).toBeVisible();
+  await expect(page.getByText(/Birla Institute of Technology, Mesra · submitted/)).toBeVisible();
+});
+
 test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   test.setTimeout(150_000);
   await registerLearner(page, "finwiz");

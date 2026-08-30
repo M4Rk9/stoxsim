@@ -73,6 +73,36 @@ interface LeagueCreated {
 
 interface LeagueInvite { inviteCode: string; inviteNote: string }
 
+interface CampusVerification {
+  id: string;
+  institutionName: string;
+  emailDomain: string;
+  websiteUrl?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requesterDisplayName: string;
+  requesterEmail: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+}
+
+interface CampusProfile {
+  version: "campus-verification-v1";
+  platformAdmin: boolean;
+  emailVerified: boolean;
+  membership?: {
+    institutionId: string;
+    institutionName: string;
+    emailDomain: string;
+    websiteUrl?: string;
+    role: "ORGANIZER" | "MEMBER";
+    institutionVerifiedAt: string;
+    joinedAt: string;
+  };
+  latestVerificationRequest?: CampusVerification;
+  notice: string;
+}
+
 class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
@@ -165,6 +195,11 @@ export default function CompetitionsPage() {
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [invite, setInvite] = useState<LeagueInvite | null>(null);
+  const [campus, setCampus] = useState<CampusProfile | null>(null);
+  const [campusQueue, setCampusQueue] = useState<CampusVerification[]>([]);
+  const [institutionName, setInstitutionName] = useState("");
+  const [emailDomain, setEmailDomain] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -178,8 +213,22 @@ export default function CompetitionsPage() {
     Promise.all([
       authorized<Board>("/api/v1/competitions/current"),
       authorized<LeagueSummary[]>("/api/v1/leagues"),
-    ]).then(([current, memberships]) => {
-      if (active) { setBoard(current); setLeagues(memberships); }
+      authorized<CampusProfile>("/api/v1/campus"),
+    ]).then(([current, leagueMemberships, campusProfile]) => {
+      if (active) {
+        setBoard(current);
+        setLeagues(leagueMemberships);
+        setCampus(campusProfile);
+      }
+      if (campusProfile.platformAdmin) {
+        void authorized<CampusVerification[]>("/api/v1/campus/admin/verification-requests")
+          .then((queue) => { if (active) setCampusQueue(queue); })
+          .catch((cause) => {
+            if (active) setError(cause instanceof Error
+              ? cause.message
+              : "The campus moderation queue could not be loaded.");
+          });
+      }
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : "Competitions could not be loaded.");
     }).finally(() => { if (active) setLoading(false); });
@@ -220,6 +269,39 @@ export default function CompetitionsPage() {
       });
       setSelected(detail); setJoinCode(""); setInvite(null);
       await loadLeagues();
+    });
+  }
+
+  function requestCampusVerification(event: FormEvent) {
+    event.preventDefault();
+    void act("campus-request", async () => {
+      const submitted = await authorized<CampusVerification>(
+        "/api/v1/campus/verification-requests",
+        {
+          method: "POST",
+          body: JSON.stringify({ institutionName, emailDomain, websiteUrl }),
+        },
+      );
+      setCampus((current) => current
+        ? { ...current, latestVerificationRequest: submitted }
+        : current);
+      setInstitutionName("");
+      setEmailDomain("");
+      setWebsiteUrl("");
+    });
+  }
+
+  function reviewCampus(requestId: string, decision: "approve" | "reject") {
+    const note = window.prompt(decision === "approve"
+      ? "Optional approval note visible to the requester"
+      : "Reason for rejection (required)");
+    if (note === null || (decision === "reject" && !note.trim())) return;
+    void act(`campus-${decision}-${requestId}`, async () => {
+      await authorized<CampusVerification>(
+        `/api/v1/campus/admin/verification-requests/${requestId}/${decision}`,
+        { method: "POST", body: JSON.stringify({ note }) },
+      );
+      setCampusQueue((queue) => queue.filter((item) => item.id !== requestId));
     });
   }
 
@@ -284,6 +366,42 @@ export default function CompetitionsPage() {
         <Standings standings={board.standings} />
         <p className={styles.note}>{board.comparisonNote}</p>
       </section>
+
+      {campus && <section className={styles.campusArea} aria-labelledby="campus-title">
+        <div className={styles.sectionHeading}>
+          <div><span>VERIFIED INSTITUTIONS</span><h2 id="campus-title">Campus verification</h2></div>
+          <small>{campus.version}</small>
+        </div>
+        {campus.membership ? <div className={styles.campusVerified}>
+          <div><strong>{campus.membership.institutionName}</strong><span>{campus.membership.emailDomain}</span></div>
+          <span>{campus.membership.role} · VERIFIED</span>
+        </div> : campus.latestVerificationRequest?.status === "PENDING" ? <div className={styles.campusPending} role="status">
+          <strong>Verification pending</strong>
+          <span>{campus.latestVerificationRequest.institutionName} · submitted {timestamp(campus.latestVerificationRequest.submittedAt)}</span>
+        </div> : <>
+          {campus.latestVerificationRequest?.status === "REJECTED" && <div className={styles.campusRejected} role="status">
+            <strong>Previous request needs changes</strong>
+            <span>{campus.latestVerificationRequest.reviewNote ?? "Review the institution details and submit again."}</span>
+          </div>}
+          <form className={styles.campusForm} onSubmit={requestCampusVerification}>
+            <label>Institution name<input required minLength={3} maxLength={160} value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} placeholder="Birla Institute of Technology, Mesra" disabled={!campus.emailVerified} /></label>
+            <label>Official email domain<input required maxLength={190} value={emailDomain} onChange={(event) => setEmailDomain(event.target.value)} placeholder="bitmesra.ac.in" disabled={!campus.emailVerified} /></label>
+            <label>Official website<input type="url" pattern="https://.*" maxLength={300} value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://www.bitmesra.ac.in" disabled={!campus.emailVerified} /></label>
+            <button disabled={!campus.emailVerified || busy === "campus-request"}>{busy === "campus-request" ? "Submitting…" : "Request verification"}</button>
+          </form>
+          {!campus.emailVerified && <p className={styles.leagueConsent}>Verify your StoxSim email before submitting an institution request.</p>}
+        </>}
+        <p className={styles.note}>{campus.notice}</p>
+
+        {campus.platformAdmin && <div className={styles.moderation}>
+          <div className={styles.sectionHeading}><div><span>PLATFORM ADMIN</span><h3>Verification queue</h3></div><small>{campusQueue.length} pending</small></div>
+          {campusQueue.map((item) => <article key={item.id}>
+            <div><strong>{item.institutionName}</strong><span>{item.emailDomain} · {item.requesterEmail}</span>{item.websiteUrl && <a href={item.websiteUrl} target="_blank" rel="noreferrer">Review website</a>}</div>
+            <div><button type="button" onClick={() => reviewCampus(item.id, "approve")} disabled={busy.startsWith("campus-")}>Approve</button><button type="button" className={styles.danger} onClick={() => reviewCampus(item.id, "reject")} disabled={busy.startsWith("campus-")}>Reject</button></div>
+          </article>)}
+          {campusQueue.length === 0 && <p className={styles.empty}>No institution requests are awaiting review.</p>}
+        </div>}
+      </section>}
 
       <section className={styles.leagueArea}>
         <div className={styles.sectionHeading}><div><span>INVITE-ONLY</span><h2>Private leagues</h2></div><small>Up to 25 learners</small></div>

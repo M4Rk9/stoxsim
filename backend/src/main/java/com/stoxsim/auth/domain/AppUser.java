@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +28,10 @@ public class AppUser {
 
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "platform_role", nullable = false, length = 16)
+    private PlatformRole platformRole;
 
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
@@ -61,6 +67,7 @@ public class AppUser {
         this.email = email;
         this.passwordHash = passwordHash;
         this.displayName = displayName;
+        this.platformRole = PlatformRole.USER;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
@@ -79,6 +86,14 @@ public class AppUser {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public PlatformRole getPlatformRole() {
+        return platformRole;
+    }
+
+    public boolean isPlatformAdmin() {
+        return platformRole == PlatformRole.ADMIN;
     }
 
     public Instant getEmailVerifiedAt() {

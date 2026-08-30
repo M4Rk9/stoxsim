@@ -146,7 +146,7 @@ public class AccountLifecycleService {
         export.put("exportedAt", Instant.now());
         export.put("profile", jdbcTemplate.queryForMap(
             """
-            SELECT id, email, display_name, email_verified_at,
+            SELECT id, email, display_name, platform_role, email_verified_at,
                    terms_accepted_at, terms_version, privacy_version,
                    created_at, updated_at
             FROM app_user
@@ -285,6 +285,30 @@ public class AccountLifecycleService {
             JOIN private_league league ON league.id = member.league_id
             WHERE member.user_id = ?
             ORDER BY member.joined_at
+            """,
+            userId
+        ));
+        export.put("campusVerificationRequests", jdbcTemplate.queryForList(
+            """
+            SELECT id, institution_name, email_domain, website_url,
+                   request_status, review_note, submitted_at, reviewed_at
+            FROM campus_verification_request
+            WHERE requester_user_id = ?
+            ORDER BY submitted_at
+            """,
+            userId
+        ));
+        export.put("campusMembership", jdbcTemplate.queryForList(
+            """
+            SELECT membership.id, institution.id AS institution_id,
+                   institution.name AS institution_name,
+                   institution.email_domain, institution.website_url,
+                   institution.verified_at, membership.member_role,
+                   membership.joined_at
+            FROM campus_membership membership
+            JOIN campus_institution institution
+              ON institution.id = membership.institution_id
+            WHERE membership.user_id = ?
             """,
             userId
         ));
