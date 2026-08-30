@@ -30,6 +30,13 @@ import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
+import com.stoxsim.campus.domain.CampusInstitution;
+import com.stoxsim.campus.domain.CampusMemberRole;
+import com.stoxsim.campus.domain.CampusMembership;
+import com.stoxsim.campus.domain.CampusVerificationRequest;
+import com.stoxsim.campus.repository.CampusInstitutionRepository;
+import com.stoxsim.campus.repository.CampusMembershipRepository;
+import com.stoxsim.campus.repository.CampusVerificationRequestRepository;
 import com.stoxsim.competition.domain.LeagueMember;
 import com.stoxsim.competition.domain.PrivateLeague;
 import com.stoxsim.competition.repository.CompetitionEntryRepository;
@@ -91,6 +98,9 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private LeagueMemberRepository leagueMembers;
     @Autowired private UserSubscriptionRepository subscriptions;
     @Autowired private SubscriptionService subscriptionService;
+    @Autowired private CampusInstitutionRepository campusInstitutions;
+    @Autowired private CampusMembershipRepository campusMemberships;
+    @Autowired private CampusVerificationRequestRepository campusRequests;
 
     @BeforeEach
     void resetDatabase() {
@@ -266,6 +276,70 @@ class PostgresConcurrencyIntegrationTest {
         ))
             .extracting(VirtualAccount::getSandboxSlot)
             .containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void campusSchemaPersistsVerifiedInstitutionAndOrganizerMembership() {
+        AppUser admin = user("campus-admin");
+        AppUser organizer = user("campus-organizer");
+        Instant now = Instant.now();
+        CampusInstitution institution = campusInstitutions.saveAndFlush(
+            new CampusInstitution(
+                "Birla Institute of Technology, Mesra",
+                "birla institute of technology, mesra",
+                "bitmesra.ac.in",
+                "https://www.bitmesra.ac.in",
+                admin,
+                now
+            )
+        );
+        CampusMembership membership = campusMemberships.saveAndFlush(
+            new CampusMembership(
+                institution,
+                organizer,
+                CampusMemberRole.ORGANIZER,
+                now
+            )
+        );
+
+        assertThat(campusMemberships.findByUserId(organizer.getId()))
+            .map(CampusMembership::getId)
+            .contains(membership.getId());
+        assertThatThrownBy(() -> campusInstitutions.saveAndFlush(
+            new CampusInstitution(
+                "Different Institution Name",
+                "different institution name",
+                "bitmesra.ac.in",
+                null,
+                admin,
+                now
+            )
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void campusSchemaAllowsOnlyOnePendingRequestPerLearner() {
+        AppUser learner = user("campus-requester");
+        Instant now = Instant.now();
+        campusRequests.saveAndFlush(new CampusVerificationRequest(
+            learner,
+            "First Institution",
+            "first institution",
+            "first.example.edu",
+            null,
+            now
+        ));
+
+        assertThatThrownBy(() -> campusRequests.saveAndFlush(
+            new CampusVerificationRequest(
+                learner,
+                "Second Institution",
+                "second institution",
+                "second.example.edu",
+                null,
+                now.plusSeconds(1)
+            )
+        )).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
