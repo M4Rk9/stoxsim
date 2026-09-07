@@ -18,6 +18,7 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Protected staging load and backup/restore verification with release evidence artifacts.
 - Authenticated browser acceptance testing in CI.
 - SEC EDGAR fair-access documentation and a final public-release sign-off checklist.
+- Explicit production switches for public registration and Upstox/Alpaca public market-data serving; the official production bundle defaults all three switches to closed.
 
 ### Security
 
@@ -28,3 +29,6 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Single-use, time-limited verification and password-reset tokens.
 - All refresh sessions are revoked after password changes and resets.
 - SEC EDGAR requests use an identified contact and a tested process-wide rate limit below the SEC fair-access ceiling.
+- Next.js is patched to 16.3.3, which contains the upstream critical RCE fixes shipped after 16.3.1.
+- Provider credentials alone cannot enable public market-data serving; provider clients and background synchronization honor the explicit serving gate.
+- Public registration is rejected unless the operator opens registration and both provider-serving gates are enabled.
