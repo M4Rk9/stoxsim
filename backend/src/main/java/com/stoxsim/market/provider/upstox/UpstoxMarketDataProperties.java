@@ -38,7 +38,7 @@ public class UpstoxMarketDataProperties {
     }
 
     public boolean isStreamEnabled() {
-        return streamEnabled;
+        return publicServingEnabled && streamEnabled;
     }
 
     public void setStreamEnabled(boolean streamEnabled) {
