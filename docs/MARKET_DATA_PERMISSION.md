@@ -20,6 +20,19 @@ Useful provider references:
 
 Provider terms can change. The approval evidence, not this checklist, controls whether a source is releasable.
 
+## Runtime release controls
+
+The production bundle is intentionally fail-closed even when valid provider credentials are present.
+
+- `UPSTOX_PUBLIC_SERVING_ENABLED=false` blocks Upstox provider clients, the live stream and background instrument synchronization.
+- `ALPACA_PUBLIC_SERVING_ENABLED=false` blocks Alpaca provider clients, polling and background instrument synchronization.
+- `STOXSIM_PUBLIC_REGISTRATION_ENABLED=false` closes new account registration.
+- Registration also requires both provider-serving switches to be enabled, so opening registration alone cannot bypass the market-data gate.
+
+The official production Compose file defaults all three switches to `false`. Local and test environments remain configurable independently so provider integration can still be validated before launch.
+
+**These switches are operational controls, not evidence of permission.** Set a provider-serving switch to `true` only after the written approval or applicable contract/plan terms have been reviewed and the deployed feed, caching, derived values, attribution and fan-out behavior match those rights. Set `STOXSIM_PUBLIC_REGISTRATION_ENABLED=true` only after both provider checks and the final release checklist are complete.
+
 ## Questions each approval must answer
 
 Ask the provider to confirm all of the following in writing:
@@ -57,7 +70,7 @@ Before public launch, the release owner must check:
 - [x] SEC fair-access and attribution review is recorded in [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md).
 - [ ] Required attribution appears in the product.
 - [ ] Cache retention and WebSocket fan-out match the approved rights.
-- [ ] A fallback exists to disable a source without breaking authentication or account access.
+- [x] A fallback exists to disable either provider without breaking authentication or account access.
 - [ ] Legal counsel or the accountable operator has reviewed the public Terms, Privacy Notice, Cookie Notice and Risk Disclaimer.
 - [ ] `support.stoxsim@gmail.com` receives inbound mail; switch the public contact to domain aliases when they are configured.
 - [ ] The legal operator name and contact details are confirmed before the draft PR is made ready.
