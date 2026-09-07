@@ -38,6 +38,7 @@ import com.stoxsim.auth.service.AccountLifecycleService;
 import com.stoxsim.auth.service.AuthenticationService;
 import com.stoxsim.auth.service.RefreshCookieService;
 import com.stoxsim.common.error.UnauthorizedException;
+import com.stoxsim.release.PublicReleaseGuard;
 
 import jakarta.validation.Valid;
 
@@ -48,15 +49,18 @@ public class AuthController {
     private final AuthenticationService authenticationService;
     private final AccountLifecycleService lifecycleService;
     private final RefreshCookieService refreshCookieService;
+    private final PublicReleaseGuard publicReleaseGuard;
 
     public AuthController(
         AuthenticationService authenticationService,
         AccountLifecycleService lifecycleService,
-        RefreshCookieService refreshCookieService
+        RefreshCookieService refreshCookieService,
+        PublicReleaseGuard publicReleaseGuard
     ) {
         this.authenticationService = authenticationService;
         this.lifecycleService = lifecycleService;
         this.refreshCookieService = refreshCookieService;
+        this.publicReleaseGuard = publicReleaseGuard;
     }
 
     @PostMapping("/register")
@@ -64,6 +68,7 @@ public class AuthController {
         @Valid @RequestBody RegisterRequest request,
         @RequestHeader(name = HttpHeaders.USER_AGENT, required = false) String userAgent
     ) {
+        publicReleaseGuard.requirePublicRegistration();
         return authenticated(
             HttpStatus.CREATED,
             authenticationService.register(request, userAgent)
