@@ -18,9 +18,12 @@ Use this checklist for the first public beta and every subsequent production rel
 - [x] SEC EDGAR technical and fair-access review is documented in [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md).
 - [ ] The production configuration and UI match every provider requirement.
 - [ ] Approval dates and private evidence references are recorded without publishing correspondence.
-- [ ] A provider can be disabled without breaking authentication, account access or account deletion.
+- [x] Either market-data provider can be disabled without breaking authentication, existing account access or account deletion.
+- [ ] `UPSTOX_PUBLIC_SERVING_ENABLED=true` is set only after the Upstox evidence above is complete.
+- [ ] `ALPACA_PUBLIC_SERVING_ENABLED=true` is set only after the Alpaca evidence above is complete.
+- [ ] `STOXSIM_PUBLIC_REGISTRATION_ENABLED=true` is set only after both provider-serving gates and all remaining launch checks are complete.
 
-Public launch remains blocked while either provider approval is missing.
+The official production bundle defaults all three public-release switches to `false`. Public launch remains blocked while either provider approval is missing. Provider credentials alone must never be treated as permission.
 
 ## Automated release gates
 
@@ -32,14 +35,17 @@ Run every gate against the final candidate commit and retain links to successful
 - [ ] Production uptime manual run.
 - [ ] Production deployment completed using the same immutable candidate SHA.
 - [ ] No unresolved critical or high-severity security alert applies to the candidate.
+- [ ] Frontend production dependencies include the currently reviewed Next.js security patch level or newer.
 
 ## Production acceptance
 
-Use a new dedicated acceptance account and remove it after verification.
+Use a new dedicated acceptance account and remove it after verification. Keep public registration closed while preparing the candidate; open it only for the controlled acceptance window after provider approvals are evidenced.
 
 | Journey | Expected result | Evidence |
 |---|---|---|
-| Registration and consent | Account is created only after accepting current legal documents | |
+| Registration and consent | Account is created only after accepting current legal documents and only while the public-registration gate is open | |
+| Closed registration | With `STOXSIM_PUBLIC_REGISTRATION_ENABLED=false`, registration fails closed without affecting sign-in for existing accounts | |
+| Provider serving gate | With either public-serving switch disabled, that provider is not contacted for public market-data serving or background synchronization | |
 | Email verification | Verification message arrives and the account becomes verified | |
 | Sign out and sign in | Session ends cleanly and the user can authenticate again | |
 | Password recovery | Reset message arrives, token is single-use and the new password works | |

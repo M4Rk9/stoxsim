@@ -4,11 +4,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import com.stoxsim.market.provider.upstox.UpstoxMarketDataProperties;
 
 @Component
 public class UpstoxInstrumentSyncJob implements ApplicationRunner {
@@ -16,27 +18,32 @@ public class UpstoxInstrumentSyncJob implements ApplicationRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(UpstoxInstrumentSyncJob.class);
 
     private final UpstoxInstrumentSyncService syncService;
+    private final UpstoxMarketDataProperties properties;
     private final boolean syncOnStartup;
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicBoolean synchronizedAtLeastOnce = new AtomicBoolean();
 
     public UpstoxInstrumentSyncJob(
         UpstoxInstrumentSyncService syncService,
+        UpstoxMarketDataProperties properties,
         @Value("${stoxsim.market-data.upstox.instrument-sync-on-startup:true}")
         boolean syncOnStartup
     ) {
         this.syncService = syncService;
+        this.properties = properties;
         this.syncOnStartup = syncOnStartup;
     }
 
     @Scheduled(cron = "0 30 7 * * MON-FRI", zone = "Asia/Kolkata")
     public void synchronizeBeforeMarket() {
-        synchronize("scheduled");
+        if (properties.isPublicServingEnabled()) {
+            synchronize("scheduled");
+        }
     }
 
     @Override
     public void run(ApplicationArguments arguments) {
-        if (!syncOnStartup) {
+        if (!syncOnStartup || !properties.isPublicServingEnabled()) {
             LOGGER.info("Upstox startup instrument sync is disabled");
             return;
         }
@@ -45,7 +52,7 @@ public class UpstoxInstrumentSyncJob implements ApplicationRunner {
 
     @Scheduled(initialDelay = 300_000, fixedDelay = 900_000)
     public void recoverIncompleteStartupSync() {
-        if (!synchronizedAtLeastOnce.get()) {
+        if (properties.isPublicServingEnabled() && !synchronizedAtLeastOnce.get()) {
             queueSynchronization("recovery");
         }
     }
@@ -58,6 +65,9 @@ public class UpstoxInstrumentSyncJob implements ApplicationRunner {
     }
 
     private void synchronize(String trigger) {
+        if (!properties.isPublicServingEnabled()) {
+            return;
+        }
         if (!running.compareAndSet(false, true)) {
             LOGGER.info("Skipping {} instrument sync because another sync is running", trigger);
             return;
