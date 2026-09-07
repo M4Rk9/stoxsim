@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 public class UpstoxMarketDataProperties {
 
     private String analyticsToken;
+    private boolean publicServingEnabled = true;
     private boolean streamEnabled;
     private int quoteTtlSeconds = 30;
     private int quoteRetentionDays = 7;
@@ -26,6 +27,14 @@ public class UpstoxMarketDataProperties {
 
     public void setAnalyticsToken(String analyticsToken) {
         this.analyticsToken = analyticsToken;
+    }
+
+    public boolean isPublicServingEnabled() {
+        return publicServingEnabled;
+    }
+
+    public void setPublicServingEnabled(boolean publicServingEnabled) {
+        this.publicServingEnabled = publicServingEnabled;
     }
 
     public boolean isStreamEnabled() {
