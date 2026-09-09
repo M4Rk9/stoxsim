@@ -101,7 +101,9 @@ After production is live, set the repository Actions variable `PRODUCTION_UPTIME
 4. Confirm the latest staging deployment used the same SHA successfully.
 5. Run **Production deploy** with the SHA and enter `DEPLOY` in the confirmation field.
 6. Approve the protected `production` environment.
-7. Verify the workflow summary and manually inspect registration, email delivery, India/US portfolios, legal pages and live/stale data labels.
+7. Verify the workflow summary and manually inspect email delivery, India/US portfolios, legal pages and live/stale data labels while public registration remains closed.
+8. After provider approvals are recorded, enable both provider-serving switches. Open public registration only for the controlled production DAST and acceptance window.
+9. Run **Security DAST**, entering `TEMPORARY-REGISTRATION-ENABLED`. Whether it passes or fails, immediately close registration and rerun the production smoke workflow to prove registration returns the expected HTTP 503 response.
 
 The deployment workflow validates provider credentials, pins the SSH host, uploads the production bundle, authenticates to GHCR, creates a pre-deployment backup, deploys the immutable images and runs self-cleaning HTTPS registration checks. Failed external checks trigger rollback.
 

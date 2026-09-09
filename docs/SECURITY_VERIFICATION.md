@@ -22,9 +22,11 @@ The Security DAST workflow targets only the approved production URLs. The previo
 
 For production:
 
-1. Deploy the exact immutable candidate commit through the protected production workflow.
-2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The workflow queries Alpaca's clock once with environment-scoped credentials; it does not expose that provider call through a learner API. Both temporary orders must execute so holdings, portfolio and ledger isolation are tested with real owner data.
-3. Confirm the workflow uses the protected **production** environment.
+1. Deploy the exact immutable candidate commit through the protected production workflow and enable both approved provider-serving switches.
+2. Immediately before the scan, intentionally open the controlled production registration window. Do not announce the site or leave the window unattended.
+3. During the regular United States trading session, open **Actions → Security DAST → Run workflow**, enter `TEMPORARY-REGISTRATION-ENABLED`, and start the run. The workflow queries Alpaca's clock once with environment-scoped credentials; it does not expose that provider call through a learner API. Both temporary orders must execute so holdings, portfolio and ledger isolation are tested with real owner data.
+4. Whether the run passes or fails, immediately close public registration again and run the production smoke workflow to verify that registration returns the expected HTTP 503 response.
+5. Confirm both DAST-created learners were deleted. If cleanup failed, delete them before sign-off.
 4. Confirm the security smoke contract passes:
    - HTTPS security headers are present;
    - protected APIs reject missing and invalid bearer tokens;

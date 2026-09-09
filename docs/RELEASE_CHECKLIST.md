@@ -39,7 +39,7 @@ Run every gate against the final candidate commit and retain links to successful
 
 ## Production acceptance
 
-Use a new dedicated acceptance account and remove it after verification. Keep public registration closed while preparing the candidate; open it only for the controlled acceptance window after provider approvals are evidenced.
+Use a new dedicated acceptance account and remove it after verification. Keep public registration closed while preparing the candidate; open it only for the controlled acceptance window after provider approvals are evidenced. Production DAST requires this same short window to create two disposable learners. Open registration immediately before DAST, enter its required confirmation, close registration whether the run passes or fails, and rerun the production smoke check to prove registration is closed.
 
 | Journey | Expected result | Evidence |
 |---|---|---|

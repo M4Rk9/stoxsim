@@ -2,6 +2,11 @@ name: Security DAST
 
 on:
   workflow_dispatch:
+    inputs:
+      registration_window_confirmation:
+        description: Type TEMPORARY-REGISTRATION-ENABLED after intentionally opening the controlled production registration window
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -18,6 +23,14 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v6
+
+      - name: Confirm controlled registration window
+        shell: bash
+        run: |
+          [[ "${{ inputs.registration_window_confirmation }}" == "TEMPORARY-REGISTRATION-ENABLED" ]] || {
+            echo "::error::Open the controlled production registration window and enter TEMPORARY-REGISTRATION-ENABLED"
+            exit 1
+          }
 
       - name: Select approved target
         id: target
