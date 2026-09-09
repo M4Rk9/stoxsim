@@ -13,7 +13,7 @@
 
     <groupId>com.stoxsim</groupId>
     <artifactId>stoxsim-api</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>StoxSim API</name>
     <description>Multi-market paper-trading API</description>
 
