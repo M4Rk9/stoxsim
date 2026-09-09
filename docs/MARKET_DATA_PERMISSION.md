@@ -1,6 +1,6 @@
 # Market-data public-release permission gate
 
-**Release status: BLOCKED until provider permissions are evidenced.**
+**Provider permission status: APPROVED for StoxSim's educational paper-trading use. Remaining operational, security and release checks still apply.**
 
 Running provider SDKs or holding API credentials does not by itself grant StoxSim the right to display, cache, derive from, or redistribute market data to public users. Do not make production registration public until every required row below is approved.
 
@@ -8,8 +8,8 @@ Running provider SDKs or holding API credentials does not by itself grant StoxSi
 
 | Source | StoxSim use | Required evidence | Status |
 |---|---|---|---|
-| Upstox / Upstox Analytics | India quotes, candles, indices, movers, instrument catalogue and company fundamentals | Written approval or contract/plan language covering display to StoxSim end users, caching, derived movers/portfolio values, attribution and the intended public-beta user count | **Pending** |
-| Alpaca Market Data | United States quotes, bars, benchmarks, movers and derived portfolio values | Written approval or plan terms covering end-user display and redistribution for the selected feed, including any SIP/IEX limitations, caching and attribution | **Pending** |
+| Upstox / Upstox Analytics | India quotes, candles, indices, movers, instrument catalogue and company fundamentals | Written confirmation from Upstox covering display to StoxSim users, API/WebSocket use and processing for calculations, analytics and paper trading; applicable API rate limits remain mandatory | **Approved — reviewed 2026-09-09; evidence retained privately** |
+| Alpaca Market Data | United States quotes, bars, benchmarks, movers and derived portfolio values | Written confirmation covering StoxSim's educational paper-trading display and use; selected-feed limits, rate limits and applicable attribution remain mandatory | **Approved — reviewed 2026-09-09; evidence retained privately** |
 | SEC EDGAR | United States filing-derived fundamentals | Recorded review of SEC fair-access guidance, request identification, rate limits, source attribution and treatment of filing-derived facts | **Reviewed 2026-08-25** — see [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md) |
 
 Useful provider references:
@@ -65,8 +65,8 @@ Record only the evidence reference and approval date in the release ticket. Neve
 
 Before public launch, the release owner must check:
 
-- [ ] Upstox approval evidence is complete and the production plan matches it.
-- [ ] Alpaca approval evidence is complete and the production plan matches it.
+- [x] Upstox written approval for StoxSim's educational paper-trading display and calculation use was reviewed on 2026-09-09; evidence is retained privately.
+- [x] Alpaca written approval for StoxSim's educational paper-trading display and use was reviewed on 2026-09-09; evidence is retained privately.
 - [x] SEC fair-access and attribution review is recorded in [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md).
 - [ ] Required attribution appears in the product.
 - [ ] Cache retention and WebSocket fan-out match the approved rights.
@@ -75,4 +75,4 @@ Before public launch, the release owner must check:
 - [ ] `support.stoxsim@gmail.com` receives inbound mail; switch the public contact to domain aliases when they are configured.
 - [ ] The legal operator name and contact details are confirmed before the draft PR is made ready.
 
-If any required item is unchecked, keep the release private. A provider outage is an operational issue; missing redistribution permission is a release blocker.
+Provider permission has been recorded, but keep the release private until every remaining operational, security, attribution and launch item is complete. A provider outage is an operational issue; missing or withdrawn display permission is a release blocker.

@@ -61,6 +61,6 @@ On failure, GitHub Actions retains:
 
 These diagnostics are uploaded as the `browser-acceptance-diagnostics` workflow artifact. A pull request is not ready to merge until the backend, frontend and browser-acceptance jobs all pass.
 
-## Staging boundary
+## Deployed boundary
 
-This gate proves the full product journey on an isolated runner. The manual staging smoke workflow remains responsible for verifying public HTTPS, deployed image tags, managed services and WebSocket proxying after a staging host is selected.
+The CI gate proves the full product journey on an isolated runner. The previously hosted staging environment and manual staging smoke workflow were retired before v1.0.0. Production verification is performed through the protected production deployment, uptime and DAST workflows; destructive recovery checks require a separate isolated temporary database target.

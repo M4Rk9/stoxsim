@@ -1,3 +1,5 @@
+> **Retired:** The hosted `staging.stoxsim.com` environment and its GitHub Actions deployment workflows were retired before v1.0.0. This directory is retained only as historical infrastructure reference. Do not target the retired domains or reuse old staging secrets.
+
 # Private staging operations
 
 This bundle runs the complete StoxSim staging environment on one private Linux host. Caddy terminates HTTPS and proxies WebSockets, while PostgreSQL and Redis remain on an internal Docker network with no host ports.
