@@ -33,10 +33,11 @@ public class AlpacaInstrumentSyncJob implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments arguments) {
-        if (!properties.isInstrumentSyncOnStartup()
+        if (!properties.isPublicServingEnabled()
+            || !properties.isInstrumentSyncOnStartup()
             || !properties.hasCredentials()) {
             LOGGER.info(
-                "Alpaca startup instrument sync is disabled until credentials are configured"
+                "Alpaca startup instrument sync is disabled until public serving and credentials are configured"
             );
             return;
         }
@@ -45,14 +46,16 @@ public class AlpacaInstrumentSyncJob implements ApplicationRunner {
 
     @Scheduled(cron = "0 0 7 * * MON-FRI", zone = "America/New_York")
     public void synchronizeBeforeMarket() {
-        if (properties.hasCredentials()) {
+        if (properties.isPublicServingEnabled() && properties.hasCredentials()) {
             queue("scheduled");
         }
     }
 
     @Scheduled(initialDelay = 600_000, fixedDelay = 1_800_000)
     public void recoverIncompleteStartupSync() {
-        if (properties.hasCredentials() && !synchronizedAtLeastOnce.get()) {
+        if (properties.isPublicServingEnabled()
+            && properties.hasCredentials()
+            && !synchronizedAtLeastOnce.get()) {
             queue("recovery");
         }
     }
@@ -64,6 +67,9 @@ public class AlpacaInstrumentSyncJob implements ApplicationRunner {
     }
 
     private void synchronize(String trigger) {
+        if (!properties.isPublicServingEnabled()) {
+            return;
+        }
         if (!running.compareAndSet(false, true)) {
             return;
         }

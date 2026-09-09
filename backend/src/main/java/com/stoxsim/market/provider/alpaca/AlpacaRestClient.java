@@ -29,7 +29,7 @@ public class AlpacaRestClient {
     }
 
     public Map<String, JsonNode> getSnapshots(Collection<String> symbols) {
-        requireCredentials();
+        requirePublicServing();
         if (symbols.isEmpty()) {
             return Map.of();
         }
@@ -71,7 +71,7 @@ public class AlpacaRestClient {
         LocalDate from,
         LocalDate to
     ) {
-        requireCredentials();
+        requirePublicServing();
         try {
             String start = from.atStartOfDay().toInstant(ZoneOffset.UTC).toString();
             String end = to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC).toString();
@@ -96,7 +96,7 @@ public class AlpacaRestClient {
     }
 
     public JsonNode getMovers(int top) {
-        requireCredentials();
+        requirePublicServing();
         try {
             return dataClient.get()
                 .uri(uri -> uri
@@ -114,7 +114,7 @@ public class AlpacaRestClient {
     }
 
     public JsonNode getAssets() {
-        requireCredentials();
+        requirePublicServing();
         try {
             return tradingClient.get()
                 .uri(uri -> uri
@@ -144,7 +144,12 @@ public class AlpacaRestClient {
         return input == null ? "" : input;
     }
 
-    private void requireCredentials() {
+    private void requirePublicServing() {
+        if (!properties.isPublicServingEnabled()) {
+            throw new MarketDataUnavailableException(
+                "Alpaca public market-data serving is disabled"
+            );
+        }
         if (!properties.hasCredentials()) {
             throw new MarketDataUnavailableException(
                 "Alpaca credentials are not configured"

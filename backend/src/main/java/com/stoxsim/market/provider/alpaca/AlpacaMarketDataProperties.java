@@ -12,6 +12,7 @@ public class AlpacaMarketDataProperties {
     private String dataBaseUrl = "https://data.alpaca.markets";
     private String tradingBaseUrl = "https://paper-api.alpaca.markets";
     private String feed = "iex";
+    private boolean publicServingEnabled = true;
     private boolean instrumentSyncOnStartup = true;
     private boolean pollingEnabled = true;
     private long pollingIntervalMillis = 5000;
@@ -54,6 +55,14 @@ public class AlpacaMarketDataProperties {
 
     public void setFeed(String feed) {
         this.feed = feed;
+    }
+
+    public boolean isPublicServingEnabled() {
+        return publicServingEnabled;
+    }
+
+    public void setPublicServingEnabled(boolean publicServingEnabled) {
+        this.publicServingEnabled = publicServingEnabled;
     }
 
     public boolean isInstrumentSyncOnStartup() {

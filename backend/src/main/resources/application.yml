@@ -44,6 +44,8 @@ management:
 
 stoxsim:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  release:
+    public-registration-enabled: ${STOXSIM_PUBLIC_REGISTRATION_ENABLED:true}
   monitoring:
     scrape-token: ${METRICS_SCRAPE_TOKEN:}
   auth:
@@ -84,6 +86,7 @@ stoxsim:
       max-requests-per-second: ${SEC_MAX_REQUESTS_PER_SECOND:8}
     upstox:
       analytics-token: ${UPSTOX_ANALYTICS_TOKEN:}
+      public-serving-enabled: ${UPSTOX_PUBLIC_SERVING_ENABLED:true}
       nse-instrument-master-url: ${UPSTOX_NSE_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz}
       bse-instrument-master-url: ${UPSTOX_BSE_INSTRUMENT_MASTER_URL:https://assets.upstox.com/market-quote/instruments/exchange/BSE.json.gz}
       instrument-sync-on-startup: ${UPSTOX_INSTRUMENT_SYNC_ON_STARTUP:true}
@@ -107,6 +110,7 @@ stoxsim:
       data-base-url: ${ALPACA_DATA_BASE_URL:https://data.alpaca.markets}
       trading-base-url: ${ALPACA_TRADING_BASE_URL:https://paper-api.alpaca.markets}
       feed: ${ALPACA_DATA_FEED:iex}
+      public-serving-enabled: ${ALPACA_PUBLIC_SERVING_ENABLED:true}
       instrument-sync-on-startup: ${ALPACA_INSTRUMENT_SYNC_ON_STARTUP:true}
       polling-enabled: ${ALPACA_POLLING_ENABLED:true}
       polling-interval-millis: ${ALPACA_POLLING_INTERVAL_MILLIS:5000}
