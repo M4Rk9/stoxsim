@@ -58,42 +58,11 @@ Set `FRONTEND_URL` to the exact public browser origin. Spring uses it for REST C
 
 Use rolling deployment with a single active API instance for the MVP. Do not let two instances use the same Upstox token concurrently unless the provider limits and a coordinated subscription design explicitly support it.
 
-## Staging checkpoint
+## Retired staging checkpoint
 
-The first private checkpoint uses a single Linux host and the bundle under `deploy/staging`. Caddy owns ports 80 and 443, obtains certificates and proxies both normal API traffic and WebSocket upgrades. PostgreSQL and Redis are reachable only through an internal Docker network.
+The previously hosted `staging.stoxsim.com` environment and its manual GitHub Actions workflows were retired before the v1.0.0 release. Do not target the retired staging domains or reuse their environment secrets.
 
-The repository includes three manual GitHub Actions workflows:
-
-1. **Staging candidate** builds the backend and frontend images and publishes both an immutable commit-SHA tag and the movable `staging` tag to GitHub Container Registry.
-2. **Staging smoke** checks readiness, the rendered frontend, registration, both opening balances, authenticated identity and refresh-token rotation against the deployed HTTPS origins.
-3. **Staging deploy** securely uploads the operations bundle over pinned SSH, deploys one immutable candidate, runs the HTTPS smoke and Chromium learner journey, and rolls back after failed external verification.
-
-Deploy only the immutable SHA shown in the candidate workflow summary. The host must already contain a mode-`600` `.env`; deployments never copy secrets from the repository or replace that file:
-
-```bash
-cd deploy/staging
-cp .env.example .env
-# Set secrets, managed PostgreSQL/Redis hosts and the tested commit SHA.
-docker compose pull
-./deploy.sh "$STOXSIM_IMAGE_TAG"
-```
-
-Configure the protected `staging` GitHub environment and follow the [private staging operations runbook](../deploy/staging/README.md). Keep the staging host private until market-data display permission is confirmed.
-
-### Rollback
-
-Keep the previously healthy commit SHA. If readiness or smoke checks fail:
-
-```bash
-cd deploy/staging
-./rollback.sh
-```
-
-Flyway migrations must remain backward compatible with the previous application image. If a future migration is destructive or not backward compatible, it requires a separately tested database restoration plan before deployment.
-
-### Backup and restore
-
-Run `deploy/staging/backup.sh` on a daily schedule and copy its custom-format PostgreSQL dump plus checksum to encrypted off-host storage. Regularly prove the restore procedure with `restore.sh`; an untested local-only dump is not a recovery plan.
+Production verification must use the protected production workflows. Any destructive recovery exercise must restore into an isolated temporary database or disposable environment and must never replace the live production database.
 
 ## Public production checkpoint
 
@@ -126,4 +95,4 @@ Application logs must not contain access tokens, JWT secrets, passwords, reset o
 
 ## Market-data permission
 
-The SDK licence does not grant market-data redistribution rights. Before opening StoxSim to public users, obtain written confirmation that the selected Upstox/exchange agreement permits server-side display of real-time data to simulator users. Until then, keep access private or label an authorized delayed/demo feed accurately.
+Written provider confirmation for StoxSim's educational paper-trading display and calculation use was reviewed on 2026-09-09. Production must still follow the approved feed scope, applicable rate limits, attribution and delay labels. Keep public registration closed until the remaining release checklist is complete.

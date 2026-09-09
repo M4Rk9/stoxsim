@@ -2,49 +2,28 @@ name: Security DAST
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Deployed environment to scan
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
 
 permissions:
   contents: read
 
 concurrency:
-  group: security-dast-${{ inputs.environment }}
+  group: security-dast-production
   cancel-in-progress: false
 
 jobs:
   baseline:
-    name: Baseline scan (${{ inputs.environment }})
+    name: Baseline scan (production)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: ${{ inputs.environment }}
+    environment: production
     steps:
       - uses: actions/checkout@v6
 
       - name: Select approved target
         id: target
-        shell: bash
         run: |
-          case "${{ inputs.environment }}" in
-            staging)
-              echo "web_url=https://staging.stoxsim.com" >> "$GITHUB_OUTPUT"
-              echo "api_url=https://api.staging.stoxsim.com" >> "$GITHUB_OUTPUT"
-              ;;
-            production)
-              echo "web_url=https://stoxsim.com" >> "$GITHUB_OUTPUT"
-              echo "api_url=https://api.stoxsim.com" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "Unsupported environment" >&2
-              exit 1
-              ;;
-          esac
+          echo "web_url=https://stoxsim.com" >> "$GITHUB_OUTPUT"
+          echo "api_url=https://api.stoxsim.com" >> "$GITHUB_OUTPUT"
 
       - name: Verify public security contract
         run: |
@@ -55,17 +34,7 @@ jobs:
           sudo apt-get update -o Acquire::Retries=3
           sudo apt-get install --yes --no-install-recommends nmap
 
-      - name: Audit staging public host port exposure
-        if: inputs.environment == 'staging'
-        env:
-          PUBLIC_HOST: ${{ secrets.STAGING_HOST }}
-          SSH_PORT: ${{ secrets.STAGING_PORT || '22' }}
-        run: |
-          : "${PUBLIC_HOST:?Configure STAGING_HOST in the staging environment}"
-          bash scripts/public-port-audit.sh "$PUBLIC_HOST" "$SSH_PORT"
-
       - name: Audit production public host port exposure
-        if: inputs.environment == 'production'
         env:
           PUBLIC_HOST: ${{ secrets.PRODUCTION_HOST }}
           SSH_PORT: ${{ secrets.PRODUCTION_PORT || '22' }}

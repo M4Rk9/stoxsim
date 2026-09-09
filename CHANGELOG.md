@@ -2,7 +2,7 @@
 
 All notable changes to StoxSim will be documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and will use semantic versioning beginning with the first public beta tag.
 
-## [Unreleased]
+## [1.0.0] - 2026-09-09
 
 ### Added
 
@@ -19,6 +19,10 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Authenticated browser acceptance testing in CI.
 - SEC EDGAR fair-access documentation and a final public-release sign-off checklist.
 - Explicit production switches for public registration and Upstox/Alpaca public market-data serving; the official production bundle defaults all three switches to closed.
+
+### Changed
+
+- Retired GitHub Actions workflows that targeted the decommissioned hosted staging environment. Production DAST remains available, while future restore drills must use an isolated temporary target and must never replace the live production database.
 
 ### Security
 

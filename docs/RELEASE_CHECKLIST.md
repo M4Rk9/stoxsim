@@ -13,8 +13,8 @@ Use this checklist for the first public beta and every subsequent production rel
 
 ## Market-data permission gate
 
-- [ ] Upstox written approval covers the deployed feed, authenticated end-user display, caching, derived values, WebSocket fan-out and required attribution.
-- [ ] Alpaca written approval covers the deployed feed, authenticated end-user display, caching, derived values and required attribution.
+- [x] Upstox written confirmation permits API/WebSocket market-data display to StoxSim users and processing for calculations, analytics and paper trading; reviewed 2026-09-09.
+- [x] Alpaca written confirmation permits market-data display and use for StoxSim's educational paper-trading platform; reviewed 2026-09-09.
 - [x] SEC EDGAR technical and fair-access review is documented in [SEC_EDGAR_COMPLIANCE.md](SEC_EDGAR_COMPLIANCE.md).
 - [ ] The production configuration and UI match every provider requirement.
 - [ ] Approval dates and private evidence references are recorded without publishing correspondence.
@@ -23,7 +23,7 @@ Use this checklist for the first public beta and every subsequent production rel
 - [ ] `ALPACA_PUBLIC_SERVING_ENABLED=true` is set only after the Alpaca evidence above is complete.
 - [ ] `STOXSIM_PUBLIC_REGISTRATION_ENABLED=true` is set only after both provider-serving gates and all remaining launch checks are complete.
 
-The official production bundle defaults all three public-release switches to `false`. Public launch remains blocked while either provider approval is missing. Provider credentials alone must never be treated as permission.
+The official production bundle defaults all three public-release switches to `false`. Both provider approvals were reviewed on 2026-09-09. Public launch remains blocked until the production configuration, attribution, security and operational checks below are complete. Provider credentials alone must never be treated as permission.
 
 ## Automated release gates
 

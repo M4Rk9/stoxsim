@@ -18,13 +18,13 @@ Do not suppress a result merely to make a check green. Record why it is a false 
 
 ## On-demand deployed verification
 
-The Security DAST workflow only accepts the repository's approved staging or production URLs.
+The Security DAST workflow targets only the approved production URLs. The previously hosted staging target was retired before v1.0.0.
 
-For staging:
+For production:
 
-1. Deploy the exact candidate commit to staging.
+1. Deploy the exact immutable candidate commit through the protected production workflow.
 2. During the regular United States trading session, open **Actions → Security DAST → Run workflow**. The workflow queries Alpaca's clock once with environment-scoped credentials; it does not expose that provider call through a learner API. Both temporary orders must execute so holdings, portfolio and ledger isolation are tested with real owner data.
-3. Select **staging**.
+3. Confirm the workflow uses the protected **production** environment.
 4. Confirm the security smoke contract passes:
    - HTTPS security headers are present;
    - protected APIs reject missing and invalid bearer tokens;
@@ -34,8 +34,6 @@ For staging:
 5. Review the OWASP ZAP passive-baseline output. Resolve every failure and investigate warnings before sign-off.
 6. Confirm the complete TCP 1–65535 port audit reports exactly TCP 80, 443, and the environment's configured deployment SSH port open. The GitHub-hosted deployment runner requires that SSH path. Every application, database, cache, monitoring, and other listener must remain closed or filtered.
 7. Confirm the automated two-user authorization exercise passes: both temporary orders must execute, both learners must have non-empty holdings and ledger data, and neither learner may read or mutate the other learner's orders, sessions, watchlist items, holdings, ledger, events, or export. The exercise verifies deletion of both temporary accounts on exit.
-
-After production deployment, repeat the workflow with **production** before enabling public announcements.
 
 ## Reviewed ZAP baseline exceptions
 
@@ -52,7 +50,7 @@ The other INFO entries cover documented framework behavior or non-security metad
 
 On the deployment host and in the Lightsail firewall:
 
-- expose TCP 80 and 443 publicly; expose UDP 443 only when HTTP/3 is desired. The Security DAST workflow automatically verifies the TCP contract against the environment's `STAGING_HOST` or `PRODUCTION_HOST` secret;
+- expose TCP 80 and 443 publicly; expose UDP 443 only when HTTP/3 is desired. The Security DAST workflow automatically verifies the TCP contract against the production environment's `PRODUCTION_HOST` secret;
 - under the current GitHub-hosted deployment architecture, expose only the configured deployment SSH port in addition to 80/443. Use a dedicated non-root deploy user and key, disable SSH password authentication and root login, pin the server host key in GitHub, and never reuse the deploy key;
 - when deployment moves to a private management network, AWS Systems Manager, or a self-hosted runner with a stable source address, remove unrestricted public SSH and allow it only from that management path;
 - do not expose 3000, 3001, 5432, 6379, 8080, 9090, or 9093;
@@ -68,7 +66,7 @@ Milestone 6 is complete only when:
 
 - all automated security jobs pass on the milestone PR;
 - CodeQL, Dependabot, dependency review, Gitleaks, and Trivy show no unresolved actionable high or critical finding;
-- staging DAST and the two-account authorization exercise pass against the candidate commit;
+- production DAST and the two-account authorization exercise pass against the exact deployed candidate commit;
 - the public port scan matches the approved web-plus-deployment-SSH exposure and no other listener is public;
 - a current backup restore test is recorded;
 - security reporting through GitHub private vulnerability reporting is available;
@@ -82,7 +80,7 @@ Copy this section into the release issue or release PR:
 
 - Candidate commit:
 - Automated security run:
-- Staging DAST run:
+- Production DAST run:
 - Two-account authorization result:
 - External port-scan result:
 - Backup restore evidence:

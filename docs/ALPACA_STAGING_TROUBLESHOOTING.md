@@ -1,3 +1,5 @@
+> **Retired:** This troubleshooting guide described the decommissioned hosted staging environment. It is retained only as historical reference and must not be used against production.
+
 # Alpaca staging troubleshooting
 
 The staging deployment validates the Alpaca credentials before changing the running application.
