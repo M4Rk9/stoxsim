@@ -150,8 +150,24 @@ test("a learner can switch between India and United States markets", async ({ pa
     });
 
     await page.locator(".searchResults button").filter({ hasText: /^AAPL/ }).first().click();
-    await expect(page.getByRole("link", { name: /Study AAPL in detail/ }))
+    const stockDetailLink = page.getByRole("link", { name: /Study AAPL in detail/ });
+    await expect(stockDetailLink)
       .toHaveAttribute("href", "/stocks/NASDAQ/AAPL", { timeout: 10_000 });
+    await expect(stockDetailLink).toHaveAttribute("target", "_blank");
+    const firstPopupPromise = page.waitForEvent("popup");
+    await stockDetailLink.click();
+    const firstStockDetailPage = await firstPopupPromise;
+    const secondPopupPromise = page.waitForEvent("popup");
+    await stockDetailLink.click();
+    const secondStockDetailPage = await secondPopupPromise;
+
+    await Promise.all([firstStockDetailPage, secondStockDetailPage].map(async (stockDetailPage) => {
+      await expect(stockDetailPage).toHaveURL(/\/stocks\/NASDAQ\/AAPL$/);
+      await expect(stockDetailPage.getByRole("heading", { name: "AAPL", exact: true }))
+        .toBeVisible({ timeout: 120_000 });
+      await stockDetailPage.close();
+    }));
+
     const fundamentals = page.locator(".fundamentalsSection");
     await expect(fundamentals)
       .toContainText("SEC EDGAR filings", { timeout: 120_000 });
