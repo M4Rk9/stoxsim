@@ -123,6 +123,10 @@ function readSession(): StoredSession | null {
   }
 }
 
+function storeSession(session: StoredSession) {
+  window.sessionStorage.setItem("stoxsim-session", JSON.stringify(session));
+}
+
 async function raw<T>(path: string, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     credentials: "include",
@@ -133,6 +137,20 @@ async function raw<T>(path: string, token?: string): Promise<T> {
     throw new ApiError(payload?.message ?? `Request failed with status ${response.status}`, response.status);
   }
   return response.json() as Promise<T>;
+}
+
+async function refreshSession(): Promise<StoredSession> {
+  const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new ApiError("Please sign in again", response.status);
+  }
+  const session = await response.json() as StoredSession;
+  storeSession(session);
+  return session;
 }
 
 function monthsAgo(months: number) {
@@ -160,12 +178,19 @@ export default function StockPage() {
   const [chartError, setChartError] = useState("");
 
   useEffect(() => {
-    const active = readSession();
-    if (!active) {
-      window.location.replace("/");
-      return;
-    }
-    setSession(active);
+    let mounted = true;
+    const load = async () => {
+      try {
+        const active = readSession() ?? await refreshSession();
+        if (mounted) setSession(active);
+      } catch {
+        if (mounted) window.location.replace("/");
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   async function authorized<T>(path: string): Promise<T> {
@@ -175,14 +200,9 @@ export default function StockPage() {
       return await raw<T>(path, active.accessToken);
     } catch (cause) {
       if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
-      const refreshed = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+      const next = await refreshSession().catch(() => {
+        throw cause;
       });
-      if (!refreshed.ok) throw cause;
-      const next = await refreshed.json() as StoredSession;
-      window.sessionStorage.setItem("stoxsim-session", JSON.stringify(next));
       setSession(next);
       return raw<T>(path, next.accessToken);
     }
