@@ -159,14 +159,19 @@ function refreshSession(): Promise<StoredSession> {
   if (refreshInFlight) return refreshInFlight;
 
   const request = () => requestSessionRefresh();
-  const pending = typeof navigator !== "undefined" && "locks" in navigator
-    ? navigator.locks.request("stoxsim-session-refresh", { mode: "exclusive" }, request)
+  const pending: Promise<StoredSession> = typeof navigator !== "undefined" && "locks" in navigator
+    ? navigator.locks.request<StoredSession>(
+        "stoxsim-session-refresh",
+        { mode: "exclusive" },
+        request,
+      )
     : request();
 
-  refreshInFlight = pending.finally(() => {
+  const tracked = pending.finally(() => {
     refreshInFlight = null;
   });
-  return refreshInFlight;
+  refreshInFlight = tracked;
+  return tracked;
 }
 
 function monthsAgo(months: number) {
