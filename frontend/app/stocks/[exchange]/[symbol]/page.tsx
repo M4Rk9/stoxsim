@@ -139,7 +139,9 @@ async function raw<T>(path: string, token?: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function refreshSession(): Promise<StoredSession> {
+let refreshInFlight: Promise<StoredSession> | null = null;
+
+async function requestSessionRefresh(): Promise<StoredSession> {
   const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -151,6 +153,20 @@ async function refreshSession(): Promise<StoredSession> {
   const session = await response.json() as StoredSession;
   storeSession(session);
   return session;
+}
+
+function refreshSession(): Promise<StoredSession> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const request = () => requestSessionRefresh();
+  const pending = typeof navigator !== "undefined" && "locks" in navigator
+    ? navigator.locks.request("stoxsim-session-refresh", { mode: "exclusive" }, request)
+    : request();
+
+  refreshInFlight = pending.finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 function monthsAgo(months: number) {
