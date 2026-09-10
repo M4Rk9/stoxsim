@@ -159,13 +159,17 @@ function refreshSession(): Promise<StoredSession> {
   if (refreshInFlight) return refreshInFlight;
 
   const request = () => requestSessionRefresh();
-  const pending: Promise<StoredSession> = typeof navigator !== "undefined" && "locks" in navigator
-    ? navigator.locks.request<StoredSession>(
+  const coordinate = async (): Promise<StoredSession> => {
+    if (typeof navigator !== "undefined" && "locks" in navigator) {
+      return await navigator.locks.request(
         "stoxsim-session-refresh",
         { mode: "exclusive" },
         request,
-      )
-    : request();
+      );
+    }
+    return request();
+  };
+  const pending = coordinate();
 
   const tracked = pending.finally(() => {
     refreshInFlight = null;
