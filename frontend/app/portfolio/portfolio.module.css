@@ -41,6 +41,10 @@
 
 .back:hover { color: var(--green); }
 
+@media (max-width: 1440px) {
+  .back { margin-right: 76px; }
+}
+
 .heading {
   display: flex;
   align-items: end;
@@ -539,4 +543,6 @@
   .cardHeading { display: grid; }
   .allocationRow { grid-template-columns: minmax(84px, .75fr) minmax(65px, 1fr) auto; gap: 8px; }
   .analyticsNotes { grid-template-columns: 1fr; }
+  .back { display: none; }
+  .header { padding-right: 72px; }
 }

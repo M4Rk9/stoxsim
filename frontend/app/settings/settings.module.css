@@ -39,6 +39,10 @@
   font-weight: 800;
 }
 
+@media (max-width: 1440px) {
+  .back { margin-right: 76px; }
+}
+
 .content {
   padding-top: 46px;
 }
@@ -475,6 +479,8 @@
   .sandboxProvisioning { align-items: stretch; flex-direction: column; }
   .planCard ul,
   .planCardCurrent ul { min-height: 0; }
+  .back { display: none; }
+  .header { padding-right: 72px; }
 }
 
 
@@ -606,4 +612,102 @@
   .eventList > div {
     align-items: flex-start;
   }
+}
+
+/* CSS-module-safe theme rules. The earlier global filename-substring selectors
+   are not stable after production minification, so these pages now target their
+   real local classes directly. */
+:global(html[data-theme="dark"]) .shell {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+:global(html[data-theme="dark"]) .header,
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .planCard,
+:global(html[data-theme="dark"]) .planCardCurrent,
+:global(html[data-theme="dark"]) .sandboxList > div,
+:global(html[data-theme="dark"]) .sandboxProvisioning,
+:global(html[data-theme="dark"]) .toggleRow,
+:global(html[data-theme="dark"]) .reportPreview,
+:global(html[data-theme="dark"]) .reportHistory,
+:global(html[data-theme="dark"]) .marketReportGrid article,
+:global(html[data-theme="dark"]) .sessionRow,
+:global(html[data-theme="dark"]) .eventList > div {
+  border-color: var(--line);
+}
+
+:global(html[data-theme="dark"]) .card {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px var(--shadow-color);
+}
+
+:global(html[data-theme="dark"]) .planCard,
+:global(html[data-theme="dark"]) .sandboxProvisioning,
+:global(html[data-theme="dark"]) .toggleRow,
+:global(html[data-theme="dark"]) .reportPreview,
+:global(html[data-theme="dark"]) .reportHistory,
+:global(html[data-theme="dark"]) .marketReportGrid article,
+:global(html[data-theme="dark"]) .sessionRow,
+:global(html[data-theme="dark"]) .eventList > div,
+:global(html[data-theme="dark"]) .secondary {
+  background: var(--surface-subtle);
+  color: var(--ink);
+}
+
+:global(html[data-theme="dark"]) .planCardCurrent,
+:global(html[data-theme="dark"]) .currentPlan,
+:global(html[data-theme="dark"]) .integrityNote,
+:global(html[data-theme="dark"]) .verified,
+:global(html[data-theme="dark"]) .current,
+:global(html[data-theme="dark"]) .reportEnabled,
+:global(html[data-theme="dark"]) .reportSent {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+:global(html[data-theme="dark"]) .brand,
+:global(html[data-theme="dark"]) .back,
+:global(html[data-theme="dark"]) .card h2,
+:global(html[data-theme="dark"]) .planCard > strong,
+:global(html[data-theme="dark"]) .planCardCurrent > strong,
+:global(html[data-theme="dark"]) .sandboxProvisioning strong,
+:global(html[data-theme="dark"]) .toggleRow > span,
+:global(html[data-theme="dark"]) .reportHistoryRow strong {
+  color: var(--ink);
+}
+
+:global(html[data-theme="dark"]) .lead,
+:global(html[data-theme="dark"]) .card > p,
+:global(html[data-theme="dark"]) .card label,
+:global(html[data-theme="dark"]) .planCard ul,
+:global(html[data-theme="dark"]) .planCardCurrent ul,
+:global(html[data-theme="dark"]) .sandboxList small,
+:global(html[data-theme="dark"]) .sandboxProvisioning span,
+:global(html[data-theme="dark"]) .toggleRow small,
+:global(html[data-theme="dark"]) .reportHistoryHeading > span,
+:global(html[data-theme="dark"]) .reportHistoryRow small,
+:global(html[data-theme="dark"]) .sessionRow span,
+:global(html[data-theme="dark"]) .eventList span,
+:global(html[data-theme="dark"]) .empty {
+  color: var(--muted);
+}
+
+:global(html[data-theme="dark"]) .card input,
+:global(html[data-theme="dark"]) .card select {
+  border-color: var(--line);
+  background: var(--input-surface);
+  color: var(--ink);
+}
+
+:global(html[data-theme="dark"]) .unverified {
+  background: color-mix(in srgb, var(--gold) 13%, var(--panel));
+  color: var(--gold);
+}
+
+:global(html[data-theme="dark"]) .danger {
+  border-color: color-mix(in srgb, var(--red) 42%, var(--line));
+  background: color-mix(in srgb, var(--red) 8%, var(--panel));
 }
