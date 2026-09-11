@@ -98,7 +98,9 @@
   top: calc(100% + 8px);
   right: 0;
   width: 300px;
-  overflow: hidden;
+  max-height: calc(100vh - 86px);
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--panel);
@@ -317,6 +319,18 @@
   to { transform: rotate(360deg); }
 }
 
+@media (max-width: 1200px) {
+  .profileButton {
+    min-width: auto;
+    grid-template-columns: 40px 18px;
+    padding-right: 8px;
+  }
+
+  .profileText {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   .profileMenuWrap {
     top: 8px;
@@ -334,7 +348,11 @@
   }
 
   .menu {
+    position: fixed;
+    top: 72px;
+    right: 12px;
     width: min(300px, calc(100vw - 24px));
+    max-height: calc(100dvh - 84px);
   }
 
   .quickActions {
