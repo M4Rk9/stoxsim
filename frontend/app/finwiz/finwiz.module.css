@@ -70,6 +70,43 @@
   outline: none;
 }
 
+.skipToComposer,
+.guide {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.skipToComposer {
+  top: 20px;
+  padding: 9px 13px;
+  border: 1px solid rgba(255, 255, 255, .32);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .76);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.skipToComposer:hover,
+.skipToComposer:focus-visible {
+  border-color: #fff;
+  background: #fff;
+  color: #000;
+}
+
+.guide {
+  top: 62px;
+  width: min(460px, calc(100% - 120px));
+  margin: 0;
+  color: rgba(255, 255, 255, .64);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .skillViewport {
   position: relative;
   z-index: 2;
@@ -796,6 +833,16 @@
 }
 
 @media (max-width: 540px) {
+  .skipToComposer {
+    top: 14px;
+    max-width: calc(100% - 124px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .guide { display: none; }
+
   .userMessage > div {
     max-width: 92%;
     font-size: 14px;

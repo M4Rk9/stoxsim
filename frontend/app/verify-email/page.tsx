@@ -34,7 +34,7 @@ export default function VerifyEmailPage() {
     });
   }, []);
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <a className={styles.brand} href="/">Stox<span>Sim</span></a>
       <a className={styles.back} href="/">← Back to StoxSim</a>
@@ -42,7 +42,7 @@ export default function VerifyEmailPage() {
     <section className={styles.content}>
       <span className={styles.eyebrow}>EMAIL VERIFICATION</span>
       <h1>{status === "success" ? "Email verified" : status === "error" ? "Link not accepted" : "One moment"}</h1>
-      <div className={`${styles.message} ${status === "error" ? styles.error : styles.success}`}>
+      <div className={`${styles.message} ${status === "error" ? styles.error : styles.success}`} role={status === "error" ? "alert" : "status"} aria-live="polite">
         {message}
       </div>
       {status !== "working" && <a className={styles.back} href="/settings">Open account settings →</a>}

@@ -49,6 +49,7 @@ export function OnboardingJourney({
   const [step, setStep] = useState(0);
   const [working, setWorking] = useState(false);
   const primaryAction = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLElement>(null);
   const workingRef = useRef(false);
   const open = Boolean(state && !state.introductionCompleted && !state.dismissed);
 
@@ -58,15 +59,37 @@ export function OnboardingJourney({
 
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     primaryAction.current?.focus();
-    const close = (event: KeyboardEvent) => {
+    const handleKeyboard = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !workingRef.current) {
         setWorking(true);
         void onDismiss().finally(() => setWorking(false));
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialog.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
+    document.addEventListener("keydown", handleKeyboard);
+    return () => {
+      document.removeEventListener("keydown", handleKeyboard);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
   }, [open]);
 
   if (!open) return null;
@@ -98,13 +121,14 @@ export function OnboardingJourney({
 
   return <div className={styles.backdrop} role="presentation">
     <section
+      ref={dialog}
       className={styles.dialog}
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
       aria-describedby="onboarding-description"
     >
-      <div className={styles.progress} aria-label={`Step ${step + 1} of ${lessons.length}`}>
+      <div className={styles.progress} role="progressbar" aria-label="Onboarding progress" aria-valuemin={1} aria-valuemax={lessons.length} aria-valuenow={step + 1} aria-valuetext={`Step ${step + 1} of ${lessons.length}`}>
         {lessons.map((item, index) => <span
           key={item.eyebrow}
           className={index <= step ? styles.progressActive : undefined}

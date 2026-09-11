@@ -1,7 +1,7 @@
 .shell {
   min-height: 100vh;
-  background: #f5f7f2;
-  color: #14251f;
+  background: var(--paper);
+  color: var(--ink);
   padding: 28px 24px 64px;
 }
 
@@ -17,11 +17,11 @@
   justify-content: space-between;
   gap: 18px;
   padding-bottom: 22px;
-  border-bottom: 1px solid #dce4da;
+  border-bottom: 1px solid var(--line);
 }
 
 .brand {
-  color: #0b2c3f;
+  color: var(--ink);
   text-decoration: none;
   font-size: 24px;
   font-weight: 900;
@@ -29,7 +29,7 @@
 }
 
 .brand span {
-  color: #0b8f55;
+  color: var(--green);
 }
 
 .headerActions {
@@ -39,7 +39,7 @@
 }
 
 .headerActions a {
-  color: #0b2c3f;
+  color: var(--ink);
   text-decoration: none;
   font-size: 13px;
   font-weight: 800;
@@ -69,14 +69,14 @@
   height: 54px;
   place-items: center;
   border-radius: 16px;
-  background: #0b2c3f;
+  background: var(--navy);
   color: #fff;
   font-size: 16px;
   font-weight: 900;
 }
 
 .kicker {
-  color: #0b8f55;
+  color: var(--green);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.14em;
@@ -91,7 +91,7 @@
 
 .hero p {
   margin: 0;
-  color: #6a7a71;
+  color: var(--muted);
   font-size: 14px;
 }
 
@@ -112,11 +112,11 @@
 }
 
 .positive {
-  color: #07854e;
+  color: var(--green-dark);
 }
 
 .negative {
-  color: #c33c3c;
+  color: var(--red);
 }
 
 .status {
@@ -124,8 +124,8 @@
   margin-top: 8px;
   padding: 5px 9px;
   border-radius: 999px;
-  background: #edf3ee;
-  color: #567066;
+  background: var(--surface-soft);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -144,10 +144,10 @@
 }
 
 .card {
-  border: 1px solid #dce4da;
+  border: 1px solid var(--line);
   border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 16px 54px rgba(22, 45, 36, 0.055);
+  background: var(--panel);
+  box-shadow: 0 16px 54px var(--shadow-color);
   overflow: hidden;
 }
 
@@ -167,7 +167,7 @@
 
 .cardHeader p {
   margin: 6px 0 0;
-  color: #77857d;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -181,10 +181,10 @@
 .rangeTabs button {
   min-width: 42px;
   padding: 7px 9px;
-  border: 1px solid #dce4da;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
-  color: #5f7067;
+  background: var(--surface-subtle);
+  color: var(--muted);
   cursor: pointer;
   font: inherit;
   font-size: 10px;
@@ -192,8 +192,8 @@
 }
 
 .rangeTabs button.active {
-  border-color: #0b2c3f;
-  background: #0b2c3f;
+  border-color: var(--navy);
+  background: var(--navy);
   color: #fff;
 }
 
@@ -206,13 +206,13 @@
   justify-content: space-between;
   gap: 16px;
   padding: 0 8px 12px;
-  color: #6f7f76;
+  color: var(--muted);
   font-size: 11px;
 }
 
 .chartReadout strong {
   display: block;
-  color: #14251f;
+  color: var(--ink);
   font-size: 20px;
 }
 
@@ -223,13 +223,13 @@
 }
 
 .gridLine {
-  stroke: #e5ebe4;
+  stroke: var(--line);
   stroke-width: 1;
 }
 
 .line {
   fill: none;
-  stroke: #0b8f55;
+  stroke: var(--green);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -251,13 +251,13 @@
   min-height: 240px;
   place-items: center;
   padding: 28px;
-  color: #718178;
+  color: var(--muted);
   text-align: center;
   font-size: 13px;
 }
 
 .error {
-  color: #b53030;
+  color: var(--red);
 }
 
 .stats {
@@ -268,7 +268,7 @@
 
 .stats div {
   padding: 14px 0;
-  border-bottom: 1px solid #edf1ec;
+  border-bottom: 1px solid var(--line);
 }
 
 .stats div:nth-child(odd) {
@@ -277,14 +277,14 @@
 
 .stats div:nth-child(even) {
   padding-left: 12px;
-  border-left: 1px solid #edf1ec;
+  border-left: 1px solid var(--line);
 }
 
 .stats span,
 .profile span,
 .ratio span {
   display: block;
-  color: #77857d;
+  color: var(--muted);
   font-size: 10px;
   font-weight: 750;
 }
@@ -309,14 +309,14 @@
 
 .profileGrid div {
   padding: 14px;
-  border: 1px solid #e4eae3;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fafcf9;
+  background: var(--surface-subtle);
 }
 
 .description {
   margin: 18px 0 0;
-  color: #53635a;
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -329,14 +329,14 @@
 
 .ratio {
   padding: 14px;
-  border: 1px solid #e4eae3;
+  border: 1px solid var(--line);
   margin: -1px 0 0 -1px;
 }
 
 .ratio small {
   display: block;
   margin-top: 4px;
-  color: #8a978f;
+  color: var(--muted);
   font-size: 9px;
 }
 
@@ -354,7 +354,7 @@
 .financials th,
 .financials td {
   padding: 11px 10px;
-  border-bottom: 1px solid #edf1ec;
+  border-bottom: 1px solid var(--line);
   text-align: right;
   font-size: 11px;
 }
@@ -369,8 +369,8 @@
   margin: 0 24px 18px;
   padding: 11px 13px;
   border-radius: 10px;
-  background: #fff7df;
-  color: #82631d;
+  background: color-mix(in srgb, var(--gold) 16%, var(--panel));
+  color: var(--ink);
   font-size: 11px;
 }
 
@@ -388,10 +388,17 @@
   }
 }
 
+@media (max-width: 1440px) {
+  .header { padding-right: 70px; }
+}
+
 @media (max-width: 620px) {
   .shell {
     padding-inline: 14px;
   }
+
+  .header { align-items: flex-start; }
+  .headerActions { flex-direction: column; align-items: flex-end; gap: 8px; }
 
   .cardHeader {
     flex-direction: column;
@@ -404,4 +411,10 @@
   .ratios {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .profileGrid,
+  .stats { grid-template-columns: 1fr; }
+
+  .stats div:nth-child(odd),
+  .stats div:nth-child(even) { padding-inline: 0; border-left: 0; }
 }

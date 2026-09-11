@@ -16,7 +16,7 @@ export default function LegalDocument({
   children: ReactNode;
 }) {
   return (
-    <main className={styles.shell}>
+    <main className={styles.shell} id="main-content" tabIndex={-1}>
       <header className={styles.header}>
         <Link className={styles.brand} href="/" aria-label="StoxSim home">
           Stox<span>Sim</span>

@@ -69,6 +69,20 @@
   line-height: 1.65;
 }
 
+.quickLinks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.quickLinks a {
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.quickLinks a:hover { border-color: var(--green); color: var(--green-dark); }
+.card[id] { scroll-margin-top: 24px; }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

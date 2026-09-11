@@ -59,6 +59,11 @@ const themeOptions: Array<{
   { value: "dark", label: "Dark", icon: "moon" },
 ];
 
+const pathsWithoutAccountMenu = new Set([
+  "/finwiz", "/forgot-password", "/reset-password", "/verify-email",
+  "/terms", "/privacy", "/cookies", "/disclaimer", "/status",
+]);
+
 function ThemeIcon({ icon }: { icon: "sun" | "moon" }) {
   if (icon === "sun") {
     return <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -78,6 +83,7 @@ export default function DashboardTools() {
   const [selectedStock, setSelectedStock] = useState<SelectedStock | null>(null);
   const [themePreference, setThemePreference] = useState<ThemePreference>("light");
   const wrapper = useRef<HTMLDivElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const sync = () => setSession(readSession());
@@ -89,6 +95,17 @@ export default function DashboardTools() {
       window.removeEventListener("storage", sync);
     };
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeWithKeyboard = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButton.current?.focus();
+    };
+    document.addEventListener("keydown", closeWithKeyboard);
+    return () => document.removeEventListener("keydown", closeWithKeyboard);
+  }, [menuOpen]);
 
   useEffect(() => {
     const sync = () => {
@@ -155,7 +172,7 @@ export default function DashboardTools() {
   }
 
   if (!session) return null;
-  if (pathname === "/finwiz") return null;
+  if (pathsWithoutAccountMenu.has(pathname)) return null;
 
   const initial = session.user.displayName.trim().slice(0, 1).toUpperCase() || "U";
   const isDashboard = pathname === "/";
@@ -163,12 +180,22 @@ export default function DashboardTools() {
   return <>
     <div className={styles.profileMenuWrap} ref={wrapper}>
       <button
+        ref={menuButton}
         type="button"
         className={isDashboard ? styles.profileButton : styles.profileButtonCompact}
         aria-label={`Open account menu for ${session.user.displayName}`}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        aria-controls="account-menu"
         onClick={() => setMenuOpen((open) => !open)}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowDown") return;
+          event.preventDefault();
+          setMenuOpen(true);
+          window.requestAnimationFrame(() => {
+            wrapper.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+          });
+        }}
       >
         <span className={styles.avatar} aria-hidden="true">{initial}</span>
         {isDashboard && <span className={styles.profileText}>
@@ -180,7 +207,24 @@ export default function DashboardTools() {
         </svg>
       </button>
 
-      {menuOpen && <div className={styles.menu} role="menu">
+      {menuOpen && <div
+        id="account-menu"
+        className={styles.menu}
+        role="menu"
+        aria-label="Account navigation"
+        onKeyDown={(event) => {
+          if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+          if (!items.length) return;
+          const current = items.indexOf(document.activeElement as HTMLElement);
+          const next = event.key === "Home" ? 0
+            : event.key === "End" ? items.length - 1
+              : event.key === "ArrowDown" ? (current + 1) % items.length
+                : (current - 1 + items.length) % items.length;
+          items[next]?.focus();
+        }}
+      >
         <div className={styles.identity}>
           <strong>{session.user.displayName}</strong>
           <span>{session.user.email}</span>

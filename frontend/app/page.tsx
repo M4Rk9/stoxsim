@@ -1096,7 +1096,7 @@ export default function Home() {
 
   if (!session) {
     return (
-      <main className="welcomeShell">
+      <main className="welcomeShell" id="main-content" tabIndex={-1}>
         <nav className="welcomeNav">
           <Brand />
           <span className="navNote">India + USA paper trading</span>
@@ -1157,7 +1157,7 @@ export default function Home() {
   }
 
   return (
-    <main className="appShell">
+    <main className="appShell" id="main-content" tabIndex={-1}>
       <OnboardingJourney
         state={onboarding}
         onCompleteIntroduction={completeOnboardingIntroduction}
@@ -1214,10 +1214,10 @@ export default function Home() {
         })}
       </section>
 
-      {!session.user.emailVerified && <div className="message verificationMessage">
+      {!session.user.emailVerified && <div className="message verificationMessage" role="status">
         Verify your email to secure account recovery. <a href="/settings">Open settings</a>
       </div>}
-      {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
+      {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`} role={error ? "alert" : "status"} aria-live="polite">{error || notice}<button type="button" aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
       {activeAccount && !activeAccount.active && <div className="message accountLockedMessage">
         This paid sandbox is locked. Its history remains visible, but new and modified orders are disabled until the entitlement is active.
       </div>}
@@ -1271,8 +1271,8 @@ export default function Home() {
           <article className="panel searchPanel" id="stock-search">
             <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
-            <form className="searchBox" onSubmit={searchInstruments}><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, HDFC Bank…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
-            {results.length > 0 && <div className="searchResults">{results.map((instrument) => <button key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
+            <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, HDFC Bank…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
+            {results.length > 0 && <div className="searchResults" aria-live="polite">{results.map((instrument) => <button type="button" key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
             {selected && quote && (
               <div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>
@@ -1296,7 +1296,7 @@ export default function Home() {
 
           <article className="panel">
             <div className="panelHeading"><div><span className="kicker">PORTFOLIO</span><h2>Your holdings</h2></div><span className="panelMeta">{portfolio?.holdings.length ?? 0} positions</span></div>
-            <div className="tableWrap"><table><thead><tr><th>Stock</th><th>Qty</th><th>Avg. cost</th><th>LTP</th><th>Value</th><th>P/L</th></tr></thead><tbody>
+            <div className="tableWrap"><table><thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Value</th><th>Profit/Loss</th></tr></thead><tbody>
               {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><strong>{position.symbol}</strong><small>{position.name}</small></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
               {!portfolio?.holdings.length && <tr><td colSpan={6} className="emptyCell">Your first executed buy will appear here.</td></tr>}
             </tbody></table></div>
@@ -1324,11 +1324,12 @@ export default function Home() {
           </article>
 
           <form className="panel orderTicket" id="paper-order-ticket" onSubmit={placeOrder}>
-            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Order ticket</h2></div><span className="deliveryPill">DELIVERY</span></div>
+            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><span className="deliveryPill">SIMULATED</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
             <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
-            <div className="fieldGrid"><label>Order type<select value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market</option><option value="LIMIT">Limit</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
+            <div className="fieldGrid"><label>Order type<select aria-describedby="order-type-help" value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market order</option><option value="LIMIT">Limit order</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
+            <p className="fieldHelp" id="order-type-help">{orderType === "MARKET" ? "A market order uses the next available simulated price." : "A limit order executes only at your chosen price or better."}</p>
             {orderType === "LIMIT" && <label>Limit price<input type="number" min="0.01" step={selected?.tickSize ?? 0.05} value={limitPrice} onChange={(event) => setLimitPrice(event.target.value)} /></label>}
             <div className="estimateBox"><div><span>Estimated turnover</span><strong>{displayMoney(chargeEstimate?.turnover)}</strong></div><div><span>Simulated charges</span><strong>{displayMoney(chargeEstimate?.totalCharges)}</strong></div><div className="estimateTotal"><span>{side === "BUY" ? "Estimated debit" : "Estimated credit"}</span><strong>{displayMoney(chargeEstimate ? chargeEstimate.turnover + (side === "BUY" ? chargeEstimate.totalCharges : -chargeEstimate.totalCharges) : 0)}</strong></div>{chargeEstimate && <small>{chargeEstimate.scheduleVersion} · final amount uses execution price</small>}</div>
             <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working || !activeAccount?.active}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
