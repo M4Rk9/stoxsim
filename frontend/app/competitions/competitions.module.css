@@ -423,6 +423,10 @@
   background: color-mix(in srgb, var(--green) 10%, var(--panel));
 }
 
+:global(html[data-theme="dark"]) .campusVerified > span {
+  color: var(--green);
+}
+
 :global(html[data-theme="dark"]) .campusRejected,
 :global(html[data-theme="dark"]) .error {
   border-color: color-mix(in srgb, var(--red) 45%, var(--line));

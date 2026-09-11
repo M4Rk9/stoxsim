@@ -19,7 +19,7 @@
 .heading p { max-width: 720px; margin: 0; color: var(--text-secondary, #5b665e); font-size: 1.04rem; line-height: 1.7; }
 
 .loading, .error { max-width: 1180px; margin: 24px auto; padding: 18px; border: 1px solid var(--border, #dbe1da); border-radius: 16px; background: var(--surface-card, #fff); }
-.error { color: #a33232; }
+.error { color: var(--red, #a33232); }
 .error a { color: inherit; }
 
 .overview { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .8fr); gap: 18px; max-width: 1180px; margin: 0 auto 50px; }

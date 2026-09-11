@@ -70,7 +70,7 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .marketSwitch button { border: 0; background: transparent; color: var(--muted); padding: 8px 14px; border-radius: 7px; font-weight: 720; font-size: .78rem; display: flex; gap: 7px; align-items: center; }
 .marketSwitch button.active { color: var(--ink); background: white; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .marketSwitch small { font-size: .52rem; letter-spacing: .08em; color: #8a9691; }
-.accountSwitcher { justify-self: end; width: min(220px, 100%); margin-right: 210px; }
+.accountSwitcher { justify-self: end; width: min(220px, 100%); margin-right: 292px; }
 .accountSwitcher > span { display: block; color: var(--muted); font-size: .55rem; font-weight: 800; letter-spacing: .08em; margin-bottom: 3px; text-transform: uppercase; }
 .accountSwitcher select { padding: 8px 30px 8px 10px; background: white; font-size: .68rem; font-weight: 750; }
 .profileBlock { justify-self: end; display: flex; align-items: center; gap: 10px; }
