@@ -92,7 +92,7 @@ class AccountLifecycleServiceTest {
     private void prepareUnverifiedUser() {
         when(users.findById(USER_ID)).thenReturn(Optional.of(user));
         when(user.isEmailVerified()).thenReturn(false);
-        when(properties.getEmailVerificationMinutes()).thenReturn(1_440);
+        when(properties.getEmailVerificationMinutes()).thenReturn(1_440L);
         when(accountTokens.issue(
             USER_ID,
             AccountTokenService.EMAIL_VERIFICATION,
