@@ -9,17 +9,17 @@
 
 .header { display: flex; align-items: center; justify-content: space-between; max-width: 1180px; margin: 0 auto; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; font-size: 1.25rem; font-weight: 800; }
-.brand > span > span { color: #6f9d00; }
+.brand > span > span { color: var(--green); }
 .back { color: inherit; font-size: .88rem; font-weight: 700; text-decoration: none; }
 .back:hover { text-decoration: underline; }
 
 .heading { max-width: 1180px; margin: 70px auto 34px; }
-.heading > span, .sectionHeading span, .levelCopy > span, .checkInCard > div > span { color: #6f9d00; font-size: .72rem; font-weight: 850; letter-spacing: .14em; }
+.heading > span, .sectionHeading span, .levelCopy > span, .checkInCard > div > span { color: var(--green); font-size: .72rem; font-weight: 850; letter-spacing: .14em; }
 .heading h1 { margin: 8px 0 10px; max-width: 720px; font-size: clamp(2.2rem, 6vw, 4.8rem); line-height: .98; letter-spacing: -.055em; }
 .heading p { max-width: 720px; margin: 0; color: var(--text-secondary, #5b665e); font-size: 1.04rem; line-height: 1.7; }
 
 .loading, .error { max-width: 1180px; margin: 24px auto; padding: 18px; border: 1px solid var(--border, #dbe1da); border-radius: 16px; background: var(--surface-card, #fff); }
-.error { color: #a33232; }
+.error { color: var(--red, #a33232); }
 .error a { color: inherit; }
 
 .overview { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .8fr); gap: 18px; max-width: 1180px; margin: 0 auto 50px; }
@@ -46,7 +46,7 @@
 .challenge > header { display: flex; justify-content: space-between; gap: 18px; padding: 24px; border-bottom: 1px solid var(--border, #dbe1da); }
 .challenge h3, .challenge p { margin: 0; }
 .challenge header p { margin-top: 6px; color: var(--text-secondary, #5b665e); }
-.challenge header > strong { align-self: start; white-space: nowrap; color: #577c00; }
+.challenge header > strong { align-self: start; white-space: nowrap; color: var(--green); }
 .missions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .mission, .missionComplete { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; min-height: 170px; padding: 20px; border-right: 1px solid var(--border, #dbe1da); }
 .mission:last-child, .missionComplete:last-child { border-right: 0; }
@@ -55,19 +55,23 @@
 .missionComplete .missionStatus { color: #1d2d00; background: #c9ff4f; }
 .missionTitle { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
 .missionTitle h4 { margin: 2px 0 0; font-size: 1rem; }
-.missionTitle span { white-space: nowrap; color: #648d00; font-size: .78rem; font-weight: 800; }
+.missionTitle span { white-space: nowrap; color: var(--green); font-size: .78rem; font-weight: 800; }
 .mission p { margin: 9px 0; color: var(--text-secondary, #5b665e); font-size: .87rem; line-height: 1.55; }
 .missionComplete p { margin: 9px 0; color: var(--text-secondary, #5b665e); font-size: .87rem; line-height: 1.55; }
 .mission small, .missionComplete small { color: var(--text-secondary, #5b665e); font-weight: 700; }
 
 .achievementGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .achievementUnlocked, .achievementLocked { min-height: 170px; padding: 22px; }
-.achievementUnlocked > span, .achievementLocked > span { color: #78a900; font-size: 1.45rem; }
+.achievementUnlocked > span, .achievementLocked > span { color: var(--green); font-size: 1.45rem; }
 .achievementLocked { opacity: .58; box-shadow: none; }
 .achievementUnlocked h3, .achievementLocked h3 { margin: 12px 0 6px; }
 .achievementUnlocked p, .achievementLocked p { min-height: 44px; margin: 0 0 12px; color: var(--text-secondary, #5b665e); font-size: .9rem; line-height: 1.5; }
 .achievementUnlocked small, .achievementLocked small { color: var(--text-secondary, #5b665e); font-weight: 700; }
 .disclaimer { max-width: 900px; margin: 0 auto; color: var(--text-secondary, #5b665e); text-align: center; font-size: .82rem; line-height: 1.6; }
+
+@media (max-width: 1440px) {
+  .back { margin-right: 76px; }
+}
 
 @media (max-width: 860px) {
   .overview { grid-template-columns: 1fr; }
@@ -85,4 +89,6 @@
   .achievementGrid { grid-template-columns: 1fr; }
   .sectionHeading { align-items: start; flex-direction: column; }
   .challenge > header { flex-direction: column; }
+  .back { display: none; }
+  .header { padding-right: 72px; }
 }

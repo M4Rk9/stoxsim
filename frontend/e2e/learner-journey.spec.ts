@@ -92,6 +92,22 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "dark");
 
+  const themedPages = [
+    { path: "/progress", heading: "Learning path" },
+    { path: "/competitions", heading: "Learning competitions" },
+    { path: "/settings", heading: "Profile & security" },
+  ];
+  for (const themedPage of themedPages) {
+    await page.goto(themedPage.path);
+    await expect(page.getByRole("heading", { name: themedPage.heading })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("main")).toHaveCSS("background-color", "rgb(18, 18, 18)");
+    await expect(page.locator("main")).toHaveCSS("color", "rgb(241, 241, 241)");
+  }
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Good day, Browser." })).toBeVisible();
+
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
   const portfolioLink = page.getByRole("menuitem", { name: /Portfolio/ });
   await expect(portfolioLink).toHaveAttribute("target", "_blank");
@@ -121,6 +137,39 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   await expectIndiaAccount(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "dark");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const accountSwitcher = page.getByLabel("Portfolio account");
+  const accountMenuButton = page.getByRole("button", {
+    name: "Open account menu for Browser Learner",
+  });
+  await expect(accountSwitcher).toBeVisible();
+  await expect(accountMenuButton).toBeVisible();
+  const switcherBox = await accountSwitcher.boundingBox();
+  const menuButtonBox = await accountMenuButton.boundingBox();
+  expect(switcherBox).not.toBeNull();
+  expect(menuButtonBox).not.toBeNull();
+  if (switcherBox && menuButtonBox) {
+    const overlaps = switcherBox.x < menuButtonBox.x + menuButtonBox.width
+      && switcherBox.x + switcherBox.width > menuButtonBox.x
+      && switcherBox.y < menuButtonBox.y + menuButtonBox.height
+      && switcherBox.y + switcherBox.height > menuButtonBox.y;
+    expect(overlaps).toBe(false);
+  }
+
+  await page.goto("/portfolio");
+  await expect(page.getByRole("heading", { name: "Your portfolio" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to dashboard" })).toBeHidden();
+  await accountMenuButton.click();
+  const accountMenu = page.getByRole("menu");
+  await expect(accountMenu).toBeVisible();
+  const accountMenuBox = await accountMenu.boundingBox();
+  expect(accountMenuBox).not.toBeNull();
+  if (accountMenuBox) {
+    expect(accountMenuBox.x).toBeGreaterThanOrEqual(0);
+    expect(accountMenuBox.x + accountMenuBox.width).toBeLessThanOrEqual(390);
+    expect(accountMenuBox.y + accountMenuBox.height).toBeLessThanOrEqual(844);
+  }
 });
 
 test("a learner can switch between India and United States markets", async ({ page }) => {
