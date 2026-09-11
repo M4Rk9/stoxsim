@@ -1,6 +1,8 @@
 package com.stoxsim.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -8,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +19,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.stoxsim.auth.config.AuthProperties;
 import com.stoxsim.auth.domain.AppUser;
@@ -36,6 +42,7 @@ class AccountLifecycleServiceTest {
     @Mock private AccountMailService mailService;
     @Mock private AuthProperties properties;
     @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private TransactionTemplate transactionTemplate;
     @Mock private AppUser user;
 
     private AccountLifecycleService service;
@@ -50,8 +57,13 @@ class AccountLifecycleServiceTest {
             accountTokens,
             mailService,
             properties,
-            jdbcTemplate
+            jdbcTemplate,
+            transactionTemplate
         );
+        doAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            return callback.doInTransaction(null);
+        }).when(transactionTemplate).execute(any());
     }
 
     @Test
@@ -90,6 +102,11 @@ class AccountLifecycleServiceTest {
     }
 
     private void prepareUnverifiedUser() {
+        doAnswer(invocation -> {
+            Consumer<TransactionStatus> callback = invocation.getArgument(0);
+            callback.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
         when(users.findById(USER_ID)).thenReturn(Optional.of(user));
         when(user.isEmailVerified()).thenReturn(false);
         when(properties.getEmailVerificationMinutes()).thenReturn(1_440L);
