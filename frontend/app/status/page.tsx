@@ -49,11 +49,11 @@ export default function StatusPage() {
   const overall = api.state === "operational" ? "All systems operational" : api.state === "checking" ? "Checking systems…" : "Service disruption detected";
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} id="main-content" tabIndex={-1}>
       <section className={styles.card}>
         <a className={styles.back} href="/">← Back to StoxSim</a>
         <p className={styles.eyebrow}>Service status</p>
-        <h1>{overall}</h1>
+        <h1 aria-live="polite">{overall}</h1>
         <p className={styles.summary}>
           This page checks the public API directly. Automated external probes and production alerts run separately.
         </p>

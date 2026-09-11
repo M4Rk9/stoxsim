@@ -258,7 +258,7 @@ export default function PortfolioPage() {
     if (next) selectAccount(next.account.id);
   }
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <a className={styles.brand} href="/" aria-label="StoxSim dashboard">
         <Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
@@ -292,8 +292,8 @@ export default function PortfolioPage() {
       </div>
     </section>
 
-    {error && <div className={styles.error}>{error} <a href="/">Return to sign in</a></div>}
-    {loading && <div className={styles.loading}>Loading current holdings…</div>}
+    {error && <div className={styles.error} role="alert">{error} <a href="/">Return to sign in</a></div>}
+    {loading && <div className={styles.loading} role="status" aria-live="polite">Loading current holdings…</div>}
 
     {portfolio && <>
       <section className={styles.accountContext}>

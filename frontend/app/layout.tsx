@@ -39,6 +39,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
+        <a className="skipLink" href="#main-content">Skip to main content</a>
         {children}
         <DashboardTools />
       </body>

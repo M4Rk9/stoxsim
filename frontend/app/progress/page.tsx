@@ -150,7 +150,7 @@ export default function ProgressPage() {
     }
   }
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <a className={styles.brand} href="/" aria-label="StoxSim dashboard">
         <Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
@@ -165,8 +165,8 @@ export default function ProgressPage() {
       <p>Complete educational milestones, build a consistent review habit and track progress without tying rewards to profit or trade volume.</p>
     </section>
 
-    {loading && <div className={styles.loading}>Loading your learning path…</div>}
-    {error && <div className={styles.error}>{error} <a href="/">Return to dashboard</a></div>}
+    {loading && <div className={styles.loading} role="status" aria-live="polite">Loading your learning path…</div>}
+    {error && <div className={styles.error} role="alert">{error} <a href="/">Return to dashboard</a></div>}
 
     {progression && <>
       <section className={styles.overview} aria-label="Level progress">

@@ -300,16 +300,16 @@ export default function StockPage() {
   }, [session?.accessToken, exchange, symbol, period]);
 
   if (!session || loading) {
-    return <main className={styles.shell}><div className={styles.loading}>Loading verified market data…</div></main>;
+    return <main id="main-content" tabIndex={-1} className={styles.shell}><div className={styles.loading} role="status" aria-live="polite">Loading verified market data…</div></main>;
   }
 
   if (error || !instrument || !quote) {
-    return <main className={styles.shell}>
+    return <main id="main-content" tabIndex={-1} className={styles.shell}>
       <header className={styles.header}>
         <a className={styles.brand} href="/">Stox<span>Sim</span></a>
         <div className={styles.headerActions}><a href="/">← Dashboard</a></div>
       </header>
-      <div className={styles.error}>{error || "This stock is unavailable."}</div>
+      <div className={styles.error} role="alert">{error || "This stock is unavailable."}</div>
     </main>;
   }
 
@@ -320,7 +320,7 @@ export default function StockPage() {
   const rising = (change ?? 0) >= 0;
   const currency = instrument.currency === "USD" ? "USD" : "INR";
 
-  return <main className={styles.shell}>
+  return <main id="main-content" tabIndex={-1} className={styles.shell}>
     <header className={styles.header}>
       <a className={styles.brand} href="/">Stox<span>Sim</span></a>
       <div className={styles.headerActions}>
@@ -352,7 +352,7 @@ export default function StockPage() {
         <div className={styles.stack}>
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Price history</h2><p>{instrument.provider === "ALPACA" ? "Daily OHLC candles supplied by Alpaca" : "Daily OHLC candles supplied by Upstox"}</p></div>
+              <div><h2>Price history</h2><p>{instrument.provider === "ALPACA" ? "Daily price history from Alpaca" : "Daily price history from Upstox"}</p></div>
               <div className={styles.rangeTabs}>
                 {([1, 3, 6, 12, 36, 60] as const).map((months) => <button
                   type="button"
@@ -370,7 +370,7 @@ export default function StockPage() {
               <div><h2>Company fundamentals</h2><p>Business profile and valuation context</p></div>
               {insights && <span className={styles.status}>{insights.status}</span>}
             </div>
-            {insightsLoading && !insights && <div className={styles.empty}>Loading company fundamentals…</div>}
+            {insightsLoading && !insights && <div className={styles.empty} role="status" aria-live="polite">Loading company fundamentals…</div>}
             {!insightsLoading && !insights && <div className={styles.empty}>Company fundamentals are unavailable.</div>}
             {insights && <>
               {insights.message && <p className={styles.notice}>{insights.message}</p>}
@@ -394,7 +394,7 @@ export default function StockPage() {
 
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Financial performance</h2><p>{marketRegion === "INDIA" ? "Consolidated figures in INR crore" : "US fundamentals provider integration is the next research milestone"}</p></div>
+              <div><h2>Financial performance</h2><p>{marketRegion === "INDIA" ? "Consolidated figures in INR crore" : "Financial history is not available for this market yet"}</p></div>
               <div className={styles.rangeTabs}>
                 <button type="button" className={period === "quarterly" ? styles.active : ""} onClick={() => setPeriod("quarterly")}>Quarterly</button>
                 <button type="button" className={period === "yearly" ? styles.active : ""} onClick={() => setPeriod("yearly")}>Yearly</button>

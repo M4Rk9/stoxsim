@@ -331,7 +331,7 @@ export default function CompetitionsPage() {
     });
   }
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <a className={styles.brand} href="/" aria-label="StoxSim dashboard"><Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority /><span>Stox<span>Sim</span></span></a>
       <a className={styles.back} href="/">Back to dashboard</a>
@@ -343,7 +343,7 @@ export default function CompetitionsPage() {
       <p>Compare percentage change after entry on equal standard accounts, or learn with a private group. Competition results are educational—not investment advice.</p>
     </section>
 
-    {loading && <div className={styles.loading}>Loading competitions…</div>}
+    {loading && <div className={styles.loading} role="status" aria-live="polite">Loading competitions…</div>}
     {error && <div className={styles.error} role="alert">{error}</div>}
 
     {board && <>

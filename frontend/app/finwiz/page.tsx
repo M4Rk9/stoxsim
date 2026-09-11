@@ -194,7 +194,7 @@ export default function FinwizPage() {
 
   if (!session) return null;
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <div className={styles.gridBackdrop} aria-hidden="true" />
     <h1 className={styles.srOnly}>FINWIZ AI</h1>
 
@@ -203,6 +203,9 @@ export default function FinwizPage() {
         <path d="m15 5-7 7 7 7" />
       </svg>
     </a>
+
+    <a className={styles.skipToComposer} href="#finwiz-question">Skip the learning map and ask a question</a>
+    <p className={styles.guide}>Choose a topic in the map, or go straight to the question box.</p>
 
     <section className={styles.skillViewport} aria-label="Finwiz learning modules">
       <FinwizReactor selected={topic} onSelect={selectTopic} />
@@ -303,6 +306,7 @@ export default function FinwizPage() {
 
         <div className={styles.inputRow}>
           <textarea
+            id="finwiz-question"
             className={styles.questionInput}
             aria-label="Your question"
             value={question}
@@ -315,8 +319,8 @@ export default function FinwizPage() {
           <button
             className={styles.sendButton}
             type="submit"
-            aria-label="Transmit question"
-            title="Transmit question"
+            aria-label="Ask Finwiz"
+            title="Ask Finwiz"
             disabled={loading || !question.trim()}
           >
             {loading ? <i className={styles.loader} /> : <svg viewBox="0 0 24 24" aria-hidden="true">

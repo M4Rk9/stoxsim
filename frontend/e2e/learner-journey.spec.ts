@@ -10,6 +10,8 @@ function uniqueEmail(label: string) {
 async function registerLearner(page: Page, label: string) {
   const email = uniqueEmail(label);
   await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.getByLabel("Display name").fill("Browser Learner");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
@@ -29,6 +31,12 @@ async function registerLearner(page: Page, label: string) {
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
   const guide = page.getByRole("dialog", { name: "Two markets. Zero real-money risk." });
   await expect(guide).toBeVisible();
+  const nextButton = guide.getByRole("button", { name: "Next" });
+  await expect(nextButton).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(guide.getByRole("button", { name: "Skip for now" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(nextButton).toBeFocused();
   await guide.getByRole("button", { name: "Next" }).click();
   await expect(page.getByRole("dialog", { name: "Know how fresh every price is." })).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
@@ -77,7 +85,15 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "light");
 
-  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
+  const accountMenuLauncher = page.getByRole("button", { name: "Open account menu for Browser Learner" });
+  await accountMenuLauncher.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /Portfolio/ })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(accountMenuLauncher).toBeFocused();
+  await accountMenuLauncher.click();
   await expect(page.getByRole("group", { name: "Appearance" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Use system appearance" })).toHaveCount(0);
   await page.getByRole("button", { name: "Use dark appearance" }).click();
@@ -170,6 +186,11 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
     expect(accountMenuBox.x + accountMenuBox.width).toBeLessThanOrEqual(390);
     expect(accountMenuBox.y + accountMenuBox.height).toBeLessThanOrEqual(844);
   }
+  await page.keyboard.press("Escape");
+  const mobileViewportFits = await page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth
+  );
+  expect(mobileViewportFits).toBe(true);
 });
 
 test("a learner can switch between India and United States markets", async ({ page }) => {
@@ -469,12 +490,14 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   await page.getByRole("link", { name: "Ask Finwiz AI" }).click();
   await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
+  await page.getByRole("link", { name: "Skip the learning map and ask a question" }).click();
+  await expect(page.getByLabel("Your question")).toBeFocused();
   await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeVisible();
   await page.getByRole("button", { name: "Select Technical analysis" }).focus();
   await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeFocused();
 
   await page.getByLabel("Your question").fill("How should a beginner evaluate valuation?");
-  await page.getByRole("button", { name: /Transmit question/ }).click();
+  await page.getByRole("button", { name: "Ask Finwiz" }).click();
 
   const report = page.locator("#finwiz-response");
   await expect(report).toBeVisible();

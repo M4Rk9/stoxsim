@@ -507,10 +507,10 @@ export default function SettingsPage() {
   }
 
   if (!session) {
-    return <main className={styles.loading}>Opening account settings…</main>;
+    return <main className={styles.loading} id="main-content" tabIndex={-1} role="status" aria-live="polite">Opening account settings…</main>;
   }
 
-  return <main className={styles.shell}>
+  return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <a className={styles.brand} href="/">Stox<span>Sim</span></a>
       <a className={styles.back} href="/">← Back to dashboard</a>
@@ -523,8 +523,13 @@ export default function SettingsPage() {
         Manage your identity, recovery options, signed-in devices and personal data.
       </p>
 
+      <nav className={styles.quickLinks} aria-label="Account settings sections">
+        <a href="#profile">Profile</a><a href="#plan">Plan</a>
+        <a href="#reports">Reports</a><a href="#security">Security</a>
+      </nav>
+
       <div className={styles.grid}>
-        <form className={styles.card} onSubmit={saveProfile}>
+        <form className={styles.card} id="profile" onSubmit={saveProfile}>
           <h2>Profile details</h2>
           <p>Update the name shown throughout StoxSim and the email used to sign in.</p>
           <label>
@@ -555,8 +560,8 @@ export default function SettingsPage() {
             type="button"
             onClick={resendVerification}
           >Resend verification email</button>}
-          {profileMessage && <div className={`${styles.message} ${styles.success}`}>{profileMessage}</div>}
-          {profileError && <div className={`${styles.message} ${styles.error}`}>{profileError}</div>}
+          {profileMessage && <div className={`${styles.message} ${styles.success}`} role="status">{profileMessage}</div>}
+          {profileError && <div className={`${styles.message} ${styles.error}`} role="alert">{profileError}</div>}
           <button className={styles.submit} disabled={profileWorking}>
             {profileWorking ? "Saving…" : "Save profile"}
           </button>
@@ -596,14 +601,14 @@ export default function SettingsPage() {
               onChange={(event) => setPasswords({ ...passwords, confirmPassword: event.target.value })}
             />
           </label>
-          {passwordMessage && <div className={`${styles.message} ${styles.success}`}>{passwordMessage}</div>}
-          {passwordError && <div className={`${styles.message} ${styles.error}`}>{passwordError}</div>}
+          {passwordMessage && <div className={`${styles.message} ${styles.success}`} role="status">{passwordMessage}</div>}
+          {passwordError && <div className={`${styles.message} ${styles.error}`} role="alert">{passwordError}</div>}
           <button className={styles.submit} disabled={passwordWorking}>
             {passwordWorking ? "Updating…" : "Change password"}
           </button>
         </form>
 
-        {subscription && <section className={`${styles.card} ${styles.fullWidth}`} aria-labelledby="plan-title">
+        {subscription && <section className={`${styles.card} ${styles.fullWidth}`} id="plan" aria-labelledby="plan-title">
           <div className={styles.planHeading}>
             <div>
               <span className={styles.reportEyebrow}>PLAN &amp; SANDBOXES</span>
@@ -671,12 +676,12 @@ export default function SettingsPage() {
                     : "Create Pro sandbox"}
             </button>
           </div>}
-          {sandboxMessage && <div className={`${styles.message} ${styles.success}`}>{sandboxMessage}</div>}
-          {sandboxError && <div className={`${styles.message} ${styles.error}`}>{sandboxError}</div>}
+          {sandboxMessage && <div className={`${styles.message} ${styles.success}`} role="status">{sandboxMessage}</div>}
+          {sandboxError && <div className={`${styles.message} ${styles.error}`} role="alert">{sandboxError}</div>}
           <p className={styles.planNotice}>{subscription.notice}</p>
         </section>}
 
-        <form className={`${styles.card} ${styles.fullWidth}`} onSubmit={saveReportPreference}>
+        <form className={`${styles.card} ${styles.fullWidth}`} id="reports" onSubmit={saveReportPreference}>
           <div className={styles.reportHeading}>
             <div>
               <span className={styles.reportEyebrow}>WEEKLY LEARNING REVIEW</span>
@@ -732,8 +737,8 @@ export default function SettingsPage() {
               onClick={previewWeeklyReport}
             >Preview current report</button>
           </div>
-          {reportMessage && <div className={`${styles.message} ${styles.success}`}>{reportMessage}</div>}
-          {reportError && <div className={`${styles.message} ${styles.error}`}>{reportError}</div>}
+          {reportMessage && <div className={`${styles.message} ${styles.success}`} role="status">{reportMessage}</div>}
+          {reportError && <div className={`${styles.message} ${styles.error}`} role="alert">{reportError}</div>}
 
           {reportPreview && <section className={styles.reportPreview} aria-labelledby="report-preview-title">
             <div>
@@ -775,7 +780,7 @@ export default function SettingsPage() {
           </section>
         </form>
 
-        <section className={`${styles.card} ${styles.fullWidth}`}>
+        <section className={`${styles.card} ${styles.fullWidth}`} id="security">
           <h2>Active sessions</h2>
           <p>Review browsers that can refresh access to your account.</p>
           <div className={styles.sessionList}>
@@ -835,8 +840,8 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {securityMessage && <div className={`${styles.message} ${styles.success}`}>{securityMessage}</div>}
-      {securityError && <div className={`${styles.message} ${styles.error}`}>{securityError}</div>}
+      {securityMessage && <div className={`${styles.message} ${styles.success}`} role="status">{securityMessage}</div>}
+      {securityError && <div className={`${styles.message} ${styles.error}`} role="alert">{securityError}</div>}
     </section>
   </main>;
 }
