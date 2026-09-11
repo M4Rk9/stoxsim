@@ -67,7 +67,27 @@ public class AccountLifecycleService {
             Duration.ofMinutes(properties.getEmailVerificationMinutes())
         );
         mailService.sendVerification(user, token);
-        audit(userId, "EMAIL_VERIFICATION_SENT", null);
+        audit(userId, "EMAIL_VERIFICATION_REQUESTED", null);
+    }
+
+    @Transactional
+    public boolean resendVerification(UUID userId) {
+        AppUser user = requireUser(userId);
+        if (user.isEmailVerified()) {
+            return true;
+        }
+        String token = accountTokenService.issue(
+            userId,
+            AccountTokenService.EMAIL_VERIFICATION,
+            Duration.ofMinutes(properties.getEmailVerificationMinutes())
+        );
+        boolean delivered = mailService.resendVerification(user, token);
+        audit(
+            userId,
+            delivered ? "EMAIL_VERIFICATION_SENT" : "EMAIL_VERIFICATION_DELIVERY_FAILED",
+            null
+        );
+        return delivered;
     }
 
     @Transactional

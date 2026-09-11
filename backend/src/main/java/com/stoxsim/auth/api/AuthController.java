@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.stoxsim.auth.api.dto.AccountEventResponse;
 import com.stoxsim.auth.api.dto.AuthResponse;
@@ -133,7 +134,12 @@ public class AuthController {
 
     @PostMapping("/email-verification/resend")
     public ResponseEntity<Void> resendVerification(@AuthenticationPrincipal Jwt jwt) {
-        lifecycleService.sendVerification(userId(jwt));
+        if (!lifecycleService.resendVerification(userId(jwt))) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Verification email delivery is temporarily unavailable. Please try again shortly."
+            );
+        }
         return ResponseEntity.accepted().build();
     }
 
