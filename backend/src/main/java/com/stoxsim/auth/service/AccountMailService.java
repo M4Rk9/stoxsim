@@ -35,8 +35,16 @@ public class AccountMailService {
 
     @Async
     public void sendVerification(AppUser user, String token) {
+        deliverVerification(user, token);
+    }
+
+    public boolean resendVerification(AppUser user, String token) {
+        return deliverVerification(user, token);
+    }
+
+    private boolean deliverVerification(AppUser user, String token) {
         String link = frontendUrl + "/verify-email?token=" + encode(token);
-        send(
+        return send(
             user,
             "Verify your StoxSim email",
             "Hello " + user.getDisplayName() + ",\n\n"
@@ -90,6 +98,7 @@ public class AccountMailService {
 
         try {
             sender.send(message);
+            LOGGER.info("Account email accepted by SMTP for user {}", user.getId());
             return true;
         } catch (MailException exception) {
             LOGGER.error("Account email delivery failed for user {}", user.getId(), exception);

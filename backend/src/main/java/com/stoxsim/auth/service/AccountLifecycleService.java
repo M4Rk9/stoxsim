@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import com.stoxsim.auth.api.dto.AccountEventResponse;
@@ -34,6 +35,7 @@ public class AccountLifecycleService {
     private final AccountMailService mailService;
     private final AuthProperties properties;
     private final JdbcTemplate jdbcTemplate;
+    private final TransactionTemplate transactionTemplate;
 
     public AccountLifecycleService(
         AppUserRepository userRepository,
@@ -43,7 +45,8 @@ public class AccountLifecycleService {
         AccountTokenService accountTokenService,
         AccountMailService mailService,
         AuthProperties properties,
-        JdbcTemplate jdbcTemplate
+        JdbcTemplate jdbcTemplate,
+        TransactionTemplate transactionTemplate
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -53,6 +56,7 @@ public class AccountLifecycleService {
         this.mailService = mailService;
         this.properties = properties;
         this.jdbcTemplate = jdbcTemplate;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Transactional
@@ -67,7 +71,35 @@ public class AccountLifecycleService {
             Duration.ofMinutes(properties.getEmailVerificationMinutes())
         );
         mailService.sendVerification(user, token);
-        audit(userId, "EMAIL_VERIFICATION_SENT", null);
+        audit(userId, "EMAIL_VERIFICATION_REQUESTED", null);
+    }
+
+    public boolean resendVerification(UUID userId) {
+        VerificationDelivery delivery = transactionTemplate.execute(status -> {
+            AppUser user = requireUser(userId);
+            if (user.isEmailVerified()) {
+                return null;
+            }
+            String token = accountTokenService.issue(
+                userId,
+                AccountTokenService.EMAIL_VERIFICATION,
+                Duration.ofMinutes(properties.getEmailVerificationMinutes())
+            );
+            return new VerificationDelivery(user, token);
+        });
+        if (delivery == null) {
+            return true;
+        }
+        boolean delivered = mailService.resendVerification(delivery.user(), delivery.token());
+        transactionTemplate.executeWithoutResult(status -> audit(
+            userId,
+            delivered ? "EMAIL_VERIFICATION_SENT" : "EMAIL_VERIFICATION_DELIVERY_FAILED",
+            null
+        ));
+        return delivered;
+    }
+
+    private record VerificationDelivery(AppUser user, String token) {
     }
 
     @Transactional
