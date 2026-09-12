@@ -1,11 +1,56 @@
 import type { Metadata } from "next";
 import DashboardTools from "./components/DashboardTools";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  SEARCH_KEYWORDS,
+  SITE_NAME,
+  SITE_URL,
+  siteStructuredData,
+} from "./seo";
 import "./globals.css";
 import "./theme.css";
 
 export const metadata: Metadata = {
-  title: "StoxSim | Practise markets. Risk nothing.",
-  description: "Paper trade Indian and US stocks with virtual capital.",
+  metadataBase: SITE_URL,
+  title: {
+    default: DEFAULT_TITLE,
+    template: "%s | StoxSim",
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: SEARCH_KEYWORDS,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "finance",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: SITE_NAME,
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   icons: {
     icon: "/stoxsim-logo.png",
     apple: "/stoxsim-logo.png",
@@ -36,6 +81,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(siteStructuredData).replace(/</g, "\\u003c"),
+          }}
+        />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>

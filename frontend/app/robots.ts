@@ -4,16 +4,10 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/terms", "/privacy", "/cookies", "/disclaimer", "/status"],
-      disallow: [
-        "/settings",
-        "/verify-email",
-        "/reset-password",
-        "/forgot-password",
-        "/finwiz",
-        "/stocks/",
-      ],
+      allow: "/",
+      disallow: ["/api/"],
     },
     sitemap: "https://stoxsim.com/sitemap.xml",
+    host: "https://stoxsim.com",
   };
 }

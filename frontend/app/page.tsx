@@ -14,6 +14,31 @@ import FinwizTradeFeedback, { type FinwizPortfolioFeedback } from "./components/
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
 
+const HOME_FAQ = [
+  {
+    question: "What is paper trading?",
+    answer: "Paper trading is the practice of making simulated market decisions with virtual money. It can help you learn how orders and portfolios work without placing real brokerage orders.",
+  },
+  {
+    question: "Can I practise Indian and US stocks on StoxSim?",
+    answer: "Yes. StoxSim provides separate virtual portfolios for Indian and US markets, with market-specific currencies, sessions and available instruments.",
+  },
+  {
+    question: "Does StoxSim use real money?",
+    answer: "No. StoxSim is an educational simulator. It does not accept deposits, hold securities or send orders to a stock exchange or brokerage account.",
+  },
+];
+
+const HOME_FAQ_STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: HOME_FAQ.map(({ question, answer }) => ({
+    "@type": "Question",
+    name: question,
+    acceptedAnswer: { "@type": "Answer", text: answer },
+  })),
+};
+
 type MarketRegion = "INDIA" | "UNITED_STATES";
 type CurrencyCode = "INR" | "USD";
 type OrderSide = "BUY" | "SELL";
@@ -1097,20 +1122,30 @@ export default function Home() {
   if (!session) {
     return (
       <main className="welcomeShell" id="main-content" tabIndex={-1}>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(HOME_FAQ_STRUCTURED_DATA).replace(/</g, "\\u003c"),
+          }}
+        />
         <nav className="welcomeNav">
           <Brand />
-          <span className="navNote">India + USA paper trading</span>
+          <div className="welcomeNavLinks">
+            <a href="/paper-trading">Paper trading</a>
+            <a href="/stock-market-simulator-india">India simulator</a>
+            <a href="/learn-stock-trading">Learn</a>
+          </div>
         </nav>
         <section className="welcomeGrid">
           <div className="welcomeCopy">
             <span className="eyebrow">PAPER TRADING, BUILT LIKE THE REAL THING</span>
-            <h1>Practise the market.<br /><span>Risk nothing.</span></h1>
-            <p>Practise with ₹5,00,000 in India and $10,000 in the USA, research stocks and ETFs, and learn from every simulated trade.</p>
+            <h1>Learn stock trading.<br /><span>Risk nothing.</span></h1>
+            <p>Use a free stock-market simulator with ₹5,00,000 in India and $10,000 in the USA. Research stocks and ETFs, practise simulated orders, and learn from every virtual trade.</p>
             <div className="featureRow">
               <span>Live market structure</span><span>Simulated charges</span><span>Portfolio analytics</span>
             </div>
           </div>
-          <form className="authCard" onSubmit={submitAuth}>
+          <form className="authCard" id="get-started" onSubmit={submitAuth}>
             <div className="authTabs">
               <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>Create account</button>
               <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
@@ -1142,9 +1177,53 @@ export default function Home() {
             <small>StoxSim is an educational simulator. No real orders or investment advice.</small>
           </form>
         </section>
+        <section className="welcomeSeo" aria-labelledby="stoxsim-overview">
+          <div className="welcomeSeoIntro">
+            <span className="eyebrow">BUILT FOR BEGINNERS</span>
+            <h2 id="stoxsim-overview">A free paper-trading simulator for India and the US</h2>
+            <p>StoxSim helps new market learners understand the relationship between research, orders, holdings and portfolio performance before real money is involved.</p>
+          </div>
+          <div className="welcomeSeoGrid">
+            <article>
+              <strong>01</strong>
+              <h3>Learn without financial risk</h3>
+              <p>Create virtual Indian and US portfolios, try simulated trades and learn from mistakes without depositing money.</p>
+              <a href="/paper-trading">Explore paper trading <span aria-hidden="true">→</span></a>
+            </article>
+            <article>
+              <strong>02</strong>
+              <h3>Practise Indian-market workflows</h3>
+              <p>Follow Indian market sessions, work in rupees and review holdings in a dedicated ₹5 lakh practice portfolio.</p>
+              <a href="/stock-market-simulator-india">Explore the India simulator <span aria-hidden="true">→</span></a>
+            </article>
+            <article>
+              <strong>03</strong>
+              <h3>Build a repeatable learning habit</h3>
+              <p>Use watchlists, guided milestones and portfolio reviews to focus on process instead of chasing quick returns.</p>
+              <a href="/learn-stock-trading">See the learning path <span aria-hidden="true">→</span></a>
+            </article>
+          </div>
+        </section>
+        <section className="welcomeFaq" aria-labelledby="stoxsim-faq">
+          <div>
+            <span className="eyebrow">COMMON QUESTIONS</span>
+            <h2 id="stoxsim-faq">Understand StoxSim before you begin</h2>
+          </div>
+          <dl>
+            {HOME_FAQ.map(({ question, answer }) => (
+              <div key={question}>
+                <dt>{question}</dt>
+                <dd>{answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
         <footer className="legalFooter welcomeLegalFooter">
           <span>StoxSim · Educational paper trading</span>
           <nav aria-label="Legal">
+            <a href="/paper-trading">Paper trading</a>
+            <a href="/stock-market-simulator-india">India simulator</a>
+            <a href="/learn-stock-trading">Learn</a>
             <a href="/terms">Terms</a>
             <a href="/privacy">Privacy</a>
             <a href="/cookies">Cookies</a>

@@ -62,6 +62,9 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .welcomeShell { min-height: 100vh; background: radial-gradient(circle at 12% 14%, #e2f4e7, transparent 25rem), radial-gradient(circle at 90% 80%, #dce9f1, transparent 28rem), #f7f9f5; }
 .welcomeNav { width: min(1180px, calc(100% - 40px)); margin: auto; height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(23,33,29,.08); }
 .navNote { color: var(--muted); font-size: .82rem; font-weight: 650; }
+.welcomeNavLinks { display: flex; align-items: center; gap: 22px; }
+.welcomeNavLinks a { color: var(--muted); font-size: .76rem; font-weight: 750; text-decoration: none; }
+.welcomeNavLinks a:hover { color: var(--green-dark); }
 .welcomeGrid { width: min(1180px, calc(100% - 40px)); min-height: calc(100vh - 84px); margin: auto; display: grid; grid-template-columns: 1.15fr .75fr; gap: 80px; align-items: center; padding: 60px 0 90px; }
 .eyebrow, .kicker { color: var(--green); font-size: .68rem; font-weight: 850; letter-spacing: .16em; }
 .welcomeCopy h1 { font-size: clamp(3.7rem, 7.2vw, 6.8rem); line-height: .92; letter-spacing: -.075em; margin: 22px 0 28px; max-width: 820px; }
@@ -82,6 +85,23 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .primaryButton:hover { background: var(--green-dark); }
 .wide { width: 100%; margin-top: 5px; }
 .authCard small { display: block; text-align: center; color: #87958e; margin-top: 18px; line-height: 1.5; font-size: .69rem; }
+.welcomeSeo, .welcomeFaq { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+.welcomeSeo { padding: 96px 0; border-top: 1px solid rgba(23,33,29,.08); }
+.welcomeSeoIntro { max-width: 760px; }
+.welcomeSeoIntro h2, .welcomeFaq h2 { margin: 12px 0 16px; font-size: clamp(2rem, 4.5vw, 3.8rem); line-height: 1.04; letter-spacing: -.06em; }
+.welcomeSeoIntro p { margin: 0; max-width: 700px; color: var(--muted); font-size: 1rem; line-height: 1.75; }
+.welcomeSeoGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 42px; }
+.welcomeSeoGrid article { padding: 28px; border: 1px solid var(--line); border-radius: 17px; background: rgba(255,255,255,.72); }
+.welcomeSeoGrid strong { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; background: var(--green-soft); color: var(--green-dark); font-size: .68rem; }
+.welcomeSeoGrid h3 { margin: 20px 0 10px; font-size: 1.05rem; letter-spacing: -.025em; }
+.welcomeSeoGrid p { min-height: 88px; margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.7; }
+.welcomeSeoGrid a { display: inline-flex; gap: 7px; margin-top: 20px; color: var(--green-dark); font-size: .72rem; font-weight: 800; text-decoration: none; }
+.welcomeSeoGrid a:hover { text-decoration: underline; }
+.welcomeFaq { padding: 12px 0 96px; display: grid; grid-template-columns: .8fr 1.2fr; gap: 80px; align-items: start; }
+.welcomeFaq dl { margin: 0; border-top: 1px solid var(--line); }
+.welcomeFaq dl > div { padding: 21px 0; border-bottom: 1px solid var(--line); }
+.welcomeFaq dt { font-size: .9rem; font-weight: 800; }
+.welcomeFaq dd { margin: 8px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.7; }
 .legalConsent { grid-template-columns: 18px 1fr; align-items: start; gap: 9px; margin: 4px 0 15px; font-size: .7rem; font-weight: 600; line-height: 1.5; }
 .legalConsent input { width: 16px; height: 16px; margin: 2px 0 0; padding: 0; accent-color: var(--green); }
 .legalConsent a, .legalFooter a { color: var(--green-dark); font-weight: 750; }
@@ -394,7 +414,7 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
 .legalFooter { align-items: center; gap: 18px; }
 .legalFooter nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
 .legalFooter a { text-decoration: none; }
-.welcomeLegalFooter { width: min(1180px, calc(100% - 40px)); margin: -58px auto 0; padding-bottom: 22px; }
+.welcomeLegalFooter { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 22px; }
 
 @media (max-width: 1050px) {
   .welcomeGrid { grid-template-columns: 1fr 420px; gap: 40px; }
@@ -414,6 +434,9 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
 @media (max-width: 760px) {
   .welcomeGrid { grid-template-columns: 1fr; padding-top: 40px; }
   .welcomeCopy h1 { font-size: 3.7rem; }
+  .welcomeSeoGrid { grid-template-columns: 1fr; }
+  .welcomeSeoGrid p { min-height: 0; }
+  .welcomeFaq { grid-template-columns: 1fr; gap: 28px; }
   .appShell { padding: 0 14px 96px; }
   .appHeader { grid-template-columns: 1fr auto; }
   .marketSwitch { grid-row: 2; grid-column: 1 / -1; width: 100%; margin-bottom: 12px; }
@@ -450,10 +473,13 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
 }
 
 @media (max-width: 480px) {
-  .welcomeNav, .welcomeGrid { width: min(100% - 24px, 1180px); }
+  .welcomeNav, .welcomeGrid, .welcomeSeo, .welcomeFaq, .welcomeLegalFooter { width: min(100% - 24px, 1180px); }
   .welcomeCopy h1 { font-size: 3rem; }
   .authCard { padding: 22px; }
-  .navNote { display: none; }
+  .navNote, .welcomeNavLinks { display: none; }
+  .welcomeSeo { padding: 68px 0; }
+  .welcomeFaq { padding-bottom: 68px; }
+  .welcomeSeoGrid article { padding: 23px; }
   .marketBanner { align-items: flex-start; }
   .bannerRight { max-width: 125px; }
   .dashboardHeading h1 { font-size: 1.7rem; }

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import LegalDocument from "../components/LegalDocument";
+import { createPublicMetadata } from "../seo";
 
-export const metadata: Metadata = {
-  title: "Privacy Notice | StoxSim",
-  description: "How StoxSim collects, uses, stores and protects personal data.",
-};
+export const metadata: Metadata = createPublicMetadata(
+  "Privacy Notice",
+  "How StoxSim collects, uses, stores and protects personal data.",
+  "/privacy",
+);
 
 export default function PrivacyPage() {
   return (
