@@ -1,146 +1,199 @@
-# StoxSim
+<p align="center">
+  <a href="https://stoxsim.com">
+    <img src="frontend/public/stoxsim-logo.png" alt="StoxSim logo" width="112" />
+  </a>
+</p>
 
-**Practise markets. Risk nothing.**
+<h1 align="center">StoxSim</h1>
 
-StoxSim is a multi-market paper-trading platform for Indian and United States stocks. Users receive separate virtual accounts, research equities and ETFs, submit simulated orders and measure portfolio performance without risking real money.
+<p align="center">
+  <strong>Learn stock trading. Risk no real money.</strong>
+</p>
 
-> This project is an educational simulator. It does not place real brokerage orders or provide investment advice.
+<p align="center">
+  A beginner-friendly paper-trading simulator for Indian and United States markets.
+</p>
 
-## Markets
+<p align="center">
+  <a href="https://stoxsim.com"><strong>Launch StoxSim →</strong></a>
+  ·
+  <a href="https://stoxsim.com/learn-stock-trading">Learn how it works</a>
+  ·
+  <a href="https://stoxsim.com/status">Service status</a>
+</p>
 
-| India | United States |
-|---|---|
-| ₹5,00,000 virtual capital | $10,000 virtual capital |
-| NSE equities and ETFs | NASDAQ and NYSE equities and ETFs |
-| NIFTY 50, SENSEX and sector indices | S&P 500, NASDAQ-100 and Dow |
-| Indian sessions and simulated charges | US sessions and simulated fees |
+<p align="center">
+  <a href="https://stoxsim.com"><img src="https://img.shields.io/badge/Website-stoxsim.com-0b8f55?style=flat-square" alt="Official website" /></a>
+  <a href="https://github.com/M4Rk9/stoxsim/releases/latest"><img src="https://img.shields.io/github/v/release/M4Rk9/stoxsim?style=flat-square&label=release" alt="Latest release" /></a>
+  <a href="https://github.com/M4Rk9/stoxsim/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/M4Rk9/stoxsim/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-142d3f?style=flat-square" alt="MIT license" /></a>
+</p>
+
+---
+
+## Practise markets before risking money
+
+[StoxSim](https://stoxsim.com) helps new investors understand how research, orders, holdings and portfolio performance fit together.
+
+Learners receive separate virtual accounts for India and the United States, explore stocks and ETFs, place simulated orders and review the outcome of every decision.
+
+No brokerage account, deposit or real-money trade is required.
+
+> [!IMPORTANT]
+> StoxSim is an educational simulator—not a broker, exchange or investment adviser. Market data may be delayed, stale, incomplete or unavailable, and simulated performance does not predict real-world results.
+
+## Product highlights
+
+| Explore                                           | Practise                                   | Improve                                       |
+| ------------------------------------------------- | ------------------------------------------ | --------------------------------------------- |
+| Search Indian and US stocks and ETFs              | Submit simulated market and limit orders   | Review holdings, returns and allocation       |
+| Follow indices, market sessions and movers        | Learn with separate INR and USD portfolios | Use StoxScore and post-trade feedback         |
+| Study interactive charts and company fundamentals | Build persistent watchlists                | Complete learning missions and track progress |
+
+Additional learning tools include:
+
+* Beginner-friendly onboarding
+* Persistent watchlists
+* Interactive stock charts
+* Company fundamentals
+* Portfolio allocation and performance analytics
+* StoxScore portfolio feedback
+* Educational FinWiz feedback
+* Weekly portfolio reports
+* Learning missions and XP progression
+* Opt-in competitions
+* Private leagues
+* Light and dark appearance modes
+
+## Two markets, separate practice portfolios
+
+| 🇮🇳 India                                   | 🇺🇸 United States                    |
+| -------------------------------------------- | ------------------------------------- |
+| ₹5,00,000 virtual starting capital           | $10,000 virtual starting capital      |
+| NSE equities and ETFs                        | NASDAQ and NYSE equities and ETFs     |
+| NIFTY 50, SENSEX and sector indices          | S&P 500, NASDAQ-100 and Dow           |
+| Indian market sessions and simulated charges | US market sessions and simulated fees |
+
+Learn more about the [free paper-trading simulator](https://stoxsim.com/paper-trading), explore the [Indian stock-market simulator](https://stoxsim.com/stock-market-simulator-india), or follow the [beginner learning path](https://stoxsim.com/learn-stock-trading).
+
+## How the learning loop works
+
+1. **Choose a market** — open the India or US virtual portfolio.
+2. **Research an instrument** — inspect the available quote, chart and company information.
+3. **Form a reason** — decide why a simulated trade makes sense before submitting it.
+4. **Place the paper trade** — use virtual capital and review the estimated charges.
+5. **Review the outcome** — examine portfolio analytics and improve your process.
+
+<p align="center">
+  <a href="https://stoxsim.com"><strong>Create a free StoxSim account</strong></a>
+</p>
 
 ## Technology
 
-- Java 21 and Spring Boot 4.1
-- Next.js 16 and TypeScript
-- PostgreSQL and Flyway
-- Redis
-- Docker Compose
-- GitHub Actions
-- PostgreSQL Testcontainers for migration and concurrency tests
-- Playwright browser acceptance tests
+* **Backend:** Java 21, Spring Boot 4.1, PostgreSQL, Flyway and Redis
+* **Frontend:** Next.js 16, React 19 and TypeScript
+* **Market connectivity:** Provider-backed India and US market-data integrations with STOMP WebSocket updates
+* **Infrastructure:** Docker Compose, Caddy and Ubuntu
+* **Quality:** Testcontainers, Playwright, GitHub Actions, CodeQL and dependency review
+* **Operations:** Structured logs, Prometheus, Grafana, uptime probes and encrypted off-host backups
 
-## Run locally
+## Run StoxSim locally
+
+### Requirements
+
+* Docker with Docker Compose
+* Git
+
+### Start the application
 
 ```bash
+git clone https://github.com/M4Rk9/stoxsim.git
+cd stoxsim
 cp .env.example .env
 docker compose up --build
 ```
 
-- Web application: http://localhost:3000
-- API status: http://localhost:8080/api/v1/system/status
-- API health: http://localhost:8080/actuator/health
+Local services:
 
-Set `UPSTOX_ANALYTICS_TOKEN` to use India quotes and company fundamentals. Set `UPSTOX_STREAM_ENABLED=true` so resting limit and queued orders can react to live ticks.
+* Web application: `http://localhost:3000`
+* API status: `http://localhost:8080/api/v1/system/status`
+* API health: `http://localhost:8080/actuator/health`
 
-## Implemented APIs
+Set `UPSTOX_ANALYTICS_TOKEN` to enable supported Indian quotes and company fundamentals.
 
-### Authentication and account settings
+Set `UPSTOX_STREAM_ENABLED=true` to allow resting limit and queued orders to react to market ticks.
 
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-- `PATCH /api/v1/auth/me`
-- `PATCH /api/v1/auth/me/password`
-- `POST /api/v1/auth/email-verification/confirm`
-- `POST /api/v1/auth/email-verification/resend`
-- `POST /api/v1/auth/password/forgot`
-- `POST /api/v1/auth/password/reset`
-- `GET /api/v1/auth/sessions`
-- `DELETE /api/v1/auth/sessions/{sessionId}`
-- `POST /api/v1/auth/logout-all`
-- `GET /api/v1/auth/events`
-- `POST /api/v1/auth/me/export`
-- `DELETE /api/v1/auth/me`
+Consult the deployment and market-data documentation before exposing an environment publicly.
 
-### Instruments and market data
+## Platform architecture
 
-- `GET /api/v1/instruments/search?marketRegion=INDIA&q=Reliance`
-- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}`
-- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/quote`
-- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/candles`
-- `GET /api/v1/instruments/{marketRegion}/{exchange}/{symbol}/insights`
-- `GET /api/v1/market/status?exchange=NSE`
-- `GET /api/v1/market/indices`
-- `GET /api/v1/market/movers` — top gainers and losers restricted to the NIFTY 100 universe
-- STOMP WebSocket endpoint: `/ws/market`
-- Quote topic: `/topic/market/quotes`
+```mermaid
+flowchart LR
+    Browser[Next.js web app] --> API[Spring Boot API]
+    Browser <--> Stream[STOMP market stream]
+    API --> PostgreSQL[(PostgreSQL)]
+    API --> Redis[(Redis)]
+    API --> Providers[Market-data providers]
+    Providers --> Stream
+```
 
-### Watchlists
+The backend owns authentication, virtual accounts, order validation, simulated execution, portfolio accounting, learning progression and market-provider contracts.
 
-- `GET /api/v1/watchlists/default`
-- `POST /api/v1/watchlists/default/items`
-- `DELETE /api/v1/watchlists/default/items/{itemId}`
-
-### Paper trading
-
-- `POST /api/v1/orders`
-- `GET /api/v1/orders`
-- `GET /api/v1/orders/{id}`
-- `PUT /api/v1/orders/{id}`
-- `DELETE /api/v1/orders/{id}`
-- `GET /api/v1/holdings`
-- `GET /api/v1/trades`
-- `GET /api/v1/account/ledger`
-- `GET /api/v1/trading/charges/estimate`
-- `GET /api/v1/portfolio?marketRegion=INDIA`
-- `GET /api/v1/portfolio/analytics?marketRegion=INDIA`
-- `GET /api/v1/portfolio/insights?marketRegion=INDIA`
-- `GET /api/v1/reports/weekly/preferences`
-- `PUT /api/v1/reports/weekly/preferences`
-- `GET /api/v1/reports/weekly`
-- `GET /api/v1/reports/weekly/preview`
-- `GET /api/v1/progression`
-- `POST /api/v1/progression/check-in`
-- `GET /api/v1/competitions/current`
-- `POST /api/v1/competitions/current/enroll`
-- `GET /api/v1/leagues`
-- `POST /api/v1/leagues`
-- `POST /api/v1/leagues/join`
-- `GET /api/v1/leagues/{leagueId}`
-
-Order submissions require an `Idempotency-Key` header. The India MVP supports NSE cash equities and ETFs, delivery, whole-share quantities, market and limit orders, DAY validity and long-only selling. Executions include an effective-dated simulated charge breakdown, and portfolio valuation incorporates charges into cost basis and realized returns.
-
-The connected dashboard supports registration, sign-in, automatic access-token refresh, editable profile and password settings, separate India and US portfolios, region-aware benchmark cards and market movers, persistent watchlists, real-time STOMP quote updates with reconnect health, multi-market stock search, interactive historical charts, provider-aware company fundamentals, standalone stock research pages, order entry, cancellation, holdings, explainable StoxScore structure analytics, educational FinWiz post-trade feedback, cash and position allocation, fee-adjusted performance attribution, opt-in weekly learning reports, server-authoritative challenges and XP progression, opt-in standard competitions, private leagues, portfolio metrics and trade history. Its data panels load independently, so a temporarily unavailable analytics endpoint does not block authentication or the rest of the portfolio experience.
-
-The Upstox India instrument catalogue synchronizes on weekdays at 07:30 Asia/Kolkata, before the 09:15 regular market open.
+The frontend provides the learner journey, stock-research workspace and portfolio experience.
 
 ## Documentation
 
-- [Product definition](docs/PRODUCT.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Feature roadmap implementation](docs/ROADMAP_IMPLEMENTATION.md)
-- [StoxScore portfolio structure model](docs/STOXSCORE.md)
-- [Portfolio allocation and attribution](docs/PORTFOLIO_ANALYTICS.md)
-- [Weekly portfolio reports](docs/WEEKLY_PORTFOLIO_REPORTS.md)
-- [Learning progression](docs/LEARNING_PROGRESSION.md)
-- [Seasonal competitions and private leagues](docs/COMPETITIONS.md)
-- [Authentication and account lifecycle](docs/AUTHENTICATION.md)
-- [Instruments and market data](docs/INSTRUMENTS.md)
-- [Upstox market-data integration](docs/MARKET_DATA.md)
-- [Market-data public-release permission gate](docs/MARKET_DATA_PERMISSION.md)
-- [SEC EDGAR access and attribution review](docs/SEC_EDGAR_COMPLIANCE.md)
-- [Public release sign-off](docs/RELEASE_CHECKLIST.md)
-- [India paper-trading engine](docs/TRADING.md)
-- [Simulated Indian charges](docs/CHARGES.md)
-- [Testing and acceptance](docs/TESTING.md)
-- [Public production operations](deploy/production/README.md)
-- [Production operations and incident response](docs/OPERATIONS.md)
-- [Recovery verification policy](docs/PERFORMANCE_RECOVERY.md)
-- [Production deployment](docs/DEPLOYMENT.md)
+### Product and learning
 
-## Current milestone
+* [Product definition](docs/PRODUCT.md)
+* [Feature implementation roadmap](docs/ROADMAP_IMPLEMENTATION.md)
+* [StoxScore portfolio structure model](docs/STOXSCORE.md)
+* [Portfolio allocation and attribution](docs/PORTFOLIO_ANALYTICS.md)
+* [Weekly portfolio reports](docs/WEEKLY_PORTFOLIO_REPORTS.md)
+* [Learning progression](docs/LEARNING_PROGRESSION.md)
+* [Competitions and private leagues](docs/COMPETITIONS.md)
 
-The release candidate includes public legal disclosures, enforceable versioned registration consent and a fail-closed market-data permission gate. The India learning journey includes persistent watchlists, real-time WebSocket updates, previous-close index moves, NIFTY 100 market movers, dedicated stock research pages, editable account settings, PostgreSQL-backed migration/concurrency coverage and an authenticated Chromium acceptance gate. The public-production bundle adds automatic HTTPS, WebSocket proxying, isolated PostgreSQL and Redis, encrypted off-host backup support, immutable-image deployment, protected release workflows and verified rollback. The previously hosted staging environment and its manual workflows were retired before the v1.0.0 release. Production observability adds structured request-correlated logs, private Prometheus metrics, a Grafana dashboard, Resend incident alerts, independent uptime checks and a public status page.
+### Engineering and operations
+
+* [System architecture](docs/ARCHITECTURE.md)
+* [Authentication and account lifecycle](docs/AUTHENTICATION.md)
+* [Instruments and market data](docs/INSTRUMENTS.md)
+* [India paper-trading engine](docs/TRADING.md)
+* [Simulated Indian charges](docs/CHARGES.md)
+* [Testing and acceptance](docs/TESTING.md)
+* [Production deployment](docs/DEPLOYMENT.md)
+* [Operations and incident response](docs/OPERATIONS.md)
+* [Public release checklist](docs/RELEASE_CHECKLIST.md)
+
+### Provider and compliance controls
+
+* [Upstox market-data integration](docs/MARKET_DATA.md)
+* [Market-data public-release permission gate](docs/MARKET_DATA_PERMISSION.md)
+* [SEC EDGAR access and attribution review](docs/SEC_EDGAR_COMPLIANCE.md)
+
+## Production
+
+The public release is available at **[stoxsim.com](https://stoxsim.com)**.
+
+Production includes:
+
+* HTTPS
+* Isolated PostgreSQL and Redis services
+* Immutable image deployment
+* Protected release workflows
+* Verified rollback procedures
+* Private monitoring
+* Encrypted off-host backups
+* Automated production uptime checks
+
+Operational health is published on the [StoxSim status page](https://stoxsim.com/status).
+
+## Contributing
+
+Bug reports and focused improvement proposals are welcome through [GitHub Issues](https://github.com/M4Rk9/stoxsim/issues).
+
+Please review the relevant architecture and testing documentation before proposing implementation changes.
 
 ## License
 
-MIT
+StoxSim is available under the [MIT License](LICENSE).
