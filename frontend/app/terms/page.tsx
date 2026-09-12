@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import LegalDocument from "../components/LegalDocument";
+import { createPublicMetadata } from "../seo";
 
-export const metadata: Metadata = {
-  title: "Terms of Use | StoxSim",
-  description: "Rules for using the StoxSim educational paper-trading service.",
-};
+export const metadata: Metadata = createPublicMetadata(
+  "Terms of Use",
+  "Rules for using the StoxSim educational paper-trading service.",
+  "/terms",
+);
 
 export default function TermsPage() {
   return (

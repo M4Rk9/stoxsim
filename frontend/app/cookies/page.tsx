@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import LegalDocument from "../components/LegalDocument";
+import { createPublicMetadata } from "../seo";
 
-export const metadata: Metadata = {
-  title: "Cookie Notice | StoxSim",
-  description: "How StoxSim uses essential cookies and browser storage.",
-};
+export const metadata: Metadata = createPublicMetadata(
+  "Cookie Notice",
+  "How StoxSim uses essential cookies and browser storage.",
+  "/cookies",
+);
 
 export default function CookiesPage() {
   return (

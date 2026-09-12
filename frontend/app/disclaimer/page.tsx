@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import LegalDocument from "../components/LegalDocument";
+import { createPublicMetadata } from "../seo";
 
-export const metadata: Metadata = {
-  title: "Risk Disclaimer | StoxSim",
-  description: "Important limitations of StoxSim market data and simulated trading.",
-};
+export const metadata: Metadata = createPublicMetadata(
+  "Risk Disclaimer",
+  "Important limitations of StoxSim market data and simulated trading.",
+  "/disclaimer",
+);
 
 export default function DisclaimerPage() {
   return (
