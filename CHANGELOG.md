@@ -2,6 +2,16 @@
 
 All notable changes to StoxSim will be documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and will use semantic versioning beginning with the first public beta tag.
 
+## [Unreleased]
+
+### Added
+
+- Private owner analytics with current learner/verification totals, UTC signup
+  trends, signup-cohort first-trade conversion and standard-account order counts.
+- Database-authorized aggregate API, administrator settings link, bounded date
+  filters, date-query indexes and a post-release milestone delivery plan.
+- Authorization, aggregation and browser coverage for the owner overview.
+
 ## [1.0.0] - 2026-09-09
 
 ### Added

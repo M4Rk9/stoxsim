@@ -19,6 +19,7 @@ interface User {
   email: string;
   displayName: string;
   emailVerified: boolean;
+  platformAdmin?: boolean;
   createdAt?: string;
   accounts: Account[];
 }
@@ -253,13 +254,23 @@ export default function SettingsPage() {
       email: active.user.email,
     });
     void (async () => {
-      await Promise.all([loadSecurity(), loadReports(), loadSubscription()]);
+      await Promise.all([loadSecurity(), loadReports(), loadSubscription(), loadCurrentUser()]);
     })();
   }, []);
 
   function persist(next: StoredSession) {
     window.sessionStorage.setItem("stoxsim-session", JSON.stringify(next));
     setSession(next);
+  }
+
+  async function loadCurrentUser() {
+    try {
+      const user = await authorized<User>("/api/v1/auth/me");
+      const active = readSession();
+      if (active) persist({ ...active, user });
+    } catch {
+      // Existing account sections report their own authentication failures.
+    }
   }
 
   async function authorized<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -526,6 +537,7 @@ export default function SettingsPage() {
       <nav className={styles.quickLinks} aria-label="Account settings sections">
         <a href="#profile">Profile</a><a href="#plan">Plan</a>
         <a href="#reports">Reports</a><a href="#security">Security</a>
+        {session.user.platformAdmin && <a href="/admin/analytics">Owner analytics</a>}
       </nav>
 
       <div className={styles.grid}>

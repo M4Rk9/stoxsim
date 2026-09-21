@@ -147,6 +147,8 @@ The frontend provides the learner journey, stock-research workspace and portfoli
 
 * [Product definition](docs/PRODUCT.md)
 * [Feature implementation roadmap](docs/ROADMAP_IMPLEMENTATION.md)
+* [Post-release milestones](docs/POST_RELEASE_MILESTONES.md)
+* [Owner and product analytics](docs/PRODUCT_ANALYTICS.md)
 * [StoxScore portfolio structure model](docs/STOXSCORE.md)
 * [Portfolio allocation and attribution](docs/PORTFOLIO_ANALYTICS.md)
 * [Weekly portfolio reports](docs/WEEKLY_PORTFOLIO_REPORTS.md)
