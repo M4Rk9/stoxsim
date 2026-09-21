@@ -9,6 +9,14 @@ const fixture = {
   orders: [{ marketRegion: "INDIA", status: "EXECUTED", count: 9 }],
 };
 
+const ownerSession = {
+  accessToken: "test-session", expiresInSeconds: 900,
+  user: {
+    id: "analytics-owner", email: "owner@stoxsim.test", displayName: "Analytics Owner",
+    emailVerified: true, platformAdmin: true, accounts: [],
+  },
+};
+
 async function respond(route: Route, status: number, body: unknown) {
   const origin = route.request().headers().origin ?? "http://localhost:3000";
   await route.fulfill({
@@ -23,9 +31,9 @@ async function respond(route: Route, status: number, body: unknown) {
 }
 
 async function session(page: Page) {
-  await page.addInitScript(() => {
-    sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "test-session", user: { platformAdmin: true } }));
-  });
+  await page.addInitScript(value => {
+    sessionStorage.setItem("stoxsim-session", JSON.stringify(value));
+  }, ownerSession);
 }
 
 test("owner sees aggregate metrics, exact daily counts and updated date range", async ({ page }) => {
@@ -88,7 +96,7 @@ test("failed reload removes old metrics and offers a retry", async ({ page }) =>
 });
 
 test("new tab recovers the HttpOnly session and expired sessions show sign in", async ({ page }) => {
-  await page.route("**/api/v1/auth/refresh", route => respond(route, 200, { accessToken: "refreshed-session", user: {} }));
+  await page.route("**/api/v1/auth/refresh", route => respond(route, 200, { ...ownerSession, accessToken: "refreshed-session" }));
   await page.route("**/api/v1/admin/analytics/overview?**", route => respond(route, 200, fixture));
   await page.goto("/admin/analytics");
   await expect(page.getByRole("heading", { name: "Current learner accounts" })).toBeVisible();
@@ -103,12 +111,11 @@ for (const theme of ["light", "dark"]) {
   test(`analytics fits a narrow viewport in ${theme} mode`, async ({ page }) => {
     await session(page);
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.addInitScript(selected => localStorage.setItem("stoxsim-theme", selected), theme);
+    await page.addInitScript(selected => localStorage.setItem("stoxsim-theme:analytics-owner", selected), theme);
     await page.route("**/api/v1/admin/analytics/overview?**", route => respond(route, 200, fixture));
     await page.goto("/admin/analytics");
-    // Set the established theme attribute explicitly to exercise this page's styles.
-    await page.evaluate(selected => document.documentElement.dataset.theme = selected, theme);
     await expect(page.getByRole("heading", { name: "Current learner accounts" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.getByLabel("From (UTC)").focus();
     await expect(page.getByLabel("From (UTC)")).toBeFocused();
