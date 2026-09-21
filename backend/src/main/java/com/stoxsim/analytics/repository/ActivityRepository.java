@@ -14,6 +14,10 @@ public class ActivityRepository {
     private final JdbcTemplate jdbc;
     public ActivityRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
+    private static Date utcDate(Instant instant) {
+        return Date.valueOf(instant.atZone(java.time.ZoneOffset.UTC).toLocalDate());
+    }
+
     public Instant startedAt() {
         return jdbc.queryForObject("SELECT started_at FROM analytics_coverage WHERE singleton", Timestamp.class).toInstant();
     }
@@ -23,8 +27,9 @@ public class ActivityRepository {
             SELECT COUNT(DISTINCT a.user_id) FROM product_activity a
             JOIN app_user u ON u.id = a.user_id
             WHERE u.platform_role = 'USER' AND a.event_name <> 'ORDER_EXECUTED'
+                AND a.event_day >= ? AND a.event_day <= ?
                 AND a.first_at >= ? AND a.first_at < ?
-            """, Long.class, Timestamp.from(start), Timestamp.from(end));
+            """, Long.class, utcDate(start), utcDate(end), Timestamp.from(start), Timestamp.from(end));
     }
 
     public List<DailyActive> daily(Instant start, Instant end) {
@@ -32,10 +37,11 @@ public class ActivityRepository {
             SELECT event_day, COUNT(DISTINCT a.user_id) AS total FROM product_activity a
             JOIN app_user u ON u.id = a.user_id
             WHERE u.platform_role = 'USER' AND a.event_name <> 'ORDER_EXECUTED'
+                AND a.event_day >= ? AND a.event_day <= ?
                 AND a.first_at >= ? AND a.first_at < ?
             GROUP BY event_day ORDER BY event_day
             """, (rs, row) -> new DailyActive(rs.getDate("event_day").toLocalDate(), rs.getLong("total")),
-            Timestamp.from(start), Timestamp.from(end));
+            utcDate(start), utcDate(end), Timestamp.from(start), Timestamp.from(end));
     }
 
     public Activation activation(Instant start, Instant end, Instant coverage, Instant now) {

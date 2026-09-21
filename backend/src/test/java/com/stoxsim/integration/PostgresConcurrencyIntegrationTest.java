@@ -149,6 +149,7 @@ class PostgresConcurrencyIntegrationTest {
             .contentType("application/json").content("{\"version\":1,\"event\":\"ACTIVE\"}"))
             .andExpect(status().isUnauthorized());
         for (String payload : List.of(
+            "{", "[]", "null",
             "{\"version\":1,\"event\":\"ORDER_EXECUTED\"}",
             "{\"version\":1,\"event\":\"WATCHLIST_ADDED\"}",
             "{\"version\":2,\"event\":\"ACTIVE\"}",

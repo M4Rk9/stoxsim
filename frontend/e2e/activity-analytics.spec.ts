@@ -87,7 +87,7 @@ test("learner capture is minimal, deduplicates interactions and records loaded r
     const url = route.request().url();
     return respond(route, 200, url.includes("/quote") ? { lastPrice: 200, previousClose: 199, dataStatus: "LIVE" }
       : url.includes("/candles") ? { candles: [] }
-      : url.includes("/insights") ? {}
+      : url.includes("/insights") ? { provider: "TEST", asOf: "2026-09-21T12:00:00Z", status: "UNAVAILABLE", ratios: [], financials: { metrics: [] } }
       : { provider: "ALPACA", currency: "USD", tradingSymbol: "AAPL", name: "Apple", exchange: "NASDAQ", instrumentType: "EQUITY" });
   });
   await page.goto("/stocks/NASDAQ/AAPL");

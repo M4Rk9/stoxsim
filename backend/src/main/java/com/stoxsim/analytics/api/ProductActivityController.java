@@ -27,6 +27,11 @@ public class ProductActivityController {
         this.users = users;
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Void> malformedBody() {
+        return ResponseEntity.badRequest().build();
+    }
+
     @PostMapping
     public ResponseEntity<Void> capture(@AuthenticationPrincipal Jwt jwt, @RequestBody Map<String, Object> body) {
         if (!body.keySet().equals(Set.of("version", "event")) || !Integer.valueOf(1).equals(body.get("version"))
