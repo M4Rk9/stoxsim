@@ -2,8 +2,8 @@
 
 ## Implemented owner overview (post-release M1)
 
-The owner overview is implemented in the M1 feature branch. Merge and
-production acceptance are tracked in [issue #122](https://github.com/M4Rk9/stoxsim/issues/122).
+The owner overview was merged in PR #123 and deployed. The owner confirmed
+dashboard access on 21 September 2026; broader production acceptance is tracked in [issue #122](https://github.com/M4Rk9/stoxsim/issues/122).
 See [the milestone sequence](POST_RELEASE_MILESTONES.md) for subsequent work.
 
 `GET /api/v1/admin/analytics/overview` returns `owner-analytics-v1` aggregates.
@@ -49,215 +49,100 @@ ordinary index builds may briefly block writes during migration; review table
 sizes and the deployment window before rollout. Large-scale analytics needs
 separate capacity evidence and may later use aggregates or a read replica.
 
-M1 adds no tracking events, third-party analytics or cookies. The remaining
-sections describe the future measurement design. DAU/WAU/MAU, retention, the
-full activation funnel and event capture are not implemented by M1.
+## M2 — first-party activity and retention
 
-## Objective
+M2 adds `GET /api/v1/admin/analytics/activity?from=YYYY-MM-DD&to=YYYY-MM-DD`
+and an activity section on the owner page. It uses the same database ADMIN
+check, inclusive UTC date validation (1–90 days), no-store response policy,
+and current-learner/deleted-account exclusions as M1. M1 metrics are unchanged.
 
-The analytics system must answer three different questions without mixing them together:
+### Capture and privacy contract
 
-1. **Product analytics:** How are learners using StoxSim and where do they stop?
-2. **Business/admin analytics:** How many users, active users, portfolios and simulated orders exist?
-3. **Operational analytics:** Is the product healthy, fast and receiving usable market data?
+- Migration V111 creates an observation start timestamp and `product_activity`.
+  Nothing is backfilled: a pre-existing order/watchlist is not evidence of a
+  newly observed event. Existing learners can contribute activity but their
+  pre-tracking registrations are excluded from activation/retention cohorts.
+- Schema v1 has five categories: `ACTIVE`, `STOCK_OPENED`, `WATCHLIST_ADDED`,
+  `ORDER_SUBMITTED`, `ORDER_EXECUTED`. One row per learner/category/UTC day
+  stores its first server-observed timestamp. This measures distinct learners,
+  not event frequency, stock popularity or session counts.
+- Authenticated `POST /api/v1/analytics/events` accepts exactly
+  `{"version":1,"event":"ACTIVE"}` or `STOCK_OPENED`. Identity comes from the
+  JWT subject, timestamp from the server. Extra fields, client timestamps,
+  user IDs, arbitrary metadata, unknown versions and server-only events fail.
+- Browser capture runs only for a visible signed-in page; page/login arrival,
+  pointer/key/scroll activity and returning to a visible tab count as activity.
+  Stock research is sent only after the stock page successfully loads its
+  instrument and quote. No background heartbeat, anonymous tracking, new
+  cookies, replay, third-party analytics, symbols or search terms are stored.
+  Browser retries are at most once per five minutes per user/event/day and
+  never refresh authentication or block the learner UI.
+- Watchlist additions and valid STANDARD-account order submissions/executions
+  originate in the domain services. Idempotent order replays, existing watchlist
+  additions, immediately rejected orders and sandbox trading do not emit these
+  markers. Later-cancelled accepted orders still count as valid submissions.
+  BEFORE_COMMIT listeners store markers in the business transaction: a rollback
+  cannot leave a successful event behind. This deliberately adds at most two
+  bounded indexed inserts to an accepted standard order transaction; analytics
+  database failure rolls that transaction back rather than acknowledging a
+  partially recorded action. Monitor primary-database latency before scaling.
+- Ingestion rejects bodies over 1,024 bytes, including chunked requests, before JSON parsing.
+  It has an independent 12-requests/minute/user rate-limit bucket (the
+  existing limiter's Redis failure behavior remains fail-open). The unique
+  key bounds storage to five rows per learner/day even under retries/concurrency.
+- The latest 180 UTC dates are retained. A minute-based cleanup deletes up to
+  5,000 expired rows per transaction until caught up; physical deletion can lag
+  this logical cutoff. Queries/export exclude expired data immediately.
+- Account export includes retained activity. The foreign key cascades account
+  deletion. Administrators are not captured, and aggregates also recheck the
+  current role. Promoting/demoting a user can therefore change past counts.
 
-These should use separate data paths and access controls.
+### Metric definitions
 
-## Recommended first release
+| Metric | Exact definition |
+| --- | --- |
+| Active day | At least one recorded ACTIVE, STOCK_OPENED, WATCHLIST_ADDED or ORDER_SUBMITTED marker; ORDER_EXECUTED alone never counts because fills may happen in the background |
+| DAU / WAU / MAU | Distinct current learners in the 1 / 7 / 30 UTC dates ending on the selected **To** date; today ends at the response time. The selected From date does not change these rolling windows |
+| Daily active trend | Distinct active learners on each selected UTC date |
+| Observed coverage | Later of migration start and UTC midnight 179 days before today. A day/window beginning before coverage is unavailable (`null`/—), not zero; this includes the partial deployment day |
+| Activation eligibility | Learners registered within selected dates and observed coverage whose full 168-hour signup window has elapsed as of the response |
+| Activation | Research, watchlist addition and valid standard order submission all observed in `[registeredAt, registeredAt + 168h)`, in any order |
+| Activation steps | Cumulative intersections: eligible → research → research+watchlist → all three → all three+execution; all events must be inside that same seven-day window |
+| Activation rate | All-three count / eligible registrations; null if no mature eligible registrations |
+| Median activation time | Median hours from registration to the last of the three first qualifying actions, among activated learners |
+| D1 / D7 / D30 retention | At least one active marker on the exact UTC date N days after registration date. The target day must have fully ended; each N has its own mature denominator |
+| Maturing / unobserved | Eligible-by-coverage registrations that have not yet matured / registrations before observed coverage; both excluded from metric denominators |
 
-Use a hybrid architecture:
+Activation and retention use observation through the response timestamp, even
+when the selected signup period ended earlier. A learner who returns only on
+D6 or D8 does not count as retained on D7. Empty mature cohorts return null rates.
+Browser events are best-effort observations and can be lost to connectivity,
+expired sessions or blockers; they are not a billing or anti-fraud signal.
+Daily deduplication intentionally discards event counts and repeated timestamps.
+No session duration, advertising attribution or pre-deployment sessions are inferred.
 
-- **PostHog or an equivalent product-analytics service** for funnels, retention, cohorts, feature adoption and optional session replay.
-- **StoxSim PostgreSQL + Spring Boot admin APIs** for authoritative user, portfolio and order metrics.
-- **OpenTelemetry-compatible telemetry** for API latency, errors, database calls and provider health.
-- **A protected `/admin/analytics` page** in the existing Next.js frontend for the product owner.
+### Production acceptance
 
-The admin dashboard must never be accessible only because someone knows its URL. Access must be enforced by the backend using an `ADMIN` role.
+1. Deploy the tested candidate and confirm V111 completes. Existing owner access
+   is reused; no new environment variable or role promotion is needed.
+2. Open owner analytics: coverage starts at deployment; longer active windows
+   and retention start as —. These are expected, not broken metrics.
+3. In a separate normal learner account, sign in, load a stock, add a new watchlist
+   item and place a valid standard paper order during the relevant market session.
+4. Reload owner analytics. Once a complete tracked UTC date begins, DAU reflects
+   the learner. Repeat actions do not inflate distinct-learner counts. A normal
+   account gets 403 for both admin APIs; signed-out requests get 401.
+5. Use Account settings export to confirm activity is included. Use disposable
+   staging accounts to validate deletion and expired-data cleanup.
+6. D1 first becomes measurable after a tracked signup's next UTC day fully ends;
+   seven-day activation after 168 hours; D7/D30 after their exact return days end.
+   Do not alter production signup times to manufacture mature cohorts.
+7. Check responsive light/dark layouts and retry/error behavior. Record candidate
+   SHA and observations separately from CI results.
 
-## Event taxonomy
+### Deferred measurement
 
-Start with a small, stable set of high-value events:
-
-| Event | When it occurs | Important properties |
-|---|---|---|
-| `user_registered` | Account creation succeeds | market region, acquisition source |
-| `session_started` | Authenticated dashboard session starts | platform, app version |
-| `stock_searched` | User submits a stock search | query length, result count |
-| `stock_opened` | User opens a stock quote or research page | symbol, exchange, source |
-| `watchlist_item_added` | User adds a stock | symbol, exchange |
-| `paper_order_submitted` | Order passes validation | side, type, symbol, quantity band |
-| `paper_order_executed` | Simulated execution completes | side, type, symbol, value band |
-| `portfolio_reviewed` | User views holdings/portfolio | holding count band |
-| `settings_updated` | Profile or password update succeeds | changed fields only |
-
-Do not include passwords, access tokens, refresh tokens, full order payloads or unnecessary personal information in event properties.
-
-## Activation definition
-
-For the StoxSim MVP, treat a user as **activated** when they complete all of the following within seven days of registration:
-
-1. Open at least one stock research page.
-2. Add at least one stock to a watchlist.
-3. Submit at least one valid paper order.
-
-Track the conversion rate and median time from registration to activation.
-
-## Core dashboard metrics
-
-### Overview
-
-- Total registered users
-- New users today and in the last 7/30 days
-- Daily, weekly and monthly active users
-- Activated users and activation rate
-- D1, D7 and D30 retention
-- Total portfolios and total simulated account value
-- Orders submitted, executed, rejected and cancelled
-
-### Funnel
-
-`Registered → Opened stock → Added watchlist item → Submitted first order → Executed first order`
-
-Show both conversion percentage and median time between stages.
-
-### Engagement
-
-- Stock searches per active user
-- Research pages viewed per active user
-- Watchlist additions per active user
-- Orders per active user
-- Most researched symbols
-- Most traded symbols
-- Percentage of users returning after first order
-
-### Reliability
-
-- API error rate
-- p50/p95 request latency
-- Login and registration failure rate
-- Market-data provider failures
-- Percentage of quotes marked LIVE, STALE and UNAVAILABLE
-- Historical-chart request failure rate
-
-## Database design
-
-Business metrics should be calculated from existing authoritative tables wherever possible. Product events that are not already represented in the domain model can use an append-only table.
-
-```sql
-create table product_events (
-    id uuid primary key,
-    user_id uuid null references app_users(id),
-    anonymous_id varchar(100) null,
-    session_id uuid null,
-    event_name varchar(80) not null,
-    occurred_at timestamptz not null,
-    source varchar(30) not null,
-    app_version varchar(40) null,
-    properties jsonb not null default '{}'::jsonb
-);
-
-create index idx_product_events_name_time
-    on product_events (event_name, occurred_at desc);
-
-create index idx_product_events_user_time
-    on product_events (user_id, occurred_at desc);
-```
-
-For faster dashboards, create a scheduled daily aggregation table after event volume becomes material:
-
-```sql
-create table analytics_daily_metrics (
-    metric_date date not null,
-    metric_name varchar(80) not null,
-    dimension_key varchar(80) not null default 'all',
-    metric_value numeric(20, 4) not null,
-    calculated_at timestamptz not null,
-    primary key (metric_date, metric_name, dimension_key)
-);
-```
-
-## Backend APIs
-
-Suggested protected endpoints:
-
-```text
-GET /api/v1/admin/analytics/overview?from=2026-08-01&to=2026-08-31
-GET /api/v1/admin/analytics/funnel?windowDays=7
-GET /api/v1/admin/analytics/retention?cohort=week
-GET /api/v1/admin/analytics/engagement?from=...&to=...
-GET /api/v1/admin/analytics/reliability?from=...&to=...
-```
-
-Every endpoint must require `ROLE_ADMIN`. Do not return raw password data, tokens or unrestricted personally identifiable information.
-
-## Admin authorization
-
-Add explicit role storage rather than using a hard-coded frontend check.
-
-```text
-users
-- id
-- email
-- display_name
-- role: USER | ADMIN
-```
-
-Enforce authorization in Spring Security using method or route-level checks. The frontend may hide the admin navigation for normal users, but the backend remains the security boundary.
-
-## Frontend structure
-
-```text
-frontend/app/admin/analytics/page.tsx
-frontend/app/admin/analytics/AnalyticsDashboard.tsx
-frontend/app/admin/analytics/analytics.module.css
-```
-
-Recommended sections:
-
-1. Date-range selector
-2. KPI cards
-3. Signup and active-user trend
-4. Activation funnel
-5. Retention cohorts
-6. Feature-adoption table
-7. Order-state breakdown
-8. Reliability and provider-health panel
-
-The page should query only the protected admin APIs. It should not connect directly to PostgreSQL.
-
-## Delivery sequence
-
-### Phase 1 — launch analytics
-
-1. Add `USER` and `ADMIN` roles.
-2. Track the nine core events.
-3. Add PostHog or equivalent frontend/server event capture.
-4. Build `/api/v1/admin/analytics/overview`.
-5. Build a private `/admin/analytics` page with KPI cards and a 30-day trend.
-6. Add a privacy notice and event-data retention policy.
-
-### Phase 2 — product decisions
-
-1. Add activation funnel and D1/D7/D30 retention.
-2. Add symbol popularity and feature-adoption reports.
-3. Add cohorts such as activated users, dormant users and high-engagement learners.
-4. Add provider reliability and chart/fundamentals failure dashboards.
-5. Add alerting for registration failures, API error spikes and market-data outages.
-
-### Phase 3 — scale
-
-1. Batch event ingestion.
-2. Add a queue only when synchronous event writes become measurable overhead.
-3. Move analytical workloads to a read replica or warehouse when they begin affecting transactional queries.
-4. Add daily materialized aggregates and retention jobs.
-
-## Initial success criteria
-
-The first analytics release is complete when the product owner can answer:
-
-- How many users registered today, this week and this month?
-- How many users returned after one, seven and thirty days?
-- What percentage reached their first executed paper order?
-- At which onboarding step are users dropping out?
-- Which stocks and research features are used most?
-- Are market data, charts and fundamentals failing for real users?
+Session counts/duration, feature frequency, symbol popularity, acquisition
+attribution and operational latency/error dashboards remain outside M2.
+Operational metrics continue through the existing monitoring stack. Add a
+warehouse or read replica only after capacity evidence warrants it.

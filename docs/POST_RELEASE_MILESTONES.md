@@ -9,8 +9,8 @@ candidate, and a successful production acceptance are separate states.
 
 | Milestone | Deliverable | Acceptance criteria | Status |
 | --- | --- | --- | --- |
-| M1 — Owner overview | Private owner dashboard and aggregate API | Database ADMIN authorization on every request; registration trends; verified-user totals; signup-cohort first-trade conversion; standard-account order breakdown; explicit date/privacy semantics; tests | Implemented in this branch; validation, merge and deployment tracked in [#122](https://github.com/M4Rk9/stoxsim/issues/122) |
-| M2 — Activity and retention | First-party activity events, activation funnel and retention | Small versioned event allowlist; authenticated identity; bounded ingestion and retention; backend-authoritative trade events; D1/D7/D30 mature-cohort denominators; DAU/WAU/MAU definitions; deletion/export support; admin-only views | Next |
+| M1 — Owner overview | Private owner dashboard and aggregate API | Database ADMIN authorization on every request; registration trends; verified-user totals; signup-cohort first-trade conversion; standard-account order breakdown; explicit date/privacy semantics; tests | Merged/deployed; owner access confirmed 2026-09-21; remaining acceptance tracked in [#122](https://github.com/M4Rk9/stoxsim/issues/122) |
+| M2 — Activity and retention | First-party activity events, activation funnel and retention | Small versioned event allowlist; authenticated identity; bounded ingestion and retention; backend-authoritative trade events; D1/D7/D30 mature-cohort denominators; DAU/WAU/MAU definitions; deletion/export support; admin-only views | Implemented in M2 branch; CI and production acceptance pending |
 | M3 — Campus competitions | Institution organizer controls, membership requests, competitions and standings | Institution-scoped authorization; verified membership; opt-in enrollment; standard India accounts only; cross-institution isolation and concurrency tests; moderation and audit trail | Planned |
 | M4 — Paid subscriptions | Checkout and complete subscription lifecycle | Select provider and approve commercial setup; signed/idempotent webhooks; server-owned plan/price mapping; replay/out-of-order handling; cancellation/refund/grace rules; sandbox lock/settlement behavior; test-mode acceptance before live enablement | Planned; provider/setup decision required before integration |
 | M5 — Advanced portfolio history | Portfolio snapshots, benchmark comparison and historical risk views | Document available licensed data and retention; handle cash flows, gaps, currencies and limited history correctly; enforce premium capabilities on backend; deterministic numerical fixtures | Planned; verify relevant historical-data rights |
@@ -50,8 +50,8 @@ role or configuration is changed by this milestone implementation.
 
 M1 first-trade conversion must not be renamed to the full activation metric.
 The existing activation definition requires stock research, a watchlist add
-and a valid paper order within seven days of registration. Agree on explicit
-session/active-day definitions before exposing active-user or retention values.
+and a valid paper order within seven days of registration. M2 uses the explicit active-day and cohort definitions in PRODUCT_ANALYTICS.md;
+it does not expose session counts or durations.
 Unobserved historical events must remain unavailable, not backfilled with
 invented sessions. Separate event-time cohorts from current-record M1 metrics.
 

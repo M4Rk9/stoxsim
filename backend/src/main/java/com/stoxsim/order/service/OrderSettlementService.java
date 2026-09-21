@@ -1,5 +1,9 @@
 package com.stoxsim.order.service;
 
+import com.stoxsim.analytics.service.ProductActivityEvent;
+import com.stoxsim.analytics.service.ProductActivityEvent.Kind;
+import com.stoxsim.account.domain.AccountKind;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -141,6 +145,9 @@ public class OrderSettlementService {
         }
 
         order.markExecuted(price, grossValue, executedAt);
+        if (account.getAccountKind() == AccountKind.STANDARD) {
+            events.publishEvent(new ProductActivityEvent(account.getUserId(), Kind.ORDER_EXECUTED));
+        }
         Trade trade = trades.save(new Trade(
             order,
             price,

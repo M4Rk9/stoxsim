@@ -6,6 +6,11 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ### Added
 
+- First-party daily activity, seven-day activation and exact-day D1/D7/D30
+  retention in the private owner dashboard, with observation/maturity bounds.
+- Backend-owned watchlist/trading events, 180-day bounded retention, account
+  export/deletion support and an updated privacy notice.
+
 - Private owner analytics with current learner/verification totals, UTC signup
   trends, signup-cohort first-trade conversion and standard-account order counts.
 - Database-authorized aggregate API, administrator settings link, bounded date

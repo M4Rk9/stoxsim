@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { recordProductActivity } from "../../../lib/product-activity";
 import styles from "./stock.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -245,6 +246,7 @@ export default function StockPage() {
       if (!active) return;
       setInstrument(nextInstrument);
       setQuote(nextQuote);
+      recordProductActivity("STOCK_OPENED");
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : "Stock could not be loaded");
     }).finally(() => {

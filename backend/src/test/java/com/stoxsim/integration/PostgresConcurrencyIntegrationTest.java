@@ -118,6 +118,10 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private AnalyticsService analytics;
     @Autowired private WebApplicationContext webContext;
 
+    @Autowired private com.stoxsim.analytics.repository.ActivityRepository activityRepository;
+    @Autowired private org.springframework.context.ApplicationEventPublisher activityEvents;
+    @Autowired private com.stoxsim.auth.service.AccountLifecycleService lifecycle;
+
     @BeforeEach
     void resetDatabase() {
         jdbc.execute("""
@@ -133,6 +137,162 @@ class PostgresConcurrencyIntegrationTest {
                 instrument
             RESTART IDENTITY CASCADE
             """);
+    }
+
+
+    @Test
+    void activityCaptureAuthenticatesAndRejectsSpoofedIdentityTimeAndServerEvents() throws Exception {
+        var learner = analyticsUser("capture", "2026-01-01T00:00:00Z");
+        var mvc = MockMvcBuilders.webAppContextSetup(webContext).apply(springSecurity()).build();
+        var endpoint = "/api/v1/analytics/events";
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(endpoint)
+            .contentType("application/json").content("{\"version\":1,\"event\":\"ACTIVE\"}"))
+            .andExpect(status().isUnauthorized());
+        for (String payload : List.of(
+            "{\"version\":1,\"event\":\"ORDER_EXECUTED\"}",
+            "{\"version\":1,\"event\":\"WATCHLIST_ADDED\"}",
+            "{\"version\":2,\"event\":\"ACTIVE\"}",
+            "{\"version\":1,\"event\":\"ACTIVE\",\"userId\":\"other\"}",
+            "{\"version\":1,\"event\":\"ACTIVE\",\"occurredAt\":\"2020-01-01\"}")) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(endpoint)
+                .with(jwt().jwt(token -> token.subject(learner.getId().toString())))
+                .contentType("application/json").content(payload)).andExpect(status().isBadRequest());
+        }
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(endpoint)
+            .with(jwt().jwt(token -> token.subject(learner.getId().toString())))
+            .contentType("application/json").content(" ".repeat(2048) + "{}"))
+            .andExpect(status().is(413));
+        for (int i = 0; i < 2; i++) mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(endpoint)
+            .with(jwt().jwt(token -> token.subject(learner.getId().toString())))
+            .contentType("application/json").content("{\"version\":1,\"event\":\"ACTIVE\"}"))
+            .andExpect(status().isNoContent());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isEqualTo(1);
+        mvc.perform(get("/api/v1/admin/analytics/activity")
+            .with(jwt().jwt(token -> token.subject(learner.getId().toString())))).andExpect(status().isForbidden());
+        jdbc.update("UPDATE app_user SET platform_role='ADMIN' WHERE id=?", learner.getId());
+        mvc.perform(get("/api/v1/admin/analytics/activity")
+            .with(jwt().jwt(token -> token.subject(learner.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(jsonPath("$.version").value("product-activity-v1"))
+            .andExpect(content().string(not(containsString(learner.getEmail()))));
+        mvc.perform(get("/api/v1/admin/analytics/activity?from=invalid")
+            .with(jwt().jwt(token -> token.subject(learner.getId().toString())))).andExpect(status().isBadRequest());
+        jdbc.update("DELETE FROM app_user WHERE id=?", learner.getId());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(endpoint)
+            .with(jwt().jwt(token -> token.subject(learner.getId().toString())))
+            .contentType("application/json").content("{\"version\":1,\"event\":\"ACTIVE\"}"))
+            .andExpect(status().isUnauthorized());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isZero();
+    }
+
+    @Test
+    void activationUsesFullSevenDaysAndAllStepsWithoutRequiringActionOrder() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z"), now = Instant.parse("2026-02-01T12:00:00Z");
+        var yes = analyticsUser("activated", "2026-01-01T12:00:00Z");
+        var boundary = analyticsUser("too-late", "2026-01-02T00:00:00Z");
+        analyticsUser("immature", "2026-01-30T00:00:00Z");
+        analyticsUser("unobserved", "2025-12-31T23:59:59Z");
+        recordActivity(yes, "WATCHLIST_ADDED", "2026-01-01T13:00:00Z");
+        recordActivity(yes, "ORDER_SUBMITTED", "2026-01-01T14:00:00Z");
+        recordActivity(yes, "STOCK_OPENED", "2026-01-01T15:00:00Z");
+        recordActivity(yes, "ORDER_EXECUTED", "2026-01-02T00:00:00Z");
+        recordActivity(boundary, "STOCK_OPENED", "2026-01-02T00:01:00Z");
+        recordActivity(boundary, "WATCHLIST_ADDED", "2026-01-02T00:02:00Z");
+        recordActivity(boundary, "ORDER_SUBMITTED", "2026-01-09T00:00:00Z"); // exactly 7d: excluded
+        var result = activityRepository.activation(start.minusSeconds(1), now, start, now);
+        assertThat(result.eligible()).isEqualTo(2);
+        assertThat(result.immature()).isEqualTo(1);
+        assertThat(result.excluded()).isEqualTo(1);
+        assertThat(result.researched()).isEqualTo(2);
+        assertThat(result.watchlisted()).isEqualTo(2);
+        assertThat(result.activated()).isEqualTo(1);
+        assertThat(result.executed()).isEqualTo(1);
+        assertThat(result.percent()).isEqualTo(50.0);
+        assertThat(result.medianHours()).isEqualTo(3.0);
+    }
+
+    @Test
+    void retentionUsesExactUtcReturnDayWithDistinctMatureDenominators() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z"), end = Instant.parse("2026-02-01T12:00:00Z");
+        var returned = analyticsUser("returned", "2026-01-01T23:59:59Z");
+        var fillOnly = analyticsUser("background-fill", "2026-01-01T12:00:00Z");
+        analyticsUser("recent", "2026-01-31T00:00:00Z");
+        var owner = analyticsUser("ignored-owner", "2026-01-01T12:00:00Z");
+        jdbc.update("UPDATE app_user SET platform_role='ADMIN' WHERE id=?", owner.getId());
+        recordActivity(owner, "ACTIVE", "2026-01-02T12:00:00Z");
+        recordActivity(returned, "ACTIVE", "2026-01-02T00:00:00Z");
+        recordActivity(returned, "STOCK_OPENED", "2026-01-02T23:59:59Z");
+        recordActivity(returned, "ACTIVE", "2026-01-07T12:00:00Z"); // D6, not D7
+        recordActivity(returned, "ACTIVE", "2026-01-31T23:59:59Z"); // D30
+        recordActivity(fillOnly, "ORDER_EXECUTED", "2026-01-02T12:00:00Z");
+        var d1 = activityRepository.retention(1, start, end, start, LocalDate.of(2026,2,1));
+        var d7 = activityRepository.retention(7, start, end, start, LocalDate.of(2026,2,1));
+        var d30 = activityRepository.retention(30, start, end, start, LocalDate.of(2026,2,1));
+        assertThat(d1.eligible()).isEqualTo(2);
+        assertThat(d1.returned()).isEqualTo(1);
+        assertThat(d1.immature()).isEqualTo(1);
+        assertThat(d1.percent()).isEqualTo(50.0);
+        assertThat(d7.returned()).isZero();
+        assertThat(d30.returned()).isEqualTo(1);
+        assertThat(activityRepository.active(Instant.parse("2026-01-02T00:00:00Z"), Instant.parse("2026-01-03T00:00:00Z"))).isEqualTo(1);
+        var empty = activityRepository.retention(30, end, end.plusSeconds(1), start, LocalDate.of(2026,2,1));
+        assertThat(empty.eligible()).isZero();
+        assertThat(empty.percent()).isNull();
+    }
+
+    @Test
+    void activityIsDeduplicatedConcurrentlyAndExcludedForAdministrators() throws Exception {
+        var learner = analyticsUser("concurrent-activity", "2026-01-01T00:00:00Z");
+        var service = new com.stoxsim.analytics.service.ProductActivityService(jdbc,
+            java.time.Clock.fixed(Instant.parse("2026-02-01T12:00:00Z"), java.time.ZoneOffset.UTC));
+        try (var pool = Executors.newFixedThreadPool(4)) {
+            var jobs = new java.util.ArrayList<Callable<Void>>();
+            for (int i = 0; i < 12; i++) jobs.add(() -> {
+                service.record(learner.getId(), com.stoxsim.analytics.service.ProductActivityEvent.Kind.ACTIVE); return null;
+            });
+            for (var task : pool.invokeAll(jobs)) task.get(10, TimeUnit.SECONDS);
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isEqualTo(1);
+        jdbc.update("UPDATE app_user SET platform_role='ADMIN' WHERE id=?", learner.getId());
+        service.record(learner.getId(), com.stoxsim.analytics.service.ProductActivityEvent.Kind.STOCK_OPENED);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isEqualTo(1);
+    }
+
+    @Test
+    void rolledBackDomainActionsLeaveNoActivityAndCommittedActionsDo() {
+        var learner = user("transaction-activity");
+        transactions.executeWithoutResult(status -> {
+            activityEvents.publishEvent(new com.stoxsim.analytics.service.ProductActivityEvent(learner.getId(),
+                com.stoxsim.analytics.service.ProductActivityEvent.Kind.WATCHLIST_ADDED));
+            status.setRollbackOnly();
+        });
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isZero();
+        transactions.executeWithoutResult(status -> activityEvents.publishEvent(
+            new com.stoxsim.analytics.service.ProductActivityEvent(learner.getId(),
+                com.stoxsim.analytics.service.ProductActivityEvent.Kind.WATCHLIST_ADDED)));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isEqualTo(1);
+    }
+
+    @Test
+    void activityExportAndDeletionAndRetentionRespectTheBoundary() {
+        var learner = user("activity-lifecycle");
+        Instant now = Instant.now();
+        LocalDate today = now.atZone(java.time.ZoneOffset.UTC).toLocalDate();
+        recordActivity(learner, "ACTIVE", today.minusDays(180).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toString());
+        recordActivity(learner, "ACTIVE", today.minusDays(179).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toString());
+        var exported = (List<?>) lifecycle.exportAccount(learner.getId()).get("productActivity");
+        assertThat(exported).hasSize(1);
+        new com.stoxsim.analytics.service.ProductActivityService(jdbc,
+            java.time.Clock.fixed(now, java.time.ZoneOffset.UTC)).purgeExpired();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isEqualTo(1);
+        jdbc.update("DELETE FROM app_user WHERE id=?", learner.getId());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM product_activity", Long.class)).isZero();
+    }
+
+    private void recordActivity(AppUser user, String kind, String when) {
+        var at = Instant.parse(when);
+        new com.stoxsim.analytics.service.ProductActivityService(jdbc, java.time.Clock.fixed(at, java.time.ZoneOffset.UTC))
+            .record(user.getId(), com.stoxsim.analytics.service.ProductActivityEvent.Kind.valueOf(kind));
     }
 
     @Test

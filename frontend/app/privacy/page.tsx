@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy Notice"
       summary="This notice explains what personal data StoxSim handles, why it is needed, and the choices available to you."
-      effectiveDate="27 August 2026"
+      effectiveDate="21 September 2026"
     >
       <section>
         <h2>1. Who is responsible</h2>
@@ -31,6 +31,7 @@ export default function PrivacyPage() {
           <li>Learning data: XP, levels, check-in streaks, completed missions and unlocked achievements.</li>
           <li>Competition data: season entry values, percentage returns, valuation freshness and private-league memberships.</li>
           <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>
+          <li>Product activity: your account ID, UTC day, first occurrence time and category of signed-in activity, stock research, watchlist additions, and standard paper-order submissions/executions. We keep one marker per category per day, without stock symbols, search text, order payloads or session replay.</li>
           <li>Technical data: service logs, request timing, IP-derived security signals and error diagnostics.</li>
           <li>Communications you send to our support or privacy addresses.</li>
         </ul>
@@ -46,6 +47,7 @@ export default function PrivacyPage() {
           <li>Operate optional learning competitions. When you opt in, your display name, entry-relative percentage return, join time and valuation freshness are visible in that season&apos;s standings. Private-league standings are visible only to league members.</li>
           <li>Detect abuse, enforce rate limits, troubleshoot failures and protect the service.</li>
           <li>Meet legal obligations, respond to valid requests and establish or defend legal claims.</li>
+          <li>Measure aggregate active learners, onboarding completion and return-day retention to improve the learning experience. Product activity stays within StoxSim; no third-party analytics cookies are added.</li>
           <li>Improve reliability using aggregated or de-identified operational information.</li>
         </ul>
         <p>
@@ -73,6 +75,7 @@ export default function PrivacyPage() {
       <section>
         <h2>6. Retention and security</h2>
         <p>
+          Product activity covers the latest 180 UTC dates and is removed in scheduled batches after expiry. It is included in your account export and deleted with your account.
           Account and simulator data is kept while your account is active. Security and backup
           records may remain for a limited period after deletion to protect the service and meet
           legal requirements. Passwords are stored as hashes, refresh tokens are hashed and rotated,
