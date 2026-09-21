@@ -61,7 +61,7 @@ test("learner cannot view metrics by forging an admin flag in browser storage", 
   await session(page);
   await page.route("**/api/v1/admin/analytics/overview?**", route => respond(route, 403, { message: "Forbidden" }));
   await page.goto("/admin/analytics");
-  await expect(page.getByRole("alert")).toContainText("platform administrators only");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("platform administrators only");
   await expect(page.getByRole("heading", { name: "Current learner accounts" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Back to dashboard" })).toBeVisible();
 });
@@ -88,7 +88,7 @@ test("failed reload removes old metrics and offers a retry", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Current learner accounts" })).toBeVisible();
   fail = true;
   await page.getByRole("button", { name: "Apply dates" }).click();
-  await expect(page.getByRole("alert")).toContainText("Temporarily unavailable");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Temporarily unavailable");
   await expect(page.getByRole("heading", { name: "Current learner accounts" })).toHaveCount(0);
   fail = false;
   await page.getByRole("button", { name: "Try again" }).click();
