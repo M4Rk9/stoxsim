@@ -1,5 +1,58 @@
 # StoxSim Product Analytics
 
+## Implemented owner overview (post-release M1)
+
+The owner overview is implemented in the M1 feature branch. Merge and
+production acceptance are tracked in [issue #122](https://github.com/M4Rk9/stoxsim/issues/122).
+See [the milestone sequence](POST_RELEASE_MILESTONES.md) for subsequent work.
+
+`GET /api/v1/admin/analytics/overview` returns `owner-analytics-v1` aggregates.
+`/admin/analytics` presents the same values, date filters and exact daily counts.
+The account settings link is visible for the current administrator. The API
+independently reloads the user's database `platform_role` on every request;
+changing browser storage or JWT role claims cannot grant access. Missing
+authentication/deleted requesters receive 401 and non-admin users receive 403.
+Existing operator-controlled role provisioning is documented in
+[campus administration](CAMPUS_COMPETITIONS.md#authorization); this feature
+does not grant anyone a role or provide a public promotion endpoint.
+
+| Value | Definition |
+| --- | --- |
+| Registered learners | All currently existing `USER` accounts created before the response timestamp; independent of selected dates |
+| Verified email | Those current learner accounts whose email is verified by the response timestamp |
+| New learners / daily registrations | Currently existing learners registered in the inclusive selected UTC dates |
+| Completed a first trade | Distinct learners from that signup cohort with at least one executed STANDARD-account order in either market by the response timestamp, including trades after the selected period |
+| First-trade conversion | Completed-a-first-trade count divided by new learners, times 100; null when the cohort is empty |
+| Orders by status / market | STANDARD-account orders submitted during the selected UTC dates by all currently existing learners, grouped by their current status and market; includes persisted rejections, not requests rejected before an order is stored |
+
+Every metric excludes platform administrators and deleted accounts. Removing
+an account or changing its role changes past counts; these are current-record
+aggregates, not immutable historical snapshots. Sandbox orders never count
+toward conversion or order totals. The order table covers all learners and
+is not restricted to the selected signup cohort. Different currencies are
+not summed, and no market-value/provider calls are made.
+
+Dates use `YYYY-MM-DD`; both bounds are inclusive and converted to UTC
+`[from midnight, day-after-to midnight)`, capped at the response timestamp for
+today. Default is 30 days ending today; a provided end date without a start
+uses its preceding 29 days. A start without an end ends today. Only 1–90 days
+from 1970 through today are accepted. Invalid dates/ranges return 400. Missing
+signup days are zero-filled. Recent signup cohorts have less time to convert;
+this measure is not seven-day activation or a fixed-window cohort comparison.
+
+The response contains aggregate counts only: no emails, user IDs, token data,
+order payloads or user-level records. It is `Cache-Control: no-store`, the
+page is noindex, and aggregates are not persisted in browser storage. Queries
+run in a read-only repeatable-read transaction with a ten-second timeout and
+the existing API rate limiter. `V110` indexes signup and order dates. These
+ordinary index builds may briefly block writes during migration; review table
+sizes and the deployment window before rollout. Large-scale analytics needs
+separate capacity evidence and may later use aggregates or a read replica.
+
+M1 adds no tracking events, third-party analytics or cookies. The remaining
+sections describe the future measurement design. DAU/WAU/MAU, retention, the
+full activation funnel and event capture are not implemented by M1.
+
 ## Objective
 
 The analytics system must answer three different questions without mixing them together:

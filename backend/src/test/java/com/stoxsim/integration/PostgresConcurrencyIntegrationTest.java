@@ -1,9 +1,19 @@
 package com.stoxsim.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -22,11 +32,15 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import com.stoxsim.account.domain.VirtualAccount;
+import com.stoxsim.analytics.service.AnalyticsService;
+import com.stoxsim.analytics.api.AnalyticsOverview.OrderCount;
 import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
@@ -101,6 +115,8 @@ class PostgresConcurrencyIntegrationTest {
     @Autowired private CampusInstitutionRepository campusInstitutions;
     @Autowired private CampusMembershipRepository campusMemberships;
     @Autowired private CampusVerificationRequestRepository campusRequests;
+    @Autowired private AnalyticsService analytics;
+    @Autowired private WebApplicationContext webContext;
 
     @BeforeEach
     void resetDatabase() {
@@ -117,6 +133,105 @@ class PostgresConcurrencyIntegrationTest {
                 instrument
             RESTART IDENTITY CASCADE
             """);
+    }
+
+    @Test
+    void analyticsCountsUtcSignupCohortOnceAndExcludesSandboxesAdminsAndDeletedUsers() {
+        AppUser owner = analyticsUser("owner", "2020-01-01T08:00:00Z");
+        jdbc.update("UPDATE app_user SET platform_role = 'ADMIN' WHERE id = ?", owner.getId());
+        AppUser first = analyticsUser("first", "2020-01-01T00:00:00Z");
+        AppUser last = analyticsUser("last", "2020-01-02T23:59:59.999999Z");
+        AppUser before = analyticsUser("before", "2019-12-31T23:59:59Z");
+        AppUser after = analyticsUser("after", "2020-01-03T00:00:00Z");
+        AppUser deleted = analyticsUser("deleted", "2020-01-01T08:00:00Z");
+        jdbc.update("UPDATE app_user SET email_verified_at = ? WHERE id = ?",
+            Timestamp.from(Instant.parse("2020-01-02T00:00:00Z")), first.getId());
+
+        TradableInstrument instrument = instrument("ANALYTICS", "analytics-test");
+        VirtualAccount india = accounts.save(new VirtualAccount(first, MarketRegion.INDIA, new BigDecimal("500000")));
+        VirtualAccount usa = accounts.save(new VirtualAccount(first, MarketRegion.UNITED_STATES, new BigDecimal("10000")));
+        VirtualAccount sandbox = accounts.save(VirtualAccount.sandbox(last, SubscriptionPlan.PLUS, 1, new BigDecimal("2500000")));
+        // Multiple fills (and both markets) still count as one converted learner.
+        analyticsOrder(india, instrument, "2020-01-01T00:00:00Z", "EXECUTED", "2020-01-05T10:00:00Z");
+        analyticsOrder(india, instrument, "2020-01-02T12:00:00Z", "EXECUTED", "2020-01-05T11:00:00Z");
+        analyticsOrder(usa, instrument, "2020-01-02T13:00:00Z", "EXECUTED", "2020-01-05T12:00:00Z");
+        analyticsOrder(sandbox, instrument, "2020-01-02T12:00:00Z", "EXECUTED", "2020-01-02T13:00:00Z");
+        analyticsOrder(accounts.save(new VirtualAccount(before, MarketRegion.INDIA, new BigDecimal("500000"))),
+            instrument, "2020-01-02T12:00:00Z", "REJECTED", null);
+        analyticsOrder(accounts.save(new VirtualAccount(after, MarketRegion.INDIA, new BigDecimal("500000"))),
+            instrument, "2020-01-03T00:00:00Z", "OPEN", null);
+        analyticsOrder(accounts.save(new VirtualAccount(owner, MarketRegion.INDIA, new BigDecimal("500000"))),
+            instrument, "2020-01-01T09:00:00Z", "EXECUTED", "2020-01-01T10:00:00Z");
+        analyticsOrder(accounts.save(new VirtualAccount(deleted, MarketRegion.INDIA, new BigDecimal("500000"))),
+            instrument, "2020-01-01T09:00:00Z", "EXECUTED", "2020-01-01T10:00:00Z");
+        jdbc.update("DELETE FROM app_user WHERE id = ?", deleted.getId());
+
+        var result = analytics.overview(owner.getId(), LocalDate.of(2020, 1, 1), LocalDate.of(2020, 1, 2));
+        assertThat(result.users().registered()).isEqualTo(4);
+        assertThat(result.users().emailVerified()).isEqualTo(1);
+        assertThat(result.cohort().registered()).isEqualTo(2);
+        assertThat(result.cohort().firstTradeCompleted()).isEqualTo(1);
+        assertThat(result.cohort().firstTradePercent()).isEqualTo(50.0);
+        assertThat(result.signups()).extracting(day -> day.registered()).containsExactly(1L, 1L);
+        assertThat(result.orders()).containsExactlyInAnyOrder(
+            new OrderCount("INDIA", "EXECUTED", 2), new OrderCount("INDIA", "REJECTED", 1),
+            new OrderCount("UNITED_STATES", "EXECUTED", 1));
+
+        var empty = analytics.overview(owner.getId(), LocalDate.of(2018, 1, 1), LocalDate.of(2018, 1, 1));
+        assertThat(empty.cohort().registered()).isZero();
+        assertThat(empty.cohort().firstTradePercent()).isNull();
+        assertThat(empty.orders()).isEmpty();
+        assertThat(empty.signups().getFirst().registered()).isZero();
+    }
+
+    @Test
+    void analyticsHttpBoundaryRequiresDatabaseAdminAndReturnsNoPersonalData() throws Exception {
+        var mvc = MockMvcBuilders.webAppContextSetup(webContext)
+            .apply(springSecurity())
+            .build();
+        String path = "/api/v1/admin/analytics/overview";
+        AppUser owner = analyticsUser("http-owner", "2020-01-01T00:00:00Z");
+        var identity = jwt().jwt(jwt -> jwt.subject(owner.getId().toString()).claim("platformAdmin", true));
+        mvc.perform(get(path))
+            .andExpect(status().isUnauthorized());
+        // A forged admin claim cannot elevate a database USER.
+        mvc.perform(get(path).with(identity))
+            .andExpect(status().isForbidden());
+        jdbc.update("UPDATE app_user SET platform_role = 'ADMIN' WHERE id = ?", owner.getId());
+        mvc.perform(get(path).with(identity)
+                .param("from", "2020-01-01").param("to", "2020-01-02"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(jsonPath("$.version").value("owner-analytics-v1"))
+            .andExpect(content().string(
+                not(containsString(owner.getEmail()))))
+            .andExpect(content().string(
+                not(containsString(owner.getId().toString()))));
+        mvc.perform(get(path).with(identity)
+                .param("from", "not-a-date"))
+            .andExpect(status().isBadRequest());
+        jdbc.update("UPDATE app_user SET platform_role = 'USER' WHERE id = ?", owner.getId());
+        mvc.perform(get(path).with(identity))
+            .andExpect(status().isForbidden());
+        jdbc.update("DELETE FROM app_user WHERE id = ?", owner.getId());
+        mvc.perform(get(path).with(identity))
+            .andExpect(status().isUnauthorized());
+    }
+
+    private AppUser analyticsUser(String label, String createdAt) {
+        AppUser user = user(label);
+        jdbc.update("UPDATE app_user SET created_at = ? WHERE id = ?",
+            Timestamp.from(Instant.parse(createdAt)), user.getId());
+        return user;
+    }
+
+    private void analyticsOrder(VirtualAccount account, TradableInstrument instrument,
+        String createdAt, String status, String executedAt) {
+        PaperOrder order = orders.save(new PaperOrder(account, instrument, UUID.randomUUID().toString(),
+            OrderSide.BUY, OrderType.MARKET, 1, null, BigDecimal.ZERO, LocalDate.of(2020, 1, 1)));
+        jdbc.update("UPDATE paper_order SET created_at = ?, status = ?, executed_at = ? WHERE id = ?",
+            Timestamp.from(Instant.parse(createdAt)), status,
+            executedAt == null ? null : Timestamp.from(Instant.parse(executedAt)), order.getId());
     }
 
     @Test
