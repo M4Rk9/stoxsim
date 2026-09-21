@@ -1,13 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { ApiError, loadAnalytics } from "./client";
+import ActivityPanel from "./ActivityPanel";
 import styles from "./analytics.module.css";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const number = new Intl.NumberFormat("en-IN");
 const statuses = ["OPEN", "EXECUTED", "CANCELLED", "REJECTED", "EXPIRED"];
 
-interface Session { accessToken: string }
 interface Overview {
   version: string;
   from: string;
@@ -18,49 +18,6 @@ interface Overview {
   cohort: { registered: number; firstTradeCompleted: number; firstTradePercent: number | null };
   signups: { date: string; registered: number }[];
   orders: { marketRegion: string; status: string; count: number }[];
-}
-
-class ApiError extends Error {
-  constructor(message: string, readonly status: number) { super(message); }
-}
-
-function readSession(): Session | null {
-  try {
-    const raw = window.sessionStorage.getItem("stoxsim-session");
-    const session = raw ? JSON.parse(raw) as Session : null;
-    return session?.accessToken ? session : null;
-  } catch { return null; }
-}
-
-let refreshInFlight: Promise<Session> | null = null;
-function refreshSession(): Promise<Session> {
-  if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = (async () => {
-    const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-      method: "POST", credentials: "include", cache: "no-store",
-    });
-    if (!response.ok) throw new ApiError("Please sign in to view owner analytics.", response.status);
-    const session = await response.json() as Session;
-    window.sessionStorage.setItem("stoxsim-session", JSON.stringify(session));
-    return session;
-  })().finally(() => { refreshInFlight = null; });
-  return refreshInFlight;
-}
-
-async function overview(from: string, to: string, signal: AbortSignal): Promise<Overview> {
-  const session = readSession() ?? await refreshSession();
-  const url = `${API_URL}/api/v1/admin/analytics/overview?${new URLSearchParams({ from, to })}`;
-  const request = (token: string) => fetch(url, {
-    credentials: "include", cache: "no-store", signal,
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  let response = await request(session.accessToken);
-  if (response.status === 401) response = await request((await refreshSession()).accessToken);
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new ApiError(payload?.message ?? "Analytics could not be loaded. Please try again.", response.status);
-  }
-  return response.json() as Promise<Overview>;
 }
 
 function dateOnly(value: Date) { return value.toISOString().slice(0, 10); }
@@ -86,7 +43,7 @@ export default function AnalyticsPage() {
     setAccessDenied(false);
     setSignedOut(false);
     try {
-      const result = await overview(first, last, controller.signal);
+      const result = await loadAnalytics<Overview>("overview", first, last, controller.signal);
       if (!controller.signal.aborted) setData(result);
     } catch (cause) {
       if (!controller.signal.aborted) {
@@ -199,10 +156,11 @@ export default function AnalyticsPage() {
           </tr>)}</tbody>
         </table></div>
       </section>
+      <ActivityPanel from={data.from} to={data.to} revision={data.generatedAt} />
       <aside className={styles.notice}>
         <h2>About these numbers</h2>
         <p>Administrator and deleted accounts are excluded. These are current records, so deleting an account changes past counts. India and US activity can each contribute to first-trade conversion; every learner counts once.</p>
-        <p>Active users, retention and the full activation funnel will appear after activity tracking is introduced. First-trade conversion is a separate measure.</p>
+        <p>Activity and retention use observed events from the tracking start date. First-trade conversion above remains a separate measure based on current order records.</p>
       </aside>
     </>}
   </main>;

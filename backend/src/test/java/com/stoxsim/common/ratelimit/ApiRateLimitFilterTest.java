@@ -69,6 +69,14 @@ class ApiRateLimitFilterTest {
         assertEquals(8, policy.limit());
     }
 
+    @Test
+    void activityIngestionHasASeparateBoundedPolicy() {
+        var filter = filterReturning(1, new RateLimitProperties());
+        assertEquals("analytics", filter.policyFor("POST", "/api/v1/analytics/events").name());
+        assertEquals(12, filter.policyFor("POST", "/api/v1/analytics/events").limit());
+        assertEquals("write", filter.policyFor("POST", "/api/v1/orders").name());
+    }
+
     private ApiRateLimitFilter filterReturning(
         long count,
         RateLimitProperties properties

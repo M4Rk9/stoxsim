@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ProductActivityTracker from "./components/ProductActivityTracker";
 import DashboardTools from "./components/DashboardTools";
 import {
   DEFAULT_DESCRIPTION,
@@ -93,6 +94,7 @@ export default function RootLayout({
         <a className="skipLink" href="#main-content">Skip to main content</a>
         {children}
         <DashboardTools />
+        <ProductActivityTracker />
       </body>
     </html>
   );

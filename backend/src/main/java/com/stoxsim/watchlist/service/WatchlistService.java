@@ -1,5 +1,8 @@
 package com.stoxsim.watchlist.service;
 
+import com.stoxsim.analytics.service.ProductActivityEvent;
+import com.stoxsim.analytics.service.ProductActivityEvent.Kind;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
@@ -83,6 +86,7 @@ public class WatchlistService {
         if (items.findByWatchlistIdAndInstrumentId(watchlist.getId(), instrument.getId()).isEmpty()) {
             items.save(new WatchlistItem(watchlist, instrument));
             events.publishEvent(new WatchlistSubscriptionAddedEvent(key(instrument)));
+            events.publishEvent(new ProductActivityEvent(userId, Kind.WATCHLIST_ADDED));
         }
         return response(watchlist);
     }

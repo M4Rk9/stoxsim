@@ -126,6 +126,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/auth/refresh") || path.equals("/api/v1/auth/logout")) {
             return new RateLimitPolicy("refresh", properties.getRefreshPerMinute());
         }
+        if (path.equals("/api/v1/analytics/events")) {
+            return new RateLimitPolicy("analytics", 12);
+        }
         if (path.equals("/api/v1/finwiz/ask")) {
             return new RateLimitPolicy("finwiz", properties.getFinwizPerMinute());
         }

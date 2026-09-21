@@ -23,7 +23,7 @@ owner overview; it does not mark the remaining premium/campus batches complete.
 | Private leagues and campus competitions | In progress | Capped invite-only leagues are deployed; the current batch adds institution verification and platform moderation before campus standings are opened. |
 | Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning were deployed through PR #102; checkout remains intentionally disabled. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
-| Owner analytics overview | Implemented in M1 branch | Admin-only aggregate dashboard; CI, merge and production acceptance tracked in issue #122. Activity events and retention follow in M2. |
+| Owner analytics overview | M1 merged/deployed; M2 implemented in branch | Owner confirmed dashboard access. M2 adds first-party activity, seven-day activation and mature-cohort retention; validation and deployment pending. |
 
 ## Batch 1 — guided onboarding and first trade
 

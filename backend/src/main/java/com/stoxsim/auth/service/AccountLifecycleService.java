@@ -344,6 +344,11 @@ public class AccountLifecycleService {
             """,
             userId
         ));
+        export.put("productActivity", jdbcTemplate.queryForList("""
+            SELECT event_day, event_name, schema_version, first_at FROM product_activity
+            WHERE user_id = ? AND event_day >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date - 179
+            ORDER BY event_day, event_name
+            """, userId));
         export.put("securityEvents", events(userId));
         audit(userId, "ACCOUNT_DATA_EXPORTED", null);
         return export;

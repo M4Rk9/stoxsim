@@ -1,5 +1,8 @@
 package com.stoxsim.order.service;
 
+import com.stoxsim.analytics.service.ProductActivityEvent;
+import com.stoxsim.analytics.service.ProductActivityEvent.Kind;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -209,6 +212,9 @@ public class OrderApplicationService {
 
         if (session.executable()) {
             settlement.settleOpenOrder(order, account, quote);
+        }
+        if (standardAccount && order.getStatus() != OrderStatus.REJECTED) {
+            events.publishEvent(new ProductActivityEvent(userId, Kind.ORDER_SUBMITTED));
         }
         if (order.isOpen()) {
             events.publishEvent(new OrderOpenedEvent(key(order)));
