@@ -20,10 +20,10 @@ owner overview; it does not mark the remaining premium/campus batches complete.
 | Weekly portfolio reports | Implemented | Immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history were deployed in PR #96. |
 | Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
 | Improved leaderboards | Implemented | Opt-in quarterly ranking uses only entry-relative performance of the standard ₹5 lakh account; deployed in PR #98 and hardened in PR #99. |
-| Private leagues and campus competitions | In progress | Capped invite-only leagues are deployed; the current batch adds institution verification and platform moderation before campus standings are opened. |
+| Private leagues and campus competitions | In progress | Capped invite-only leagues are deployed; M3 adds scoped membership review, organizer controls and opt-in campus standings; candidate validation is tracked in POST_RELEASE_MILESTONES.md. |
 | Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning were deployed through PR #102; checkout remains intentionally disabled. |
 | Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
-| Owner analytics overview | M1 merged/deployed; M2 implemented in branch | Owner confirmed dashboard access. M2 adds first-party activity, seven-day activation and mature-cohort retention; validation and deployment pending. |
+| Owner analytics overview | M1 and M2 merged/deployed | Owner confirmed dashboard access. M2 adds first-party activity, seven-day activation and mature-cohort retention; CI passed and owner reported deployment. |
 
 ## Batch 1 — guided onboarding and first trade
 

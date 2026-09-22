@@ -29,7 +29,7 @@ export default function PrivacyPage() {
           <li>Security data: session identifiers, user-agent details and account-security events.</li>
           <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings, ledger entries and saved weekly report snapshots.</li>
           <li>Learning data: XP, levels, check-in streaks, completed missions and unlocked achievements.</li>
-          <li>Competition data: season entry values, percentage returns, valuation freshness and private-league memberships.</li>
+          <li>Competition data: season entry values, percentage returns, valuation freshness and private-league memberships. Campus records include affiliation requests, review notes, membership roles, competition entries and moderation actions.</li>
           <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>
           <li>Product activity: your account ID, UTC day, first occurrence time and category of signed-in activity, stock research, watchlist additions, and standard paper-order submissions/executions. We keep one marker per category per day, without stock symbols, search text, order payloads or session replay.</li>
           <li>Technical data: service logs, request timing, IP-derived security signals and error diagnostics.</li>
@@ -45,6 +45,7 @@ export default function PrivacyPage() {
           <li>Send optional weekly portfolio learning reports only when you explicitly enable them.</li>
           <li>Record educational progression and prevent duplicate mission or achievement awards.</li>
           <li>Operate optional learning competitions. When you opt in, your display name, entry-relative percentage return, join time and valuation freshness are visible in that season&apos;s standings. Private-league standings are visible only to league members.</li>
+          <li>Verify and manage campus membership. Campus organizers and platform administrators can see your membership request, display name, email and affiliation note. Verified institution names and domains are searchable by signed-in users. Campus enrollment is optional and separate from global enrollment: only campus members and platform administrators can see your campus display name, percentage return, entry time and valuation freshness. Your portfolio balance stays private.</li>
           <li>Detect abuse, enforce rate limits, troubleshoot failures and protect the service.</li>
           <li>Meet legal obligations, respond to valid requests and establish or defend legal claims.</li>
           <li>Measure aggregate active learners, onboarding completion and return-day retention to improve the learning experience. Product activity stays within StoxSim; no third-party analytics cookies are added.</li>
@@ -76,6 +77,7 @@ export default function PrivacyPage() {
         <h2>6. Retention and security</h2>
         <p>
           Product activity covers the latest 180 UTC dates and is removed in scheduled batches after expiry. It is included in your account export and deleted with your account.
+          Campus requests and entries are included in your export and removed when you delete your account. You can cancel pending requests, leave your institution or withdraw from a competition; withdrawal is final for that competition. Withdrawn entry baselines remain stored while your account exists to prevent re-entry resets. Campus moderation actions remain with account references cleared on deletion.
           Account and simulator data is kept while your account is active. Security and backup
           records may remain for a limited period after deletion to protect the service and meet
           legal requirements. Passwords are stored as hashes, refresh tokens are hashed and rotated,
