@@ -344,6 +344,7 @@ public class AccountLifecycleService {
             """,
             userId
         ));
+        export.put("testBilling", jdbcTemplate.queryForList("SELECT id,plan,provider_id,status,current_period_end,paid_count,created_at FROM razorpay_test_subscription WHERE user_id=? ORDER BY created_at", userId));
         export.put("campusJoinRequests", jdbcTemplate.queryForList("SELECT * FROM campus_join_request WHERE user_id=? ORDER BY submitted_at", userId));
         export.put("campusCompetitionEntries", jdbcTemplate.queryForList("SELECT * FROM campus_competition_entry WHERE user_id=? ORDER BY joined_at", userId));
         export.put("campusModerationActions", jdbcTemplate.queryForList("SELECT institution_id,competition_id,action,created_at FROM campus_audit WHERE actor_user_id=? OR target_user_id=? ORDER BY created_at", userId,userId));

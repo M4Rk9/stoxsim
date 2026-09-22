@@ -22,11 +22,14 @@ async function refresh(): Promise<Session> {
   return refreshing;
 }
 export async function campus<T>(path = "", body?: unknown): Promise<T> {
+  return authenticated<T>(`campus${path}`, body);
+}
+export async function authenticated<T>(path: string, body?: unknown): Promise<T> {
   const options = body === undefined ? {} : { method: "POST", ...(body === null ? {} : { body: JSON.stringify(body) }) };
   const current = session() ?? await refresh();
-  try { return await request<T>(`campus${path}`, options, current.accessToken); }
+  try { return await request<T>(path, options, current.accessToken); }
   catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
-    return request<T>(`campus${path}`, options, (await refresh()).accessToken);
+    return request<T>(path, options, (await refresh()).accessToken);
   }
 }
