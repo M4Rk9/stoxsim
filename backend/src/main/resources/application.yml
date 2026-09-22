@@ -43,6 +43,14 @@ management:
         http.server.requests: 100ms,500ms,1s,2s,5s
 
 stoxsim:
+  billing:
+    test:
+      enabled: ${STOXSIM_BILLING_TEST_ENABLED:false}
+      key-id: ${STOXSIM_BILLING_TEST_KEY_ID:}
+      key-secret: ${STOXSIM_BILLING_TEST_KEY_SECRET:}
+      webhook-secret: ${STOXSIM_BILLING_TEST_WEBHOOK_SECRET:}
+      plus-plan: ${STOXSIM_BILLING_TEST_PLUS_PLAN:}
+      pro-plan: ${STOXSIM_BILLING_TEST_PRO_PLAN:}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   release:
     public-registration-enabled: ${STOXSIM_PUBLIC_REGISTRATION_ENABLED:true}

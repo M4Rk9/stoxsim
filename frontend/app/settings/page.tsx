@@ -538,6 +538,7 @@ export default function SettingsPage() {
         <a href="#profile">Profile</a><a href="#plan">Plan</a>
         <a href="#reports">Reports</a><a href="#security">Security</a>
         {session.user.platformAdmin && <a href="/admin/analytics">Owner analytics</a>}
+        {session.user.platformAdmin && <a href="/admin/billing">Test subscriptions</a>}
       </nav>
 
       <div className={styles.grid}>
