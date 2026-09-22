@@ -81,6 +81,8 @@ class RazorpayTestBillingIntegrationTest {
         assertThat(service.reconcile(admin,pending.id(),"sub_fixture").status()).isEqualTo("active");
     }
     @Test void webhooksVerifyRawBytesDeduplicateAndUseCurrentStateWithoutChangingRealPlan() throws Exception {
+        db.update("INSERT INTO user_subscription(user_id,plan,subscription_status) VALUES (?,'FREE','ACTIVE')",admin);
+        var subscriptionBefore=db.queryForMap("SELECT * FROM user_subscription WHERE user_id=?",admin);
         var item=service.create(admin,"PLUS",UUID.randomUUID());
         var before=db.queryForMap("SELECT * FROM app_user WHERE id=?",admin);
         byte[] raw=event(item.id());
@@ -93,6 +95,8 @@ class RazorpayTestBillingIntegrationTest {
         assertThat(db.queryForObject("SELECT count(*) FROM razorpay_test_event",Integer.class)).isEqualTo(2);
         verify(provider,times(3)).fetch("sub_fixture"); // create + two unique events
         assertThat(db.queryForMap("SELECT * FROM app_user WHERE id=?",admin)).isEqualTo(before);
+        assertThat(db.queryForMap("SELECT * FROM user_subscription WHERE user_id=?",admin)).isEqualTo(subscriptionBefore);
+        assertThat(db.queryForObject("SELECT count(*) FROM virtual_account WHERE user_id=?",Integer.class,admin)).isZero();
         byte[] malformed="null".getBytes(StandardCharsets.UTF_8);
         String signature=sign(malformed);
         expectStatus(400,()->service.webhook(malformed,signature,"evt_null"));
