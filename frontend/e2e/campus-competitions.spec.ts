@@ -80,7 +80,7 @@ test("revoked organizer permission clears private moderation data", async ({ pag
   state.management.requests = [{ id: "request", displayName: "Applicant", email: "private@example.test", note: "Club" }];
   await page.goto("/campus"); await expect(page.getByText("private@example.test")).toBeVisible();
   state.failManage = true; await page.getByRole("button", { name: "Refresh campus" }).click();
-  await expect(page.getByRole("alert")).toContainText("Campus resource not found");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Campus resource not found");
   await expect(page.getByText("private@example.test")).toHaveCount(0);
 });
 
@@ -89,7 +89,7 @@ test("failed score reload clears stale standings and retries", async ({ page }) 
   await page.getByRole("button", { name: /Campus challenge/ }).click();
   await expect(page.getByRole("table", { name: "Campus leaderboard" })).toBeVisible();
   state.failBoard = true; await page.getByRole("button", { name: "Refresh my score" }).click();
-  await expect(page.getByRole("alert")).toContainText("Board unavailable");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Board unavailable");
   await expect(page.getByRole("table", { name: "Campus leaderboard" })).toHaveCount(0);
   state.failBoard = false; await page.getByRole("button", { name: /Campus challenge/ }).click();
   await expect(page.getByRole("table", { name: "Campus leaderboard" })).toBeVisible();
