@@ -6,6 +6,11 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ### Added
 
+- M3 campus membership requests and organizer review, scheduled competitions,
+  explicit standard-portfolio enrollment and institution-only standings.
+- Campus role moderation, last-organizer protection, admin recovery/suspension,
+  audit history, account export/deletion and scoped authorization tests.
+
 - First-party daily activity, seven-day activation and exact-day D1/D7/D30
   retention in the private owner dashboard, with observation/maturity bounds.
 - Backend-owned watchlist/trading events, 180-day bounded retention, account

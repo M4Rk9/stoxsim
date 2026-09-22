@@ -1,0 +1,45 @@
+.shell { min-height:100vh; padding:0 max(20px,5vw) 48px; color:var(--text-primary,#182019); background:var(--page-background,#f5f7f4); overflow-wrap:anywhere; }
+.nav { min-height:82px; display:flex; align-items:center; gap:24px; justify-content:space-between; padding-right:74px; border-bottom:1px solid var(--border-color,#dce3db); }
+.nav a { color:inherit; font-weight:800; text-decoration:none; }
+.hero { max-width:820px; padding:44px 0 24px; }
+.hero > span, .heading span { color:var(--green); font-size:.78rem; font-weight:800; letter-spacing:.1em; }
+.hero h1 { font-size:clamp(2.3rem,6vw,4.5rem); line-height:1.05; margin:12px 0 18px; }
+.shell p { line-height:1.6; }
+.shell a { color:var(--green-dark); }
+.card { padding:24px; margin-bottom:20px; background:var(--surface,#fff); border:1px solid var(--border-color,#dce3db); border-radius:20px; min-width:0; }
+.card h2 { margin:0 0 16px; }
+.shell button { padding:12px 16px; border:1px solid transparent; border-radius:10px; background:var(--green-dark,#24713a); color:white; font-weight:700; cursor:pointer; }
+.shell button:disabled { opacity:.55; cursor:not-allowed; }
+.shell button:focus-visible, .shell input:focus-visible, .shell textarea:focus-visible, .shell summary:focus-visible { outline:3px solid var(--green); outline-offset:3px; }
+.shell .secondary { background:var(--surface,#fff); color:var(--text-primary,#182019); border-color:var(--border-color,#dce3db); }
+.shell label { display:grid; gap:8px; font-weight:700; margin-bottom:16px; min-width:0; }
+.shell input, .shell textarea { width:100%; min-width:0; padding:12px; border:1px solid var(--border-color,#dce3db); border-radius:9px; background:var(--surface,#fff); color:inherit; font:inherit; box-sizing:border-box; }
+.shell textarea { min-height:90px; resize:vertical; }
+.shell fieldset { border:0; padding:0; margin:0; min-width:0; }
+.shell small { font-weight:400; }
+.search, .actions, .heading, .row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.search label { flex:1; margin-bottom:0; }
+.search { align-items:end; }
+.actions { justify-content:flex-start; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); gap:14px; }
+.shell .institution { text-align:left; color:inherit; background:var(--surface,#fff); border-color:var(--border-color,#dce3db); display:grid; gap:10px; }
+.institution strong { font-size:1.05rem; }
+.institution span { font-size:.83rem; color:var(--text-secondary,#68736a); }
+.shell .institution[aria-pressed="true"] { border-color:var(--green); background:color-mix(in srgb,var(--green) 9%,var(--surface,#fff)); }
+.notice, .alert, .optin { padding:18px; border:1px solid var(--border-color,#dce3db); border-radius:12px; margin-bottom:18px; }
+.alert { border-color:var(--red,#b43434); }
+.notice, .optin { background:color-mix(in srgb,var(--green) 6%,var(--surface,#fff)); }
+.shell .check { display:flex; align-items:flex-start; gap:10px; line-height:1.5; }
+.check input { width:20px; height:20px; flex-shrink:0; margin-top:3px; }
+.metrics { display:flex; flex-wrap:wrap; gap:24px; align-items:center; margin-bottom:16px; }
+.metrics strong { display:block; font-size:1.5rem; }
+.tableWrap { overflow-x:auto; max-width:100%; }
+.tableWrap table { min-width:760px; width:100%; border-collapse:collapse; }
+.tableWrap th, .tableWrap td { text-align:left; padding:14px 10px; border-bottom:1px solid var(--border-color,#dce3db); font-size:.85rem; }
+.you { background:color-mix(in srgb,var(--green) 10%,transparent); }
+.muted { color:var(--text-secondary,#68736a); font-size:.86rem; }
+.row { border-top:1px solid var(--border-color,#dce3db); padding:16px 0; }
+.row p { margin:6px 0; }
+.shell summary { cursor:pointer; font-weight:700; padding:12px 0; }
+.shell hr { border:0; border-top:1px solid var(--border-color,#dce3db); margin:22px 0; }
+@media(max-width:600px) { .card { padding:18px; } .heading { align-items:flex-start; } .nav { font-size:.85rem; gap:12px; } .search { align-items:stretch; flex-direction:column; } }

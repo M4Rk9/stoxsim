@@ -116,6 +116,7 @@ class CampusServiceTest {
     @Test
     void adminApprovalCreatesAOneInstitutionOrganizerMembership() {
         CampusVerificationRequest pending = pendingRequest();
+        when(users.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
         when(users.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
         when(requests.findByIdForUpdate(REQUEST_ID)).thenReturn(Optional.of(pending));
         when(institutions.save(any(CampusInstitution.class)))

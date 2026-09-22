@@ -147,6 +147,7 @@ public class CampusService {
     ) {
         AppUser admin = requireAdmin(adminUserId);
         CampusVerificationRequest request = pendingRequest(requestId);
+        requireUserForUpdate(request.getRequester().getId());
         if (memberships.existsByUser_Id(request.getRequester().getId())) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,

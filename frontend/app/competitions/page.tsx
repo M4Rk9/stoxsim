@@ -340,6 +340,7 @@ export default function CompetitionsPage() {
     <section className={styles.heading}>
       <span>STANDARD ₹5 LAKH PORTFOLIO</span>
       <h1>Learning competitions</h1>
+      <p><a href="/campus">Open campus competitions →</a></p>
       <p>Compare percentage change after entry on equal standard accounts, or learn with a private group. Competition results are educational—not investment advice.</p>
     </section>
 
