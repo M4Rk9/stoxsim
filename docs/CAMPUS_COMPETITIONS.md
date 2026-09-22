@@ -117,7 +117,7 @@ and unauthorized scoped resources return 404.
   four decimals. Ties share rank (competition ranking: 1, 1, 3). Display name,
   return, entry time and price freshness are visible only to campus members and
   platform admins. Absolute balance is returned only for the requesting learner.
-- Opening/refreshing the board refreshes only the requester's score while OPEN.
+- Opening the board is read-only. An explicit POST refreshes only the requester's score while OPEN.
   Other rows are their last observed valuations. Holding prices marked UNAVAILABLE
   prevent enrollment and retain the last usable score on refresh. Cash-only
   accounts remain eligible without market prices. STALE/CLOSED data is labeled.
@@ -150,7 +150,8 @@ Existing institution verification endpoints remain unchanged.
 | `POST /institutions/{i}/organizer-recovery` | ADMIN; `{email,note}` |
 | `POST /institutions/{i}/suspension` | ADMIN; `{suspended,note}` |
 | `POST /institutions/{i}/competitions` | Manager; `{title,startsAt?,endsAt,capacity}` |
-| `GET /institutions/{i}/competitions/{c}` | Member or ADMIN; requester-only refresh |
+| `GET /institutions/{i}/competitions/{c}` | Member or ADMIN; read-only standings |
+| `POST /institutions/{i}/competitions/{c}/refresh` | Member or ADMIN; requester-only refresh |
 | `POST /institutions/{i}/competitions/{c}/enroll` | Verified member; server-owned account/score |
 | `POST /institutions/{i}/competitions/{c}/withdraw` | Own entry only |
 | `POST /institutions/{i}/competitions/{c}/cancel` | Manager; `{note}` |
