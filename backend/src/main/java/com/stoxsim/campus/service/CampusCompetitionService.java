@@ -29,7 +29,7 @@ import static com.stoxsim.campus.repository.CampusCompetitionRepository.instant;
 @Service
 @Transactional(timeout=15)
 public class CampusCompetitionService {
-    public static final String NOTE = "Campus standings show percentage change since each learner enrolled, using only the standard India portfolio. Only your own score refreshes when you open the board; other rows show their last valuation. After the end, last observed values remain frozen, not official closing-price results. Participation is educational, not investment advice.";
+    public static final String NOTE = "Campus standings show percentage change since each learner enrolled, using only the standard India portfolio. Only your own score refreshes when you request a refresh; other rows show their last valuation. After the end, last observed values remain frozen, not official closing-price results. Participation is educational, not investment advice.";
     private final CampusCompetitionRepository repo;
     private final AppUserRepository users;
     private final VirtualAccountRepository accounts;
@@ -181,6 +181,10 @@ public class CampusCompetitionService {
         if(changed>0) audit(institution,actor,actor,"COMPETITION_WITHDRAWN",competition);
     }
     public Board board(UUID actor,UUID institution,UUID competition) {
+        campus(institution,false);access(actor,institution,false);
+        return boardData(actor,competition(competition,institution,actor),false);
+    }
+    public Board refreshBoard(UUID actor,UUID institution,UUID competition) {
         var campus=campus(institution,true);access(actor,institution,false);
         var item=competition(competition,institution,actor);boolean unavailable=false;
         if(!campus.suspended() && item.status().equals("OPEN") && item.enrolled()) {

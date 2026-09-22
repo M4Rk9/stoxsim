@@ -49,19 +49,19 @@ public class CampusCompetitionRepository {
         SELECT r.*, i.name AS institution_name, u.display_name,u.email FROM campus_join_request r
         JOIN campus_institution i ON i.id=r.institution_id JOIN app_user u ON u.id=r.user_id
         """;
-    private JoinRequest request(ResultSet rs,int row) throws SQLException {
+    private JoinRequest mapRequest(ResultSet rs,int row) throws SQLException {
         return new JoinRequest(rs.getObject("id",UUID.class),rs.getObject("institution_id",UUID.class),rs.getString("institution_name"),
             rs.getObject("user_id",UUID.class),rs.getString("display_name"),rs.getString("email"),rs.getString("note"),
             rs.getString("status"),rs.getString("review_note"),instant(rs,"submitted_at"));
     }
     public JoinRequest latest(UUID user) {
-        return jdbc.query(REQUEST+" WHERE r.user_id=? ORDER BY r.submitted_at DESC,r.id LIMIT 1",this::request,user).stream().findFirst().orElse(null);
+        return jdbc.query(REQUEST+" WHERE r.user_id=? ORDER BY r.submitted_at DESC,r.id LIMIT 1",this::mapRequest,user).stream().findFirst().orElse(null);
     }
     public JoinRequest request(UUID id) {
-        return jdbc.query(REQUEST+" WHERE r.id=?",this::request,id).stream().findFirst().orElse(null);
+        return jdbc.query(REQUEST+" WHERE r.id=?",this::mapRequest,id).stream().findFirst().orElse(null);
     }
     public List<JoinRequest> pending(UUID institution) {
-        return jdbc.query(REQUEST+" WHERE r.institution_id=? AND r.status='PENDING' ORDER BY r.submitted_at,r.id LIMIT 200",this::request,institution);
+        return jdbc.query(REQUEST+" WHERE r.institution_id=? AND r.status='PENDING' ORDER BY r.submitted_at,r.id LIMIT 200",this::mapRequest,institution);
     }
     public List<Audit> audit(UUID institution) {
         return jdbc.query("""

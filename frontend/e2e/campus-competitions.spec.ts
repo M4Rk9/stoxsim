@@ -21,6 +21,7 @@ async function setup(page: Page, role = "MEMBER") {
     if (route.request().method() === "POST") {
       let body: Record<string, unknown> | null = null; try { body = route.request().postDataJSON(); } catch { /* bodyless action */ }
       state.posts.push({ path, body });
+      if (path.endsWith("/refresh")) { state.refreshCalls++; return respond(route, state.failBoard ? 503 : 200, state.failBoard ? { message: "Board unavailable" } : state.board); }
       if (path.endsWith("/enroll")) { state.board.competition.enrolled = true; state.board.competition.participants = 1; state.board.yourBaselineValue = 500000; state.board.yourLatestValue = 500000; state.board.standings = [{ rank: 1, displayName: "Learner", returnPercent: 0, dataStatus: "UNAVAILABLE", joinedAt: "2026-09-21T12:00:00Z", valuedAt: "2026-09-21T12:00:00Z", currentUser: true }]; return respond(route, 200, state.board); }
       if (path.endsWith("/withdraw")) { state.board.competition.enrolled = false; state.board.competition.withdrawn = true; state.board.standings = []; }
       if (path.endsWith("/membership-requests")) { state.latest = { id: "request", institutionId: institution.id, institutionName: institution.name, status: "PENDING", ...body }; return respond(route, 200, state.latest); }

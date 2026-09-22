@@ -108,12 +108,26 @@ class CampusCompetitionIntegrationTest {
         assertThat(service.directory(learner.getId(),"First")).isEmpty();
         assertThat(service.directory(admin.getId(),"First")).hasSize(1);
         value(learner,"600000",PricingStatus.LIVE,false);
-        assertThat(service.board(learner.getId(),campus,event.id()).yourLatestValue()).isEqualByComparingTo("500000");
+        assertThat(service.refreshBoard(learner.getId(),campus,event.id()).yourLatestValue()).isEqualByComparingTo("500000");
         expectStatus(409,()->create(learner,campus,10));
         expectStatus(409,()->service.apply(admin.getId(),campus,"Club"));
         service.suspend(admin.getId(),campus,new Suspension(false,"Resolved"));
-        assertThat(service.board(learner.getId(),campus,event.id()).standings().getFirst().returnPercent()).isEqualByComparingTo("20");
+        assertThat(service.refreshBoard(learner.getId(),campus,event.id()).standings().getFirst().returnPercent()).isEqualByComparingTo("20");
         service.withdraw(learner.getId(),campus,event.id());
+    }
+    @Test void leaderboardGetDoesNotRefreshButExplicitPostDoes() throws Exception {
+        member(campus,learner,"MEMBER");
+        var event=create(organizer,campus,10);
+        service.enroll(learner.getId(),campus,event.id());
+        value(learner,"600000",PricingStatus.LIVE,false);
+        var mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        String path="/api/v1/campus/institutions/"+campus+"/competitions/"+event.id();
+        mvc.perform(get(path).with(jwt().jwt(t->t.subject(learner.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.yourLatestValue").value(500000));
+        mvc.perform(post(path+"/refresh").with(jwt().jwt(t->t.subject(learner.getId().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.yourLatestValue").value(600000));
+        mvc.perform(post(path+"/refresh").with(jwt().jwt(t->t.subject(outsider.getId().toString()))))
+            .andExpect(status().isNotFound());
     }
     @Test void enrollmentUsesStandardAccountAndNeverResetsBaselineOrEnrollsGlobally() {
         member(campus,learner,"MEMBER");
@@ -122,28 +136,28 @@ class CampusCompetitionIntegrationTest {
         service.enroll(learner.getId(),campus,event.id());
         value(learner,"550000",PricingStatus.LIVE,false);
         assertThat(service.enroll(learner.getId(),campus,event.id()).yourBaselineValue()).isEqualByComparingTo("500000");
-        var board=service.board(learner.getId(),campus,event.id());
+        var board=service.refreshBoard(learner.getId(),campus,event.id());
         assertThat(board.standings().getFirst().returnPercent()).isEqualByComparingTo("10");
         assertThat(jdbc.queryForObject("SELECT account_id FROM campus_competition_entry WHERE user_id=?",UUID.class,learner.getId())).isNotEqualTo(sandbox.getId());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM competition_entry WHERE user_id=?",Long.class,learner.getId())).isZero();
         service.removeMember(organizer.getId(),campus,learner.getId(),"Leaving club");
-        expectStatus(404,()->service.board(learner.getId(),campus,event.id()));
+        expectStatus(404,()->service.refreshBoard(learner.getId(),campus,event.id()));
         var request=service.apply(learner.getId(),campus,"Returning");
         service.review(organizer.getId(),campus,request.id(),new Review(true,"Checked again"));
         expectStatus(409,()->service.enroll(learner.getId(),campus,event.id()));
-        assertThat(service.board(organizer.getId(),campus,event.id()).standings()).isEmpty();
+        assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).standings()).isEmpty();
     }
     @Test void onlyRequesterRefreshesTiesShareRankAndUnavailableHoldingsKeepPreviousScore() {
         member(campus,learner,"MEMBER");var event=create(organizer,campus,10);
         service.enroll(learner.getId(),campus,event.id());service.enroll(organizer.getId(),campus,event.id());
-        assertThat(service.board(organizer.getId(),campus,event.id()).standings()).extracting(s->s.rank()).containsOnly(1);
+        assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).standings()).extracting(s->s.rank()).containsOnly(1);
         value(learner,"550000",PricingStatus.LIVE,false);
-        assertThat(service.board(organizer.getId(),campus,event.id()).standings()).extracting(s->s.returnPercent()).allMatch(v->v.signum()==0);
-        service.board(learner.getId(),campus,event.id());
+        assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).standings()).extracting(s->s.returnPercent()).allMatch(v->v.signum()==0);
+        service.refreshBoard(learner.getId(),campus,event.id());
         value(learner,"999999",PricingStatus.UNAVAILABLE,true);
-        var stale=service.board(learner.getId(),campus,event.id());
+        var stale=service.refreshBoard(learner.getId(),campus,event.id());
         assertThat(stale.refreshUnavailable()).isTrue();assertThat(stale.yourLatestValue()).isEqualByComparingTo("550000");
-        assertThat(service.board(admin.getId(),campus,event.id()).yourBaselineValue()).isNull();
+        assertThat(service.refreshBoard(admin.getId(),campus,event.id()).yourBaselineValue()).isNull();
     }
     @Test void enrollmentRejectsUnknownPricesAndNonpositiveBaseline() {
         member(campus,learner,"MEMBER");var event=create(organizer,campus,10);
@@ -151,7 +165,7 @@ class CampusCompetitionIntegrationTest {
         expectStatus(503,()->service.enroll(learner.getId(),campus,event.id()));
         value(learner,"0",PricingStatus.LIVE,false);
         expectStatus(409,()->service.enroll(learner.getId(),campus,event.id()));
-        assertThat(service.board(organizer.getId(),campus,event.id()).standings()).isEmpty();
+        assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).standings()).isEmpty();
     }
     @Test void closedScheduledCancelledAndCrossInstitutionCompetitionsRejectEnrollment() {
         member(campus,learner,"MEMBER");var event=create(organizer,campus,10);
@@ -160,13 +174,13 @@ class CampusCompetitionIntegrationTest {
         service.enroll(learner.getId(),campus,event.id());
         jdbc.update("UPDATE campus_competition SET starts_at=now()-interval '3 hours',ends_at=now()-interval '1 hour' WHERE id=?",event.id());
         value(learner,"600000",PricingStatus.LIVE,false);
-        assertThat(service.board(learner.getId(),campus,event.id()).yourLatestValue()).isEqualByComparingTo("500000");
+        assertThat(service.refreshBoard(learner.getId(),campus,event.id()).yourLatestValue()).isEqualByComparingTo("500000");
         expectStatus(409,()->service.enroll(organizer.getId(),campus,event.id()));
         expectStatus(409,()->service.cancelCompetition(organizer.getId(),campus,event.id(),"Cancel"));
         var scheduled=service.create(organizer.getId(),campus,new NewCompetition("Future event",Instant.now().plusSeconds(3600),Instant.now().plusSeconds(7201),10));
         expectStatus(409,()->service.enroll(learner.getId(),campus,scheduled.id()));
         service.cancelCompetition(organizer.getId(),campus,scheduled.id(),"Reschedule later");
-        assertThat(service.board(learner.getId(),campus,scheduled.id()).competition().status()).isEqualTo("CANCELLED");
+        assertThat(service.refreshBoard(learner.getId(),campus,scheduled.id()).competition().status()).isEqualTo("CANCELLED");
     }
     @Test void concurrentEnrollmentCannotOverfillLastSlot() throws Exception {
         var second=user("second");accounts.saveAndFlush(new VirtualAccount(second,MarketRegion.INDIA,new BigDecimal("500000")));
@@ -174,7 +188,7 @@ class CampusCompetitionIntegrationTest {
         var event=create(organizer,campus,2);service.enroll(organizer.getId(),campus,event.id());
         var result=race(()->service.enroll(learner.getId(),campus,event.id()),()->service.enroll(second.getId(),campus,event.id()));
         assertThat(result).containsExactlyInAnyOrder(200,409);
-        assertThat(service.board(organizer.getId(),campus,event.id()).competition().participants()).isEqualTo(2);
+        assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).competition().participants()).isEqualTo(2);
     }
     @Test void concurrentApplicationsAndReviewsHaveOneWinner() throws Exception {
         assertThat(race(()->service.apply(learner.getId(),campus,"First"),()->service.apply(learner.getId(),other,"Other"))).containsExactlyInAnyOrder(200,409);
@@ -209,7 +223,7 @@ class CampusCompetitionIntegrationTest {
         assertThat((List<?>)exported.get("campusModerationActions")).hasSize(3);
         users.deleteById(learner.getId());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM campus_join_request",Long.class)).isZero();
-        assertThat(service.board(organizer.getId(),campus,event.id()).standings()).isEmpty();
+        assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).standings()).isEmpty();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM campus_audit WHERE actor_user_id=? OR target_user_id=?",Long.class,learner.getId(),learner.getId())).isZero();
     }
     private AppUser user(String name) { var u=new AppUser(name+"@example.test","hash",name);u.markEmailVerified();return users.saveAndFlush(u); }

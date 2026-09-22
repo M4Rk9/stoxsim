@@ -113,7 +113,7 @@ export default function CampusPage() {
           {!workspace.competitions.length && <p>No competitions yet. Your organizer can create one.</p>}
           <p className={styles.muted}>Latest 50 competitions. Times use your device’s time zone. Joining a campus competition does not enroll you in the global leaderboard.</p>
         </section>
-        {board && <section className={styles.card} aria-label="Campus standings"><div className={styles.heading}><div><span>{board.competition.status}</span><h2>{board.competition.title}</h2></div><button disabled={busy} onClick={() => void act(async () => { const id = board.competition.id; setBoard(null); setBoard(await campus(`${base}/competitions/${id}`)); })}>Refresh my score</button></div>
+        {board && <section className={styles.card} aria-label="Campus standings"><div className={styles.heading}><div><span>{board.competition.status}</span><h2>{board.competition.title}</h2></div><button disabled={busy} onClick={() => void act(async () => { const id = board.competition.id; setBoard(null); setBoard(await campus(`${base}/competitions/${id}/refresh`, null)); })}>Refresh my score</button></div>
           <p>{time(board.competition.startsAt)} – {time(board.competition.endsAt)} · {board.competition.participants}/{board.competition.capacity} learners</p>
           {board.competition.cancellationNote && <p className={styles.notice}>Cancelled: {board.competition.cancellationNote}</p>}
           {board.refreshUnavailable && <p role="status" className={styles.notice}>Prices are unavailable. Your last usable score is shown; try refreshing later.</p>}
