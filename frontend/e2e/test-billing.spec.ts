@@ -8,7 +8,10 @@ async function respond(route: Route, status: number, body: unknown) {
     body: route.request().method() === "OPTIONS" ? undefined : JSON.stringify(body) });
 }
 async function session(page: Page) {
-  await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "fixture", user: { id: "admin" } })));
+  await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({
+    accessToken: "fixture", expiresInSeconds: 900,
+    user: { id: "admin", email: "admin@billing.test", displayName: "Billing Admin", emailVerified: true, platformAdmin: true, accounts: [] },
+  })));
 }
 test("disabled and forbidden responses never offer checkout", async ({ page }) => {
   await session(page);
