@@ -202,7 +202,7 @@ class RazorpayTestBillingIntegrationTest {
         service.reconcileBenefits();
         assertThat(service.overview(admin).entries().getFirst().benefitStatus()).isEqualTo("EXPIRED");
         assertThat(db.queryForObject("SELECT count(*) FROM virtual_account WHERE active=true",Integer.class)).isZero();
-        when(provider.fetch(anyString())).thenAnswer(call->remote);
+        doAnswer(call->remote).when(provider).fetch(anyString());
         ((tools.jackson.databind.node.ObjectNode)remote).put("paid_count",2);
         service.refresh(admin,item.id());
         db.update("UPDATE app_user SET platform_role='USER' WHERE id=?",admin);
@@ -218,7 +218,7 @@ class RazorpayTestBillingIntegrationTest {
         ((tools.jackson.databind.node.ObjectNode)remote).put("paid_count",0);
         expectStatus(409,()->service.benefits(admin,item.id(),true));
         remote=resource(item.id(),"active");
-        db.update("INSERT INTO user_subscription(user_id,plan,subscription_status,billing_provider) VALUES (?,'PRO','ACTIVE','EXISTING')",admin);
+        db.update("INSERT INTO user_subscription(user_id,plan,subscription_status,billing_provider,provider_customer_reference,provider_subscription_reference) VALUES (?,'PRO','ACTIVE','EXISTING','customer_existing','subscription_existing')",admin);
         expectStatus(409,()->service.benefits(admin,item.id(),true));
         assertThat(subscriptions.current(admin).plan()).isEqualTo(SubscriptionPlan.PRO);
         assertThat(service.overview(admin).entries().getFirst().benefitsEnabled()).isFalse();
