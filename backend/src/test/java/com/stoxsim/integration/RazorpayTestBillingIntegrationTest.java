@@ -223,7 +223,7 @@ class RazorpayTestBillingIntegrationTest {
         assertThat(subscriptions.current(admin).plan()).isEqualTo(SubscriptionPlan.PRO);
         assertThat(service.overview(admin).entries().getFirst().benefitsEnabled()).isFalse();
     }
-    @Test void cancellationReleasesBuyAndSellReservationsPreservingHoldingsAndStandardAccount() {
+    @Test void externalImmediateCancellationReleasesReservationsPreservingHoldingsAndStandardAccount() {
         var item=service.create(admin,"PLUS",UUID.randomUUID());
         remote=resource(item.id(),"active");service.benefits(admin,item.id(),true);
         UUID sandbox=subscriptions.current(admin).sandboxAccounts().getFirst().id();
@@ -231,9 +231,9 @@ class RazorpayTestBillingIntegrationTest {
         UUID standard=tx.execute(status->accounts.save(new VirtualAccount(users.findById(admin).orElseThrow(),MarketRegion.INDIA,new BigDecimal("500000"))).getId());
         var standardBefore=db.queryForMap("SELECT * FROM virtual_account WHERE id=?",standard);
         addReservedOrders(sandbox);
-        when(provider.cancel(anyString())).thenAnswer(call->{remote=resource(item.id(),"cancelled");return remote;});
-        service.cancel(admin,item.id());
-        service.cancel(admin,item.id());
+        remote=resource(item.id(),"cancelled");
+        service.refresh(admin,item.id());
+        service.refresh(admin,item.id());
         assertThat(db.queryForObject("SELECT blocked_cash FROM virtual_account WHERE id=?",BigDecimal.class,sandbox)).isEqualByComparingTo("0");
         assertThat(db.queryForObject("SELECT available_cash FROM virtual_account WHERE id=?",BigDecimal.class,sandbox)).isEqualByComparingTo("2500000");
         assertThat(db.queryForObject("SELECT blocked_quantity FROM holding WHERE account_id=?",Long.class,sandbox)).isZero();
@@ -254,6 +254,73 @@ class RazorpayTestBillingIntegrationTest {
         assertThat(db.queryForObject("SELECT count(*) FROM trade WHERE account_id=?",Integer.class,sandbox)).isZero();
         assertThat(db.queryForObject("SELECT blocked_cash FROM virtual_account WHERE id=?",BigDecimal.class,sandbox)).isEqualByComparingTo("0");
         assertThat(db.queryForObject("SELECT blocked_quantity FROM holding WHERE account_id=?",Long.class,sandbox)).isZero();
+    }
+    @Test void scheduledCancellationKeepsPaidAccessAndOrdersUntilFixedBoundary() throws Exception {
+        var item=service.create(admin,"PLUS",UUID.randomUUID());
+        remote=resource(item.id(),"active");service.benefits(admin,item.id(),true);
+        UUID sandbox=subscriptions.current(admin).sandboxAccounts().getFirst().id();
+        addReservedOrders(sandbox);
+        when(provider.cancelAtCycleEnd(anyString())).thenAnswer(call->remote);
+        expectStatus(404,()->service.cancel(other,item.id()));
+        var cancelled=service.cancel(admin,item.id());
+        assertThat(cancelled.cancellationStatus()).isEqualTo("CONFIRMED");
+        assertThat(cancelled.benefitStatus()).isEqualTo("ENDING");
+        assertThat(cancelled.accessUntil()).isEqualTo(cancelled.cancelAt());
+        service.cancel(admin,item.id());
+        verify(provider,times(1)).cancelAtCycleEnd("sub_fixture");
+        verify(provider,never()).cancel(anyString());
+        assertThat(db.queryForObject("SELECT blocked_cash FROM virtual_account WHERE id=?",BigDecimal.class,sandbox)).isEqualByComparingTo("100");
+        assertThat(db.queryForObject("SELECT count(*) FROM paper_order WHERE status='OPEN' AND account_id=?",Integer.class,sandbox)).isEqualTo(2);
+        remote=resource(item.id(),"pending");
+        assertThat(service.refresh(admin,item.id()).accessUntil()).isEqualTo(cancelled.cancelAt());
+        remote=resource(item.id(),"cancelled");
+        byte[] raw=event(item.id());service.webhook(raw,sign(raw),"evt_scheduled");
+        service.webhook(raw,sign(raw),"evt_scheduled");
+        assertThat(subscriptions.current(admin).sandboxAccounts().getFirst().active()).isTrue();
+        db.update("UPDATE razorpay_test_subscription SET cancel_at=now()-interval '1 second' WHERE id=?",item.id());
+        service.reconcileBenefits();
+        assertThat(subscriptions.current(admin).sandboxAccounts().getFirst().active()).isFalse();
+        assertThat(db.queryForObject("SELECT blocked_cash FROM virtual_account WHERE id=?",BigDecimal.class,sandbox)).isEqualByComparingTo("0");
+        assertThat(db.queryForObject("SELECT blocked_quantity FROM holding WHERE account_id=?",Long.class,sandbox)).isZero();
+    }
+    @Test void timeoutDoesNotClaimCancellationAndRetryKeepsOriginalEnd() {
+        var item=service.create(admin,"PLUS",UUID.randomUUID());
+        remote=resource(item.id(),"active");service.benefits(admin,item.id(),true);
+        when(provider.cancelAtCycleEnd(anyString())).thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Timeout"));
+        expectStatus(502,()->service.cancel(admin,item.id()));
+        var pending=service.overview(admin).entries().getFirst();
+        assertThat(pending.cancellationStatus()).isEqualTo("REQUESTED");
+        assertThat(subscriptions.current(admin).sandboxAccounts().getFirst().active()).isTrue();
+        // A generic scheduled-change flag is not evidence of cancellation.
+        ((tools.jackson.databind.node.ObjectNode)remote).put("has_scheduled_changes",true);
+        assertThat(service.refresh(admin,item.id()).cancellationStatus()).isEqualTo("REQUESTED");
+        doAnswer(call->remote).when(provider).cancelAtCycleEnd(anyString());
+        var confirmed=service.cancel(admin,item.id());
+        assertThat(confirmed.cancellationStatus()).isEqualTo("CONFIRMED");
+        assertThat(confirmed.cancelAt()).isEqualTo(pending.cancelAt());
+        ((tools.jackson.databind.node.ObjectNode)remote).put("paid_count",2).put("current_end",Instant.now().plus(Duration.ofDays(60)).getEpochSecond());
+        assertThat(service.refresh(admin,item.id()).accessUntil()).isEqualTo(pending.cancelAt());
+    }
+    @Test void cancelledAcknowledgementPreservesOrdersAndInvalidResponseCannotConfirmIntent() {
+        var item=service.create(admin,"PLUS",UUID.randomUUID());
+        remote=resource(item.id(),"active");service.benefits(admin,item.id(),true);
+        UUID sandbox=subscriptions.current(admin).sandboxAccounts().getFirst().id();addReservedOrders(sandbox);
+        when(provider.cancelAtCycleEnd(anyString())).thenReturn(resource(UUID.randomUUID(),"cancelled"));
+        expectStatus(502,()->service.cancel(admin,item.id()));
+        assertThat(service.overview(admin).entries().getFirst().cancellationStatus()).isEqualTo("REQUESTED");
+        when(provider.cancelAtCycleEnd(anyString())).thenAnswer(call->{remote=resource(item.id(),"cancelled");return remote;});
+        assertThat(service.cancel(admin,item.id()).benefitStatus()).isEqualTo("ENDING");
+        assertThat(db.queryForObject("SELECT count(*) FROM paper_order WHERE status='OPEN' AND account_id=?",Integer.class,sandbox)).isEqualTo(2);
+    }
+    @Test void terminalWebhookRecoversCancellationAfterUncertainResponse() throws Exception {
+        var item=service.create(admin,"PLUS",UUID.randomUUID());
+        remote=resource(item.id(),"active");service.benefits(admin,item.id(),true);
+        when(provider.cancelAtCycleEnd(anyString())).thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Timeout"));
+        expectStatus(502,()->service.cancel(admin,item.id()));
+        remote=resource(item.id(),"cancelled");
+        byte[] raw=event(item.id());service.webhook(raw,sign(raw),"evt_recovered");
+        assertThat(service.overview(admin).entries().getFirst().cancellationStatus()).isEqualTo("CONFIRMED");
+        assertThat(subscriptions.current(admin).sandboxAccounts().getFirst().active()).isTrue();
     }
     private void addReservedOrders(UUID accountId) {
         new TransactionTemplate(transactionManager).executeWithoutResult(status->{

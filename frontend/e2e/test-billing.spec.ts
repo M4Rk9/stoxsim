@@ -95,3 +95,38 @@ test("test benefits need explicit confirmation and show verified access state", 
   await expect(page.getByText("Test benefits: OFF", { exact: true })).toBeVisible();
   expect(mutations).toBe(2);
 });
+
+test("period-end cancellation shows confirmation and removes repeat action", async ({ page }) => {
+  await session(page);
+  let current = { ...entry, status: "active", paidCount: 1, benefitsEnabled: true, benefitStatus: "ACTIVE", accessUntil: "2099-01-01T00:00:00Z", cancellationStatus: "NONE", cancelAt: null as string | null };
+  let requests = 0;
+  await page.route("**/api/v1/billing/test", route => respond(route, 200, { enabled: true, mode: "TEST", keyId: "rzp_test_fixture", entries: [current] }));
+  await page.route("**/api/v1/billing/test/subscriptions/*/cancel", async route => {
+    if (route.request().method() === "POST") {
+      requests++;
+      current = { ...current, cancellationStatus: "CONFIRMED", cancelAt: current.accessUntil, benefitStatus: "ENDING" };
+    }
+    await respond(route, 200, current);
+  });
+  await page.goto("/admin/billing");
+  await expect(page.getByText(/purchases are non-refundable/)).toBeVisible();
+  page.once("dialog", dialog => { expect(dialog.message()).toContain("Paid benefits remain"); return dialog.dismiss(); });
+  await page.getByRole("button", { name: "Cancel renewal", exact: true }).click();
+  expect(requests).toBe(0);
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Cancel renewal", exact: true }).click();
+  await expect(page.getByText(/Renewal cancelled. Paid access ends:/)).toBeVisible();
+  await expect(page.getByText("Test benefits: ENDING", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel renewal", exact: true })).toHaveCount(0);
+  expect(requests).toBe(1);
+});
+
+test("uncertain cancellation is never presented as confirmed", async ({ page }) => {
+  await session(page);
+  const current = { ...entry, status: "active", paidCount: 1, cancellationStatus: "REQUESTED", cancelAt: "2099-01-01T00:00:00Z" };
+  await page.route("**/api/v1/billing/test", route => respond(route, 200, { enabled: true, mode: "TEST", keyId: "rzp_test_fixture", entries: [current] }));
+  await page.goto("/admin/billing");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Renewal may still occur");
+  await expect(page.getByRole("button", { name: "Retry cancellation" })).toBeVisible();
+  await expect(page.getByText(/Renewal cancelled. Paid access ends:/)).toHaveCount(0);
+});

@@ -12,6 +12,7 @@ export default function TermsPage() {
   return (
     <LegalDocument
       title="Terms of Use"
+      effectiveDate="23 September 2026"
       summary="These terms govern access to the StoxSim public beta and its educational paper-trading features."
     >
       <section>
@@ -96,6 +97,20 @@ export default function TermsPage() {
         <p>
           Updated Terms will show a new effective date. Material changes may require renewed acceptance.
           Continued use after an effective update constitutes acceptance where law permits.
+        </p>
+      </section>
+      <section>
+        <h2>11. Subscription cancellation</h2>
+        <p>
+          Subscription purchases are non-refundable. Cancellation stops future renewals;
+          benefits remain available until the confirmed paid period ends. After expiry,
+          paid sandbox portfolios become read-only and pending sandbox orders are cancelled,
+          releasing reserved virtual cash and shares. Holdings and trading history remain available.
+        </p>
+        <p>
+          Live subscription purchases are currently disabled. Administrator test subscriptions
+          use simulated payments. A cancellation awaiting confirmation does not yet confirm
+          that renewal has stopped. Check its status or contact support for help.
         </p>
       </section>
     </LegalDocument>
