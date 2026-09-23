@@ -105,8 +105,10 @@ The owner selected a cancellation-only, non-refundable purchase policy. There is
 no refund API, refund button, automatic refund, or refund webhook in StoxSim.
 The policy is displayed before test checkout and in Terms of Use.
 
-Paid cancellation calls Razorpay with `cancel_at_cycle_end=true`. Unpaid or
-already-ended paid periods use immediate cancellation. The backend stores a
+Paid cancellation calls Razorpay with `cancel_at_cycle_end=true`. In the final
+billing cycle (`remaining_count=0`), Razorpay requires immediate cancellation;
+StoxSim still preserves paid access to the original end date. Unpaid or
+already-ended paid periods also use immediate cancellation. The backend stores a
 `REQUESTED` intent and its original paid-through boundary before sending the
 mutation. Only an identity-validated successful response or an authoritative
 terminal status changes it to `CONFIRMED`. A generic `has_scheduled_changes` flag

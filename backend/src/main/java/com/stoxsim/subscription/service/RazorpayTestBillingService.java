@@ -159,7 +159,11 @@ public class RazorpayTestBillingService {
         return tx.execute(status->{
             owned(actor,id);var item=entry(id);
             if (!item.cancellationStatus().equals("REQUESTED")) return item;
-            boolean periodEnd=item.cancelAt()!=null && Instant.now().isBefore(item.cancelAt());
+            Integer remaining=db.queryForObject("SELECT remaining_cycles FROM razorpay_test_subscription WHERE id=?",Integer.class,id);
+            // Razorpay rejects cycle-end cancellation during its final cycle.
+            // Stop the provider immediately then preserve paid access locally.
+            boolean periodEnd=item.cancelAt()!=null && Instant.now().isBefore(item.cancelAt())
+                && !Integer.valueOf(0).equals(remaining);
             var response=periodEnd ? provider.cancelAtCycleEnd(item.providerId()) : provider.cancel(item.providerId());
             // The acknowledgement and identity validation commit atomically.
             // Mark first so a cancelled response does not briefly revoke paid access.
@@ -208,6 +212,8 @@ public class RazorpayTestBillingService {
             || remote.path("quantity").asInt()!=1 || !STATES.contains(state))
             throw error(HttpStatus.BAD_GATEWAY,"Provider subscription does not match the test checkout");
         long end=remote.path("current_end").asLong(0);
+        int remaining=remote.path("remaining_count").asInt(-1);
+        db.update("UPDATE razorpay_test_subscription SET remaining_cycles=? WHERE id=?",remaining<0?null:remaining,item.id());
         db.update("UPDATE razorpay_test_subscription SET provider_id=?,status=?,current_period_end=?,paid_count=?,updated_at=now() WHERE id=?",
             providerId,state,end>0?Timestamp.from(Instant.ofEpochSecond(end)):null,remote.path("paid_count").asInt(0),item.id());
         if (Set.of("cancelled","completed","expired").contains(state))

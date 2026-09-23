@@ -322,6 +322,19 @@ class RazorpayTestBillingIntegrationTest {
         assertThat(service.overview(admin).entries().getFirst().cancellationStatus()).isEqualTo("CONFIRMED");
         assertThat(subscriptions.current(admin).sandboxAccounts().getFirst().active()).isTrue();
     }
+    @Test void finalCycleStopsProviderImmediatelyButRetainsPaidAccess() {
+        var item=service.create(admin,"PLUS",UUID.randomUUID());
+        remote=resource(item.id(),"active");
+        ((tools.jackson.databind.node.ObjectNode)remote).put("remaining_count",0);
+        service.benefits(admin,item.id(),true);
+        when(provider.cancel(anyString())).thenAnswer(call->{remote=resource(item.id(),"cancelled");return remote;});
+        var cancelled=service.cancel(admin,item.id());
+        assertThat(cancelled.cancellationStatus()).isEqualTo("CONFIRMED");
+        assertThat(cancelled.benefitStatus()).isEqualTo("ENDING");
+        assertThat(subscriptions.current(admin).sandboxAccounts().getFirst().active()).isTrue();
+        verify(provider,times(1)).cancel("sub_fixture");
+        verify(provider,never()).cancelAtCycleEnd(anyString());
+    }
     private void addReservedOrders(UUID accountId) {
         new TransactionTemplate(transactionManager).executeWithoutResult(status->{
             var account=accounts.findByIdForUpdate(accountId).orElseThrow();
