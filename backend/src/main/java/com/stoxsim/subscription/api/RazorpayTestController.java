@@ -20,6 +20,7 @@ import com.stoxsim.subscription.service.RazorpayTestBillingService;
 public class RazorpayTestController {
     public record Checkout(@NotNull @Pattern(regexp="PLUS|PRO") String plan,@NotNull UUID requestKey) {}
     public record Reconcile(@NotNull @Pattern(regexp="sub_[A-Za-z0-9]+") String providerId) {}
+    public record Benefits(@NotNull Boolean enabled) {}
     private final RazorpayTestBillingService service;
     public RazorpayTestController(RazorpayTestBillingService service) { this.service=service; }
     private UUID actor(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }
@@ -43,5 +44,8 @@ public class RazorpayTestController {
         if(raw.length>65536) throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"Webhook too large");
         service.webhook(raw,request.getHeader("X-Razorpay-Signature"),request.getHeader("X-Razorpay-Event-Id"));
         return ok(null);
+    }
+    @PostMapping("/subscriptions/{id}/benefits") public ResponseEntity<?> benefits(@AuthenticationPrincipal Jwt jwt,@PathVariable UUID id,@Valid @RequestBody Benefits body) {
+        return ok(service.benefits(actor(jwt),id,body.enabled()));
     }
 }

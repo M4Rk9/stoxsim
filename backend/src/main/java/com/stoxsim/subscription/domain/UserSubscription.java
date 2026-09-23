@@ -51,6 +51,9 @@ public class UserSubscription {
     @Column(name = "current_period_end")
     private Instant currentPeriodEnd;
 
+    @Column(name = "test_access_until")
+    private Instant testAccessUntil;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -103,6 +106,25 @@ public class UserSubscription {
     }
 
     public boolean hasActiveEntitlement(SubscriptionFeature feature) {
-        return status == SubscriptionStatus.ACTIVE && plan.includes(feature);
+        return effectivePlan().includes(feature)
+            && !(isTestBilling() && feature == SubscriptionFeature.PREMIUM_COMPETITIONS);
+    }
+
+    public boolean isTestBilling() { return "RAZORPAY_TEST".equals(billingProvider); }
+    public String getBillingProvider() { return billingProvider; }
+    public String getProviderSubscriptionReference() { return providerSubscriptionReference; }
+    public Instant getTestAccessUntil() { return testAccessUntil; }
+    public void setTestAccessUntil(Instant until) { testAccessUntil = until; }
+    public SubscriptionPlan effectivePlan() {
+        if (status != SubscriptionStatus.ACTIVE) return SubscriptionPlan.FREE;
+        if (isTestBilling() && (testAccessUntil == null || !Instant.now().isBefore(testAccessUntil)
+            || !user.isPlatformAdmin() || !user.isEmailVerified())) return SubscriptionPlan.FREE;
+        return plan;
+    }
+    public void clearTestBenefits(Instant now) {
+        if (!isTestBilling()) return;
+        plan = SubscriptionPlan.FREE; status = SubscriptionStatus.ACTIVE;
+        billingProvider = null; providerCustomerReference = null; providerSubscriptionReference = null;
+        currentPeriodEnd = null; testAccessUntil = null; updatedAt = now;
     }
 }

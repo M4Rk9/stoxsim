@@ -67,3 +67,31 @@ test("pending creation can be reconciled and cancellation requires confirmation"
   await page.getByRole("button", { name: "Cancel test subscription", exact: true }).click();
   await expect(page.getByRole("heading", { name: "PLUS · cancelled" })).toBeVisible();
 });
+
+test("test benefits need explicit confirmation and show verified access state", async ({ page }) => {
+  await session(page);
+  let current = { ...entry, status: "active", paidCount: 1, benefitsEnabled: false, benefitStatus: "OFF", accessUntil: null as string | null };
+  let mutations = 0;
+  await page.route("**/api/v1/billing/test", route => respond(route, 200, { enabled: true, mode: "TEST", keyId: "rzp_test_fixture", entries: [current] }));
+  await page.route("**/api/v1/billing/test/subscriptions/*/benefits", async route => {
+    if (route.request().method() === "POST") {
+      mutations++;
+      const enabled = route.request().postDataJSON().enabled;
+      current = { ...current, benefitsEnabled: enabled, benefitStatus: enabled ? "ACTIVE" : "OFF", accessUntil: enabled ? "2099-01-01T00:00:00Z" : null };
+    }
+    await respond(route, 200, current);
+  });
+  await page.goto("/admin/billing");
+  await expect(page.getByText("Test benefits: OFF", { exact: true })).toBeVisible();
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", { name: "Enable test benefits", exact: true }).click();
+  expect(mutations).toBe(0);
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Enable test benefits", exact: true }).click();
+  await expect(page.getByText("Test benefits: ACTIVE", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Sandbox access until:/)).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Disable test benefits", exact: true }).click();
+  await expect(page.getByText("Test benefits: OFF", { exact: true })).toBeVisible();
+  expect(mutations).toBe(2);
+});

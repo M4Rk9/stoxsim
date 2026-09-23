@@ -106,12 +106,14 @@ public class SubscriptionService {
         List<VirtualAccount> currentPlanSandboxes = accounts
             .findSandboxesByUserIdAndPlan(userId, subscription.getPlan());
         if (currentPlanSandboxes.stream().noneMatch(account -> account.getSandboxSlot() == 1)) {
-            accounts.save(VirtualAccount.sandbox(
+            var primary = VirtualAccount.sandbox(
                 subscription.getUser(),
                 subscription.getPlan(),
                 1,
                 subscription.getPlan().sandboxCapitalInr()
-            ));
+            );
+            if (subscription.isTestBilling()) primary.setTestTradingUntil(subscription.getTestAccessUntil());
+            accounts.save(primary);
         }
 
         int slot = java.util.stream.IntStream
@@ -123,13 +125,15 @@ public class SubscriptionService {
                 HttpStatus.CONFLICT,
                 "The Pro sandbox portfolio limit has been reached"
             ));
-        VirtualAccount sandbox = accounts.save(VirtualAccount.sandbox(
+        VirtualAccount sandbox = VirtualAccount.sandbox(
             subscription.getUser(),
             subscription.getPlan(),
             slot,
             subscription.getPlan().sandboxCapitalInr(),
             normalizedKey
-        ));
+        );
+        if (subscription.isTestBilling()) sandbox.setTestTradingUntil(subscription.getTestAccessUntil());
+        sandbox = accounts.save(sandbox);
         return AccountResponse.from(sandbox);
     }
 

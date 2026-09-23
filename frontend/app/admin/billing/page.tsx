@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { authenticated } from "../../campus/client";
 import styles from "../../campus/campus.module.css";
 
-interface Entry { id: string; plan: string; providerId: string | null; status: string; currentPeriodEnd: string | null; paidCount: number }
+interface Entry { id: string; plan: string; providerId: string | null; status: string; currentPeriodEnd: string | null; paidCount: number; benefitsEnabled: boolean; benefitStatus: string; accessUntil: string | null }
 interface Overview { enabled: boolean; mode: string; keyId: string | null; entries: Entry[] }
 interface CheckoutInstance { open(): void; on(event: string, callback: () => void): void }
 declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => CheckoutInstance } }
@@ -65,7 +65,7 @@ export default function BillingTestPage() {
   return <main id="main-content" tabIndex={-1} className={styles.shell} aria-busy={busy}>
     <nav className={styles.nav}><a href="/settings">Account settings</a><a href="/admin/analytics">Owner analytics</a></nav>
     <header className={styles.hero}><span>ADMINISTRATOR · TEST MODE</span><h1>Test subscriptions</h1>
-      <p>Try Plus and Pro checkout with simulated payments. Your real subscription, portfolios and competition eligibility stay unchanged.</p></header>
+      <p>Try Plus and Pro with simulated payments. After a confirmed payment, you can enable test benefits for separate sandbox portfolios. Standard portfolios and competition eligibility stay unchanged.</p></header>
     {busy && <p role="status">Loading…</p>}
     {error && <div role="alert">{error}</div>}
     {notice && <p role="status">{notice}</p>}
@@ -80,9 +80,18 @@ export default function BillingTestPage() {
       </section>
       {data.entries.map(item => <section key={item.id} className={styles.card}>
         <h2>{item.plan} · {item.status}</h2><p>Confirmed payments: {item.paidCount}</p>
+        <p>Test benefits: {item.accessUntil && Date.parse(item.accessUntil) <= Date.now() ? "EXPIRED" : item.benefitStatus ?? "OFF"}</p>
+        {item.accessUntil && <p>Sandbox access until: {new Date(item.accessUntil).toLocaleString()}</p>}
+        {item.benefitsEnabled && <p>Manage your test sandboxes in <a href="/settings#plan">Account settings</a>. Failed renewals allow three days of grace from the last paid period end. Cancellation locks sandboxes immediately after verification.</p>}
         {item.currentPeriodEnd && <p>Current period ends: {new Date(item.currentPeriodEnd).toLocaleString()}</p>}
         <p className={styles.muted}>Test reference: {item.id}</p>
         <div className={styles.actions}>
+          {(item.benefitsEnabled || (item.status === "active" && item.paidCount > 0)) && <button disabled={busy} onClick={() => {
+            const enable = !item.benefitsEnabled;
+            if (window.confirm(enable ? "Enable simulated plan benefits on your administrator account? This provisions separate test sandboxes." : "Disable test benefits? Sandboxes will lock and pending sandbox orders will be cancelled.")) void act(async () => {
+              await authenticated(`billing/test/subscriptions/${item.id}/benefits`, { enabled: enable }); await load();
+            });
+          }}>{item.benefitsEnabled ? "Disable test benefits" : "Enable test benefits"}</button>}
           {item.providerId && ["created", "authenticated"].includes(item.status) && <button disabled={busy || !consent} onClick={() => void act(() => open(item))}>Open test checkout</button>}
           <button disabled={busy || !item.providerId} onClick={() => void act(async () => { await authenticated(`billing/test/subscriptions/${item.id}/refresh`, null); await load(); })}>Refresh status</button>
           {!["cancelled", "completed", "expired"].includes(item.status) && <button disabled={busy || !item.providerId} onClick={() => {

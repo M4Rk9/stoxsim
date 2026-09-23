@@ -3,8 +3,10 @@
 This integration is disabled by default and available only to verified platform
 administrators at `/admin/billing` (also linked from Settings). It creates real
 Razorpay **test-mode** subscription resources with simulated payments, in a separate
-StoxSim test ledger. It never upgrades real subscriptions, grants premium features,
-changes portfolios or affects competition eligibility. Live keys are rejected at
+StoxSim test ledger. Benefits stay off until an administrator explicitly enables
+them after a verified payment. Test benefits provision separate Plus/Pro sandboxes;
+they never replace an existing paid subscription or affect standard portfolios or
+competition eligibility. Live keys are rejected at
 startup when this feature is enabled. The ordinary pricing page remains disabled.
 
 ## Configure on the server
@@ -22,7 +24,9 @@ startup when this feature is enabled. The ordinary pricing page remains disabled
    `subscription.pending`, `subscription.halted`, `subscription.cancelled`,
    `subscription.completed`, `subscription.paused`, `subscription.resumed`,
    and `subscription.updated` where available in the dashboard.
-4. Edit the protected `deploy/production/.env` on your server:
+4. Edit the protected `.env` in your deployed Compose directory. On the current
+   production VPS this is `/home/ubuntu/stoxsim-production/.env` (the repository
+   template is `deploy/production/.env.example`):
 
    ```dotenv
    STOXSIM_BILLING_TEST_ENABLED=true
@@ -61,7 +65,35 @@ still require the provider's activation process. References:
   repeated state changes. Failed provider fetches return an error for retry.
 - Cancel the test subscription and refresh. Confirm cancellation in both places.
 - Confirm ordinary learners receive 403 even with a forged browser admin flag.
-  Confirm the actual plan, trading capital and competition access are unchanged.
+  Without opting in, confirm the actual plan and portfolios are unchanged.
+
+## Test benefits and lifecycle acceptance
+
+1. After checkout, use **Refresh status**. Once the subscription is `active` with
+   at least one confirmed payment, choose **Enable test benefits** and confirm.
+2. Open **Account settings → Plan & sandboxes**. The plan is marked **TEST**.
+   Plus provisions one ₹25 lakh sandbox; Pro allows up to five ₹1 crore sandboxes.
+   Repeating enable/renewal reuses portfolios and preserves balances and history.
+   Standard ₹5 lakh competitive portfolios and premium competition eligibility
+   do not change. Test benefits are available only to verified administrators.
+3. Place sandbox limit orders. Cancel the test subscription, then refresh. Its
+   sandboxes become read-only, pending buys/sells are cancelled, and reserved cash
+   and shares are released. Holdings and trade history remain available. Standard
+   portfolio orders are untouched. **Disable test benefits** also locks sandboxes
+   and restores the Free plan without cancelling the provider subscription.
+4. A successful renewal with a higher verified `paid_count` extends access to the
+   paid period end. A `pending` renewal allows **72 hours from the last confirmed
+   paid period end**. Repeated events never restart grace. `halted`, `paused`,
+   `cancelled`, `completed` and `expired` lock access without grace.
+5. The backend reconciles opted-in subscriptions every minute, up to 20 per pass,
+   oldest checked first. A provider outage cannot extend the stored deadline:
+   provisioning, order placement and settlement enforce it directly. Reconciliation
+   releases remaining reservations after expiry, even when the provider is down.
+   Revoking ADMIN or email verification also removes test access.
+
+No new keys or environment values are needed for this phase. Migration V114 is
+additive and defaults existing records to benefits off. Disabling the test billing
+configuration also revokes projected benefits on the next reconciliation pass.
 
 ## Timeout recovery and operation
 
@@ -87,9 +119,9 @@ data, webhook payloads, API secrets or provider error bodies are stored or logge
 ## Scope still remaining before live billing
 
 This is the M4 provider test phase, not completion of the paid-subscription
-milestone. Actual premium entitlement activation, refund/grace rules, scheduled
-cancellation, renewal reconciliation, sandbox portfolio locking/settlement and
-live commercial approval remain separate work. Test refunds can be exercised in
+milestone. Refund handling, scheduled cancellation and live commercial approval
+remain separate work. Catalog flags for FinWiz, advanced analytics and Scenario
+Lab do not implement those future product features. Test refunds can be exercised in
 the provider dashboard but do not update StoxSim entitlements. External acceptance
 requires configured test credentials; automated tests use a mocked provider and
 cannot prove merchant account access or payment-method availability.

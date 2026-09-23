@@ -15,6 +15,13 @@ public record EntitlementResponse(
     boolean multiplePortfolios,
     boolean premiumCompetitions
 ) {
+    public static EntitlementResponse from(com.stoxsim.subscription.domain.UserSubscription subscription) {
+        var plan = subscription.effectivePlan();
+        return new EntitlementResponse(SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR,
+            plan.sandboxCapitalInr(), plan.maximumSandboxPortfolios(), plan.finwizTier(), plan.analyticsTier(),
+            plan.privateLeagues(), plan.scenarioLab(), plan.multiplePortfolios(),
+            plan.premiumCompetitions() && !subscription.isTestBilling());
+    }
     public static EntitlementResponse from(SubscriptionPlan plan) {
         return new EntitlementResponse(
             SubscriptionPlan.STANDARD_COMPETITIVE_CAPITAL_INR,
