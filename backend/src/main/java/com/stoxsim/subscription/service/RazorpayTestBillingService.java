@@ -24,7 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class RazorpayTestBillingService {
     public record Entry(UUID id,String plan,String providerId,String status,Instant currentPeriodEnd,int paidCount,
-        boolean benefitsEnabled,String benefitStatus,Instant accessUntil) {}
+        boolean benefitsEnabled,String benefitStatus,Instant accessUntil,String cancellationStatus,Instant cancelAt) {}
     public record Overview(boolean enabled,String mode,String keyId,List<Entry> entries) {}
     private static final Set<String> STATES=Set.of("created","authenticated","active","pending","halted","cancelled","completed","expired","paused");
     private static final Set<String> EVENTS=Set.of("subscription.authenticated","subscription.activated","subscription.charged",
@@ -122,7 +122,7 @@ public class RazorpayTestBillingService {
     }
     /** Bounded polling catches missed webhooks; one failed provider fetch does not stop other users. */
     public void reconcileBenefits() {
-        var ids=db.query("SELECT id FROM razorpay_test_subscription WHERE benefits_enabled=true ORDER BY updated_at LIMIT 20",
+        var ids=db.query("SELECT id FROM razorpay_test_subscription WHERE benefits_enabled=true OR cancellation_status='REQUESTED' ORDER BY updated_at LIMIT 20",
             (rs,row)->rs.getObject(1,UUID.class));
         for (var id:ids) {
             try {
@@ -145,13 +145,30 @@ public class RazorpayTestBillingService {
     }
     public Entry cancel(UUID actor,UUID id) {
         admin(actor);enabled();
-        return tx.execute(status->{
+        // Persist intent before the external mutation. A timeout must remain visible,
+        // rather than falsely claiming that renewal was stopped.
+        tx.executeWithoutResult(status->{
             owned(actor,id);var item=entry(id);
             if(item.providerId()==null) throw error(HttpStatus.CONFLICT,"Wait for creation confirmation before cancellation");
             var latest=apply(item,provider.fetch(item.providerId()));
-            if(Set.of("cancelled","completed","expired").contains(latest.status())) return latest;
-            provider.cancel(item.providerId());
-            return apply(latest,provider.fetch(item.providerId()));
+            if (!latest.cancellationStatus().equals("NONE") || Set.of("cancelled","completed","expired").contains(latest.status())) return;
+            // Only a verified paid-through boundary can preserve access; unpaid
+            // checkouts are cancelled immediately. Retries retain this same boundary.
+            db.update("UPDATE razorpay_test_subscription SET cancellation_status='REQUESTED',cancel_at=paid_through,cancellation_requested_at=now() WHERE id=?",id);
+        });
+        return tx.execute(status->{
+            owned(actor,id);var item=entry(id);
+            if (!item.cancellationStatus().equals("REQUESTED")) return item;
+            Integer remaining=db.queryForObject("SELECT remaining_cycles FROM razorpay_test_subscription WHERE id=?",Integer.class,id);
+            // Razorpay rejects cycle-end cancellation during its final cycle.
+            // Stop the provider immediately then preserve paid access locally.
+            boolean periodEnd=item.cancelAt()!=null && Instant.now().isBefore(item.cancelAt())
+                && !Integer.valueOf(0).equals(remaining);
+            var response=periodEnd ? provider.cancelAtCycleEnd(item.providerId()) : provider.cancel(item.providerId());
+            // The acknowledgement and identity validation commit atomically.
+            // Mark first so a cancelled response does not briefly revoke paid access.
+            db.update("UPDATE razorpay_test_subscription SET cancellation_status='CONFIRMED' WHERE id=?",id);
+            return apply(item,response);
         });
     }
     public void webhook(byte[] raw,String signature,String eventId) {
@@ -195,8 +212,12 @@ public class RazorpayTestBillingService {
             || remote.path("quantity").asInt()!=1 || !STATES.contains(state))
             throw error(HttpStatus.BAD_GATEWAY,"Provider subscription does not match the test checkout");
         long end=remote.path("current_end").asLong(0);
+        int remaining=remote.path("remaining_count").asInt(-1);
+        db.update("UPDATE razorpay_test_subscription SET remaining_cycles=? WHERE id=?",remaining<0?null:remaining,item.id());
         db.update("UPDATE razorpay_test_subscription SET provider_id=?,status=?,current_period_end=?,paid_count=?,updated_at=now() WHERE id=?",
             providerId,state,end>0?Timestamp.from(Instant.ofEpochSecond(end)):null,remote.path("paid_count").asInt(0),item.id());
+        if (Set.of("cancelled","completed","expired").contains(state))
+            db.update("UPDATE razorpay_test_subscription SET cancellation_status='CONFIRMED' WHERE id=? AND cancellation_status='REQUESTED'",item.id());
         // Only a newly confirmed paid cycle may advance the paid-through boundary.
         // Pending events and retries cannot extend the fixed three-day grace period.
         if (state.equals("active") && end>0 && remote.path("paid_count").asInt(0)>0)
@@ -225,9 +246,11 @@ public class RazorpayTestBillingService {
     private Entry mapEntry(java.sql.ResultSet rs,int row) throws java.sql.SQLException {
         var end=rs.getTimestamp("current_period_end");
         var until=rs.getTimestamp("access_until");
+        var cancelAt=rs.getTimestamp("cancel_at");
         return new Entry(rs.getObject("id",UUID.class),rs.getString("plan"),rs.getString("provider_id"),
             rs.getString("status"),end==null?null:end.toInstant(),rs.getInt("paid_count"),
-            rs.getBoolean("benefits_enabled"),rs.getString("benefit_status"),until==null?null:until.toInstant());
+            rs.getBoolean("benefits_enabled"),rs.getString("benefit_status"),until==null?null:until.toInstant(),
+            rs.getString("cancellation_status"),cancelAt==null?null:cancelAt.toInstant());
     }
     private ResponseStatusException error(HttpStatus status,String message) { return new ResponseStatusException(status,message); }
 }

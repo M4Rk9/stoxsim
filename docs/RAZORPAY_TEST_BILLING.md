@@ -76,15 +76,19 @@ still require the provider's activation process. References:
    Repeating enable/renewal reuses portfolios and preserves balances and history.
    Standard ₹5 lakh competitive portfolios and premium competition eligibility
    do not change. Test benefits are available only to verified administrators.
-3. Place sandbox limit orders. Cancel the test subscription, then refresh. Its
-   sandboxes become read-only, pending buys/sells are cancelled, and reserved cash
-   and shares are released. Holdings and trade history remain available. Standard
-   portfolio orders are untouched. **Disable test benefits** also locks sandboxes
-   and restores the Free plan without cancelling the provider subscription.
+3. Place sandbox limit orders. Choose **Cancel renewal** and confirm. Its
+   benefits show `ENDING` and a fixed paid-access end date. Existing orders and
+   sandboxes remain usable through that date. After expiry, sandboxes become
+   read-only, pending buys/sells are cancelled, and reserved cash and shares are
+   released. Holdings and history remain available; standard orders are untouched.
+   **Disable test benefits** is an administrator testing control: it locks
+   sandboxes and restores Free immediately without cancelling provider renewal.
 4. A successful renewal with a higher verified `paid_count` extends access to the
    paid period end. A `pending` renewal allows **72 hours from the last confirmed
-   paid period end**. Repeated events never restart grace. `halted`, `paused`,
-   `cancelled`, `completed` and `expired` lock access without grace.
+   paid period end**. Repeated events never restart grace. Confirmed cancellation
+   caps access at its recorded end date, without grace. Without a local confirmed
+   cancellation, `halted`, `paused`, `cancelled`, `completed` and `expired` lock
+   access immediately; external administrative shutdowns still revoke access.
 5. The backend reconciles opted-in subscriptions every minute, up to 20 per pass,
    oldest checked first. A provider outage cannot extend the stored deadline:
    provisioning, order placement and settlement enforce it directly. Reconciliation
@@ -94,6 +98,49 @@ still require the provider's activation process. References:
 No new keys or environment values are needed for this phase. Migration V114 is
 additive and defaults existing records to benefits off. Disabling the test billing
 configuration also revokes projected benefits on the next reconciliation pass.
+
+## Cancellation-only policy
+
+The owner selected a cancellation-only, non-refundable purchase policy. There is
+no refund API, refund button, automatic refund, or refund webhook in StoxSim.
+The policy is displayed before test checkout and in Terms of Use.
+
+Paid cancellation calls Razorpay with `cancel_at_cycle_end=true`. In the final
+billing cycle (`remaining_count=0`), Razorpay requires immediate cancellation;
+StoxSim still preserves paid access to the original end date. Unpaid or
+already-ended paid periods also use immediate cancellation. The backend stores a
+`REQUESTED` intent and its original paid-through boundary before sending the
+mutation. Only an identity-validated successful response or an authoritative
+terminal status changes it to `CONFIRMED`. A generic `has_scheduled_changes` flag
+is not proof of cancellation. Provider `active` status is expected until cycle
+end, so confirmed intent is stored independently of that status.
+
+If the request times out, **Reload billing**, then **Refresh status**. Pending
+intent explicitly warns that renewal may still occur. **Retry cancellation**
+keeps the original access boundary; confirmed repeats never resubmit cancellation.
+If Razorpay accepted the request but its response was lost and it rejects a retry,
+verify in the test dashboard or contact provider support; do not manually mark
+the local request confirmed. The terminal webhook or reconciliation will resolve
+it when the subscription ends. There is no automated cancellation reversal.
+
+Migration V115 is additive; old rows default to `NONE`, so previously immediate
+cancellations are not retroactively reactivated. No additional credentials or
+webhook events are required. A delayed provider event or higher payment count
+cannot extend access beyond a confirmed cancellation's fixed boundary.
+
+Provider reference: [cancel a subscription](https://razorpay.com/docs/api/payments/subscriptions/cancel-subscription/).
+
+### Final test acceptance
+
+- With a successful paid test and enabled benefits, cancel renewal. Check the
+  displayed date and provider dashboard; refresh/reload must preserve `ENDING`.
+- Confirm sandbox access and reserved orders survive scheduling. Repeated clicks
+  must not create subscriptions or change the end date.
+- At expiry, check locked sandboxes and released reservations. Automated tests
+  exercise this boundary without waiting a month; do not edit production dates
+  to accelerate acceptance.
+- Cancel an unpaid checkout and confirm it closes immediately.
+- Ordinary learners must still receive 403; live keys must remain rejected.
 
 ## Timeout recovery and operation
 
@@ -118,10 +165,15 @@ data, webhook payloads, API secrets or provider error bodies are stored or logge
 
 ## Scope still remaining before live billing
 
-This is the M4 provider test phase, not completion of the paid-subscription
-milestone. Refund handling, scheduled cancellation and live commercial approval
-remain separate work. Catalog flags for FinWiz, advanced analytics and Scenario
-Lab do not implement those future product features. Test refunds can be exercised in
-the provider dashboard but do not update StoxSim entitlements. External acceptance
-requires configured test credentials; automated tests use a mocked provider and
-cannot prove merchant account access or payment-method availability.
+The M4 test-mode engineering scope includes checkout, signed webhooks, benefits,
+renewal/grace, cancellation and sandbox locking. The owner confirmed PR #127's
+deployed lifecycle works. This final cancellation phase still requires deployment
+acceptance. Refund functionality is excluded by owner decision, not pending work.
+
+Commercial launch remains gated on Razorpay account activation, explicit approval
+to enable live purchases, and a separately reviewed live-mode integration and
+learner checkout rollout. Test credentials and administrator-only endpoints must
+not be relabelled as live billing. Catalog flags for FinWiz, advanced analytics
+and Scenario Lab do not implement those future product features. Automated tests
+use a mocked provider and cannot prove merchant account access or payment-method
+availability.

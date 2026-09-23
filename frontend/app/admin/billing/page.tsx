@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { authenticated } from "../../campus/client";
 import styles from "../../campus/campus.module.css";
 
-interface Entry { id: string; plan: string; providerId: string | null; status: string; currentPeriodEnd: string | null; paidCount: number; benefitsEnabled: boolean; benefitStatus: string; accessUntil: string | null }
+interface Entry { id: string; plan: string; providerId: string | null; status: string; currentPeriodEnd: string | null; paidCount: number; benefitsEnabled: boolean; benefitStatus: string; accessUntil: string | null; cancellationStatus: string; cancelAt: string | null }
 interface Overview { enabled: boolean; mode: string; keyId: string | null; entries: Entry[] }
 interface CheckoutInstance { open(): void; on(event: string, callback: () => void): void }
 declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => CheckoutInstance } }
@@ -74,6 +74,7 @@ export default function BillingTestPage() {
     {data?.enabled && <>
       <section className={styles.card}><h2>Start a test</h2>
         <p>Monthly plans: Plus ₹99, Pro ₹199. Test subscriptions run for up to 12 billing cycles. No real money is charged.</p>
+        <p>Subscription policy: purchases are non-refundable. Cancel renewal to keep benefits until the paid period ends. An unpaid checkout can be cancelled immediately.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />I understand this is a simulated checkout and will use test payment details.</label>
         <div className={styles.actions}>{["PLUS", "PRO"].map(plan => <button key={plan} disabled={busy || !consent || openEntry} onClick={() => void act(() => create(plan))}>Test {plan === "PLUS" ? "Plus" : "Pro"}</button>)}</div>
         {openEntry && <p>Finish or cancel the open test before starting another plan.</p>}
@@ -82,7 +83,9 @@ export default function BillingTestPage() {
         <h2>{item.plan} · {item.status}</h2><p>Confirmed payments: {item.paidCount}</p>
         <p>Test benefits: {item.accessUntil && Date.parse(item.accessUntil) <= Date.now() ? "EXPIRED" : item.benefitStatus ?? "OFF"}</p>
         {item.accessUntil && <p>Sandbox access until: {new Date(item.accessUntil).toLocaleString()}</p>}
-        {item.benefitsEnabled && <p>Manage your test sandboxes in <a href="/settings#plan">Account settings</a>. Failed renewals allow three days of grace from the last paid period end. Cancellation locks sandboxes immediately after verification.</p>}
+        {item.benefitsEnabled && <p>Manage your test sandboxes in <a href="/settings#plan">Account settings</a>. Failed renewals allow three days of grace. Confirmed cancellation ends access at the paid-through date, without additional grace.</p>}
+        {item.cancellationStatus === "CONFIRMED" && <p role="status">{item.cancelAt ? `Renewal cancelled. Paid access ends: ${new Date(item.cancelAt).toLocaleString()}.` : "Cancellation confirmed."}</p>}
+        {item.cancellationStatus === "REQUESTED" && <p role="alert">Cancellation is awaiting confirmation. Renewal may still occur. Refresh status, then retry cancellation if needed; if confirmation remains unavailable, check Razorpay or contact support.</p>}
         {item.currentPeriodEnd && <p>Current period ends: {new Date(item.currentPeriodEnd).toLocaleString()}</p>}
         <p className={styles.muted}>Test reference: {item.id}</p>
         <div className={styles.actions}>
@@ -94,12 +97,12 @@ export default function BillingTestPage() {
           }}>{item.benefitsEnabled ? "Disable test benefits" : "Enable test benefits"}</button>}
           {item.providerId && ["created", "authenticated"].includes(item.status) && <button disabled={busy || !consent} onClick={() => void act(() => open(item))}>Open test checkout</button>}
           <button disabled={busy || !item.providerId} onClick={() => void act(async () => { await authenticated(`billing/test/subscriptions/${item.id}/refresh`, null); await load(); })}>Refresh status</button>
-          {!["cancelled", "completed", "expired"].includes(item.status) && <button disabled={busy || !item.providerId} onClick={() => {
-            if (window.confirm("Cancel this test subscription immediately?")) void act(async () => {
+          {item.cancellationStatus !== "CONFIRMED" && !["cancelled", "completed", "expired"].includes(item.status) && <button disabled={busy || !item.providerId} onClick={() => {
+            if (window.confirm("Cancel renewal? Paid benefits remain until the paid period ends. No refund is issued. Unpaid checkouts close immediately.")) void act(async () => {
               await authenticated(`billing/test/subscriptions/${item.id}/cancel`, null);
               sessionStorage.removeItem(`stoxsim-test-checkout-${item.plan}`); await load();
             });
-          }}>Cancel test subscription</button>}
+          }}>{item.cancellationStatus === "REQUESTED" ? "Retry cancellation" : item.paidCount > 0 ? "Cancel renewal" : "Cancel test subscription"}</button>}
         </div>
         {!item.providerId && <><p>Creation is awaiting confirmation. Find the subscription with this test reference in your Razorpay test dashboard.</p>
           <button disabled={busy} onClick={() => {

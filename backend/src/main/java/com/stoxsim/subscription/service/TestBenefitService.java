@@ -58,6 +58,13 @@ public class TestBenefitService {
             if (config.enabled && user.isPlatformAdmin() && user.isEmailVerified() && paidThrough!=null) {
                 if (remote.equals("active")) { until=paidThrough;state="ACTIVE"; }
                 if (remote.equals("pending")) { until=paidThrough.plus(Duration.ofDays(3));state="GRACE"; }
+                // Confirmed cancellation preserves the already-paid period, with
+                // no renewal or failure grace extending its fixed end boundary.
+                Instant cancelAt=instant(row.get("cancel_at"));
+                if ("CONFIRMED".equals(row.get("cancellation_status")) && cancelAt!=null) {
+                    until=cancelAt.isBefore(paidThrough)?cancelAt:paidThrough;
+                    state="ENDING";
+                }
                 if (until!=null && !now.isBefore(until)) { until=null;state="EXPIRED"; }
             }
         }

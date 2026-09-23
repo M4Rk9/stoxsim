@@ -41,6 +41,9 @@ public class RazorpayTestClient {
     public JsonNode cancel(String subscription) {
         return request("POST","/subscriptions/"+id(subscription,"sub")+"/cancel",Map.of("cancel_at_cycle_end",0));
     }
+    public JsonNode cancelAtCycleEnd(String subscription) {
+        return request("POST","/subscriptions/"+id(subscription,"sub")+"/cancel",Map.of("cancel_at_cycle_end",true));
+    }
     private JsonNode request(String method,String path,Object body) {
         if(!config.enabled) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Test billing is disabled");
         try {
