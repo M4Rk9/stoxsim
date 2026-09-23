@@ -44,6 +44,7 @@ public class OrderSettlementService {
     private final ChargeCalculator charges;
     private final IndiaMarketSessionService sessions;
     private final ApplicationEventPublisher events;
+    private final SandboxOrderCleanup cleanup;
 
     public OrderSettlementService(
         PaperOrderRepository orders,
@@ -54,7 +55,8 @@ public class OrderSettlementService {
         ExecutionPriceCalculator prices,
         ChargeCalculator charges,
         IndiaMarketSessionService sessions,
-        ApplicationEventPublisher events
+        ApplicationEventPublisher events,
+        SandboxOrderCleanup cleanup
     ) {
         this.orders = orders;
         this.accounts = accounts;
@@ -65,6 +67,7 @@ public class OrderSettlementService {
         this.charges = charges;
         this.sessions = sessions;
         this.events = events;
+        this.cleanup = cleanup;
     }
 
     @Transactional
@@ -81,6 +84,10 @@ public class OrderSettlementService {
 
     public boolean settleOpenOrder(PaperOrder order, VirtualAccount account, Quote quote) {
         if (!order.isOpen()) {
+            return false;
+        }
+        if (!account.isActive()) {
+            cleanup.cancel(order, account);
             return false;
         }
         var session = sessions.current(order.getInstrument().getExchange());

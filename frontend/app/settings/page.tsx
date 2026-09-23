@@ -66,6 +66,8 @@ interface SubscriptionDetails {
   plan: SubscriptionPlan;
   status: "ACTIVE" | "PAST_DUE" | "CANCELED";
   billingEnabled: boolean;
+  billingMode?: "TEST" | "DISABLED";
+  testAccessUntil?: string;
   currentPeriodEnd?: string;
   entitlements: Entitlements;
   sandboxProvisioning: {
@@ -626,6 +628,9 @@ export default function SettingsPage() {
             <div>
               <span className={styles.reportEyebrow}>PLAN &amp; SANDBOXES</span>
               <h2 id="plan-title">Your {subscription.plan.toLowerCase()} plan</h2>
+              {subscription.billingMode === "TEST" && <p>TEST BENEFITS · Simulated subscription
+                {subscription.testAccessUntil && <> · Access until {new Date(subscription.testAccessUntil).toLocaleString()}</>}
+                {" "}· <a href="/admin/billing">Manage test subscription</a></p>}
             </div>
             <span className={styles.currentPlan}>{eventLabel(subscription.status)}</span>
           </div>

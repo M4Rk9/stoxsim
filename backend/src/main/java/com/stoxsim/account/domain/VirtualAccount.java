@@ -76,6 +76,12 @@ public class VirtualAccount {
     @Column(nullable = false)
     private boolean active;
 
+    @Column(name = "test_trading_until")
+    private Instant testTradingUntil;
+
+    public void setTestTradingUntil(Instant until) { testTradingUntil = until; touch(); }
+    public Instant getTestTradingUntil() { return testTradingUntil; }
+
     @Column(name = "leaderboard_eligible", nullable = false)
     private boolean leaderboardEligible;
 
@@ -273,7 +279,8 @@ public class VirtualAccount {
     }
 
     public boolean isActive() {
-        return active;
+        return active && (testTradingUntil == null || (Instant.now().isBefore(testTradingUntil)
+            && user.isPlatformAdmin() && user.isEmailVerified()));
     }
 
     public boolean isLeaderboardEligible() {

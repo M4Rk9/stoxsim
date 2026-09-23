@@ -18,7 +18,9 @@ public record SubscriptionResponse(
     SandboxProvisioningResponse sandboxProvisioning,
     List<AccountResponse> sandboxAccounts,
     List<PlanResponse> plans,
-    String notice
+    String notice,
+    String billingMode,
+    Instant testAccessUntil
 ) {
     public static SubscriptionResponse from(
         UserSubscription subscription,
@@ -30,11 +32,15 @@ public record SubscriptionResponse(
             subscription.getStatus(),
             false,
             subscription.getCurrentPeriodEnd(),
-            EntitlementResponse.from(subscription.getPlan()),
+            EntitlementResponse.from(subscription),
             SandboxProvisioningResponse.from(subscription, sandboxAccounts),
             List.copyOf(sandboxAccounts),
             java.util.Arrays.stream(SubscriptionPlan.values()).map(PlanResponse::from).toList(),
-            "Paid billing is not enabled. Standard competition capital always remains separate."
+            subscription.isTestBilling()
+                ? "TEST benefits only: simulated payments, separate sandboxes, no premium competition access."
+                : "Paid billing is not enabled. Standard competition capital always remains separate.",
+            subscription.isTestBilling() ? "TEST" : "DISABLED",
+            subscription.getTestAccessUntil()
         );
     }
 }

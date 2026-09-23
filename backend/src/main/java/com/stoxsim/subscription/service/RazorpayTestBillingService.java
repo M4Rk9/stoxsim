@@ -19,12 +19,12 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Isolated test ledger. Never invokes SubscriptionService or changes entitlements,
- * balances, open orders or competitive scores.
+ * Test ledger with explicitly opted-in, administrator-only sandbox benefits.
  */
 @Service
 public class RazorpayTestBillingService {
-    public record Entry(UUID id,String plan,String providerId,String status,Instant currentPeriodEnd,int paidCount) {}
+    public record Entry(UUID id,String plan,String providerId,String status,Instant currentPeriodEnd,int paidCount,
+        boolean benefitsEnabled,String benefitStatus,Instant accessUntil) {}
     public record Overview(boolean enabled,String mode,String keyId,List<Entry> entries) {}
     private static final Set<String> STATES=Set.of("created","authenticated","active","pending","halted","cancelled","completed","expired","paused");
     private static final Set<String> EVENTS=Set.of("subscription.authenticated","subscription.activated","subscription.charged",
@@ -36,10 +36,12 @@ public class RazorpayTestBillingService {
     private final RazorpayTestClient provider;
     private final ObjectMapper json;
     private final TransactionTemplate tx;
+    private final TestBenefitService benefits;
     public RazorpayTestBillingService(JdbcTemplate db,AppUserRepository users,RazorpayTestConfig config,
-        RazorpayTestClient provider,ObjectMapper json,PlatformTransactionManager manager) {
+        RazorpayTestClient provider,ObjectMapper json,PlatformTransactionManager manager,TestBenefitService benefits) {
         this.db=db;this.users=users;this.config=config;this.provider=provider;this.json=json;
         tx=new TransactionTemplate(manager);tx.setTimeout(25);
+        this.benefits=benefits;
     }
     private void admin(UUID actor) {
         var user=users.findById(actor).orElseThrow(()->error(HttpStatus.UNAUTHORIZED,"Sign in again"));
@@ -100,6 +102,47 @@ public class RazorpayTestBillingService {
             return apply(entry(id),provider.fetch(providerId));
         });
     }
+    public Entry benefits(UUID actor,UUID id,boolean enable) {
+        admin(actor);
+        if (enable) enabled();
+        return tx.execute(status->{
+            owned(actor,id);
+            var item=entry(id);
+            if (enable) {
+                if (item.providerId()==null) throw error(HttpStatus.CONFLICT,"Confirm checkout first");
+                item=apply(item,provider.fetch(item.providerId()));
+                if (!item.status().equals("active") || item.paidCount()<1)
+                    throw error(HttpStatus.CONFLICT,"Complete a successful test payment first");
+                db.update("UPDATE razorpay_test_subscription SET benefits_enabled=false,benefit_status='OFF',access_until=NULL WHERE user_id=? AND id<>?",actor,id);
+            }
+            db.update("UPDATE razorpay_test_subscription SET benefits_enabled=? WHERE id=?",enable,id);
+            benefits.sync(id);
+            return entry(id);
+        });
+    }
+    /** Bounded polling catches missed webhooks; one failed provider fetch does not stop other users. */
+    public void reconcileBenefits() {
+        var ids=db.query("SELECT id FROM razorpay_test_subscription WHERE benefits_enabled=true ORDER BY updated_at LIMIT 20",
+            (rs,row)->rs.getObject(1,UUID.class));
+        for (var id:ids) {
+            try {
+                tx.executeWithoutResult(status->{
+                    lock(id);var item=entry(id);
+                    if (config.enabled && item.providerId()!=null) apply(item,provider.fetch(item.providerId()));
+                    else benefits.sync(id);
+                    db.update("UPDATE razorpay_test_subscription SET updated_at=now() WHERE id=?",id);
+                });
+            } catch (RuntimeException failure) {
+                // Expire locally even during a provider outage. Do not log provider bodies or credentials.
+                try { tx.executeWithoutResult(status->{
+                    lock(id);benefits.sync(id);
+                    db.update("UPDATE razorpay_test_subscription SET updated_at=now() WHERE id=?",id);
+                }); } catch (RuntimeException ignored) {
+                    org.slf4j.LoggerFactory.getLogger(getClass()).warn("Test billing reconciliation failed for local reference {}",id);
+                }
+            }
+        }
+    }
     public Entry cancel(UUID actor,UUID id) {
         admin(actor);enabled();
         return tx.execute(status->{
@@ -154,6 +197,12 @@ public class RazorpayTestBillingService {
         long end=remote.path("current_end").asLong(0);
         db.update("UPDATE razorpay_test_subscription SET provider_id=?,status=?,current_period_end=?,paid_count=?,updated_at=now() WHERE id=?",
             providerId,state,end>0?Timestamp.from(Instant.ofEpochSecond(end)):null,remote.path("paid_count").asInt(0),item.id());
+        // Only a newly confirmed paid cycle may advance the paid-through boundary.
+        // Pending events and retries cannot extend the fixed three-day grace period.
+        if (state.equals("active") && end>0 && remote.path("paid_count").asInt(0)>0)
+            db.update("UPDATE razorpay_test_subscription SET paid_through=?,verified_paid_count=? WHERE id=? AND verified_paid_count<?",
+                Timestamp.from(Instant.ofEpochSecond(end)),remote.path("paid_count").asInt(),item.id(),remote.path("paid_count").asInt());
+        benefits.sync(item.id());
         return entry(item.id());
     }
     private void owned(UUID actor,UUID id) {
@@ -163,6 +212,9 @@ public class RazorpayTestBillingService {
         admin(actor);
     }
     private void lock(UUID id) {
+        var owners=db.query("SELECT user_id FROM razorpay_test_subscription WHERE id=?",(rs,row)->rs.getObject(1,UUID.class),id);
+        if(owners.isEmpty()) throw error(HttpStatus.NOT_FOUND,"Test subscription not found");
+        users.findByIdForUpdate(owners.getFirst()).orElseThrow(()->error(HttpStatus.NOT_FOUND,"Test subscription not found"));
         var rows=db.query("SELECT id FROM razorpay_test_subscription WHERE id=? FOR UPDATE",(rs,row)->rs.getObject(1,UUID.class),id);
         if(rows.isEmpty()) throw error(HttpStatus.NOT_FOUND,"Test subscription not found");
     }
@@ -172,8 +224,10 @@ public class RazorpayTestBillingService {
     }
     private Entry mapEntry(java.sql.ResultSet rs,int row) throws java.sql.SQLException {
         var end=rs.getTimestamp("current_period_end");
+        var until=rs.getTimestamp("access_until");
         return new Entry(rs.getObject("id",UUID.class),rs.getString("plan"),rs.getString("provider_id"),
-            rs.getString("status"),end==null?null:end.toInstant(),rs.getInt("paid_count"));
+            rs.getString("status"),end==null?null:end.toInstant(),rs.getInt("paid_count"),
+            rs.getBoolean("benefits_enabled"),rs.getString("benefit_status"),until==null?null:until.toInstant());
     }
     private ResponseStatusException error(HttpStatus status,String message) { return new ResponseStatusException(status,message); }
 }

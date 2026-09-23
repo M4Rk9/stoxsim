@@ -37,7 +37,8 @@ public record SandboxProvisioningResponse(
         int current,
         int maximum
     ) {
-        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE
+            || (subscription.isTestBilling() && subscription.effectivePlan() != subscription.getPlan())) {
             return SandboxProvisioningStatus.SUBSCRIPTION_INACTIVE;
         }
         if (!subscription.hasActiveEntitlement(SubscriptionFeature.MULTIPLE_PORTFOLIOS)) {

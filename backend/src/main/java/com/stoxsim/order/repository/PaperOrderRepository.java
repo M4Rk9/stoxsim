@@ -18,6 +18,9 @@ import jakarta.persistence.LockModeType;
 
 public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
 
+    @Query("SELECT o.id FROM PaperOrder o WHERE o.account.id=:accountId AND o.status=com.stoxsim.order.domain.OrderStatus.OPEN ORDER BY o.id")
+    List<UUID> findOpenIdsByAccountId(@Param("accountId") UUID accountId);
+
     Optional<PaperOrder> findByAccountIdAndIdempotencyKey(UUID accountId, String idempotencyKey);
 
     @Query("""
