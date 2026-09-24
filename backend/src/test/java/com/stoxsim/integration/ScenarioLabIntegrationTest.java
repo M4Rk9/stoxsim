@@ -77,7 +77,8 @@ class ScenarioLabIntegrationTest {
         for(var plan:List.of("FREE","PLUS")) { db.update("UPDATE user_subscription SET plan=? WHERE user_id=?",plan,user);run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isForbidden()); }
         db.update("UPDATE user_subscription SET plan='PRO',subscription_status='PAST_DUE' WHERE user_id=?",user);
         run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isForbidden());
-        db.update("UPDATE user_subscription SET subscription_status='ACTIVE',billing_provider='RAZORPAY_TEST',test_access_until=now()-interval '1 day' WHERE user_id=?",user);
+        db.update("UPDATE app_user SET platform_role='ADMIN',email_verified_at=now() WHERE id=?",user);
+        db.update("UPDATE user_subscription SET subscription_status='ACTIVE',billing_provider='RAZORPAY_TEST',provider_customer_reference='cust_scenario_fixture',provider_subscription_reference='sub_scenario_fixture',test_access_until=now()-interval '1 day' WHERE user_id=?",user);
         run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isForbidden());
         verifyNoInteractions(valuation);
     }
