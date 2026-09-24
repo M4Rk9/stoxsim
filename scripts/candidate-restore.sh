@@ -38,3 +38,4 @@ Path('candidate-evidence/restore.json').write_text(json.dumps({
  'scope': 'Disposable CI database; canonical row fingerprints match after custom-format backup/restore. Not a production backup or RTO claim.'
 }, indent=2)+'\n')
 PY
+cat candidate-evidence/restore.json

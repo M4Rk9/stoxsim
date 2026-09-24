@@ -76,9 +76,12 @@ def main():
             status, _, _ = request("auth/me", token, {"password": password}, "DELETE")
             cleanup.append(status == 204)
         report["fixture_cleanup_passed"] = bool(cleanup) and all(cleanup)
+        resources = Path("candidate-evidence/resources.jsonl")
+        report["resource_observations_present"] = resources.exists() and resources.stat().st_size > 0
         Path("candidate-evidence").mkdir(exist_ok=True)
         Path("candidate-evidence/load.json").write_text(json.dumps(report, indent=2) + "\n")
-    if not report.get("passed") or not report["fixture_cleanup_passed"]:
+        print(json.dumps(report, indent=2))
+    if not report.get("passed") or not report["fixture_cleanup_passed"] or not report["resource_observations_present"]:
         raise SystemExit("Candidate load or fixture cleanup failed; inspect aggregate evidence")
 
 
