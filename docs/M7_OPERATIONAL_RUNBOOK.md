@@ -24,7 +24,9 @@ No host has been provisioned or charged for by this PR.
 Requirements: Linux x64, Python >=3.11, Git, Docker Engine with Compose v2, AWS CLI v2,
 at least 10 GiB free disk, outbound access to GitHub/GHCR/S3, and no other Docker
 containers. Do not install production application, provider or SMTP credentials.
-Firewall inbound application ports; the load stack binds only 127.0.0.1:18080/18081.
+The load stack publishes no ports. The host-side driver uses only container addresses
+resolved from the freshly created private validation network, without an arbitrary target URL.
+Docker documents host access to internal-network container addresses in its [network reference](https://docs.docker.com/reference/cli/docker/network/create/#network-internal-mode---internal).
 
 Create the root-owned isolation marker on that validation machine:
 

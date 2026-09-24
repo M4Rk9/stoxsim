@@ -18,6 +18,9 @@ if os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('RUNNER_ENVIRONM
 candidate = common.command(['git','rev-parse','HEAD']).decode().strip()
 os.environ['CANDIDATE_SHA'] = candidate
 real_command = common.command
+def fixture_evidence(name, report):
+    report['scope'] = 'CI synthetic integration exercise; mocked S3/local images; not production recovery or VPS-equivalence evidence'
+    common.evidence(name, report)
 for service, image in [('backend','api'),('frontend','web')]:
     image_id=real_command(['docker','compose','images','-q',service]).decode().strip()
     real_command(['docker','tag',image_id,'ghcr.io/m4rk9/stoxsim-'+image+':'+candidate])
@@ -38,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='ci-operational-fixtures-') as private:
             else: shutil.copyfile(archive,args[-1])
             return b'{}'
         return real_command(args,**kwargs)
-    with patch.object(recovery,'guard',return_value=candidate), patch.object(recovery,'command',side_effect=fake_s3):
+    with patch.object(recovery,'guard',return_value=candidate), patch.object(recovery,'command',side_effect=fake_s3), patch.object(recovery,'evidence',side_effect=fixture_evidence):
         recovery.main()
     recovery_report=Path('operational-evidence/recovery.json')
     data=json.loads(recovery_report.read_text());data['scope']='CI synthetic backup with mocked S3 metadata; not production recovery evidence';recovery_report.write_text(json.dumps(data,indent=2)+'\n')
@@ -51,7 +54,7 @@ os.environ['EXPECTED_RAM_GIB']=str(mem/1024**3)
 def local_images(args,**kwargs):
     if args[:2]==['docker','compose'] and args[-1]=='pull': return b''
     return real_command(args,**kwargs)
-with patch.object(capacity,'guard',return_value=candidate), patch.object(capacity,'command',side_effect=local_images):
+with patch.object(capacity,'guard',return_value=candidate), patch.object(capacity,'command',side_effect=local_images), patch.object(capacity,'evidence',side_effect=fixture_evidence):
     capacity.main()
 capacity_report=Path('operational-evidence/capacity.json')
 data=json.loads(capacity_report.read_text());data['scope']='CI synthetic integration exercise on GitHub hardware; not VPS equivalence evidence';capacity_report.write_text(json.dumps(data,indent=2)+'\n')

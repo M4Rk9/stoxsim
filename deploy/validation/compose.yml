@@ -49,7 +49,6 @@ services:
       STOXSIM_PORTFOLIO_HISTORY_ENABLED: 'false'
       FINWIZ_AI_ENABLED: 'false'
       STOXSIM_BILLING_TEST_ENABLED: 'false'
-    ports: ['127.0.0.1:18080:8080']
     networks: [isolated]
     depends_on:
       postgres: {condition: service_healthy}
@@ -64,7 +63,6 @@ services:
     labels:
       stoxsim.m7.run: ${GITHUB_RUN_ID:?}
     mem_limit: 256m
-    ports: ['127.0.0.1:18081:3000']
     networks: [isolated]
     depends_on:
       backend: {condition: service_healthy}

@@ -2,6 +2,7 @@
 """A bounded application workload on a dedicated host with declared VPS resources."""
 import concurrent.futures
 import json
+import ipaddress
 import math
 import os
 import secrets
@@ -21,8 +22,14 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect)
 
 
+API_ORIGIN = None
+WEB_ORIGIN = None
+
+
 def request(path, token=None, body=None, web=False):
-    url = 'http://127.0.0.1:18081/' if web else 'http://127.0.0.1:18080/api/v1/' + path
+    if API_ORIGIN is None or WEB_ORIGIN is None:
+        raise DrillError('Requests require the freshly created validation containers')
+    url = WEB_ORIGIN + '/' if web else API_ORIGIN + '/api/v1/' + path
     headers = {'Content-Type': 'application/json'}
     if token: headers['Authorization'] = 'Bearer ' + token
     req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None, headers=headers)
@@ -46,6 +53,7 @@ def summarize(rows):
 
 
 def main():
+    global API_ORIGIN, WEB_ORIGIN
     candidate = guard()
     profile = host_profile(os.environ.get('EXPECTED_VCPU', ''), os.environ.get('EXPECTED_RAM_GIB', ''))
     project = 'stoxsim-validation-' + secrets.token_hex(8)
@@ -59,6 +67,14 @@ def main():
         command(compose + ['pull'], timeout=600)
         command(compose + ['up', '-d', '--wait', '--wait-timeout', '300'], timeout=360)
         ids = command(compose + ['ps', '-q']).decode().split()
+        def origin(service, port):
+            container = command(compose + ['ps', '-q', service]).decode().strip()
+            networks = json.loads(command(['docker','inspect','--format','{{json .NetworkSettings.Networks}}',container]))
+            address = networks[project+'_isolated']['IPAddress']
+            if not ipaddress.ip_address(address).is_private:
+                raise DrillError('Expected a private address on the validation network')
+            return 'http://' + address + ':' + str(port)
+        API_ORIGIN, WEB_ORIGIN = origin('backend',8080), origin('frontend',3000)
         report['images'] = []
         for container in ids:
             # Record immutable local image IDs, without inspecting environment variables.
@@ -80,7 +96,9 @@ def main():
         fixtures = []
         for index in range(1,13):
             status, raw, _ = request('auth/login', body={'email': 'm7-'+str(index)+'@stoxsim.test', 'password': password})
-            if status != 200: raise DrillError('Synthetic fixture login failed')
+            if status != 200:
+                report['setup_http_status'] = status
+                raise DrillError('Synthetic fixture login failed with HTTP ' + str(status))
             token = json.loads(raw)['accessToken']
             status, raw, _ = request('accounts', token)
             if status != 200: raise DrillError('Synthetic account lookup failed')
