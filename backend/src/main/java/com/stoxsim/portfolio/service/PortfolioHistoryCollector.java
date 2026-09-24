@@ -46,7 +46,7 @@ public class PortfolioHistoryCollector {
         LocalDate day=now.atZone(ZoneId.of("UTC")).toLocalDate();
         if(!sessions.isTradingDay(exchange(region),day)) return;
         if(db.queryForObject("SELECT count(*) FROM portfolio_history WHERE account_id=? AND observed_day=?",Integer.class,id,day)>0) return;
-        var value=valuation.valueForAccount(account.getUser().getId(),id);
+        var value=valuation.valueForAccount(account.getUserId(),id);
         boolean valid=value.holdings().stream().allMatch(p->
             (p.pricingStatus().name().equals("LIVE")||p.pricingStatus().name().equals("CLOSED"))
             && p.priceTimestamp()!=null && !p.priceTimestamp().isAfter(now)
