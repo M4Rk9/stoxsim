@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./portfolio.module.css";
 import PortfolioHistory from "./PortfolioHistory";
+import ScenarioLab from "./ScenarioLab";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -310,6 +311,7 @@ export default function PortfolioPage() {
       </section>
 
       {account && <PortfolioHistory key={account.id} accountId={account.id} />}
+      {account && <ScenarioLab key={`scenario-${account.id}`} accountId={account.id} />}
       {insights && <section className={styles.analytics} aria-labelledby="portfolio-analytics-title">
         <div className={styles.analyticsHeader}>
           <div>
