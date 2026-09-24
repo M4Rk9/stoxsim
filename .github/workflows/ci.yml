@@ -108,6 +108,9 @@ jobs:
           rm -f deploy/production/monitoring/metrics-scrape-token
 
   browser-acceptance:
+    env:
+      COMPOSE_PROJECT_NAME: stoxsim-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     needs: [backend, frontend, staging-bundle]
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -129,6 +132,37 @@ jobs:
       - name: Run authenticated learner journey
         working-directory: frontend
         run: npm run e2e
+      - name: Record candidate identity and runner envelope
+        run: |
+          mkdir -p candidate-evidence
+          python3 - <<'PY'
+          import json, os, platform, subprocess
+          from pathlib import Path
+          Path('candidate-evidence/identity.json').write_text(json.dumps({
+            'candidate_sha': os.environ['CANDIDATE_SHA'],
+            'tested_checkout_sha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+            'run_url': 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+            'cpu_count': os.cpu_count(), 'platform': platform.platform(),
+            'memory': Path('/proc/meminfo').read_text().splitlines()[0],
+            'scope': 'GitHub-hosted disposable CI runner; not production capacity'
+          }, indent=2)+'\n')
+          PY
+      - name: Bounded authenticated load and resource observations
+        run: |
+          bash scripts/candidate-resources.sh &
+          sampler=$!
+          trap 'kill "$sampler" 2>/dev/null || true; wait "$sampler" 2>/dev/null || true' EXIT
+          python3 scripts/candidate-load.py
+      - name: Verify isolated backup restore and row equivalence
+        run: bash scripts/candidate-restore.sh
+      - name: Upload candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate-evidence/
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Capture stack logs on failure
         if: failure()
         run: docker compose logs --no-color > docker-compose.log

@@ -64,6 +64,12 @@ Use a new dedicated acceptance account and remove it after verification. Keep pu
 
 Do not paste access tokens, email links, request bodies or personal data into release evidence.
 
+## Candidate performance evidence
+
+- [ ] Retain the matching CI `candidate-evidence-<sha>` artifact and both candidate/checkout identities.
+- [ ] Review per-surface latency/error results, runner resources and isolated restore outcome.
+- [ ] Complete the separate production capacity and backup gates in [M7_RELEASE_EVIDENCE.md](M7_RELEASE_EVIDENCE.md); CI baseline results are not a production user-capacity estimate.
+
 ## Operations and recovery
 
 - [ ] All Prometheus targets report `up`.
@@ -87,7 +93,7 @@ Do not paste access tokens, email links, request bodies or personal data into re
 ## Release decision
 
 - [ ] Rename the changelog's `Unreleased` section to the approved semantic version and date.
-- [ ] Create an annotated `v1.0.0` tag from the verified production commit.
+- [ ] Create the approved new annotated version tag from the verified production commit; never move or reuse an existing release tag.
 - [ ] Publish GitHub release notes linking the changelog and production URL.
 - [ ] Monitor alerts, logs, support inbox and key user journeys closely for 24–48 hours.
 - [ ] Record the final go/no-go decision and operator.
