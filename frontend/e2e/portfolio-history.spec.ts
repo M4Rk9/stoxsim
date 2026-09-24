@@ -37,6 +37,6 @@ test("premium rejection does not hide current portfolio and cash gaps are explic
   await page.goto("/portfolio");
   await expect(page.getByText(/Performance metrics are withheld/)).toBeVisible();
   await page.getByLabel("History period").selectOption("90");
-  await expect(page.getByRole("alert")).toContainText("Longer history requires");
+  await expect(page.getByRole("region", { name: "Portfolio history", exact: true }).getByRole("alert")).toContainText("Longer history requires");
   await expect(page.getByRole("heading", { name: "Your portfolio", exact: true })).toBeVisible();
 });
