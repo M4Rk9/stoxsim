@@ -68,13 +68,12 @@ Secrets:
 | `PRODUCTION_USER` | Non-root deployment user |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Dedicated production deploy key |
 | `PRODUCTION_SSH_KNOWN_HOSTS` | Out-of-band verified host key |
-| `PRODUCTION_GHCR_USERNAME` | Account allowed to read packages |
-| `PRODUCTION_GHCR_TOKEN` | Token restricted to `read:packages` |
 | `PRODUCTION_SMOKE_EMAIL` | Monitored base address, currently `support.stoxsim@gmail.com` |
 | `GEMINI_API_KEY` | Production Gemini key |
 | `ALPACA_API_KEY_ID` / `ALPACA_API_SECRET_KEY` | Approved production market-data credentials |
 
 SMTP, database, Redis, JWT and Upstox secrets remain in the mode-`600` host `.env`. They are not copied through GitHub Actions.
+The workflow authenticates the production host to GHCR with the job-scoped `GITHUB_TOKEN`, so no separate GHCR username/token environment secrets are required.
 
 ## Monitoring and alerting
 

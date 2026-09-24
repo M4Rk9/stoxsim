@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: stoxsim-production
@@ -32,8 +33,8 @@ jobs:
       PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
-      GHCR_USER: ${{ secrets.PRODUCTION_GHCR_USERNAME }}
-      GHCR_TOKEN: ${{ secrets.PRODUCTION_GHCR_TOKEN }}
+      GHCR_USER: ${{ github.actor }}
+      GHCR_TOKEN: ${{ github.token }}
       PRODUCTION_SMOKE_EMAIL: ${{ secrets.PRODUCTION_SMOKE_EMAIL }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.6-flash' }}
@@ -81,8 +82,8 @@ jobs:
           : "${PRODUCTION_USER:?Set the PRODUCTION_USER environment secret}"
           : "${SSH_PRIVATE_KEY:?Set the PRODUCTION_SSH_PRIVATE_KEY environment secret}"
           : "${SSH_KNOWN_HOSTS:?Set the PRODUCTION_SSH_KNOWN_HOSTS environment secret}"
-          : "${GHCR_USER:?Set the PRODUCTION_GHCR_USERNAME environment secret}"
-          : "${GHCR_TOKEN:?Set the PRODUCTION_GHCR_TOKEN environment secret}"
+          : "${GHCR_USER:?Set the GitHub Actions actor for GHCR authentication}"
+          : "${GHCR_TOKEN:?Set the GitHub Actions token for GHCR authentication}"
           : "${PRODUCTION_SMOKE_EMAIL:?Set the PRODUCTION_SMOKE_EMAIL environment secret}"
           : "${GEMINI_API_KEY:?Set the GEMINI_API_KEY environment secret}"
           : "${ALPACA_API_KEY_ID:?Set the ALPACA_API_KEY_ID environment secret}"
