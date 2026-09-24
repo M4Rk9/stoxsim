@@ -176,6 +176,7 @@ public class AccountLifecycleService {
         requireUser(userId);
         Map<String, Object> export = new LinkedHashMap<>();
         export.put("exportedAt", Instant.now());
+        export.put("portfolioHistory", jdbcTemplate.queryForList("SELECT h.account_id,h.observed_day,h.observed_at,h.currency,h.equity,h.quality FROM portfolio_history h JOIN virtual_account a ON a.id=h.account_id WHERE a.user_id=? ORDER BY h.account_id,h.observed_day",userId));
         export.put("profile", jdbcTemplate.queryForMap(
             """
             SELECT id, email, display_name, platform_role, email_verified_at,
