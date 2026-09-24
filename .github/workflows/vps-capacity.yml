@@ -1,0 +1,54 @@
+name: VPS-equivalent load test
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full published candidate SHA to test with synthetic data
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: read
+concurrency:
+  group: m7-isolated-operational-drills
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    environment: m7-validation
+    runs-on: [self-hosted, linux, x64, stoxsim-m7-isolated]
+    timeout-minutes: 30
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check required host tools
+        run: |
+          command -v docker
+          command -v python3
+          docker compose version
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify VPS profile and run bounded workload
+        env:
+          EXPECTED_VCPU: ${{ vars.EXPECTED_VCPU }}
+          EXPECTED_RAM_GIB: ${{ vars.EXPECTED_RAM_GIB }}
+        run: python3 scripts/operations/capacity.py
+      - name: Remove isolated drill resources
+        if: always()
+        run: python3 scripts/operations/cleanup.py
+      - name: Upload aggregate operational evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vps-capacity-${{ github.run_id }}
+          path: operational-evidence/*.json
+          retention-days: 14
+          if-no-files-found: ignore

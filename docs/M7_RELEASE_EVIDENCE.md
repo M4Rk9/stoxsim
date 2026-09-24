@@ -37,6 +37,12 @@ portfolio performance, provider latency, Pro scenario throughput or a saturation
 point. Its restore test is neither proof that an encrypted production backup can
 be recovered nor a production RTO/RPO measurement.
 
+## Operational workflows
+
+The dedicated **Production backup recovery** and **VPS-equivalent load test** workflows
+are implemented in the M7 operational-drill follow-up. See [setup, execution and completion](M7_OPERATIONAL_RUNBOOK.md).
+They require a separate validation host and scoped backup access; engineering tests do not close their real-run gates.
+
 ## Remaining production sign-off
 
 Retain evidence privately where it includes operational details. Record dates,
@@ -44,13 +50,13 @@ run links and immutable SHA references in the release checklist, not credentials
 
 | Gate | Required evidence | Current state |
 | --- | --- | --- |
-| M1–M6 deployment | Owner report and deployment run for the exact image SHA | Owner reports M6 deployed; deployment identity still needs sign-off |
+| M1–M6 deployment | Owner report and deployment run for the exact image SHA | M7 deployment run 35983761385 succeeded; final release identity remains an operator sign-off |
 | Candidate CI | All checks and candidate-evidence artifact | Produced by this PR and rerun on merged main |
-| Production DAST | Successful existing Security DAST workflow against final deployment | Not run by this change; controlled registration and provider/session preconditions still apply |
-| Production learner acceptance | Dated checklist for actual deployed UI, mail and provider flows | Owner testing reports exist; full final-candidate sign-off remains open |
+| Production DAST | Successful existing Security DAST workflow against final deployment | Security DAST #15 / run 36028693643 succeeded on the deployed M7 revision |
+| Production learner acceptance | Dated checklist for actual deployed UI, mail and provider flows | Owner reports features and Scenario Lab work; mail/monitoring and final operator sign-off remain open |
 | Production backup recovery | Restore a selected encrypted backup into an isolated approved target, verify data and record timings | CI synthetic backup evidence does not satisfy this gate |
 | VPS operating envelope | Bounded load on an approved disposable target matching VPS resources, with latency/errors/CPU/RAM and workload stated | No production-capacity claim yet |
-| Production uptime/monitoring | Successful uptime run, targets up, controlled alert receipt | Requires current operational evidence |
+| Production uptime/monitoring | Successful uptime run, targets up, controlled alert receipt | Uptime run 35996186418 succeeded; monitoring/alert evidence remains an operator sign-off |
 | Release identity | Approved version, deployed SHA, passing checks, notes and operator | Draft notes below; no new tag or release published |
 
 Use `docs/RELEASE_CHECKLIST.md` for the final go/no-go. Keep benchmark retention
