@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    labels:
+      stoxsim.m7.run: ${GITHUB_RUN_ID:?}
+    mem_limit: 512m
+    command: [postgres, -c, shared_buffers=128MB, -c, work_mem=4MB, -c, maintenance_work_mem=64MB, -c, max_connections=60]
+    environment:
+      POSTGRES_DB: stoxsim
+      POSTGRES_USER: stoxsim
+      POSTGRES_PASSWORD: ${DRILL_PASSWORD:?}
+    volumes: [pg-data:/var/lib/postgresql/data]
+    networks: [isolated]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U stoxsim -d stoxsim']
+      interval: 3s
+      retries: 30
+  redis:
+    image: redis:8-alpine
+    labels:
+      stoxsim.m7.run: ${GITHUB_RUN_ID:?}
+    mem_limit: 128m
+    command: [redis-server, --appendonly, 'yes', --maxmemory, 96mb, --maxmemory-policy, allkeys-lru]
+    networks: [isolated]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      retries: 30
+  backend:
+    image: ghcr.io/m4rk9/stoxsim-api:${CANDIDATE_SHA:?}
+    labels:
+      stoxsim.m7.run: ${GITHUB_RUN_ID:?}
+    mem_limit: 768m
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/stoxsim
+      DATABASE_USERNAME: stoxsim
+      DATABASE_PASSWORD: ${DRILL_PASSWORD:?}
+      REDIS_HOST: redis
+      JWT_SECRET: ${DRILL_JWT:?}
+      FRONTEND_URL: http://127.0.0.1:18081
+      JAVA_TOOL_OPTIONS: -XX:+UseG1GC -Xms128m -Xmx512m -Xss512k
+      STOXSIM_PUBLIC_REGISTRATION_ENABLED: 'false'
+      UPSTOX_PUBLIC_SERVING_ENABLED: 'false'
+      UPSTOX_INSTRUMENT_SYNC_ON_STARTUP: 'false'
+      UPSTOX_STREAM_ENABLED: 'false'
+      ALPACA_PUBLIC_SERVING_ENABLED: 'false'
+      ALPACA_INSTRUMENT_SYNC_ON_STARTUP: 'false'
+      ALPACA_POLLING_ENABLED: 'false'
+      STOXSIM_PORTFOLIO_HISTORY_ENABLED: 'false'
+      FINWIZ_AI_ENABLED: 'false'
+      STOXSIM_BILLING_TEST_ENABLED: 'false'
+    networks: [isolated]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, 'wget -qO- http://localhost:8080/actuator/health/readiness | grep -q UP']
+      interval: 5s
+      retries: 40
+      start_period: 20s
+  frontend:
+    image: ghcr.io/m4rk9/stoxsim-web:${CANDIDATE_SHA:?}
+    labels:
+      stoxsim.m7.run: ${GITHUB_RUN_ID:?}
+    mem_limit: 256m
+    networks: [isolated]
+    depends_on:
+      backend: {condition: service_healthy}
+networks:
+  isolated:
+    internal: true
+volumes:
+  pg-data:
+    labels:
+      stoxsim.m7.run: ${GITHUB_RUN_ID:?}

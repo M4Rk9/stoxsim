@@ -51,6 +51,7 @@ jobs:
           bash scripts/test-staging-restore.sh
           bash scripts/test-production-uptime-workflow.sh
           bash scripts/test-production-deploy-contract.sh
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/operations -p 'test_*.py'
           node --check scripts/staging-load.mjs
           python3 -m py_compile deploy/production/render-monitoring-config.py
       - name: Validate staging Compose interpolation
@@ -155,6 +156,21 @@ jobs:
           python3 scripts/candidate-load.py
       - name: Verify isolated backup restore and row equivalence
         run: bash scripts/candidate-restore.sh
+      - name: Exercise operational drills with synthetic inputs
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/operations/ci_exercise.py
+      - name: Remove operational test resources
+        if: always()
+        run: python3 scripts/operations/cleanup.py
+      - name: Upload synthetic operational test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-operational-evidence-${{ github.run_id }}
+          path: operational-evidence/*.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Upload candidate evidence
         if: always()
         uses: actions/upload-artifact@v4

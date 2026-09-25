@@ -1,0 +1,57 @@
+name: Production backup recovery
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full deployed candidate SHA whose schema this backup must match
+        required: true
+        type: string
+      backup_name:
+        description: Exact stoxsim-production-YYYYMMDDTHHMMSSZ.dump filename from the offsite backup prefix
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: read
+concurrency:
+  group: m7-isolated-operational-drills
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    environment: m7-validation
+    runs-on: [self-hosted, linux, x64, stoxsim-m7-isolated]
+    timeout-minutes: 30
+    env:
+      CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check required host tools
+        run: |
+          command -v docker
+          command -v python3
+          docker compose version
+      - name: Restore encrypted offsite backup in isolation
+        env:
+          BACKUP_NAME: ${{ inputs.backup_name }}
+          BACKUP_S3_PREFIX: ${{ secrets.BACKUP_S3_PREFIX }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_READ_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_READ_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.BACKUP_READ_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: ${{ vars.BACKUP_AWS_REGION }}
+        run: python3 scripts/operations/recovery.py
+      - name: Remove isolated drill resources
+        if: always()
+        run: python3 scripts/operations/cleanup.py
+      - name: Upload aggregate operational evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-backup-recovery-${{ github.run_id }}
+          path: operational-evidence/*.json
+          retention-days: 14
+          if-no-files-found: ignore
