@@ -132,7 +132,8 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
   await expect(portfolioPage.getByRole("heading", { name: "Allocation and performance" }))
     .toBeVisible();
-  await expect(portfolioPage.getByText("portfolio-insights-v1")).toBeVisible();
+  await expect(portfolioPage.getByText("portfolio-insights-v1")).toHaveCount(0);
+  await expect(portfolioPage.getByRole("heading", { name: "Stox Analysis", exact: true })).toBeVisible();
   await expect(portfolioPage.getByRole("heading", { name: "India holdings" })).toBeVisible();
   await portfolioPage.close();
 
