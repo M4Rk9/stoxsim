@@ -7,7 +7,7 @@ function uniqueEmail(label: string) {
   return `browser-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}@stoxsim.test`;
 }
 
-async function registerLearner(page: Page, label: string) {
+async function registerLearner(page: Page, label: string, showsFirstTradeCoach = true) {
   const email = uniqueEmail(label);
   await page.goto("/");
   await page.keyboard.press("Tab");
@@ -38,11 +38,11 @@ async function registerLearner(page: Page, label: string) {
   await page.keyboard.press("Shift+Tab");
   await expect(nextButton).toBeFocused();
   await guide.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByRole("dialog", { name: "Know how fresh every price is." })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Know when the market is open." })).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByRole("dialog", { name: "Find a stock and place one paper trade." })).toBeVisible();
   await page.getByRole("button", { name: "Start first trade" }).click();
-  await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
+  if (showsFirstTradeCoach) await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
   await expect(page.getByRole("heading", { name: "StoxScore" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Scenario Lab ↗", exact: true })).toHaveAttribute("target", "_blank");
   return email;
@@ -253,7 +253,7 @@ test("a learner can switch between India and United States markets", async ({ pa
   await expectIndiaAccount(page);
 });
 
-test("the portfolio switcher keeps a paid sandbox visibly outside rankings", async ({ page }) => {
+test("the market switch selects the active paid portfolio without a redundant selector", async ({ page }) => {
   test.setTimeout(150_000);
   const sandboxId = "11111111-2222-4333-8444-555555555555";
   let standardIndiaId = "";
@@ -307,7 +307,7 @@ test("the portfolio switcher keeps a paid sandbox visibly outside rankings", asy
     await route.fulfill({ response, json });
   });
 
-  await registerLearner(page, "sandbox-switcher");
+  await registerLearner(page, "sandbox-switcher", false);
   await expect(page.getByLabel("Portfolio account")).toHaveCount(0);
 
   await expect(page.getByText("SANDBOX · INDIA PORTFOLIO"))
