@@ -6,7 +6,7 @@ public enum SubscriptionFeature {
     ADVANCED_ANALYTICS(SubscriptionPlan.PLUS),
     MULTIPLE_PORTFOLIOS(SubscriptionPlan.PRO),
     ADVANCED_RISK_ANALYTICS(SubscriptionPlan.PRO),
-    SCENARIO_LAB(SubscriptionPlan.PRO),
+    SCENARIO_LAB(SubscriptionPlan.FREE),
     PREMIUM_COMPETITIONS(SubscriptionPlan.PRO);
 
     private final SubscriptionPlan minimumPlan;

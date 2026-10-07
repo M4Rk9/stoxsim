@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./portfolio.module.css";
 import PortfolioHistory from "./PortfolioHistory";
-import ScenarioLab from "./ScenarioLab";
+import { marketAccount } from "../lib/portfolio-selection";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -218,9 +218,8 @@ export default function PortfolioPage() {
         if (active) {
           setPortfolios(values);
           const savedId = window.sessionStorage.getItem("stoxsim-active-account");
-          const preferred = values.find((item) => item.account.id === savedId)
-            ?? values.find((item) => item.account.accountKind === "STANDARD" && item.account.marketRegion === "INDIA")
-            ?? values[0];
+          const preferredAccount = marketAccount(values.map(item => item.account), values.find(item => item.account.id === savedId)?.account.marketRegion ?? "INDIA");
+          const preferred = values.find(item => item.account.id === preferredAccount?.id) ?? values[0];
           if (preferred) {
             setActiveAccountId(preferred.account.id);
             setRegion(preferred.account.marketRegion);
@@ -253,11 +252,8 @@ export default function PortfolioPage() {
   }
 
   function selectStandardMarket(nextRegion: MarketRegion) {
-    const next = portfolios.find((item) =>
-      item.account.accountKind === "STANDARD"
-      && item.account.marketRegion === nextRegion
-    );
-    if (next) selectAccount(next.account.id);
+    const next = marketAccount(portfolios.map(item => item.account), nextRegion);
+    if (next) selectAccount(next.id);
   }
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
@@ -273,23 +269,23 @@ export default function PortfolioPage() {
       <div>
         <span>PORTFOLIO</span>
         <h1>Your portfolio</h1>
-        <p>{session ? `${session.user.displayName}, review each competitive portfolio and isolated learning sandbox.` : "Loading your current holdings…"}</p>
+        <p>{session ? `${session.user.displayName}, your investments at a glance.` : "Loading your current holdings…"}</p>
       </div>
       <div className={styles.portfolioControls}>
-        <label>
+        <details><summary>Other portfolios</summary><label>
           Portfolio
           <select aria-label="Portfolio account" value={activeAccountId} onChange={(event) => selectAccount(event.target.value)}>
             {portfolios.map((item) => <option key={item.account.id} value={item.account.id}>
               {item.account.accountKind === "STANDARD"
-                ? `Standard ${item.account.marketRegion === "INDIA" ? "India" : "USA"}`
+                ? `Original ${item.account.marketRegion === "INDIA" ? "India" : "US"} portfolio`
                 : item.account.accountLabel}
               {!item.account.active ? " (locked)" : ""}
             </option>)}
           </select>
-        </label>
+        </label></details>
         <div className={styles.marketTabs} role="group" aria-label="Portfolio market">
-          <button type="button" className={account?.accountKind === "STANDARD" && region === "INDIA" ? styles.active : ""} aria-pressed={account?.accountKind === "STANDARD" && region === "INDIA"} onClick={() => selectStandardMarket("INDIA")}>India</button>
-          <button type="button" className={account?.accountKind === "STANDARD" && region === "UNITED_STATES" ? styles.active : ""} aria-pressed={account?.accountKind === "STANDARD" && region === "UNITED_STATES"} onClick={() => selectStandardMarket("UNITED_STATES")}>United States</button>
+          <button type="button" className={region === "INDIA" ? styles.active : ""} aria-pressed={region === "INDIA"} onClick={() => selectStandardMarket("INDIA")}>India</button>
+          <button type="button" className={region === "UNITED_STATES" ? styles.active : ""} aria-pressed={region === "UNITED_STATES"} onClick={() => selectStandardMarket("UNITED_STATES")}>United States</button>
         </div>
       </div>
     </section>
@@ -298,11 +294,7 @@ export default function PortfolioPage() {
     {loading && <div className={styles.loading} role="status" aria-live="polite">Loading current holdings…</div>}
 
     {portfolio && <>
-      <section className={styles.accountContext}>
-        <strong>{account?.accountKind === "SANDBOX" ? account.accountLabel : `Standard ${region === "INDIA" ? "India" : "USA"} portfolio`}</strong>
-        <span>{account?.leaderboardEligible ? "Eligible for the standard competition" : "Learning sandbox · excluded from standard rankings"}</span>
-        {!account?.active && <small>Locked: history is visible, but trading is disabled.</small>}
-      </section>
+
       <section className={styles.metrics}>
         <article><span>Account value</span><strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong><small>Started with {money(portfolio.startingCapital, portfolio.currency)}</small></article>
         <article><span>Available cash</span><strong>{money(portfolio.availableCash, portfolio.currency)}</strong><small>{money(portfolio.blockedCash, portfolio.currency)} blocked</small></article>
@@ -311,14 +303,14 @@ export default function PortfolioPage() {
       </section>
 
       {account && <PortfolioHistory key={account.id} accountId={account.id} />}
-      {account && <ScenarioLab key={`scenario-${account.id}`} accountId={account.id} />}
+
       {insights && <section className={styles.analytics} aria-labelledby="portfolio-analytics-title">
         <div className={styles.analyticsHeader}>
           <div>
             <span>PORTFOLIO ANALYTICS</span>
             <h2 id="portfolio-analytics-title">Allocation and performance</h2>
           </div>
-          <small>{insights.formulaVersion} · {insights.confidence} confidence · {insights.dataCoveragePercent.toFixed(0)}% pricing coverage</small>
+
         </div>
 
         <div className={styles.analyticsGrid}>
@@ -376,16 +368,13 @@ export default function PortfolioPage() {
           </article>
         </div>
 
-        <div className={styles.analyticsNotes}>
-          <ul>{insights.observations.map((observation) => <li key={observation}>{observation}</li>)}</ul>
-          <p>{insights.disclaimer}</p>
-        </div>
+
       </section>}
 
       <section className={styles.holdings}>
         <div className={styles.sectionHeader}>
           <div><span>{region === "INDIA" ? "INDIA" : "UNITED STATES"}</span><h2>{region === "INDIA" ? "India holdings" : "United States holdings"}</h2></div>
-          <small>{portfolio.holdings.length} current {portfolio.holdings.length === 1 ? "position" : "positions"} · {portfolio.dataStatus} · {dateTime(portfolio.valuedAt)}</small>
+          <small>{portfolio.holdings.length} current {portfolio.holdings.length === 1 ? "position" : "positions"} · {dateTime(portfolio.valuedAt)}</small>
         </div>
         <div className={styles.tableWrap}>
           <table>
@@ -395,7 +384,7 @@ export default function PortfolioPage() {
                 <td><strong>{holding.symbol}</strong><small>{holding.name}</small></td>
                 <td>{holding.quantity}<small>{holding.blockedQuantity ? `${holding.blockedQuantity} blocked` : "Available"}</small></td>
                 <td>{money(holding.averagePrice, portfolio.currency)}</td>
-                <td>{money(holding.currentPrice, portfolio.currency)}<small>{holding.pricingStatus}</small></td>
+                <td>{money(holding.currentPrice, portfolio.currency)}</td>
                 <td>{money(holding.marketValue, portfolio.currency)}</td>
                 <td className={holding.unrealizedProfitLoss >= 0 ? styles.positive : styles.negative}>{money(holding.unrealizedProfitLoss, portfolio.currency)}<small>{holding.returnPercent.toFixed(2)}%</small></td>
               </tr>)}

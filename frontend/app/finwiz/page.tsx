@@ -240,7 +240,7 @@ export default function FinwizPage() {
               }}
             >{suggestion}<span>↗</span></button>)}
           </div>}
-          <p className={styles.disclaimer}>{answer.disclaimer}</p>
+
         </div>
       </div>}
 

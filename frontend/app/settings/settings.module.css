@@ -731,3 +731,9 @@
   border-color: color-mix(in srgb, var(--red) 42%, var(--line));
   background: color-mix(in srgb, var(--red) 8%, var(--panel));
 }
+
+/* Let plan actions wrap inside their card at every viewport size. */
+.sandboxProvisioning { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+.sandboxProvisioning > div { flex: 1 1 220px; min-width: 0; }
+.sandboxProvisioning > button { flex: 0 1 auto; width: auto; max-width: 100%; white-space: normal; }
+.planGrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }

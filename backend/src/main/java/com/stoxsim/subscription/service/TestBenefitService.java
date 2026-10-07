@@ -78,7 +78,7 @@ public class TestBenefitService {
                 : java.util.Set.of("cancelled","completed","expired").contains(remote)
                     ? SubscriptionStatus.CANCELED : SubscriptionStatus.PAST_DUE;
             subscription.apply(new BillingSubscriptionUpdate(userId,plan,subscriptionStatus,
-                "RAZORPAY_TEST",userId.toString(),providerId,instant(row.get("current_period_end"))),now);
+                "RAZORPAY_TEST",userId.toString(),providerId,instant(row.get("paid_through"))),now);
             subscription.setTestAccessUntil(until);
         }
         // Lock accounts in stable order, matching order placement/settlement's account-first discipline.
@@ -91,9 +91,11 @@ public class TestBenefitService {
                 account.deactivate();cleanup.cancelOpenForAccount(account);
             }
         }
-        if (until!=null && accounts.findByUserIdAndAccountKindAndSandboxPlanAndSandboxSlot(userId,AccountKind.SANDBOX,plan,1).isEmpty()) {
-            var account=VirtualAccount.sandbox(user,plan,1,plan.sandboxCapitalInr());
-            account.setTestTradingUntil(until);accounts.save(account);
+        if (until!=null) for (var region : com.stoxsim.market.domain.MarketRegion.values()) {
+            if (accounts.findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(userId,region,plan,1).isEmpty()) {
+                var account=VirtualAccount.sandbox(user,plan,1,plan.sandboxCapital(region),null,region);
+                account.setTestTradingUntil(until);accounts.save(account);
+            }
         }
         db.update("UPDATE razorpay_test_subscription SET benefit_status=?,access_until=? WHERE id=?",state,
             until==null?null:Timestamp.from(until),id);

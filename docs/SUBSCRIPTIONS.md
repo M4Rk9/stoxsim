@@ -6,11 +6,16 @@ verification and operating procedures are approved.
 
 ## Product tiers
 
-| Plan | Price target | Competitive portfolio | Sandbox allowance | Learning tools |
-| --- | ---: | ---: | ---: | --- |
-| Free | ₹0 | ₹5 lakh | None | Basic FinWiz and analytics |
-| Plus | ₹99/month | ₹5 lakh | One India sandbox with ₹25 lakh | Expanded FinWiz and advanced analytics |
-| Pro | ₹199/month | ₹5 lakh | Up to five India sandboxes, each with ₹1 crore | Full FinWiz, advanced risk, Scenario Lab and premium competitions |
+| Plan | India capital | US capital | FinWiz | Scenario credits |
+| --- | ---: | ---: | --- | ---: |
+| Free | ₹5 lakh | $10,000 | Basic | 2 starter credits |
+| Plus | ₹25 lakh | $50,000 | Expanded | 10 per paid month |
+| Pro | ₹1 crore | $100,000 | Full | 50 per paid month |
+
+Paid primary portfolios are provisioned in both markets. Pro retains up to four
+additional India portfolios. Existing standard portfolios and their holdings are
+preserved. Credits refill only when a verified paid period advances; retries,
+failed renewals and grace periods do not refill them. See [Scenario Lab](SCENARIO_LAB.md).
 
 The plan catalog describes the roadmap entitlement contract. Features are
 enabled separately as their production batches ship; the catalog is not a claim
@@ -54,8 +59,9 @@ learner. The browser uses the account ID for sandbox-safe trading and valuation:
 - an account owned by another user is indistinguishable from a missing account;
 - sandbox orders do not update onboarding or standard-portfolio FinWiz feedback.
 
-The dashboard and detailed portfolio page persist the selected account locally
-and always label whether it is competitive or excluded from rankings.
+The market switch selects the active paid primary portfolio when available.
+Existing standard and additional portfolios remain available under Other portfolios
+on the detailed portfolio page. The settings screen retains account details.
 
 An active Pro learner may call `POST /api/v1/accounts/sandboxes` with an
 `Idempotency-Key` header to provision slots 2–5. The backend, not the browser,
@@ -83,7 +89,7 @@ must be added in its own reviewed batch and must:
 7. cancel or settle open sandbox orders before locking a downgraded sandbox;
 8. keep provider secrets only in deployment secrets.
 
-The internal service provisions or reactivates the first sandbox for an active
+The internal service provisions or reactivates the primary India and US portfolios for an active
 paid entitlement, reactivates every existing sandbox for the current active
 plan and locks sandboxes belonging to inactive or different plans.
 
@@ -104,3 +110,6 @@ existing accounts as standard. Migration `V108` makes sandbox slots plan-scoped
 so Plus→Pro transitions preserve locked history, adds retry keys, and retains a
 separate partial uniqueness rule for standard accounts. No environment
 variable, secret or paid service is required.
+
+Migration `V117` stores scenario credit usage and retry-safe scenario results.
+Existing active paid users receive their US portfolio when they next load accounts.

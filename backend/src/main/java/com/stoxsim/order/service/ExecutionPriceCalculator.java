@@ -55,7 +55,7 @@ public class ExecutionPriceCalculator {
 
     private BigDecimal referencePrice(OrderSide side, Quote quote) {
         BigDecimal preferred = side == OrderSide.BUY ? quote.ask() : quote.bid();
-        BigDecimal reference = preferred == null ? quote.lastPrice() : preferred;
+        BigDecimal reference = preferred == null || preferred.signum() <= 0 ? quote.lastPrice() : preferred;
         if (reference == null || reference.signum() <= 0) {
             throw new TradingValidationException("No executable market price is available");
         }

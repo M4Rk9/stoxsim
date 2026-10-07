@@ -21,6 +21,7 @@ public record SandboxProvisioningResponse(
         int current = (int) sandboxes.stream()
             .filter(account -> account.accountKind() == AccountKind.SANDBOX)
             .filter(account -> account.sandboxPlan() == subscription.getPlan())
+            .filter(account -> account.marketRegion() == com.stoxsim.market.domain.MarketRegion.INDIA)
             .count();
         int maximum = subscription.getPlan().maximumSandboxPortfolios();
         SandboxProvisioningStatus status = status(subscription, current, maximum);

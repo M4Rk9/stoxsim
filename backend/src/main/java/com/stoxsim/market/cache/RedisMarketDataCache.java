@@ -120,13 +120,14 @@ public class RedisMarketDataCache implements MarketDataCache {
             decimal(quote.previousClose()),
             number(quote.volume()),
             instant(quote.exchangeTimestamp()),
-            instant(quote.receivedAt())
+            instant(quote.receivedAt()),
+            Boolean.toString(quote.simulated())
         );
     }
 
     private Quote decodeQuote(InstrumentKey instrument, String encoded) {
         String[] parts = encoded.split("\\t", -1);
-        if (parts.length != 11) {
+        if (parts.length != 11 && parts.length != 12) {
             throw new IllegalArgumentException("Unexpected cached quote format");
         }
         return new Quote(
@@ -141,7 +142,8 @@ public class RedisMarketDataCache implements MarketDataCache {
             decimal(parts[7]),
             longNumber(parts[8]),
             instant(parts[9]),
-            instant(parts[10])
+            instant(parts[10]),
+            parts.length == 12 && Boolean.parseBoolean(parts[11])
         );
     }
 

@@ -34,6 +34,7 @@ public class AccountController {
 
     @GetMapping
     public List<AccountResponse> list(@AuthenticationPrincipal Jwt jwt) {
+        subscriptions.ensureRegionalAccounts(UUID.fromString(jwt.getSubject()));
         return accounts.listOwned(UUID.fromString(jwt.getSubject()));
     }
 

@@ -164,15 +164,17 @@ class RazorpayTestBillingIntegrationTest {
         assertThat(response.billingMode()).isEqualTo("TEST");
         assertThat(response.entitlements().premiumCompetitions()).isFalse();
         assertThat(response.entitlements().multiplePortfolios()).isTrue();
+        assertThat(db.queryForObject("SELECT starting_capital FROM virtual_account WHERE user_id=? AND market_region='UNITED_STATES' AND account_kind='SANDBOX'",BigDecimal.class,admin)).isEqualByComparingTo("100000");
+        assertThat(response.entitlements().scenarioCredits()).isEqualTo(50);
         for(int i=0;i<4;i++) subscriptions.createAdditionalSandbox(admin,"test-"+i);
         subscriptions.createAdditionalSandbox(admin,"test-0");
         expectStatus(409,()->subscriptions.createAdditionalSandbox(admin,"sixth"));
-        assertThat(db.queryForObject("SELECT count(*) FROM virtual_account WHERE account_kind='SANDBOX' AND leaderboard_eligible=false AND test_trading_until IS NOT NULL",Integer.class)).isEqualTo(5);
+        assertThat(db.queryForObject("SELECT count(*) FROM virtual_account WHERE account_kind='SANDBOX' AND leaderboard_eligible=false AND test_trading_until IS NOT NULL",Integer.class)).isEqualTo(6);
         service.benefits(admin,item.id(),false);
         assertThat(subscriptions.current(admin).plan()).isEqualTo(SubscriptionPlan.FREE);
         assertThat(db.queryForObject("SELECT count(*) FROM virtual_account WHERE active=true",Integer.class)).isZero();
         service.benefits(admin,item.id(),true);
-        assertThat(db.queryForObject("SELECT count(*) FROM virtual_account",Integer.class)).isEqualTo(5);
+        assertThat(db.queryForObject("SELECT count(*) FROM virtual_account",Integer.class)).isEqualTo(6);
     }
     @Test void failedRenewalHasFixedGraceAndOnlyNewPaidCycleExtendsAccess() {
         var item=service.create(admin,"PLUS",UUID.randomUUID());

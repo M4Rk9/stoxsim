@@ -35,6 +35,8 @@ type SubscriptionPlan = "FREE" | "PLUS" | "PRO";
 interface Entitlements {
   standardCompetitiveCapitalInr: number;
   sandboxCapitalInr?: number;
+  sandboxCapitalUsd?: number;
+  scenarioCredits: number;
   maximumSandboxPortfolios: number;
   finwizTier: string;
   analyticsTier: string;
@@ -634,14 +636,6 @@ export default function SettingsPage() {
             </div>
             <span className={styles.currentPlan}>{eventLabel(subscription.status)}</span>
           </div>
-          <p>
-            Your competitive India portfolio always starts at ₹5 lakh. Paid-plan capital is
-            provisioned only in separate sandboxes and can never enter the standard leaderboard.
-          </p>
-          <div className={styles.integrityNote}>
-            <strong>Leaderboard integrity protected</strong>
-            <span>Standard capital: ₹5,00,000 · Sandbox balances are excluded by the API and database model.</span>
-          </div>
           <div className={styles.planGrid}>
             {subscription.plans.map((item) => <article
               className={item.plan === subscription.plan ? styles.planCardCurrent : styles.planCard}
@@ -653,12 +647,11 @@ export default function SettingsPage() {
                 ? "Free"
                 : `₹${item.monthlyPriceInr.toFixed(0)}/month`}</strong>
               <ul>
-                <li>{item.entitlements.maximumSandboxPortfolios === 0
-                  ? "Standard ₹5 lakh portfolio"
-                  : `${item.entitlements.maximumSandboxPortfolios} sandbox ${item.entitlements.maximumSandboxPortfolios === 1 ? "portfolio" : "portfolios"} up to ${reportMoney(item.entitlements.sandboxCapitalInr ?? 0, "INR")}`}</li>
+                <li>{item.plan === "FREE" ? "₹5 lakh" : item.plan === "PLUS" ? "₹25 lakh" : "₹1 crore"} · India</li>
+                <li>{reportMoney(item.entitlements.sandboxCapitalUsd ?? 10000, "USD")} · US</li>
                 <li>{eventLabel(item.entitlements.finwizTier)} FinWiz</li>
                 <li>{eventLabel(item.entitlements.analyticsTier)} analytics</li>
-                {item.entitlements.scenarioLab && <li>Scenario Lab access</li>}
+                <li>{item.entitlements.scenarioCredits} Scenario Lab credits{item.plan !== "FREE" ? " / renewal" : ""}</li>
               </ul>
               <button type="button" disabled>
                 {item.plan === subscription.plan ? "Current plan" : "Billing not available yet"}
@@ -666,17 +659,17 @@ export default function SettingsPage() {
             </article>)}
           </div>
           {subscription.sandboxAccounts.length > 0 && <div className={styles.sandboxList}>
-            <h3>Provisioned sandboxes</h3>
+            <h3>Your portfolios</h3>
             {subscription.sandboxAccounts.map((account) => <div key={account.id}>
               <span><strong>{account.accountLabel}</strong><small>{account.active ? "Active" : "Locked"}</small></span>
-              <strong>{reportMoney(account.startingCapital, "INR")}</strong>
+              <strong>{reportMoney(account.startingCapital, account.currency === "USD" ? "USD" : "INR")}</strong>
             </div>)}
           </div>}
           {subscription.plan === "PRO" && <div className={styles.sandboxProvisioning}>
             <div>
               <strong>Additional Pro portfolios</strong>
               <span>
-                {subscription.sandboxProvisioning.currentPlanSandboxes} of {subscription.sandboxProvisioning.maximumSandboxes} provisioned · each starts with ₹1 crore and remains outside rankings.
+                {subscription.sandboxProvisioning.currentPlanSandboxes} of {subscription.sandboxProvisioning.maximumSandboxes} India portfolios created.
               </span>
             </div>
             <button
@@ -696,7 +689,7 @@ export default function SettingsPage() {
           </div>}
           {sandboxMessage && <div className={`${styles.message} ${styles.success}`} role="status">{sandboxMessage}</div>}
           {sandboxError && <div className={`${styles.message} ${styles.error}`} role="alert">{sandboxError}</div>}
-          <p className={styles.planNotice}>{subscription.notice}</p>
+          <p className={styles.planNotice}>Plus and Pro credits refill after each successful monthly renewal.</p>
         </section>}
 
         <form className={`${styles.card} ${styles.fullWidth}`} id="reports" onSubmit={saveReportPreference}>
@@ -771,11 +764,11 @@ export default function SettingsPage() {
                   {reportMoney(market.totalProfitLoss, market.currency)} simulated P/L
                 </small>
                 <small>{market.tradesExecuted} paper {market.tradesExecuted === 1 ? "trade" : "trades"} this period</small>
-                <small>{market.cashWeightPercent.toFixed(1)}% cash · {market.confidence} confidence</small>
+                <small>{market.cashWeightPercent.toFixed(1)}% cash</small>
               </article>)}
             </div>
             <ul>{reportPreview.learningNotes.map((note) => <li key={note}>{note}</li>)}</ul>
-            <p>{reportPreview.disclaimer}</p>
+
           </section>}
 
           <section className={styles.reportHistory} aria-labelledby="report-history-title">

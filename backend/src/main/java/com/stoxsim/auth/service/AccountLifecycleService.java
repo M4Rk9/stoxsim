@@ -176,6 +176,8 @@ public class AccountLifecycleService {
         requireUser(userId);
         Map<String, Object> export = new LinkedHashMap<>();
         export.put("exportedAt", Instant.now());
+        export.put("scenarioRuns", jdbcTemplate.queryForList("SELECT request_id,account_id,request_payload,result_payload,created_at FROM scenario_run WHERE user_id=? ORDER BY created_at",userId));
+        export.put("scenarioCredits", jdbcTemplate.queryForList("SELECT scenario_free_used,scenario_paid_used,scenario_credit_period_end FROM user_subscription WHERE user_id=?",userId));
         export.put("portfolioHistory", jdbcTemplate.queryForList("SELECT h.account_id,h.observed_day,h.observed_at,h.currency,h.equity,h.quality FROM portfolio_history h JOIN virtual_account a ON a.id=h.account_id WHERE a.user_id=? ORDER BY h.account_id,h.observed_day",userId));
         export.put("profile", jdbcTemplate.queryForMap(
             """

@@ -4,6 +4,18 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+### Changed
+
+- Fix search focus overlap and overflowing plan controls; remove repetitive dashboard copy.
+- Move StoxScore into Portfolio History as Stox Analysis, with sector allocation charts.
+- Open Scenario Lab in a separate tab with preset and named custom paths (up to 12 steps).
+- Set Plus capital to ₹25 lakh / $50,000 and Pro to ₹1 crore / $100,000. Existing paid
+  users receive a US account on their next account load; existing holdings are preserved.
+- Add server-enforced Scenario Lab credits: Free 2 starter runs, Plus 10 and Pro 50
+  per successful paid renewal. Retries do not spend twice; failed runs spend nothing.
+- Display LIVE/CLOSED market availability and keep simulated orders executable during
+  quote-provider outages, using an explicitly identified simulated price fallback.
+
 ### Added
 
 - M3 campus membership requests and organizer review, scheduled competitions,

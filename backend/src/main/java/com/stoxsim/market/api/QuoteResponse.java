@@ -25,7 +25,8 @@ public record QuoteResponse(
     Long volume,
     Instant exchangeTimestamp,
     Instant receivedAt,
-    MarketDataStatus dataStatus
+    MarketDataStatus dataStatus,
+    String pricingSource
 ) {
     public static QuoteResponse from(
         TradableInstrument instrument,
@@ -50,7 +51,8 @@ public record QuoteResponse(
             quote.volume(),
             quote.exchangeTimestamp(),
             quote.receivedAt(),
-            dataStatus
+            dataStatus,
+            quote.simulated() ? "SIMULATED" : "EXTERNAL"
         );
     }
 

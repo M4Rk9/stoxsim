@@ -50,8 +50,8 @@ export default function StoxScoreCard({ analytics }: Props) {
       <div className={styles.header}>
         <div>
           <span className="kicker">PORTFOLIO STRUCTURE</span>
-          <h2 id="stoxscore-title">StoxScore</h2>
-          <p>Portfolio structure is temporarily unavailable. Your other dashboard data is unaffected.</p>
+          <h2 id="stoxscore-title">Portfolio structure</h2>
+          <p>Analysis is temporarily unavailable.</p>
         </div>
       </div>
     </section>;
@@ -63,10 +63,10 @@ export default function StoxScoreCard({ analytics }: Props) {
     <div className={styles.header}>
       <div>
         <span className="kicker">PORTFOLIO STRUCTURE</span>
-        <h2 id="stoxscore-title">StoxScore</h2>
-        <p>A transparent view of diversification and concentration—not a return forecast.</p>
+        <h2 id="stoxscore-title">Portfolio structure</h2>
+
       </div>
-      <span className={styles.version}>{analytics.formulaVersion}</span>
+
     </div>
 
     <div className={styles.body}>
@@ -76,9 +76,7 @@ export default function StoxScoreCard({ analytics }: Props) {
           <span>{scored ? "/ 100" : "NOT SCORED"}</span>
         </div>
         <h3>{analytics.structureBand}</h3>
-        <p>{scored
-          ? `${analytics.confidence.toLowerCase()} confidence · ${formatted(analytics.dataCoveragePercent)}% pricing coverage`
-          : analytics.observations[0]}</p>
+        <p>{scored ? "Diversification and concentration" : "Make your first trade to see your portfolio analysis."}</p>
       </div>
 
       {scored && <>
@@ -108,6 +106,6 @@ export default function StoxScoreCard({ analytics }: Props) {
       </>}
     </div>
 
-    <footer className={styles.disclaimer}>{analytics.disclaimer}</footer>
+
   </section>;
 }

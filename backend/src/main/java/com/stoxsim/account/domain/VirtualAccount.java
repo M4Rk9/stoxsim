@@ -132,6 +132,10 @@ public class VirtualAccount {
         BigDecimal startingBalance,
         String provisioningKey
     ) {
+        return sandbox(user, plan, slot, startingBalance, provisioningKey, MarketRegion.INDIA);
+    }
+
+    public static VirtualAccount sandbox(AppUser user, SubscriptionPlan plan, int slot, BigDecimal startingBalance, String provisioningKey, MarketRegion region) {
         if (plan == SubscriptionPlan.FREE) {
             throw new IllegalArgumentException("Free plans do not have paid sandboxes");
         }
@@ -140,13 +144,13 @@ public class VirtualAccount {
         }
         VirtualAccount account = new VirtualAccount(
             user,
-            MarketRegion.INDIA,
+            region,
             startingBalance
         );
         account.accountKind = AccountKind.SANDBOX;
         account.sandboxPlan = plan;
         account.sandboxSlot = slot;
-        account.accountLabel = plan.displayName() + " sandbox " + slot;
+        account.accountLabel = plan.displayName() + " " + (region == MarketRegion.INDIA ? "India" : "US") + (slot == 1 ? "" : " · " + slot);
         account.provisioningKey = provisioningKey;
         account.leaderboardEligible = false;
         return account;
