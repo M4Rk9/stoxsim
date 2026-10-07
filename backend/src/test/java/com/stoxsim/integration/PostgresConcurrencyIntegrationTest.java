@@ -549,9 +549,12 @@ class PostgresConcurrencyIntegrationTest {
         assertThat(accounts.findSandboxesByUserIdAndPlan(
             user.getId(),
             SubscriptionPlan.PRO
-        ))
+        ).stream().filter(account -> account.getMarketRegion() == MarketRegion.INDIA).toList())
             .extracting(VirtualAccount::getSandboxSlot)
             .containsExactly(1, 2, 3);
+        assertThat(accounts.findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(
+            user.getId(), MarketRegion.UNITED_STATES, SubscriptionPlan.PRO, 1).orElseThrow().getStartingCapital())
+            .isEqualByComparingTo("100000");
     }
 
     @Test

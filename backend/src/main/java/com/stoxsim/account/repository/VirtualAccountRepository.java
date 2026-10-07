@@ -119,7 +119,15 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
         @Param("provisioningKey") String provisioningKey
     );
 
-    Optional<VirtualAccount> findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(UUID userId, MarketRegion marketRegion, SubscriptionPlan sandboxPlan, int sandboxSlot);
+    @Query("""
+        SELECT account FROM VirtualAccount account
+        WHERE account.user.id = :userId AND account.marketRegion = :marketRegion
+          AND account.sandboxPlan = :sandboxPlan AND account.sandboxSlot = :sandboxSlot
+          AND account.accountKind = com.stoxsim.account.domain.AccountKind.SANDBOX
+        """)
+    Optional<VirtualAccount> findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(
+        @Param("userId") UUID userId, @Param("marketRegion") MarketRegion marketRegion,
+        @Param("sandboxPlan") SubscriptionPlan sandboxPlan, @Param("sandboxSlot") int sandboxSlot);
 
     @Query("""
         SELECT account

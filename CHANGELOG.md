@@ -6,6 +6,8 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ### Changed
 
+- Patch Next.js, sharp and source-map-js to resolve dependency findings from the required security scan.
+
 - Fix search focus overlap and overflowing plan controls; remove repetitive dashboard copy.
 - Move StoxScore into Portfolio History as Stox Analysis, with sector allocation charts.
 - Open Scenario Lab in a separate tab with preset and named custom paths (up to 12 steps).
