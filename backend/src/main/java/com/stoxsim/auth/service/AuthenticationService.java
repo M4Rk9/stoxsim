@@ -161,8 +161,14 @@ public class AuthenticationService {
 
     @Transactional
     public UserResponse updateProfile(UUID userId, ProfileUpdateRequest request) {
-        AppUser user = requireUser(userId);
+        AppUser user = userRepository.findByIdForUpdate(userId)
+            .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
         String email = normalizeEmail(request.email());
+        boolean changingEmail = !user.getEmail().equalsIgnoreCase(email);
+        if (changingEmail && (request.currentPassword() == null
+            || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash()))) {
+            throw new UnauthorizedException("Current password is required to change your email");
+        }
         userRepository.findByEmailIgnoreCase(email)
             .filter(existing -> !existing.getId().equals(userId))
             .ifPresent(existing -> {
@@ -175,6 +181,8 @@ public class AuthenticationService {
             null
         );
         if (emailChanged) {
+            lifecycleService.invalidateAccountLinks(userId);
+            lifecycleService.revokeAllSessions(userId);
             lifecycleService.sendVerification(userId);
         }
         return UserResponse.from(user, accountService.findByUserId(userId));
@@ -182,11 +190,13 @@ public class AuthenticationService {
 
     @Transactional
     public void updatePassword(UUID userId, PasswordUpdateRequest request) {
-        AppUser user = requireUser(userId);
+        AppUser user = userRepository.findByIdForUpdate(userId)
+            .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new UnauthorizedException("Current password is incorrect");
         }
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        lifecycleService.invalidateAccountLinks(userId);
         lifecycleService.revokeAllSessions(userId);
         lifecycleService.audit(userId, "PASSWORD_CHANGED", null);
     }

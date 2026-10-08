@@ -37,6 +37,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 
 import com.stoxsim.account.domain.VirtualAccount;
 import com.stoxsim.analytics.service.AnalyticsService;
@@ -95,6 +96,12 @@ class PostgresConcurrencyIntegrationTest {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+
+    // Keep rate limiting enabled against a real store for HTTP security checks.
+    @Container
+    @ServiceConnection(name = "redis")
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
+        .withExposedPorts(6379);
 
     @Autowired private JdbcTemplate jdbc;
     @Autowired private TransactionTemplate transactions;

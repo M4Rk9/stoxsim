@@ -213,6 +213,7 @@ const reportMoney = (value: number, currency: "INR" | "USD") => new Intl.NumberF
 export default function SettingsPage() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [profile, setProfile] = useState({ displayName: "", email: "" });
+  const [profilePassword, setProfilePassword] = useState("");
   const [passwords, setPasswords] = useState({
     currentPassword: "",
     newPassword: "",
@@ -401,9 +402,15 @@ export default function SettingsPage() {
     try {
       const user = await authorized<User>("/api/v1/auth/me", {
         method: "PATCH",
-        body: JSON.stringify(profile),
+        body: JSON.stringify({ ...profile, currentPassword: profilePassword || null }),
       });
       const active = readSession();
+      setProfilePassword("");
+      if (active && user.email.toLowerCase() !== active.user.email.toLowerCase()) {
+        window.sessionStorage.removeItem("stoxsim-session");
+        window.location.replace("/");
+        return;
+      }
       if (active) persist({ ...active, user });
       setProfile({ displayName: user.displayName, email: user.email });
       setProfileMessage(
@@ -569,6 +576,12 @@ export default function SettingsPage() {
               onChange={(event) => setProfile({ ...profile, email: event.target.value })}
             />
           </label>
+          {profile.email.trim().toLowerCase() !== session.user.email.toLowerCase() && <label>
+            Current password to change email
+            <input type="password" autoComplete="current-password" required maxLength={72}
+              value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
+            <small>Changing your email signs out all sessions. Verify your new address after signing in.</small>
+          </label>}
           <div className={session.user.emailVerified ? styles.verified : styles.unverified}>
             {session.user.emailVerified ? "Email verified" : "Email verification pending"}
           </div>

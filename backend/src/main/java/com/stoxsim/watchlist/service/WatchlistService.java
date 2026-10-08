@@ -64,6 +64,10 @@ public class WatchlistService {
 
     @Transactional
     public WatchlistResponse add(UUID userId, AddWatchlistItemRequest request) {
+        // Serialize additions for this user so concurrent requests cannot exceed the cap.
+        users.findByIdForUpdate(userId).orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "User not found"
+        ));
         Watchlist watchlist = defaultWatchlist(userId);
         TradableInstrument instrument = instruments
             .findByMarketRegionAndExchangeAndTradingSymbolIgnoreCaseAndActiveTrue(
@@ -84,6 +88,9 @@ public class WatchlistService {
         }
 
         if (items.findByWatchlistIdAndInstrumentId(watchlist.getId(), instrument.getId()).isEmpty()) {
+            if (items.countByUserId(userId) >= 100) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "A watchlist can contain at most 100 instruments");
+            }
             items.save(new WatchlistItem(watchlist, instrument));
             events.publishEvent(new WatchlistSubscriptionAddedEvent(key(instrument)));
             events.publishEvent(new ProductActivityEvent(userId, Kind.WATCHLIST_ADDED));

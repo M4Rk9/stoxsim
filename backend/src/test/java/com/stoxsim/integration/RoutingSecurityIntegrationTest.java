@@ -49,6 +49,8 @@ class RoutingSecurityIntegrationTest {
     @Autowired com.stoxsim.watchlist.repository.WatchlistRepository watchlists;
     @Autowired com.stoxsim.watchlist.repository.WatchlistItemRepository items;
     @Autowired org.springframework.security.oauth2.jwt.JwtEncoder encoder;
+    @Autowired AccountTokenService accountTokens;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     MockMvc mvc;
     AppUser owner, other;
     UUID account;
@@ -61,6 +63,24 @@ class RoutingSecurityIntegrationTest {
         session = tokens.issueTokenPair(owner);
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
+    @Test void emailChangeRequiresPasswordAndInvalidatesOldLinksAndSession() throws Exception {
+        db.update("UPDATE app_user SET password_hash=? WHERE id=?", passwordEncoder.encode("correct-password"), owner.getId());
+        String reset = accountTokens.issue(owner.getId(), AccountTokenService.PASSWORD_RESET, java.time.Duration.ofMinutes(30));
+        String verify = accountTokens.issue(owner.getId(), AccountTokenService.EMAIL_VERIFICATION, java.time.Duration.ofHours(24));
+        mvc.perform(patch("/api/v1/auth/me").header("Authorization", "Bearer " + session.accessToken())
+            .contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"new@example.test\",\"displayName\":\"Owner\"}"))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/v1/auth/me").header("Authorization", "Bearer " + session.accessToken())
+            .contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"new@example.test\",\"displayName\":\"Owner\",\"currentPassword\":\"correct-password\"}"))
+            .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + session.accessToken()))
+            .andExpect(status().isUnauthorized());
+        org.junit.jupiter.api.Assertions.assertThrows(com.stoxsim.common.error.UnauthorizedException.class,
+            () -> accountTokens.consume(reset, AccountTokenService.PASSWORD_RESET));
+        org.junit.jupiter.api.Assertions.assertThrows(com.stoxsim.common.error.UnauthorizedException.class,
+            () -> accountTokens.consume(verify, AccountTokenService.EMAIL_VERIFICATION));
+    }
+
     private static final Set<String> PUBLIC_POST = Set.of(
         "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
         "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset", "/api/v1/auth/email-verification/confirm", "/api/v1/billing/test/webhook");

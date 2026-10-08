@@ -25,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
 import com.stoxsim.auth.service.AccountLifecycleService;
@@ -44,6 +45,12 @@ import com.stoxsim.subscription.domain.SubscriptionPlan;
     "stoxsim.market-data.alpaca.instrument-sync-on-startup=false", "spring.task.scheduling.enabled=false"})
 class CampusCompetitionIntegrationTest {
     @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
+
+    // Keep rate limiting enabled against a real store for HTTP security checks.
+    @Container
+    @ServiceConnection(name = "redis")
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
+        .withExposedPorts(6379);
     @Autowired JdbcTemplate jdbc;
     @Autowired AppUserRepository users;
     @Autowired VirtualAccountRepository accounts;

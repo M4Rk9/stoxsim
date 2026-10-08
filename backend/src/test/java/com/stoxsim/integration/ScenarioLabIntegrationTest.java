@@ -29,12 +29,19 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 
 @Testcontainers
 @SpringBootTest(properties={"stoxsim.market-data.upstox.stream-enabled=false","stoxsim.market-data.upstox.instrument-sync-on-startup=false",
     "stoxsim.market-data.alpaca.instrument-sync-on-startup=false","stoxsim.portfolio.history.enabled=false"})
 class ScenarioLabIntegrationTest {
     @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
+
+    // Keep rate limiting enabled against a real store for HTTP security checks.
+    @Container
+    @ServiceConnection(name = "redis")
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
+        .withExposedPorts(6379);
     @Autowired JdbcTemplate db;
     @Autowired AppUserRepository users;
     @Autowired VirtualAccountRepository accounts;

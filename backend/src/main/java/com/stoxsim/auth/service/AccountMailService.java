@@ -86,6 +86,8 @@ public class AccountMailService {
         Properties javaMail = sender.getJavaMailProperties();
         javaMail.put("mail.smtp.auth", String.valueOf(StringUtils.hasText(properties.getMailUsername())));
         javaMail.put("mail.smtp.starttls.enable", String.valueOf(properties.isMailStartTls()));
+        javaMail.put("mail.smtp.starttls.required", String.valueOf(properties.isMailStartTls()));
+        javaMail.put("mail.smtp.ssl.checkserveridentity", "true");
         javaMail.put("mail.smtp.connectiontimeout", "10000");
         javaMail.put("mail.smtp.timeout", "10000");
         javaMail.put("mail.smtp.writetimeout", "10000");

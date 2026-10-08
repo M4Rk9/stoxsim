@@ -49,5 +49,8 @@
 	@private_metrics path /actuator/prometheus
 	respond @private_metrics 404
 
+	request_body {
+		max_size 64KiB
+	}
 	reverse_proxy backend:8080
 }

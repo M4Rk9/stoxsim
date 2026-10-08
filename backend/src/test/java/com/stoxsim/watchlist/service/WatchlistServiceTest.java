@@ -70,7 +70,7 @@ class WatchlistServiceTest {
         when(watchlists.findByUserIdAndDefaultWatchlistTrue(userId))
             .thenReturn(Optional.of(watchlist));
         when(watchlist.getId()).thenReturn(watchlistId);
-        when(watchlist.getName()).thenReturn("My Watchlist");
+        org.mockito.Mockito.lenient().when(watchlist.getName()).thenReturn("My Watchlist");
     }
 
     @Test
@@ -110,6 +110,7 @@ class WatchlistServiceTest {
 
     @Test
     void addingAnExistingInstrumentIsIdempotent() {
+        when(users.findByIdForUpdate(userId)).thenReturn(Optional.of(new com.stoxsim.auth.domain.AppUser("owner@example.test", "hash", "Owner")));
         when(instruments.findByMarketRegionAndExchangeAndTradingSymbolIgnoreCaseAndActiveTrue(
             MarketRegion.INDIA,
             MarketExchange.NSE,
@@ -127,6 +128,22 @@ class WatchlistServiceTest {
             new AddWatchlistItemRequest(MarketRegion.INDIA, MarketExchange.NSE, "RELIANCE")
         );
 
+        verify(items, never()).save(any());
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void oversizedWatchlistCannotTriggerAnotherProviderSubscription() {
+        when(users.findByIdForUpdate(userId)).thenReturn(Optional.of(new com.stoxsim.auth.domain.AppUser("owner@example.test", "hash", "Owner")));
+        when(instruments.findByMarketRegionAndExchangeAndTradingSymbolIgnoreCaseAndActiveTrue(
+            MarketRegion.INDIA, MarketExchange.NSE, "RELIANCE")).thenReturn(Optional.of(instrument));
+        when(instrument.getId()).thenReturn(instrumentId);
+        when(instrument.getInstrumentType()).thenReturn(InstrumentType.EQUITY);
+        when(items.countByUserId(userId)).thenReturn(100L);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.add(userId,
+            new AddWatchlistItemRequest(MarketRegion.INDIA, MarketExchange.NSE, "RELIANCE")))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+            .hasMessageContaining("100 instruments");
         verify(items, never()).save(any());
         verify(events, never()).publishEvent(any(Object.class));
     }

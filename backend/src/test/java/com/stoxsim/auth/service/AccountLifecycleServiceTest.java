@@ -88,7 +88,7 @@ class AccountLifecycleServiceTest {
 
     @Test
     void doesNotIssueAnotherTokenForAnAlreadyVerifiedUser() {
-        when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(users.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
         when(user.isEmailVerified()).thenReturn(true);
 
         assertThat(service.resendVerification(USER_ID)).isTrue();
@@ -107,7 +107,7 @@ class AccountLifecycleServiceTest {
             callback.accept(null);
             return null;
         }).when(transactionTemplate).executeWithoutResult(any());
-        when(users.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(users.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
         when(user.isEmailVerified()).thenReturn(false);
         when(properties.getEmailVerificationMinutes()).thenReturn(1_440L);
         when(accountTokens.issue(

@@ -32,6 +32,7 @@ public class AccountTokenService {
 
     @Transactional
     public String issue(UUID userId, String purpose, Duration lifetime) {
+        lockUser(userId);
         Instant now = Instant.now();
         jdbcTemplate.update(
             """
@@ -65,6 +66,16 @@ public class AccountTokenService {
 
     @Transactional
     public UUID consume(String rawToken, String purpose) {
+        String hash = tokenService.hash(rawToken);
+        List<UUID> owners = jdbcTemplate.query(
+            "SELECT user_id FROM account_token WHERE token_hash = ? AND purpose = ?",
+            (resultSet, rowNumber) -> resultSet.getObject("user_id", UUID.class), hash, purpose
+        );
+        if (owners.isEmpty()) {
+            throw new UnauthorizedException("The link is invalid, expired, or already used");
+        }
+        // Always lock the user before tokens, matching email/password updates.
+        lockUser(owners.getFirst());
         List<UUID> users = jdbcTemplate.query(
             """
             UPDATE account_token
@@ -76,13 +87,30 @@ public class AccountTokenService {
             RETURNING user_id
             """,
             (resultSet, rowNumber) -> resultSet.getObject("user_id", UUID.class),
-            tokenService.hash(rawToken),
+            hash,
             purpose
         );
         if (users.isEmpty()) {
             throw new UnauthorizedException("The link is invalid, expired, or already used");
         }
         return users.getFirst();
+    }
+
+    @Transactional
+    public void invalidateAll(UUID userId) {
+        lockUser(userId);
+        jdbcTemplate.update("""
+            UPDATE account_token SET consumed_at = CURRENT_TIMESTAMP
+            WHERE user_id = ? AND consumed_at IS NULL
+            """, userId);
+    }
+
+    private void lockUser(UUID userId) {
+        List<UUID> users = jdbcTemplate.query(
+            "SELECT id FROM app_user WHERE id = ? FOR UPDATE",
+            (resultSet, rowNumber) -> resultSet.getObject("id", UUID.class), userId
+        );
+        if (users.isEmpty()) throw new UnauthorizedException("User no longer exists");
     }
 
     private String generate() {
