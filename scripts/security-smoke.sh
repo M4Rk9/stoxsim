@@ -10,7 +10,7 @@ WEB_URL="${1%/}"
 API_URL="${2%/}"
 
 headers() {
-  curl --fail --silent --show-error --head "$1" | tr -d '\r'
+  curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --head "$1" | tr -d '\r'
 }
 
 header_value() {
@@ -69,7 +69,7 @@ expect_status() {
   local url="$2"
   shift 2
   local actual
-  actual="$(curl --silent --show-error --output /dev/null     --write-out '%{http_code}' "$@" "$url")"
+  actual="$(curl --silent --show-error --output /dev/null     --connect-timeout 10 --max-time 30 --path-as-is --write-out '%{http_code}' "$@" "$url")"
   if [ "$actual" != "$expected" ]; then
     echo "Expected HTTP $expected from $url, received $actual" >&2
     exit 1
@@ -86,6 +86,22 @@ require_header "$WEB_HEADERS" "Referrer-Policy" "strict-origin-when-cross-origin
 require_header "$WEB_HEADERS" "Permissions-Policy" "camera=()"
 forbid_header "$WEB_HEADERS" "X-Powered-By"
 validate_csp_sources "$WEB_HEADERS"
+
+echo "Checking API security headers"
+API_HEADERS="$(headers "$API_URL/actuator/health/readiness")"
+require_header "$API_HEADERS" "Strict-Transport-Security" "max-age=31536000"
+require_header "$API_HEADERS" "Content-Security-Policy" "default-src 'none'"
+require_header "$API_HEADERS" "Content-Security-Policy" "frame-ancestors 'none'"
+require_header "$API_HEADERS" "X-Content-Type-Options" "nosniff"
+require_header "$API_HEADERS" "X-Frame-Options" "DENY"
+forbid_header "$API_HEADERS" "Server"
+
+echo "Checking sensitive paths are rejected by the edge"
+for base in "$WEB_URL" "$API_URL"; do
+  for path in /.env /.env.production /.git/HEAD /.git/config /nested/.env /nested/.git/config /%2egit/config /%2eenv /.aws/credentials; do
+    expect_status 404 "$base$path"
+  done
+done
 
 echo "Checking protected API behavior"
 expect_status 401 "$API_URL/api/v1/portfolio"

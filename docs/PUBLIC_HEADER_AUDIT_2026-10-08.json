@@ -1,0 +1,189 @@
+{
+  "checked_at": "2026-10-08T11:06:59.150318+00:00",
+  "checks": [
+    {
+      "url": "https://stoxsim.com/.env",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://stoxsim.com/.env.production",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://stoxsim.com/.git/config",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://stoxsim.com/.git/HEAD",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://stoxsim.com/nested/.env",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://stoxsim.com/actuator/prometheus",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/.env",
+      "method": "HEAD",
+      "status": 401,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/.env.production",
+      "method": "HEAD",
+      "status": 401,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/.git/config",
+      "method": "HEAD",
+      "status": 401,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/.git/HEAD",
+      "method": "HEAD",
+      "status": 401,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/nested/.env",
+      "method": "HEAD",
+      "status": 401,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/actuator/prometheus",
+      "method": "HEAD",
+      "status": 404,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "http://stoxsim.com/",
+      "method": "HEAD",
+      "status": 308,
+      "hsts": null,
+      "csp": null,
+      "x_frame_options": null,
+      "x_content_type_options": null,
+      "location": "https://stoxsim.com/"
+    },
+    {
+      "url": "http://api.stoxsim.com/",
+      "method": "HEAD",
+      "status": 308,
+      "hsts": null,
+      "csp": null,
+      "x_frame_options": null,
+      "x_content_type_options": null,
+      "location": "https://api.stoxsim.com/"
+    },
+    {
+      "url": "https://www.stoxsim.com/",
+      "method": "HEAD",
+      "status": 301,
+      "hsts": null,
+      "csp": null,
+      "x_frame_options": null,
+      "x_content_type_options": null,
+      "location": "https://stoxsim.com/"
+    },
+    {
+      "url": "https://stoxsim.com/admin/billing",
+      "method": "HEAD",
+      "status": 200,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: https://*.razorpay.com; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com; connect-src 'self' https://api.stoxsim.com wss://api.stoxsim.com https://*.razorpay.com; upgrade-insecure-requests",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/actuator/health/readiness",
+      "method": "HEAD",
+      "status": 200,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    },
+    {
+      "url": "https://api.stoxsim.com/api/v1/auth/logout",
+      "method": "POST",
+      "status": 400,
+      "hsts": "max-age=31536000; includeSubDomains",
+      "csp": "default-src 'none'; frame-ancestors 'none'",
+      "x_frame_options": "DENY",
+      "x_content_type_options": "nosniff",
+      "location": null
+    }
+  ],
+  "cookie_clear_response": {
+    "status": 204,
+    "set-cookie": "stoxsim_refresh=[REDACTED]; Path=/api/v1/auth; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Strict"
+  }
+}
