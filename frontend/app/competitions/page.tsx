@@ -1,5 +1,7 @@
 "use client";
 
+import { safeWebsiteUrl } from "../lib/safe-url";
+
 import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./competitions.module.css";
@@ -397,7 +399,7 @@ export default function CompetitionsPage() {
         {campus.platformAdmin && <div className={styles.moderation}>
           <div className={styles.sectionHeading}><div><span>PLATFORM ADMIN</span><h3>Verification queue</h3></div><small>{campusQueue.length} pending</small></div>
           {campusQueue.map((item) => <article key={item.id}>
-            <div><strong>{item.institutionName}</strong><span>{item.emailDomain} · {item.requesterEmail}</span>{item.websiteUrl && <a href={item.websiteUrl} target="_blank" rel="noreferrer">Review website</a>}</div>
+            <div><strong>{item.institutionName}</strong><span>{item.emailDomain} · {item.requesterEmail}</span>{safeWebsiteUrl(item.websiteUrl) && <a href={safeWebsiteUrl(item.websiteUrl)!} target="_blank" rel="noreferrer">Review website</a>}</div>
             <div><button type="button" onClick={() => reviewCampus(item.id, "approve")} disabled={busy.startsWith("campus-")}>Approve</button><button type="button" className={styles.danger} onClick={() => reviewCampus(item.id, "reject")} disabled={busy.startsWith("campus-")}>Reject</button></div>
           </article>)}
           {campusQueue.length === 0 && <p className={styles.empty}>No institution requests are awaiting review.</p>}

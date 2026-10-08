@@ -227,10 +227,12 @@ public class RazorpayTestBillingService {
         return entry(item.id());
     }
     private void owned(UUID actor,UUID id) {
-        lock(id);
-        UUID owner=db.queryForObject("SELECT user_id FROM razorpay_test_subscription WHERE id=?",UUID.class,id);
-        if(!actor.equals(owner)) throw error(HttpStatus.NOT_FOUND,"Test subscription not found");
         admin(actor);
+        // Verify ownership before acquiring locks on any requested resource.
+        var ids=db.query("SELECT id FROM razorpay_test_subscription WHERE id=? AND user_id=?",
+            (rs,row)->rs.getObject(1,UUID.class),id,actor);
+        if(ids.isEmpty()) throw error(HttpStatus.NOT_FOUND,"Test subscription not found");
+        lock(id);
     }
     private void lock(UUID id) {
         var owners=db.query("SELECT user_id FROM razorpay_test_subscription WHERE id=?",(rs,row)->rs.getObject(1,UUID.class),id);

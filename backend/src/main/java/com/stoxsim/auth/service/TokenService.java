@@ -86,6 +86,7 @@ public class TokenService {
             .subject(user.getId().toString())
             .issuedAt(issuedAt)
             .expiresAt(accessExpiry)
+            .claim("sid", sessionId.toString())
             .claim("email", user.getEmail())
             .claim("displayName", user.getDisplayName())
             .claim("emailVerified", user.isEmailVerified())

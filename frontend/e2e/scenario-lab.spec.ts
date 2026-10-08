@@ -79,3 +79,15 @@ for (const theme of ["light", "dark"]) test(`lab fits mobile in ${theme} appeara
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: `/tmp/stoxsim-lab-${theme}.png`, fullPage: true });
 });
+
+
+test("hostile stored scenario titles render as text without executing markup", async ({ page }) => {
+  await setup(page);
+  const title = '<img src=x onerror="window.__xss=1"><script>window.__xss=1</script>';
+  await page.route("**/api/v1/accounts/*/scenarios", route => respond(route, { ...result, scenario: { ...catalog[3], title } }));
+  await page.goto("/scenario-lab");
+  await page.getByRole("button", { name: /Run scenario/ }).click();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  await expect(page.locator('main img[src="x"], main script')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { __xss?: number }).__xss)).toBeUndefined();
+});

@@ -31,10 +31,10 @@ public class InstrumentController {
         @RequestParam String q
     ) {
         String query = q.trim();
-        if (query.length() < 2) {
+        if (query.length() < 2 || query.length() > 160) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Search query must contain at least two characters"
+                "Search query must contain 2 to 160 characters"
             );
         }
         return repository.search(marketRegion, query, PageRequest.of(0, 20))

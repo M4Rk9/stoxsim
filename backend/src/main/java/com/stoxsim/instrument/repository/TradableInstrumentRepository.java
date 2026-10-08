@@ -41,9 +41,9 @@ public interface TradableInstrumentRepository extends JpaRepository<TradableInst
         WHERE instrument.marketRegion = :marketRegion
           AND instrument.active = true
           AND (
-              LOWER(instrument.tradingSymbol) LIKE LOWER(CONCAT('%', :query, '%'))
-              OR LOWER(instrument.name) LIKE LOWER(CONCAT('%', :query, '%'))
-              OR LOWER(COALESCE(instrument.isin, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+              LOCATE(LOWER(:query), LOWER(instrument.tradingSymbol)) > 0
+              OR LOCATE(LOWER(:query), LOWER(instrument.name)) > 0
+              OR LOCATE(LOWER(:query), LOWER(COALESCE(instrument.isin, ''))) > 0
           )
         ORDER BY
           CASE WHEN LOWER(instrument.tradingSymbol) = LOWER(:query) THEN 0 ELSE 1 END,

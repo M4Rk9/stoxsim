@@ -1,5 +1,10 @@
 package com.stoxsim.market.websocket;
 
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.context.event.EventListener;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.http.HttpHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -22,6 +27,7 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtDecoder jwtDecoder;
+    private final ConcurrentHashMap<String, Jwt> connected = new ConcurrentHashMap<>();
 
     public MarketWebSocketAuthInterceptor(JwtDecoder jwtDecoder) {
         this.jwtDecoder = jwtDecoder;
@@ -33,7 +39,28 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
             message,
             StompHeaderAccessor.class
         );
-        if (accessor == null || accessor.getCommand() != StompCommand.CONNECT) {
+        if (accessor == null) throw new MessagingException("Invalid market-stream frame");
+        StompCommand command = accessor.getCommand();
+        if (command == StompCommand.DISCONNECT) {
+            if (accessor.getSessionId() != null) connected.remove(accessor.getSessionId());
+            return message;
+        }
+        // This is a read-only stream. Clients must never impersonate the broadcaster.
+        if (command == StompCommand.SEND) throw new MessagingException("Market streaming is read-only");
+        if (command != StompCommand.CONNECT) {
+            if (command == StompCommand.SUBSCRIBE
+                && !MarketTickBroadcaster.QUOTE_TOPIC.equals(accessor.getDestination())) {
+                throw new MessagingException("Only the market quote topic may be subscribed to");
+            }
+            if (command != StompCommand.SUBSCRIBE && command != StompCommand.UNSUBSCRIBE
+                && accessor.getMessageType() != SimpMessageType.HEARTBEAT) {
+                throw new MessagingException("Unsupported market-stream frame");
+            }
+            if (!(accessor.getUser() instanceof JwtAuthenticationToken authentication)
+                || !authentication.isAuthenticated()) {
+                throw new MessagingException("An authenticated market-stream session is required");
+            }
+            validate(authentication.getToken().getTokenValue());
             return message;
         }
 
@@ -49,7 +76,9 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
         }
 
         try {
-            Jwt jwt = jwtDecoder.decode(tokenValue);
+            Jwt jwt = validate(tokenValue);
+            if (accessor.getSessionId() == null) throw new MessagingException("Market-stream session is required");
+            connected.put(accessor.getSessionId(), jwt);
             accessor.setUser(new JwtAuthenticationToken(
                 jwt,
                 AuthorityUtils.NO_AUTHORITIES,
@@ -60,4 +89,26 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
             throw new MessagingException("The market-stream token is invalid or expired", exception);
         }
     }
+    private Jwt validate(String value) {
+        try { return jwtDecoder.decode(value); }
+        catch (JwtException failure) { throw new MessagingException("The market-stream session is invalid or expired"); }
+    }
+
+    /** Recheck before returning a quote, including to an already-open subscription. */
+    public ChannelInterceptor outbound() {
+        return new ChannelInterceptor() {
+            @Override public Message<?> preSend(Message<?> message, MessageChannel channel) {
+                if (SimpMessageHeaderAccessor.getMessageType(message.getHeaders()) != SimpMessageType.MESSAGE) return message;
+                String id = SimpMessageHeaderAccessor.getSessionId(message.getHeaders());
+                Jwt jwt = id == null ? null : connected.get(id);
+                if (jwt == null) return null;
+                try { jwtDecoder.decode(jwt.getTokenValue()); return message; }
+                catch (JwtException invalid) { connected.remove(id); return null; }
+            }
+        };
+    }
+
+    @EventListener
+    public void disconnected(SessionDisconnectEvent event) { connected.remove(event.getSessionId()); }
+
 }

@@ -111,3 +111,14 @@ for (const theme of ["light", "dark"]) test(`campus fits mobile in ${theme} mode
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 });
+
+
+test("stored campus names and affiliation notes are escaped", async ({ page }) => {
+  const state = await setup(page, "ORGANIZER");
+  const hostile = '<img src=x onerror="window.__xss=1">';
+  state.management.requests = [{ id: "request", displayName: hostile, email: "applicant@example.test", note: hostile }];
+  await page.goto("/campus");
+  await expect(page.getByText(hostile, { exact: true }).first()).toBeVisible();
+  await expect(page.locator('main img[src="x"]')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { __xss?: number }).__xss)).toBeUndefined();
+});
