@@ -57,8 +57,46 @@ class MarketWebSocketAuthInterceptorTest {
         );
     }
 
+    @Test
+    void rejectsClientPublishingAndWildcardAndAnonymousSubscriptions() {
+        for (var command : new StompCommand[] {StompCommand.SEND, StompCommand.SUBSCRIBE}) {
+            var headers = StompHeaderAccessor.create(command);
+            headers.setSessionId("socket-1");
+            headers.setDestination(command == StompCommand.SEND ? MarketTickBroadcaster.QUOTE_TOPIC : "/topic/**");
+            assertThrows(MessagingException.class, () -> interceptor.preSend(
+                MessageBuilder.createMessage(new byte[0], headers.getMessageHeaders()), channel));
+        }
+        var headers = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        headers.setDestination(MarketTickBroadcaster.QUOTE_TOPIC);
+        assertThrows(MessagingException.class, () -> interceptor.preSend(
+            MessageBuilder.createMessage(new byte[0], headers.getMessageHeaders()), channel));
+    }
+
+    @Test
+    void revocationBlocksExistingSubscriptionsAndQuoteDelivery() {
+        Jwt jwt = Jwt.withTokenValue("valid-token").header("alg", "HS256").subject("user-123")
+            .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(900)).build();
+        when(jwtDecoder.decode("valid-token")).thenReturn(jwt);
+        var connection = interceptor.preSend(connectMessage("Bearer valid-token"), channel);
+        var headers = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        headers.setSessionId("socket-1");
+        headers.setDestination(MarketTickBroadcaster.QUOTE_TOPIC);
+        headers.setUser(StompHeaderAccessor.wrap(connection).getUser());
+        var subscription = MessageBuilder.createMessage(new byte[0], headers.getMessageHeaders());
+        org.junit.jupiter.api.Assertions.assertNotNull(interceptor.preSend(subscription, channel));
+        var outgoing = org.springframework.messaging.simp.SimpMessageHeaderAccessor.create(
+            org.springframework.messaging.simp.SimpMessageType.MESSAGE);
+        outgoing.setSessionId("socket-1");
+        var quote = MessageBuilder.createMessage(new byte[0], outgoing.getMessageHeaders());
+        org.junit.jupiter.api.Assertions.assertNotNull(interceptor.outbound().preSend(quote, channel));
+        when(jwtDecoder.decode("valid-token")).thenThrow(new org.springframework.security.oauth2.jwt.JwtException("revoked"));
+        assertThrows(MessagingException.class, () -> interceptor.preSend(subscription, channel));
+        org.junit.jupiter.api.Assertions.assertNull(interceptor.outbound().preSend(quote, channel));
+    }
+
     private Message<byte[]> connectMessage(String authorization) {
         var accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setSessionId("socket-1");
         if (authorization != null) {
             accessor.setNativeHeader("Authorization", authorization);
         }

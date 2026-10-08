@@ -10,6 +10,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.stoxsim.auth.config.AuthProperties;
 import com.stoxsim.auth.service.TokenService;
+import com.stoxsim.auth.service.ActiveSessionJwtValidator;
 import com.stoxsim.common.ratelimit.ApiRateLimitFilter;
 import com.stoxsim.common.ratelimit.RateLimitProperties;
 
@@ -30,6 +31,7 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
@@ -101,12 +103,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(SecretKey key) {
+    JwtDecoder jwtDecoder(SecretKey key, ActiveSessionJwtValidator sessions) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key)
             .macAlgorithm(MacAlgorithm.HS256)
             .build();
         decoder.setJwtValidator(
-            JwtValidators.createDefaultWithIssuer(TokenService.ISSUER)
+            new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(TokenService.ISSUER), sessions)
         );
         return decoder;
     }

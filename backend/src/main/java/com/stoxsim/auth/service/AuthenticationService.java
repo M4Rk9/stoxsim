@@ -119,7 +119,12 @@ public class AuthenticationService {
 
     @Transactional
     public AuthResponse refresh(String rawRefreshToken, String userAgent) {
-        var storedToken = refreshTokenRepository.findByTokenHash(tokenService.hash(rawRefreshToken))
+        String hash = tokenService.hash(rawRefreshToken);
+        UUID owner = refreshTokenRepository.findUserIdByTokenHash(hash)
+            .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
+        userRepository.findByIdForUpdate(owner)
+            .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+        var storedToken = refreshTokenRepository.findByTokenHashForUpdate(hash)
             .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
 
         Instant now = Instant.now();
@@ -138,11 +143,14 @@ public class AuthenticationService {
 
     @Transactional
     public void logout(String rawRefreshToken) {
-        refreshTokenRepository.findByTokenHash(tokenService.hash(rawRefreshToken))
-            .ifPresent(token -> {
-                token.revoke(Instant.now());
+        String hash = tokenService.hash(rawRefreshToken);
+        refreshTokenRepository.findUserIdByTokenHash(hash).ifPresent(owner -> {
+            if (userRepository.findByIdForUpdate(owner).isEmpty()) return;
+            refreshTokenRepository.findByTokenHashForUpdate(hash).ifPresent(token -> {
+                refreshTokenRepository.revokeActiveSession(token.getUser().getId(), token.getSessionId(), Instant.now());
                 lifecycleService.audit(token.getUser().getId(), "SIGNED_OUT", token.getUserAgent());
             });
+        });
     }
 
     @Transactional(readOnly = true)

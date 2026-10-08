@@ -35,6 +35,11 @@ public class MarketWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     @Override
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+        registration.interceptors(authInterceptor.outbound());
+    }
+
+    @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/market").setAllowedOrigins(frontendUrl);
     }

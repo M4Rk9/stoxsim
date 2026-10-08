@@ -23,6 +23,10 @@ class SecurityConfigTest {
 
     private SecurityConfig config;
     private SecretKey key;
+    private final com.stoxsim.auth.repository.RefreshTokenRepository repository =
+        org.mockito.Mockito.mock(com.stoxsim.auth.repository.RefreshTokenRepository.class);
+    private final com.stoxsim.auth.service.ActiveSessionJwtValidator sessions =
+        new com.stoxsim.auth.service.ActiveSessionJwtValidator(repository);
 
     @BeforeEach
     void setUp() {
@@ -30,6 +34,8 @@ class SecurityConfigTest {
         properties.setJwtSecret(
             java.util.UUID.randomUUID().toString() + java.util.UUID.randomUUID()
         );
+        org.mockito.Mockito.when(repository.existsByUser_IdAndSessionIdAndRevokedAtIsNullAndExpiresAtGreaterThan(
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(true);
         config = new SecurityConfig("https://stoxsim.test");
         key = config.jwtSecretKey(properties);
     }
@@ -40,7 +46,7 @@ class SecurityConfigTest {
 
         assertEquals(
             TokenService.ISSUER,
-            config.jwtDecoder(key).decode(token).getClaimAsString("iss")
+            config.jwtDecoder(key, sessions).decode(token).getClaimAsString("iss")
         );
     }
 
@@ -50,7 +56,7 @@ class SecurityConfigTest {
 
         assertThrows(
             JwtException.class,
-            () -> config.jwtDecoder(key).decode(token)
+            () -> config.jwtDecoder(key, sessions).decode(token)
         );
     }
 
@@ -70,6 +76,7 @@ class SecurityConfigTest {
         JwtClaimsSet claims = JwtClaimsSet.builder()
             .issuer(issuer)
             .subject("00000000-0000-0000-0000-000000000001")
+            .claim("sid", "00000000-0000-0000-0000-000000000002")
             .issuedAt(now.minusSeconds(1))
             .expiresAt(now.plusSeconds(300))
             .build();

@@ -154,10 +154,11 @@ public class AccountLifecycleService {
 
     @Transactional
     public void revokeSession(UUID userId, UUID sessionId) {
-        var token = refreshTokenRepository.findActiveSession(userId, sessionId, Instant.now())
-            .orElseThrow(() -> new UnauthorizedException("Session is no longer active"));
-        token.revoke(Instant.now());
-        audit(userId, "SESSION_REVOKED", token.getUserAgent());
+        userRepository.findByIdForUpdate(userId).orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+        if (refreshTokenRepository.revokeActiveSession(userId, sessionId, Instant.now()) == 0) {
+            throw new UnauthorizedException("Session is no longer active");
+        }
+        audit(userId, "SESSION_REVOKED", null);
     }
 
     @Transactional
@@ -168,6 +169,7 @@ public class AccountLifecycleService {
 
     @Transactional
     public void revokeAllSessions(UUID userId) {
+        userRepository.findByIdForUpdate(userId).orElseThrow(() -> new UnauthorizedException("User no longer exists"));
         refreshTokenRepository.revokeAllActive(userId, Instant.now());
     }
 
