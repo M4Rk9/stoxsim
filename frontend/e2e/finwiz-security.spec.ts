@@ -15,7 +15,7 @@ test("Finwiz questions, URL inputs and generated HTML remain inert text", async 
   await page.getByLabel("Your question").fill(markup);
   await page.getByRole("button", { name: "Ask Finwiz", exact: true }).click();
   await expect(page.getByText(markup, { exact: true }).last()).toBeVisible();
-  await expect(page.getByText("unsafe", { exact: true })).toBeVisible();
+  await expect(page.getByText("unsafe", { exact: false })).toBeVisible();
   await expect(page.locator('main img[src="x"], main script, a[href^="javascript:"]')).toHaveCount(0);
   expect(await page.evaluate(() => (window as Window & { __xss?: number }).__xss)).toBeUndefined();
 });

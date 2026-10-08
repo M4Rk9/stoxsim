@@ -158,7 +158,7 @@ Each protected row also receives signature/issuer/expiry/active-session verifica
 
 Playwright tests submit hostile stored scenario titles and campus names/notes, hostile URL and Finwiz question/generated output, and unsafe external schemes/embedded credentials; they assert text display and absence of injected elements/execution. Full CI includes the authenticated learner journey and prior secret-canary bundle verification, complete-history Gitleaks, dependency/configuration scanning and CodeQL.
 
-Validation status: final check links/counts will be recorded after CI completes.
+Validation: [CI run 37763700857](https://github.com/M4Rk9/stoxsim/actions/runs/37763700857) passed 233 backend tests (0 failures/errors/skips), including 8 real signed-JWT/PostgreSQL security integration tests and all 309 discovered-route authentication requests. Frontend typecheck and secret-canary build passed. The initial browser security suite also passed in [CI run 37763092086](https://github.com/M4Rk9/stoxsim/actions/runs/37763092086); final Finwiz/browser and workflow conclusions are available on PR #141 checks. Browser checks require CI Chromium; the local runner has no installed Chromium binary.
 
 ## Rollout and limits
 
