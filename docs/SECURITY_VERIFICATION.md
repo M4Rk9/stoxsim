@@ -7,7 +7,7 @@ Milestone 6 turns security checks into evidence that can be reviewed before publ
 Every pull request to main must pass:
 
 - backend tests, including JWT issuer and refresh-cookie regression tests;
-- frontend typecheck, production build, and authenticated browser journey;
+- frontend typecheck, production build with backend-secret canary isolation, and authenticated browser journey;
 - CodeQL extended queries for Java and JavaScript/TypeScript;
 - dependency review for newly introduced high-severity vulnerabilities;
 - Gitleaks scanning across complete Git history;
@@ -89,3 +89,8 @@ Copy this section into the release issue or release PR:
 - Open findings or approved exceptions:
 - Reviewer:
 - Approval date:
+
+## Secret handling audit
+
+See [the 2026-10-08 audit](SECRET_AUDIT_2026-10-08.md) for reviewed history,
+backend/frontend boundaries, remediations and visibility limits.

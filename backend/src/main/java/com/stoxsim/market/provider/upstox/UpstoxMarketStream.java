@@ -93,7 +93,7 @@ public class UpstoxMarketStream {
                     "operation",
                     "stream"
                 ).increment();
-                LOGGER.error("Upstox market stream error", error);
+                LOGGER.error("Upstox market stream error; provider details withheld to protect authorization URLs");
             });
             streamer.setOnCloseListener((status, reason) -> {
                 connected = false;
@@ -102,7 +102,7 @@ public class UpstoxMarketStream {
                     "provider",
                     "upstox"
                 ).increment();
-                LOGGER.warn("Upstox market stream closed: status={}, reason={}", status, reason);
+                LOGGER.warn("Upstox market stream closed: status={}", status);
             });
             streamer.setOnReconnectingListener(message -> {
                 meterRegistry.counter(
@@ -110,7 +110,7 @@ public class UpstoxMarketStream {
                     "provider",
                     "upstox"
                 ).increment();
-                LOGGER.warn("Upstox reconnecting: {}", message);
+                LOGGER.warn("Upstox reconnecting");
             });
             streamer.setOnAutoReconnectStoppedListener(message -> {
                 meterRegistry.counter(
@@ -118,7 +118,7 @@ public class UpstoxMarketStream {
                     "provider",
                     "upstox"
                 ).increment();
-                LOGGER.error("Upstox auto-reconnect stopped: {}", message);
+                LOGGER.error("Upstox auto-reconnect stopped");
             });
             streamer.autoReconnect(true, 10, 10);
             streamer.connect();
@@ -132,7 +132,7 @@ public class UpstoxMarketStream {
                 "operation",
                 "connect"
             ).increment();
-            LOGGER.error("Could not start Upstox market stream", exception);
+            LOGGER.error("Could not start Upstox market stream ({})", exception.getClass().getSimpleName());
         }
     }
 

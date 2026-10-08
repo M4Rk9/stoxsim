@@ -111,7 +111,7 @@ jobs:
             fi
             if [[ "$attempt" -eq 5 ]]; then
               echo "::error::Gemini production preflight failed with HTTP $HTTP_STATUS"
-              jq -r '.error.message // .' "$RESPONSE_FILE" || cat "$RESPONSE_FILE"
+              # Provider responses may echo credentials; log only the HTTP status above.
               exit 1
             fi
             sleep $((attempt * 10))

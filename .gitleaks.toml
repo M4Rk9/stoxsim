@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+# Review this fixture exception by 2026-11-22.
+# Exact documentation fixture only; do not exempt a file, provider or credential type.
+[[allowlists]]
+description = "Documented HTTP idempotency UUID, not an authentication credential"
+regexTarget = "match"
+regexes = ['''Idempotency-Key: 04eb8ec9-69bb-4ab1-a1b8-227a41686a7f''']

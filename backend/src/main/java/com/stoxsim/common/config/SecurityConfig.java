@@ -87,8 +87,10 @@ public class SecurityConfig {
     @Bean
     SecretKey jwtSecretKey(AuthProperties properties) {
         String secret = properties.getJwtSecret();
-        if (secret == null || secret.length() < 32) {
-            throw new IllegalStateException("JWT_SECRET must contain at least 32 characters");
+        if (secret == null || secret.length() < 32
+            || secret.startsWith("replace-with-")
+            || secret.startsWith("local-development-only-")) {
+            throw new IllegalStateException("JWT_SECRET must be configured with at least 32 characters and cannot be a template or legacy development secret");
         }
         return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }

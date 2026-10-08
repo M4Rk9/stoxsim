@@ -110,6 +110,9 @@ Learn more about the [free paper-trading simulator](https://stoxsim.com/paper-tr
 git clone https://github.com/M4Rk9/stoxsim.git
 cd stoxsim
 cp .env.example .env
+# Set JWT_SECRET and DATABASE_PASSWORD to independent random values in .env.
+# Generate each value with: openssl rand -hex 32
+chmod 600 .env
 docker compose up --build
 ```
 

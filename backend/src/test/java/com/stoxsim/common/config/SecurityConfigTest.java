@@ -28,7 +28,7 @@ class SecurityConfigTest {
     void setUp() {
         AuthProperties properties = new AuthProperties();
         properties.setJwtSecret(
-            "security-verification-test-secret-with-more-than-32-characters"
+            java.util.UUID.randomUUID().toString() + java.util.UUID.randomUUID()
         );
         config = new SecurityConfig("https://stoxsim.test");
         key = config.jwtSecretKey(properties);
@@ -52,6 +52,17 @@ class SecurityConfigTest {
             JwtException.class,
             () -> config.jwtDecoder(key).decode(token)
         );
+    }
+
+    @Test
+    void rejectsMissingShortAndKnownDefaultSigningKeys() {
+        for (String value : new String[] {null, "", "too-short",
+            "replace-with-a-random-secret-of-at-least-32-characters",
+            "local-development-only-change-this-secret-2026"}) {
+            AuthProperties properties = new AuthProperties();
+            properties.setJwtSecret(value);
+            assertThrows(IllegalStateException.class, () -> config.jwtSecretKey(properties));
+        }
     }
 
     private String encode(String issuer) {

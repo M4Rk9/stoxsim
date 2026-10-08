@@ -1,9 +1,9 @@
 import http from "k6/http";
+import crypto from "k6/crypto";
 import { check, sleep } from "k6";
 
 const apiUrl = (__ENV.STAGING_API_URL || "").replace(/\/$/, "");
 const webUrl = (__ENV.STAGING_WEB_URL || "").replace(/\/$/, "");
-const password = "Stoxsim-load-2026";
 
 if (!apiUrl.startsWith("https://") || !webUrl.startsWith("https://")) {
   throw new Error("STAGING_API_URL and STAGING_WEB_URL must be HTTPS URLs");
@@ -27,6 +27,7 @@ export const options = {
 };
 
 export function setup() {
+  const password = crypto.hexEncode(crypto.randomBytes(24));
   const email = `load-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}@stoxsim.test`;
   const response = http.post(
     `${apiUrl}/api/v1/auth/register`,

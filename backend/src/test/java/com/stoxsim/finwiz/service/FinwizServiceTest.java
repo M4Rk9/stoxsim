@@ -131,6 +131,42 @@ class FinwizServiceTest {
     }
 
     @Test
+    void providerErrorCannotEchoCredentialsIntoLogsOrLearnerResponse() throws IOException {
+        String secret = java.util.UUID.randomUUID().toString();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1beta/models/gemini-3.6-flash:generateContent", exchange -> {
+            byte[] payload = ("{\"error\":{\"message\":\"Rejected key " + secret + "\"}}")
+                .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(401, payload.length);
+            exchange.getResponseBody().write(payload);
+            exchange.close();
+        });
+        server.start();
+        FinwizProperties properties = new FinwizProperties();
+        properties.setApiKey(secret);
+        properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        when(contexts.build(org.mockito.ArgumentMatchers.any())).thenReturn(ContextSnapshot.empty());
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(FinwizService.class);
+        var logs = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        logs.start();
+        logger.addAppender(logs);
+        try {
+            var response = new FinwizService(properties, contexts, new SimpleMeterRegistry()).ask(
+                new FinwizRequest("Explain cash flow.", Topic.CASH_FLOW, ExperienceLevel.BEGINNER, null, null, null));
+            assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+            assertThat(response.toString()).doesNotContain(secret);
+            assertThat(logs.list).isNotEmpty();
+            assertThat(logs.list).allSatisfy(event -> {
+                assertThat(event.getFormattedMessage()).doesNotContain(secret);
+                assertThat(event.getThrowableProxy()).isNull();
+            });
+        } finally {
+            logger.detachAppender(logs);
+            logs.stop();
+        }
+    }
+
+    @Test
     void rejectsQuestionsAboveTheConfiguredLimit() {
         FinwizProperties properties = new FinwizProperties();
         properties.setMaxQuestionCharacters(10);
