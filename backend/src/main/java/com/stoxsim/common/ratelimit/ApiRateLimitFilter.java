@@ -76,7 +76,14 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
             count = increment(key);
         } catch (RuntimeException exception) {
             meterRegistry.counter("stoxsim.rate_limit.storage_failures").increment();
-            LOGGER.warn("Rate-limit storage is unavailable; allowing request", exception);
+            LOGGER.warn("Rate-limit storage is unavailable for policy {}", policy.name());
+            if (!policy.name().equals("general")) {
+                response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+                response.setHeader(HttpHeaders.RETRY_AFTER, "60");
+                response.setContentType("application/json");
+                response.getWriter().write("{\"code\":\"RATE_LIMIT_UNAVAILABLE\",\"message\":\"Please try again shortly.\"}");
+                return;
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -112,7 +119,8 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
             List.of(key),
             String.valueOf(WINDOW_SECONDS + 5)
         );
-        return count == null ? 1 : count;
+        if (count == null) throw new IllegalStateException("Rate-limit storage returned no count");
+        return count;
     }
 
     RateLimitPolicy policyFor(String method, String path) {

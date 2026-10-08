@@ -61,7 +61,7 @@ public class AccountLifecycleService {
 
     @Transactional
     public void sendVerification(UUID userId) {
-        AppUser user = requireUser(userId);
+        AppUser user = requireUserForUpdate(userId);
         if (user.isEmailVerified()) {
             return;
         }
@@ -76,7 +76,7 @@ public class AccountLifecycleService {
 
     public boolean resendVerification(UUID userId) {
         VerificationDelivery delivery = transactionTemplate.execute(status -> {
-            AppUser user = requireUser(userId);
+            AppUser user = requireUserForUpdate(userId);
             if (user.isEmailVerified()) {
                 return null;
             }
@@ -108,21 +108,24 @@ public class AccountLifecycleService {
             rawToken,
             AccountTokenService.EMAIL_VERIFICATION
         );
-        AppUser user = requireUser(userId);
+        AppUser user = requireUserForUpdate(userId);
         user.markEmailVerified();
         audit(userId, "EMAIL_VERIFIED", null);
     }
 
     @Transactional
     public void requestPasswordReset(String email) {
-        userRepository.findByEmailIgnoreCase(normalizeEmail(email)).ifPresent(user -> {
+        jdbcTemplate.query("SELECT id FROM app_user WHERE lower(email) = ?",
+            (rs, row) -> rs.getObject("id", UUID.class), normalizeEmail(email)).stream().findFirst().ifPresent(userId -> {
+            AppUser locked = requireUserForUpdate(userId);
+            if (!locked.getEmail().equalsIgnoreCase(normalizeEmail(email))) return;
             String token = accountTokenService.issue(
-                user.getId(),
+                locked.getId(),
                 AccountTokenService.PASSWORD_RESET,
                 Duration.ofMinutes(properties.getPasswordResetMinutes())
             );
-            mailService.sendPasswordReset(user, token);
-            audit(user.getId(), "PASSWORD_RESET_REQUESTED", null);
+            mailService.sendPasswordReset(locked, token);
+            audit(locked.getId(), "PASSWORD_RESET_REQUESTED", null);
         });
     }
 
@@ -132,8 +135,9 @@ public class AccountLifecycleService {
             rawToken,
             AccountTokenService.PASSWORD_RESET
         );
-        AppUser user = requireUser(userId);
+        AppUser user = requireUserForUpdate(userId);
         user.changePassword(passwordEncoder.encode(newPassword));
+        invalidateAccountLinks(userId);
         revokeAllSessions(userId);
         audit(userId, "PASSWORD_RESET", null);
     }
@@ -417,6 +421,16 @@ public class AccountLifecycleService {
 
     private AppUser requireUser(UUID userId) {
         return userRepository.findById(userId)
+            .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+    }
+
+    @Transactional
+    public void invalidateAccountLinks(UUID userId) {
+        accountTokenService.invalidateAll(userId);
+    }
+
+    private AppUser requireUserForUpdate(UUID userId) {
+        return userRepository.findByIdForUpdate(userId)
             .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
     }
 
