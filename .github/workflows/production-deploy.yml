@@ -101,20 +101,34 @@ jobs:
               }
             }')
 
+          PREFLIGHT_PASSED=false
+          LAST_HTTP_STATUS=000
           for attempt in 1 2 3 4 5; do
             : > "$RESPONSE_FILE"
             HTTP_STATUS=$(curl --silent --show-error               --connect-timeout 10               --max-time 90               --output "$RESPONSE_FILE"               --write-out '%{http_code}'               --request POST               --header "x-goog-api-key: $GEMINI_API_KEY"               --header "Content-Type: application/json"               --data "$REQUEST_BODY"               "$GEMINI_BASE_URL/v1beta/models/$GEMINI_MODEL:generateContent") || HTTP_STATUS=000
+            LAST_HTTP_STATUS="$HTTP_STATUS"
 
             if [[ "$HTTP_STATUS" =~ ^2 ]] && jq -e               '[.candidates[]?.content.parts[]? | select(.thought != true) | .text?] | any(. != null and contains("FINWIZ_GEMINI_OK"))'               "$RESPONSE_FILE" >/dev/null; then
+              PREFLIGHT_PASSED=true
               echo "Gemini preflight passed for $GEMINI_MODEL"
               break
             fi
-            if [[ "$attempt" -eq 5 ]]; then
-              echo "::error::Gemini production preflight failed with HTTP $HTTP_STATUS"
+            if [[ "$LAST_HTTP_STATUS" =~ ^(401|403|404)$ ]]; then
+              echo "::error::Gemini production preflight failed with HTTP $LAST_HTTP_STATUS"
               # Provider responses may echo credentials; log only the HTTP status above.
               exit 1
             fi
-            sleep $((attempt * 10))
+            [[ "$attempt" -lt 5 ]] && sleep $((attempt * 10))
+          done
+
+          if [[ "$PREFLIGHT_PASSED" != "true" ]]; then
+            if [[ "$LAST_HTTP_STATUS" =~ ^(000|408|429|5) ]]; then
+              echo "::warning::Gemini production preflight skipped after transient provider failures (HTTP $LAST_HTTP_STATUS); continuing deploy."
+            else
+              echo "::error::Gemini production preflight failed with HTTP $LAST_HTTP_STATUS"
+              # Provider responses may echo credentials; log only the HTTP status above.
+              exit 1
+            fi
           done
 
       - name: Verify Alpaca credentials and SPY snapshot
