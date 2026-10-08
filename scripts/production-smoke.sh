@@ -60,6 +60,9 @@ echo "Checking production readiness"
 retry check_api_readiness
 retry check_web_readiness
 
+# Read-only checks also run when public registration is intentionally closed.
+bash "$(dirname "${BASH_SOURCE[0]}")/security-smoke.sh" "$WEB_URL" "$API_URL"
+
 echo "Checking public legal pages and active contact"
 for page in privacy terms cookies disclaimer; do
   payload=$(curl --fail --silent --show-error "${WEB_URL}/${page}")

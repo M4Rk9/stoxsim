@@ -52,6 +52,7 @@ jobs:
           bash scripts/test-staging-restore.sh
           bash scripts/test-production-uptime-workflow.sh
           bash scripts/test-production-deploy-contract.sh
+          bash scripts/test-edge-security.sh
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/operations -p 'test_*.py'
           node --check scripts/staging-load.mjs
           python3 -m py_compile deploy/production/render-monitoring-config.py
