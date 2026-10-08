@@ -45,6 +45,10 @@ class RoutingSecurityIntegrationTest {
     @Autowired AccountLifecycleService lifecycle;
     @Autowired JdbcTemplate db;
     @Autowired TradableInstrumentRepository instruments;
+    @Autowired com.stoxsim.order.repository.PaperOrderRepository orders;
+    @Autowired com.stoxsim.watchlist.repository.WatchlistRepository watchlists;
+    @Autowired com.stoxsim.watchlist.repository.WatchlistItemRepository items;
+    @Autowired org.springframework.security.oauth2.jwt.JwtEncoder encoder;
     MockMvc mvc;
     AppUser owner, other;
     UUID account;
@@ -102,6 +106,48 @@ class RoutingSecurityIntegrationTest {
         org.junit.jupiter.api.Assertions.assertThrows(com.stoxsim.common.error.UnauthorizedException.class,
             () -> lifecycle.revokeSession(owner.getId(), sid));
         mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + foreign.accessToken())).andExpect(status().isOk());
+    }
+    private TradableInstrument instrument() {
+        return instruments.saveAndFlush(new TradableInstrument(new InstrumentSnapshot("TEST", "test-" + UUID.randomUUID(), MarketRegion.INDIA,
+            MarketExchange.NSE, "EQ", "SAFE", "Safe company", null, InstrumentType.EQUITY, "INR", 1,
+            new BigDecimal("0.05"), "EQ"), UUID.randomUUID(), Instant.now()));
+    }
+    @Test void cannotReadModifyCancelOrDeleteForeignOrdersAndWatchlistItems() throws Exception {
+        var instrument = instrument();
+        var order = orders.saveAndFlush(new com.stoxsim.order.domain.PaperOrder(accounts.findById(account).orElseThrow(), instrument,
+            UUID.randomUUID().toString(), com.stoxsim.order.domain.OrderSide.BUY, com.stoxsim.order.domain.OrderType.LIMIT,
+            1, new BigDecimal("10"), BigDecimal.ZERO, java.time.LocalDate.now()));
+        var ownAccount = accounts.saveAndFlush(new VirtualAccount(owner, MarketRegion.INDIA, new BigDecimal("500000"))).getId();
+        for (String path : List.of("/api/v1/orders/" + order.getId(), "/api/v1/accounts/" + account + "/orders/" + order.getId(),
+            "/api/v1/accounts/" + ownAccount + "/orders/" + order.getId())) {
+            mvc.perform(get(path).header("Authorization", "Bearer " + session.accessToken())).andExpect(status().isNotFound());
+            mvc.perform(put(path).header("Authorization", "Bearer " + session.accessToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"quantity\":2,\"limitPrice\":20}")) .andExpect(status().isNotFound());
+            mvc.perform(delete(path).header("Authorization", "Bearer " + session.accessToken())).andExpect(status().isNotFound());
+        }
+        assertThat(orders.findById(order.getId()).orElseThrow().getQuantity()).isEqualTo(1);
+        var list = watchlists.saveAndFlush(new com.stoxsim.watchlist.domain.Watchlist(other, "Private", true));
+        var item = items.saveAndFlush(new com.stoxsim.watchlist.domain.WatchlistItem(list, instrument));
+        mvc.perform(delete("/api/v1/watchlists/default/items/" + item.getId()).header("Authorization", "Bearer " + session.accessToken()))
+            .andExpect(status().isNotFound());
+        assertThat(items.existsById(item.getId())).isTrue();
+    }
+    @Test void sharedRoutesRejectSubjectSessionMismatchAndDeletedOrLoggedOutUsers() throws Exception {
+        var foreign = tokens.issueTokenPair(other);
+        var sid = db.queryForObject("SELECT session_id FROM refresh_token WHERE token_hash=?", UUID.class, tokens.hash(foreign.refreshToken()));
+        var claims = org.springframework.security.oauth2.jwt.JwtClaimsSet.builder().issuer(TokenService.ISSUER)
+            .subject(owner.getId().toString()).claim("sid", sid.toString()).issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(300)).build();
+        var forgedOwnership = encoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(
+            org.springframework.security.oauth2.jwt.JwsHeader.with(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256).build(), claims)).getTokenValue();
+        mvc.perform(get("/api/v1/scenarios").header("Authorization", "Bearer " + forgedOwnership)).andExpect(status().isUnauthorized());
+        lifecycle.logoutAll(owner.getId());
+        mvc.perform(get("/api/v1/scenarios").header("Authorization", "Bearer " + session.accessToken())).andExpect(status().isUnauthorized());
+        db.update("DELETE FROM app_user WHERE id=?", other.getId());
+        mvc.perform(get("/api/v1/scenarios").header("Authorization", "Bearer " + foreign.accessToken())).andExpect(status().isUnauthorized());
+    }
+    @Test void userSessionDoesNotGrantAdminAccess() throws Exception {
+        for (String route : List.of("/api/v1/admin/analytics/overview", "/api/v1/admin/analytics/activity", "/api/v1/billing/test", "/api/v1/campus/admin/verification-requests"))
+            mvc.perform(get(route).header("Authorization", "Bearer " + session.accessToken())).andExpect(status().isForbidden());
     }
     @Test void refreshRotationRejectsReplayAndLogoutOfOldRefreshRevokesRotatedAccess() throws Exception {
         var rotated = authentication.refresh(session.refreshToken());
