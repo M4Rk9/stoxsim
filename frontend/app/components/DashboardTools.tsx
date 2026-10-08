@@ -241,6 +241,7 @@ export default function DashboardTools() {
         >
           Portfolio <span>↗</span>
         </a>
+        <a className={styles.menuLink} href="/scenario-lab" target="_blank" rel="noopener noreferrer" role="menuitem">Scenario Lab <span>↗</span></a>
         <a className={styles.menuLink} href="/progress" role="menuitem">
           Learning path <span>→</span>
         </a>

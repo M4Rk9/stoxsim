@@ -104,7 +104,8 @@ public class SubscriptionService {
         }
 
         List<VirtualAccount> currentPlanSandboxes = accounts
-            .findSandboxesByUserIdAndPlan(userId, subscription.getPlan());
+            .findSandboxesByUserIdAndPlan(userId, subscription.getPlan()).stream()
+            .filter(a -> a.getMarketRegion() == com.stoxsim.market.domain.MarketRegion.INDIA).toList();
         if (currentPlanSandboxes.stream().noneMatch(account -> account.getSandboxSlot() == 1)) {
             var primary = VirtualAccount.sandbox(
                 subscription.getUser(),
@@ -155,6 +156,24 @@ public class SubscriptionService {
                 plan.sandboxCapitalInr()
             )));
         sandbox.activate();
+        for (var region : java.util.List.of(com.stoxsim.market.domain.MarketRegion.UNITED_STATES)) {
+            var regional = accounts.findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(subscription.getUserId(), region, plan, 1)
+                .orElseGet(() -> accounts.save(VirtualAccount.sandbox(subscription.getUser(), plan, 1, plan.sandboxCapital(region), null, region)));
+            regional.activate();
+        }
+    }
+
+    @Transactional
+    public void ensureRegionalAccounts(UUID userId) {
+        var subscription = subscriptions.findByUserIdForUpdate(userId).orElse(null);
+        if (subscription == null || subscription.effectivePlan() == SubscriptionPlan.FREE) return;
+        var plan = subscription.effectivePlan();
+        for (var region : com.stoxsim.market.domain.MarketRegion.values()) {
+            var account = accounts.findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(userId, region, plan, 1)
+                .orElseGet(() -> accounts.save(VirtualAccount.sandbox(subscription.getUser(), plan, 1, plan.sandboxCapital(region), null, region)));
+            if (subscription.isTestBilling()) account.setTestTradingUntil(subscription.getTestAccessUntil());
+            account.activate();
+        }
     }
 
     private void requireActiveFeature(

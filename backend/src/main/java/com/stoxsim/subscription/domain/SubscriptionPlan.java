@@ -78,6 +78,16 @@ public enum SubscriptionPlan {
         return sandboxCapitalInr;
     }
 
+    public BigDecimal sandboxCapitalUsd() {
+        return switch (this) { case FREE -> null; case PLUS -> new BigDecimal("50000.0000"); case PRO -> new BigDecimal("100000.0000"); };
+    }
+
+    public BigDecimal sandboxCapital(com.stoxsim.market.domain.MarketRegion region) {
+        return region == com.stoxsim.market.domain.MarketRegion.INDIA ? sandboxCapitalInr() : sandboxCapitalUsd();
+    }
+
+    public int scenarioCredits() { return switch (this) { case FREE -> 2; case PLUS -> 10; case PRO -> 50; }; }
+
     public String finwizTier() {
         return finwizTier;
     }
@@ -91,7 +101,7 @@ public enum SubscriptionPlan {
     }
 
     public boolean scenarioLab() {
-        return scenarioLab;
+        return true;
     }
 
     public boolean multiplePortfolios() {

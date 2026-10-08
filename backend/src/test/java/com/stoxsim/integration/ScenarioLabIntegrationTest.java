@@ -70,17 +70,30 @@ class ScenarioLabIntegrationTest {
         for(var table:List.of("holding","paper_order","account_ledger","portfolio_history","campus_competition_entry","competition_entry"))
             assertThat(db.queryForObject("SELECT count(*) FROM "+table,Integer.class)).isZero();
     }
-    @Test void authenticationOwnershipAndEffectiveProAreCheckedBeforeValuation() throws Exception {
+    @Test void authenticationOwnershipAndFreeQuotaAreEnforced() throws Exception {
         mvc.perform(get("/api/v1/scenarios")).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/v1/accounts/"+account+"/scenarios").contentType(MediaType.APPLICATION_JSON).content("{}")) .andExpect(status().isUnauthorized());
         mvc.perform(post("/api/v1/accounts/"+account+"/scenarios").with(jwt().jwt(j->j.subject(UUID.randomUUID().toString()))).contentType(MediaType.APPLICATION_JSON).content("{}")) .andExpect(status().isNotFound());
-        for(var plan:List.of("FREE","PLUS")) { db.update("UPDATE user_subscription SET plan=? WHERE user_id=?",plan,user);run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isForbidden()); }
-        db.update("UPDATE user_subscription SET plan='PRO',subscription_status='PAST_DUE' WHERE user_id=?",user);
+        db.update("UPDATE user_subscription SET plan='FREE' WHERE user_id=?",user);
+        run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isOk());
+        run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isOk());
         run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isForbidden());
-        db.update("UPDATE app_user SET platform_role='ADMIN',email_verified_at=now() WHERE id=?",user);
-        db.update("UPDATE user_subscription SET subscription_status='ACTIVE',billing_provider='RAZORPAY_TEST',provider_customer_reference='cust_scenario_fixture',provider_subscription_reference='sub_scenario_fixture',test_access_until=now()-interval '1 day' WHERE user_id=?",user);
-        run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isForbidden());
-        verifyNoInteractions(valuation);
+        assertThat(db.queryForObject("SELECT scenario_free_used FROM user_subscription WHERE user_id=?", Integer.class,user)).isEqualTo(2);
+    }
+    @Test void retriesReuseTheResultAndOnlySpendOneCredit() throws Exception {
+        String body="{\"scenarioId\":\"selloff\",\"version\":1,\"requestId\":\""+UUID.randomUUID()+"\"}";
+        var first=run(body).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var replay=run(body).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(replay).isEqualTo(first);
+        assertThat(db.queryForObject("SELECT scenario_paid_used FROM user_subscription WHERE user_id=?",Integer.class,user)).isEqualTo(1);
+        run(body.replace("selloff","recovery")).andExpect(status().isConflict());
+    }
+    @Test void invalidScenariosSpendNoCreditsAndCustomPathsWork() throws Exception {
+        run("{\"scenarioId\":\"custom\",\"version\":1,\"customShocks\":[10,101]}").andExpect(status().isBadRequest());
+        assertThat(db.queryForObject("SELECT scenario_paid_used FROM user_subscription WHERE user_id=?",Integer.class,user)).isZero();
+        run("{\"scenarioId\":\"custom\",\"version\":1,\"title\":\"My rally\",\"customShocks\":[10,-20,50]}")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.scenario.title").value("My rally"))
+            .andExpect(jsonPath("$.projection.steps[3].equity").value(1400));
     }
     @Test void catalogAndInputContractAreVersionedAndBounded() throws Exception {
         mvc.perform(get("/api/v1/scenarios").with(jwt().jwt(j->j.subject(user.toString())))).andExpect(status().isOk()).andExpect(jsonPath("$[0].inputType").value("SYNTHETIC")).andExpect(jsonPath("$[0].version").value(1));

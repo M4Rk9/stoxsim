@@ -47,7 +47,7 @@ export default function FinwizTradeFeedback({ feedback, onDismiss }: Props) {
     </div>
 
     <div className={styles.body}>
-      <div className={styles.scoreChange} aria-label="StoxScore change">
+      <div className={styles.scoreChange} aria-label="Portfolio structure change">
         <div><span>Before</span><strong>{score(feedback.scoreBefore)}</strong></div>
         <i aria-hidden="true">→</i>
         <div><span>After</span><strong>{score(feedback.scoreAfter)}</strong></div>
@@ -62,11 +62,11 @@ export default function FinwizTradeFeedback({ feedback, onDismiss }: Props) {
         </div>
         <div className={styles.actions}>
           <a href="/finwiz">Explore portfolio risk with FinWiz</a>
-          <span>{feedback.confidence.toLowerCase()} confidence · {feedback.formulaVersion}</span>
+
         </div>
       </div>
     </div>
 
-    <footer>{feedback.disclaimer}</footer>
+
   </section>;
 }

@@ -91,7 +91,7 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
         FROM VirtualAccount account
         WHERE account.user.id = :userId
           AND account.accountKind = com.stoxsim.account.domain.AccountKind.SANDBOX
-        ORDER BY account.sandboxPlan, account.sandboxSlot
+        ORDER BY account.sandboxPlan, account.marketRegion, account.sandboxSlot
         """)
     List<VirtualAccount> findSandboxesByUserId(@Param("userId") UUID userId);
 
@@ -101,7 +101,7 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
         WHERE account.user.id = :userId
           AND account.accountKind = com.stoxsim.account.domain.AccountKind.SANDBOX
           AND account.sandboxPlan = :plan
-        ORDER BY account.sandboxSlot
+        ORDER BY account.marketRegion, account.sandboxSlot
         """)
     List<VirtualAccount> findSandboxesByUserIdAndPlan(
         @Param("userId") UUID userId,
@@ -120,12 +120,23 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
     );
 
     @Query("""
+        SELECT account FROM VirtualAccount account
+        WHERE account.user.id = :userId AND account.marketRegion = :marketRegion
+          AND account.sandboxPlan = :sandboxPlan AND account.sandboxSlot = :sandboxSlot
+          AND account.accountKind = com.stoxsim.account.domain.AccountKind.SANDBOX
+        """)
+    Optional<VirtualAccount> findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(
+        @Param("userId") UUID userId, @Param("marketRegion") MarketRegion marketRegion,
+        @Param("sandboxPlan") SubscriptionPlan sandboxPlan, @Param("sandboxSlot") int sandboxSlot);
+
+    @Query("""
         SELECT account
         FROM VirtualAccount account
         WHERE account.user.id = :userId
           AND account.accountKind = :accountKind
           AND account.sandboxPlan = :sandboxPlan
           AND account.sandboxSlot = :sandboxSlot
+          AND account.marketRegion = com.stoxsim.market.domain.MarketRegion.INDIA
         """)
     Optional<VirtualAccount> findByUserIdAndAccountKindAndSandboxPlanAndSandboxSlot(
         @Param("userId") UUID userId,

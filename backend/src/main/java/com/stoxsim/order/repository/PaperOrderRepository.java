@@ -100,6 +100,9 @@ public interface PaperOrderRepository extends JpaRepository<PaperOrder, UUID> {
 
     List<PaperOrder> findAllByStatus(OrderStatus status);
 
+    @Query("SELECT o FROM PaperOrder o JOIN FETCH o.instrument WHERE o.status = com.stoxsim.order.domain.OrderStatus.OPEN")
+    List<PaperOrder> findOpenWithInstruments();
+
     @Query("""
         SELECT paperOrder.id
         FROM PaperOrder paperOrder

@@ -23,8 +23,8 @@ const lessons = [
   },
   {
     eyebrow: "READ THE MARKET",
-    title: "Know how fresh every price is.",
-    body: "StoxSim labels quotes as live, closed, stale or unavailable. Check the label before interpreting a price or submitting a paper order.",
+    title: "Know when the market is open.",
+    body: "LIVE means the market is open for trading. CLOSED means orders wait for the next session.",
     note: "Market data is context, not investment advice.",
   },
   {

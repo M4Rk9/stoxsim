@@ -346,7 +346,7 @@ export default function StockPage() {
           {change != null && <div className={`${styles.move} ${rising ? styles.positive : styles.negative}`}>
             {rising ? "+" : ""}{money(change, currency)} ({rising ? "+" : ""}{number(changePercent)}%)
           </div>}
-          <span className={styles.status}>{quote.dataStatus} DATA</span>
+          <span className={styles.status}>{quote.dataStatus === "CLOSED" ? "CLOSED" : "LIVE"}</span>
         </div>
       </section>
 

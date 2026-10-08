@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         <ul>
           <li>Account data: display name, email address, password hash and email-verification status.</li>
           <li>Security data: session identifiers, user-agent details and account-security events.</li>
-          <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings, ledger entries and saved weekly report snapshots.</li>
+          <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings, ledger entries, saved scenarios and results, Scenario Lab credit usage, and saved weekly report snapshots.</li>
           <li>Learning data: XP, levels, check-in streaks, completed missions and unlocked achievements.</li>
           <li>Competition data: season entry values, percentage returns, valuation freshness and private-league memberships. Campus records include affiliation requests, review notes, membership roles, competition entries and moderation actions.</li>
           <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>

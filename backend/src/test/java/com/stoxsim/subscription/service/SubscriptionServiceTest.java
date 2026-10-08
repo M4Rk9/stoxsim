@@ -65,11 +65,11 @@ class SubscriptionServiceTest {
         ));
 
         var sandbox = org.mockito.ArgumentCaptor.forClass(VirtualAccount.class);
-        verify(accounts).save(sandbox.capture());
-        assertThat(sandbox.getValue().getAccountKind()).isEqualTo(AccountKind.SANDBOX);
-        assertThat(sandbox.getValue().getStartingCapital())
+        verify(accounts, org.mockito.Mockito.times(2)).save(sandbox.capture());
+        assertThat(sandbox.getAllValues().getFirst().getAccountKind()).isEqualTo(AccountKind.SANDBOX);
+        assertThat(sandbox.getAllValues().getFirst().getStartingCapital())
             .isEqualByComparingTo("2500000.0000");
-        assertThat(sandbox.getValue().isLeaderboardEligible()).isFalse();
+        assertThat(sandbox.getAllValues().getFirst().isLeaderboardEligible()).isFalse();
         assertThat(response.plan()).isEqualTo(SubscriptionPlan.PLUS);
         assertThat(response.billingEnabled()).isFalse();
     }
@@ -117,6 +117,7 @@ class SubscriptionServiceTest {
             USER_ID, AccountKind.SANDBOX, SubscriptionPlan.PRO, 1
         )).thenReturn(Optional.of(first));
 
+        when(accounts.save(any(VirtualAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
         service().applyProviderUpdate(update(SubscriptionPlan.PRO, SubscriptionStatus.ACTIVE));
 
         assertThat(first.isActive()).isTrue();

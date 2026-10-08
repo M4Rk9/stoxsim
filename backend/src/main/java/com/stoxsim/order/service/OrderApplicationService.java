@@ -156,11 +156,6 @@ public class OrderApplicationService {
         ensureOrderChangesAllowed(session.allowsOrderEntry());
 
         Quote quote = marketData.latestQuote(instrument);
-        if (marketData.isStale(quote)) {
-            throw new TradingValidationException(
-                "Stale quote cannot be used for an order"
-            );
-        }
 
         boolean standardAccount = account.getAccountKind() == AccountKind.STANDARD;
         PortfolioAnalyticsResponse analyticsBefore = standardAccount
@@ -383,11 +378,6 @@ public class OrderApplicationService {
 
         if (session.executable()) {
             Quote quote = marketData.latestQuote(order.getInstrument());
-            if (marketData.isStale(quote)) {
-                throw new TradingValidationException(
-                    "Stale quote cannot be used for an order"
-                );
-            }
             settlement.settleOpenOrder(order, account, quote);
         }
         return OrderResponse.from(order);

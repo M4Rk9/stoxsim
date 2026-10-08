@@ -34,8 +34,11 @@ export default function DisclaimerPage() {
         <h2>Data limitations</h2>
         <p>
           Market and company data may be delayed, stale, incomplete, unavailable, adjusted differently
-          by providers or simply wrong. A “LIVE” label describes the latest provider state observed by
-          StoxSim; it is not a guarantee of exchange-level real-time accuracy.
+          by providers or simply wrong. LIVE and CLOSED describe whether the simulated market is open
+          for trading; they do not describe the freshness of an exchange feed. If a provider is
+          unavailable, the simulator holds the last valid price. Without any price history, it uses
+          a stable virtual starting price for that instrument. These fallback prices are simulated,
+          not exchange quotes, and are identified as SIMULATED in quote details returned by the API.
         </p>
       </section>
       <section>

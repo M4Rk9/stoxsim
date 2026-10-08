@@ -54,6 +54,24 @@ public class UserSubscription {
     @Column(name = "test_access_until")
     private Instant testAccessUntil;
 
+    @Column(name = "scenario_free_used", nullable = false)
+    private int scenarioFreeUsed;
+    @Column(name = "scenario_paid_used", nullable = false)
+    private int scenarioPaidUsed;
+    @Column(name = "scenario_credit_period_end")
+    private Instant scenarioCreditPeriodEnd;
+
+    public int remainingScenarioCredits() {
+        var effective = effectivePlan();
+        return Math.max(0, effective.scenarioCredits() - (effective == SubscriptionPlan.FREE ? scenarioFreeUsed : scenarioPaidUsed));
+    }
+    public Instant getScenarioCreditPeriodEnd() { return scenarioCreditPeriodEnd; }
+    public void consumeScenarioCredit() {
+        if (remainingScenarioCredits() <= 0) throw new org.springframework.web.server.ResponseStatusException(
+            org.springframework.http.HttpStatus.FORBIDDEN, "No Scenario Lab credits left. View your plan for more credits.");
+        if (effectivePlan() == SubscriptionPlan.FREE) scenarioFreeUsed++; else scenarioPaidUsed++;
+    }
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -76,6 +94,14 @@ public class UserSubscription {
     }
 
     public void apply(BillingSubscriptionUpdate update, Instant now) {
+        // Only a newly paid period refills credits. Replayed events, grace periods,
+        // plan toggles and failed renewals must not grant another allowance.
+        if (update.status() == SubscriptionStatus.ACTIVE && update.plan() != SubscriptionPlan.FREE
+            && update.currentPeriodEnd() != null && update.currentPeriodEnd().isAfter(now)
+            && (scenarioCreditPeriodEnd == null || update.currentPeriodEnd().isAfter(scenarioCreditPeriodEnd))) {
+            scenarioPaidUsed = 0;
+            scenarioCreditPeriodEnd = update.currentPeriodEnd();
+        }
         this.plan = update.plan();
         this.status = update.status();
         this.billingProvider = update.provider();

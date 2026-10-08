@@ -516,3 +516,18 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
   color: inherit;
   font-weight: 850;
 }
+
+/* One focus boundary for the search control, with bounded results in document flow. */
+.searchBox { min-width: 0; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; padding: 5px 6px 5px 12px; }
+.searchBox:focus-within { border-color: var(--green); box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 18%, transparent); }
+.searchBox input, .searchBox input:focus, .searchBox input:focus-visible { width: 100%; min-width: 0; outline: none; border: 0; box-shadow: none; border-radius: 0; padding: 10px 2px; }
+.searchBox button { margin: 0; white-space: nowrap; }
+.searchResults { position: relative; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.searchResults button { gap: 12px; min-width: 0; }
+.searchResults button > span, .searchResults button > div { min-width: 0; overflow-wrap: anywhere; }
+.labLink { margin-left: auto; text-decoration: none; color: var(--green); font-size: .8rem; font-weight: 700; padding: 10px 14px; border: 1px solid var(--line); border-radius: 9px; }
+@media (max-width: 480px) { .labLink { margin: 0; } .searchBox { gap: 3px; } .searchBox button { padding: 9px; } }
+
+.appHeader > .labLink { margin-right: 292px; white-space: nowrap; }
+@media (max-width:1200px) { .appHeader > .labLink { margin-right: 78px; } }
+@media (max-width:760px) { .appHeader > .labLink { grid-row: 3; grid-column: 1 / -1; margin: 0 0 12px; justify-self: start; } }

@@ -7,7 +7,7 @@ function uniqueEmail(label: string) {
   return `browser-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}@stoxsim.test`;
 }
 
-async function registerLearner(page: Page, label: string) {
+async function registerLearner(page: Page, label: string, showsFirstTradeCoach = true) {
   const email = uniqueEmail(label);
   await page.goto("/");
   await page.keyboard.press("Tab");
@@ -38,14 +38,13 @@ async function registerLearner(page: Page, label: string) {
   await page.keyboard.press("Shift+Tab");
   await expect(nextButton).toBeFocused();
   await guide.getByRole("button", { name: "Next" }).click();
-  await expect(page.getByRole("dialog", { name: "Know how fresh every price is." })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Know when the market is open." })).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByRole("dialog", { name: "Find a stock and place one paper trade." })).toBeVisible();
   await page.getByRole("button", { name: "Start first trade" }).click();
-  await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "StoxScore" })).toBeVisible();
-  await expect(page.getByText("Not scored yet")).toBeVisible();
-  await expect(page.getByText("stoxscore-portfolio-v1")).toBeVisible();
+  if (showsFirstTradeCoach) await expect(page.getByLabel("First trade walkthrough, step 1 of 2")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "StoxScore" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Scenario Lab ↗", exact: true })).toHaveAttribute("target", "_blank");
   return email;
 }
 
@@ -57,8 +56,7 @@ async function expectIndiaAccount(page: Page) {
     .toContainText("₹5,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Available cash" }))
     .toContainText("₹5,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
-  await expect(page.getByLabel("Portfolio account").locator("option:checked"))
-    .toHaveText("Standard India");
+  await expect(page.getByLabel("Portfolio account")).toHaveCount(0);
 }
 
 test("a learner can register, persist appearance and sign in again", async ({ page }) => {
@@ -134,7 +132,8 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
   await expect(portfolioPage.getByRole("heading", { name: "Allocation and performance" }))
     .toBeVisible();
-  await expect(portfolioPage.getByText("portfolio-insights-v1")).toBeVisible();
+  await expect(portfolioPage.getByText("portfolio-insights-v1")).toHaveCount(0);
+  await expect(portfolioPage.getByRole("heading", { name: "Stox Analysis", exact: true })).toBeVisible();
   await expect(portfolioPage.getByRole("heading", { name: "India holdings" })).toBeVisible();
   await portfolioPage.close();
 
@@ -155,7 +154,7 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   await expect(page.locator("html")).toHaveAttribute("data-theme-preference", "dark");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const accountSwitcher = page.getByLabel("Portfolio account");
+  const accountSwitcher = page.getByRole("link", { name: "Scenario Lab ↗", exact: true });
   const accountMenuButton = page.getByRole("button", {
     name: "Open account menu for Browser Learner",
   });
@@ -205,8 +204,7 @@ test("a learner can switch between India and United States markets", async ({ pa
     .toHaveAttribute("aria-pressed", "true", { timeout: PORTFOLIO_TIMEOUT });
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
     .toContainText("$10,000.00", { timeout: PORTFOLIO_TIMEOUT });
-  await expect(page.getByLabel("Portfolio account").locator("option:checked"))
-    .toHaveText("Standard USA");
+  await expect(page.getByLabel("Portfolio account")).toHaveCount(0);
 
   if (process.env.EXPECT_US_MARKET_DATA === "true") {
     await expect(async () => {
@@ -256,7 +254,7 @@ test("a learner can switch between India and United States markets", async ({ pa
   await expectIndiaAccount(page);
 });
 
-test("the portfolio switcher keeps a paid sandbox visibly outside rankings", async ({ page }) => {
+test("the market switch selects the active paid portfolio without a redundant selector", async ({ page }) => {
   test.setTimeout(150_000);
   const sandboxId = "11111111-2222-4333-8444-555555555555";
   let standardIndiaId = "";
@@ -310,13 +308,12 @@ test("the portfolio switcher keeps a paid sandbox visibly outside rankings", asy
     await route.fulfill({ response, json });
   });
 
-  await registerLearner(page, "sandbox-switcher");
-  await page.getByLabel("Portfolio account").selectOption({ label: "Plus sandbox 1" });
+  await registerLearner(page, "sandbox-switcher", false);
+  await expect(page.getByLabel("Portfolio account")).toHaveCount(0);
 
   await expect(page.getByText("SANDBOX · INDIA PORTFOLIO"))
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
-  await expect(page.getByText("Learning sandbox · excluded from standard rankings"))
-    .toBeVisible();
+  await expect(page.getByText("Learning sandbox · excluded from standard rankings")).toHaveCount(0);
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
     .toContainText("₹25,00,000.00", { timeout: PORTFOLIO_TIMEOUT });
 });
@@ -523,7 +520,7 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await expect(page.getByRole("heading", { name: "Profile & security" })).toBeVisible();
   await expect(page.getByText("Email verification pending")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your free plan" })).toBeVisible();
-  await expect(page.getByText("Leaderboard integrity protected")).toBeVisible();
+  await expect(page.getByText("2 Scenario Lab credits", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Current plan" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Billing not available yet" })).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Portfolio reports" })).toBeVisible();
@@ -610,11 +607,11 @@ test("an active Pro learner can provision an additional isolated sandbox", async
   await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
   await page.getByRole("menuitem", { name: /Account settings/ }).click();
   await expect(page.getByRole("heading", { name: "Your pro plan" })).toBeVisible();
-  await expect(page.getByText("1 of 5 provisioned")).toBeVisible();
+  await expect(page.getByText("1 of 5 India portfolios created.")).toBeVisible();
   await page.getByRole("button", { name: "Create Pro sandbox" }).click();
 
   await expect(page.getByText("Pro sandbox 2 is ready and excluded from standard rankings."))
     .toBeVisible();
-  await expect(page.getByText("2 of 5 provisioned")).toBeVisible();
+  await expect(page.getByText("2 of 5 India portfolios created.")).toBeVisible();
   await expect(page.getByText("Pro sandbox 2", { exact: true })).toBeVisible();
 });

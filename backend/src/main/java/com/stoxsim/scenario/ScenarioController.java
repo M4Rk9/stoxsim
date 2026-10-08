@@ -15,6 +15,9 @@ public class ScenarioController {
     @GetMapping("/scenarios") public ResponseEntity<?> catalog() {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ScenarioService.CATALOG);
     }
+    @GetMapping("/scenarios/credits") public ResponseEntity<?> credits(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.credits(UUID.fromString(jwt.getSubject())));
+    }
     @PostMapping("/accounts/{accountId}/scenarios") public ResponseEntity<?> run(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID accountId, @RequestBody ScenarioService.Request request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.run(UUID.fromString(jwt.getSubject()), accountId, request));
     }

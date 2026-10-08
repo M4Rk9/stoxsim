@@ -68,18 +68,40 @@ public class MarketDataService {
     public Quote latestQuote(TradableInstrument instrument) {
         InstrumentKey key = key(instrument);
         var cached = cache.findQuote(key);
-        if (cached.isPresent() && !shouldRefresh(instrument, cached.get())) {
+        if (cached.filter(this::validPrice).isPresent() && !shouldRefresh(instrument, cached.get())) {
             return cached.get();
         }
         try {
-            var fresh = providers
-                .forRegion(instrument.getMarketRegion())
-                .getQuote(key);
-            cache.storeQuote(fresh);
-            return fresh;
+            var fresh = providers.forRegion(instrument.getMarketRegion()).getQuote(key);
+            if (validPrice(fresh) && !isStale(fresh)) {
+                cache.storeQuote(fresh);
+                return fresh;
+            }
+            if (validPrice(fresh) && cached.filter(this::validPrice).isEmpty()) cached = java.util.Optional.of(fresh);
         } catch (RuntimeException exception) {
-            return cached.orElseThrow(() -> exception);
+            // The simulator remains executable during a provider outage.
         }
+        Quote simulated = simulatedQuote(instrument, cached.filter(this::validPrice).orElse(null));
+        cache.storeQuote(simulated);
+        return simulated;
+    }
+
+    private boolean validPrice(Quote quote) {
+        return quote != null && quote.lastPrice() != null && quote.lastPrice().signum() > 0;
+    }
+
+    Quote simulatedQuote(TradableInstrument instrument, Quote anchor) {
+        // Hold the last valid price; if none exists use a stable, instrument-specific
+        // virtual starting price. Never pass off the fallback as an exchange quote.
+        var price = anchor == null ? java.math.BigDecimal.valueOf(
+            (instrument.getMarketRegion() == MarketRegion.INDIA ? 100 : 25)
+            + Math.floorMod(instrument.getInstrumentKey().hashCode(), 400)) : anchor.lastPrice();
+        var tick = instrument.getTickSize();
+        if (tick != null && tick.signum() > 0) price = price.divide(tick, 0, java.math.RoundingMode.HALF_UP).max(java.math.BigDecimal.ONE).multiply(tick);
+        var now = Instant.now();
+        var previous = anchor == null || anchor.previousClose() == null ? price : anchor.previousClose();
+        return new Quote(key(instrument), price, price, price, price, price, price, price, previous,
+            anchor == null ? 0L : anchor.volume(), now, now, true);
     }
 
     public boolean isStale(Quote quote) {
@@ -102,7 +124,7 @@ public class MarketDataService {
         if (!isRegularSession(instrument)) {
             return MarketDataStatus.CLOSED;
         }
-        return isStale(quote) ? MarketDataStatus.STALE : MarketDataStatus.LIVE;
+        return MarketDataStatus.LIVE;
     }
 
     public MarketDataStatus marketStatus(
