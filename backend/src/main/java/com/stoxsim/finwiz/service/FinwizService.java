@@ -29,7 +29,6 @@ import tools.jackson.databind.JsonNode;
 public class FinwizService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FinwizService.class);
-    private static final int MAX_PROVIDER_ERROR_LOG_CHARACTERS = 1_000;
     private static final String DISCLAIMER = "Educational information only. Finwiz AI does not provide investment advice, recommendations, return guarantees or real trade execution.";
     private static final String INSTRUCTIONS = """
         You are Finwiz AI, the beginner-friendly market education tutor inside StoxSim.
@@ -128,9 +127,8 @@ public class FinwizService {
                 "provider_http_error"
             ).increment();
             LOGGER.warn(
-                "Gemini request for Finwiz AI failed with HTTP {}: {}; using educational fallback",
-                exception.getStatusCode().value(),
-                safeProviderError(exception.getResponseBodyAsString())
+                "Gemini request for Finwiz AI failed with HTTP {}; using educational fallback",
+                exception.getStatusCode().value()
             );
             return fallback(request, context, question);
         } catch (RestClientException | IllegalStateException exception) {
@@ -141,7 +139,7 @@ public class FinwizService {
                 "result",
                 "provider_error"
             ).increment();
-            LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback: {}", exception.getMessage());
+            LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback ({})", exception.getClass().getSimpleName());
             return fallback(request, context, question);
         }
     }
@@ -220,14 +218,6 @@ public class FinwizService {
             ? "none"
             : promptFeedback.path("blockReason").asText("none");
         return "finishReason=" + finishReason + ", blockReason=" + blockReason;
-    }
-
-    private String safeProviderError(String value) {
-        if (value == null || value.isBlank()) return "empty provider error body";
-        String singleLine = value.replaceAll("[\\r\\n]+", " ");
-        return singleLine.length() <= MAX_PROVIDER_ERROR_LOG_CHARACTERS
-            ? singleLine
-            : singleLine.substring(0, MAX_PROVIDER_ERROR_LOG_CHARACTERS) + "…";
     }
 
     private FinwizResponse fallback(

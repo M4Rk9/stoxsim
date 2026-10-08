@@ -25,3 +25,11 @@ Please avoid accessing other users' data, disrupting the service, or running des
 ## Secrets
 
 Never commit credentials, API tokens, production environment files, database dumps, or user data. Revoke any exposed secret immediately and then remove it from the repository history.
+
+Only `NEXT_PUBLIC_API_URL` may be exposed to the frontend. Provider keys, database
+credentials, JWT signing keys, SMTP passwords and webhook secrets belong in the
+server's untracked `.env` (mode 600), passed to backend services at runtime.
+Never use Next.js `env` configuration to pass private values to frontend code.
+`node scripts/verify-frontend-secrets.mjs` builds with fake backend credentials and
+checks browser assets and prerendered output for leaks; CI runs it on every change.
+See [the October 2026 secret audit](docs/SECRET_AUDIT_2026-10-08.md) for scope and findings.

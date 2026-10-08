@@ -3,7 +3,16 @@
 *.iml
 .DS_Store
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+*.dump
+*.dump.sha256
 backend/target/
 frontend/.next/
 frontend/node_modules/

@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/stoxsim}
     username: ${DATABASE_USERNAME:stoxsim}
-    password: ${DATABASE_PASSWORD:stoxsim}
+    password: ${DATABASE_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -57,7 +57,7 @@ stoxsim:
   monitoring:
     scrape-token: ${METRICS_SCRAPE_TOKEN:}
   auth:
-    jwt-secret: ${JWT_SECRET:local-development-only-change-this-secret-2026}
+    jwt-secret: ${JWT_SECRET:}
     access-token-minutes: 15
     refresh-token-days: 30
     cookie-secure: ${AUTH_COOKIE_SECURE:false}

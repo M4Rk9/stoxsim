@@ -36,10 +36,11 @@ retry check_api_readiness
 retry check_web_readiness
 
 EMAIL="staging-smoke-$(date +%s)-${RANDOM}@stoxsim.test"
+PASSWORD="$(openssl rand -hex 24)"
 REGISTER_BODY=$(jq -nc \
   --arg displayName "Staging Smoke" \
   --arg email "$EMAIL" \
-  --arg password "Staging-smoke-2026" \
+  --arg password "$PASSWORD" \
   '{displayName: $displayName, email: $email, password: $password, termsAccepted: true}')
 
 echo "Checking registration and virtual-account creation"

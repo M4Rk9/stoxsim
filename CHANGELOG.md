@@ -6,6 +6,10 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ### Changed
 
+- Remove default JWT signing credentials; reject known template keys, isolate environment
+  files from Docker builds, verify backend secret isolation in frontend builds and avoid
+  logging raw Gemini errors or Upstox authorization URLs.
+
 - Patch Next.js, sharp and source-map-js to resolve dependency findings from the required security scan.
 
 - Fix search focus overlap and overflowing plan controls; remove repetitive dashboard copy.

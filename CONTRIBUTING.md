@@ -17,15 +17,20 @@ Run the full local stack:
 
 ```bash
 cp .env.example .env
+# Generate two independent values and set JWT_SECRET and DATABASE_PASSWORD in .env.
+openssl rand -hex 32
+openssl rand -hex 32
+chmod 600 .env
 docker compose up --build
 ```
 
 Run the primary checks:
 
 ```bash
-cd backend && mvn -B test
-cd frontend && npm ci && npm run typecheck && npm run build
-cd frontend && npx playwright install chromium && npm run e2e
+(cd backend && mvn -B test)
+(cd frontend && npm ci && npm run typecheck)
+node scripts/verify-frontend-secrets.mjs
+(cd frontend && npx playwright install chromium && npm run e2e)
 ```
 
 ## Pull requests

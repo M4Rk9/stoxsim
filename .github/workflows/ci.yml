@@ -37,7 +37,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run build
+      - name: Build and verify browser secret isolation
+        run: node ../scripts/verify-frontend-secrets.mjs
 
   staging-bundle:
     runs-on: ubuntu-latest
@@ -128,6 +129,17 @@ jobs:
       - name: Install Chromium test dependencies
         working-directory: frontend
         run: npx playwright install chromium
+      - name: Generate ephemeral stack credentials
+        run: |
+          umask 077
+          python3 - <<'PYTHON'
+          import secrets
+          from pathlib import Path
+          Path('.env').write_text(
+            'DATABASE_PASSWORD=' + secrets.token_hex(32) + '\n'
+            + 'JWT_SECRET=' + secrets.token_hex(48) + '\n'
+          )
+          PYTHON
       - name: Start complete application stack
         run: docker compose up --build --detach --wait --wait-timeout 180
       - name: Run authenticated learner journey
@@ -194,4 +206,6 @@ jobs:
           if-no-files-found: ignore
       - name: Stop application stack
         if: always()
-        run: docker compose down --volumes
+        run: |
+          trap 'rm -f .env' EXIT
+          docker compose down --volumes
