@@ -47,6 +47,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
 import com.stoxsim.subscription.provider.RazorpayTestClient;
@@ -62,6 +63,12 @@ import tools.jackson.databind.ObjectMapper;
     "stoxsim.billing.test.plus-plan=plan_plus", "stoxsim.billing.test.pro-plan=plan_pro"})
 class RazorpayTestBillingIntegrationTest {
     @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
+
+    // Keep rate limiting enabled against a real store for HTTP security checks.
+    @Container
+    @ServiceConnection(name = "redis")
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
+        .withExposedPorts(6379);
     @Autowired JdbcTemplate db;
     @Autowired AppUserRepository users;
     @Autowired RazorpayTestBillingService service;
