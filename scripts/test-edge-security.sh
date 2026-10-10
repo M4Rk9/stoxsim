@@ -16,7 +16,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   self.send_response(200)
-  for k,v in {'Content-Security-Policy':'default-src *', 'X-Frame-Options':'ALLOWALL', 'X-Content-Type-Options':'unsafe', 'Cache-Control':'public,max-age=999', 'X-Powered-By':'fixture'}.items():self.send_header(k,v)
+  for k,v in {'X-Frame-Options':'ALLOWALL', 'X-Content-Type-Options':'unsafe', 'Cache-Control':'public,max-age=999', 'X-Powered-By':'fixture'}.items():self.send_header(k,v)
+  if self.path != '/no-csp':self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'nonce-ci-fixture'; script-src-attr 'none'; frame-ancestors 'none'")
   self.end_headers();self.wfile.write(b'UPSTREAM')
  def log_message(self,*args):pass
 HTTPServer(('127.0.0.1',18090),Handler).serve_forever()
@@ -49,6 +50,8 @@ for port in [18080,18081]:
   assert r.headers['X-Content-Type-Options']=='nosniff'
   assert 'frame-ancestors \'none\'' in r.headers['Content-Security-Policy']
   assert '*' not in r.headers['Content-Security-Policy'].split(';')[0]
+  if port==18080:assert "script-src 'self' 'nonce-ci-fixture'" in r.headers['Content-Security-Policy']
+ with urllib.request.urlopen(base+'/no-csp') as r:assert r.headers['Content-Security-Policy']=="default-src 'none'; frame-ancestors 'none'"
   assert r.headers.get('Server') is None
  for path in ['/.env','/.env.production','/.git/HEAD','/.git/config','/nested/.env','/nested/.git/config','/%2egit/config','/%2eenv','/.aws/credentials']:
   try:urllib.request.urlopen(base+path);raise AssertionError(path+' reached upstream')

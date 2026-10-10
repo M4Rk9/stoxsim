@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.sql.Timestamp;
@@ -53,6 +55,7 @@ import com.stoxsim.auth.service.AccountLifecycleService;
 import com.stoxsim.auth.service.AccountMailService;
 import com.stoxsim.auth.service.AccountTokenService;
 import com.stoxsim.auth.service.AuthenticationService;
+import com.stoxsim.auth.service.AuthRecordCleanup;
 import com.stoxsim.auth.service.TokenService;
 import com.stoxsim.common.error.UnauthorizedException;
 
@@ -76,6 +79,7 @@ class AuthRecoveryConcurrencyIntegrationTest {
     @Autowired AuthenticationService authentication;
     @Autowired AccountLifecycleService lifecycle;
     @Autowired AccountTokenService accountTokens;
+    @Autowired AuthRecordCleanup cleanup;
     @Autowired PasswordEncoder passwords;
     @Autowired JdbcTemplate db;
     @Autowired TransactionTemplate transactions;
@@ -220,6 +224,90 @@ class AuthRecoveryConcurrencyIntegrationTest {
         }
         verifyNoInteractions(mail);
         assertThat(resetCount()).isEqualTo(1);
+    }
+
+    @Test void overlongUnicodePasswordsReturnBadRequestWithoutMutatingCredentialsOrLinks() throws Exception {
+        String password = "é".repeat(37); // 37 characters, 74 UTF-8 bytes.
+        String reset = resetToken();
+        String access = tokens.issueTokenPair(owner).accessToken();
+        mvc.perform(post("/api/v1/auth/register").contentType("application/json")
+            .content("{\"email\":\"new@example.test\",\"displayName\":\"New\",\"termsAccepted\":true,\"password\":\"" + password + "\"}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/auth/login").contentType("application/json")
+            .content("{\"email\":\"" + owner.getEmail() + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/auth/password/reset").contentType("application/json")
+            .content("{\"token\":\"" + reset + "\",\"newPassword\":\"" + password + "\"}"))
+            .andExpect(status().isBadRequest());
+        for (String payload : new String[] {
+            "{\"currentPassword\":\"" + OLD_PASSWORD + "\",\"newPassword\":\"" + password + "\"}",
+            "{\"currentPassword\":\"" + password + "\",\"newPassword\":\"valid-new-password\"}"}) {
+            mvc.perform(patch("/api/v1/auth/me/password").header("Authorization", "Bearer " + access)
+                .contentType("application/json").content(payload)).andExpect(status().isBadRequest());
+        }
+        mvc.perform(patch("/api/v1/auth/me").header("Authorization", "Bearer " + access).contentType("application/json")
+            .content("{\"email\":\"changed@example.test\",\"displayName\":\"Owner\",\"currentPassword\":\"" + password + "\"}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/v1/auth/me").header("Authorization", "Bearer " + access).contentType("application/json")
+            .content("{\"password\":\"" + password + "\"}")).andExpect(status().isBadRequest());
+        assertThat(passwords.matches(OLD_PASSWORD, users.findById(owner.getId()).orElseThrow().getPasswordHash())).isTrue();
+        assertThat(accountTokens.consume(reset, AccountTokenService.PASSWORD_RESET)).isEqualTo(owner.getId());
+    }
+
+    @Test void cleanupIsBoundedAndPreservesLiveTokensRotationHistoryAndRecoveryBudget() {
+        var original = tokens.issueTokenPair(owner);
+        var rotated = authentication.refresh(original.refreshToken());
+        for (int i = 0; i < 5; i++) resetToken();
+        // A consumed/expired recent link still belongs to the recipient budget.
+        db.update("UPDATE account_token SET consumed_at=now(),expires_at=now()-interval '1 minute' WHERE user_id=?", owner.getId());
+        db.update("""
+            INSERT INTO refresh_token(id,user_id,token_hash,expires_at,session_id,session_started_at,last_used_at,user_agent)
+            SELECT gen_random_uuid(),?,md5(n::text)||md5(n::text),now()-interval '2 days',gen_random_uuid(),now(),now(),'cleanup fixture'
+            FROM generate_series(1,5001) n
+            """, owner.getId());
+        db.update("""
+            INSERT INTO account_token(id,user_id,purpose,token_hash,expires_at,created_at)
+            SELECT gen_random_uuid(),?,'PASSWORD_RESET',md5(n::text)||md5(n::text),now()-interval '2 days',now()-interval '3 days'
+            FROM generate_series(1,5001) n
+            """, owner.getId());
+        db.update("""
+            INSERT INTO account_event(user_id,event_type,created_at)
+            SELECT ?,'CLEANUP_FIXTURE',now()-interval '181 days' FROM generate_series(1,5001)
+            """, owner.getId());
+        cleanup.purgeExpired();
+        assertThat(db.queryForObject("SELECT count(*) FROM refresh_token WHERE expires_at<now()-interval '1 day'", Integer.class)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT count(*) FROM account_token WHERE expires_at<now()-interval '1 day'", Integer.class)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT count(*) FROM account_event WHERE created_at<now()-interval '180 days'", Integer.class)).isEqualTo(1);
+        cleanup.purgeExpired();
+        assertThat(db.queryForObject("SELECT count(*) FROM refresh_token", Integer.class)).isEqualTo(2);
+        assertThat(resetCount()).isEqualTo(5);
+        lifecycle.requestPasswordReset(owner.getEmail());
+        verifyNoInteractions(mail);
+        assertThat(resetCount()).isEqualTo(5);
+        // The old rotated token must still identify and revoke the active session.
+        authentication.logout(original.refreshToken());
+        assertThatThrownBy(() -> authentication.refresh(rotated.refreshToken())).isInstanceOf(UnauthorizedException.class);
+    }
+
+    @Test void cleanupSkipsRowsLockedByAnotherTransaction() throws Exception {
+        String reset = resetToken();
+        db.update("UPDATE account_token SET expires_at=now()-interval '2 days',created_at=now()-interval '3 days' WHERE user_id=?", owner.getId());
+        var locked = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        try (var pool = Executors.newSingleThreadExecutor()) {
+            try {
+                var holding = pool.submit(() -> transactions.executeWithoutResult(status -> {
+                    db.queryForObject("SELECT id FROM account_token WHERE token_hash=? FOR UPDATE", UUID.class, tokens.hash(reset));
+                    locked.countDown(); waitFor(release);
+                }));
+                waitFor(locked);
+                cleanup.purgeExpired();
+                assertThat(resetCount()).isEqualTo(1);
+                release.countDown(); holding.get(10, TimeUnit.SECONDS);
+            } finally { release.countDown(); }
+        }
+        cleanup.purgeExpired();
+        assertThat(resetCount()).isZero();
     }
 
     private String resetToken() {

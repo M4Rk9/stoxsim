@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import ProductActivityTracker from "./components/ProductActivityTracker";
 import DashboardTools from "./components/DashboardTools";
 import {
@@ -76,19 +77,23 @@ const themeScript = `(() => {
   }
 })();`;
 
-export default function RootLayout({
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(siteStructuredData).replace(/</g, "\\u003c"),
           }}
         />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         <a className="skipLink" href="#main-content">Skip to main content</a>
