@@ -119,7 +119,7 @@ public class MarketWebSocketQuota {
         }
     }
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelay = 1000, scheduler = "marketWebSocketQuotaScheduler")
     public void expireUnauthenticated() {
         List<String> expired;
         synchronized (this) {

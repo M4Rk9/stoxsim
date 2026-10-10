@@ -2,6 +2,7 @@ package com.stoxsim.market.websocket;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -9,6 +10,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -30,6 +32,16 @@ public class MarketWebSocketConfig implements WebSocketMessageBrokerConfigurer {
         this.authInterceptor = authInterceptor;
         this.quota = quota;
         this.limits = limits;
+    }
+
+    @Bean(name = "marketWebSocketQuotaScheduler", defaultCandidate = false)
+    public ThreadPoolTaskScheduler quotaScheduler() {
+        // Provider/database jobs must not postpone authentication deadlines.
+        var scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("market-websocket-quota-");
+        scheduler.setRemoveOnCancelPolicy(true);
+        return scheduler;
     }
 
     @Override

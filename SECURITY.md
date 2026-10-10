@@ -56,7 +56,8 @@ password is truncated or pre-hashed, and existing hashes remain compatible.
 
 Each backend instance admits at most 256 WebSockets, 32 per client IP and four
 per authenticated account. A STOMP CONNECT must authenticate within ten seconds;
-heartbeats cannot extend that deadline. Every WebSocket message and every decoded
+heartbeats cannot extend that deadline. Its dedicated scheduler is isolated from
+provider/database jobs. Every WebSocket message and every decoded
 STOMP frame has a token-bucket quota (ten per second per socket, twenty per second
 per account, and 256 per second per instance). Account budgets survive reconnects.
 Only one subscription to the quote topic is allowed per connection.
