@@ -122,7 +122,15 @@ class WebSocketQuotaIntegrationTest {
             try { socket.send("\n"); } catch (RuntimeException closed) { break; }
             Thread.sleep(400);
         }
-        assertThat(socket.closed.get(2, TimeUnit.SECONDS)).isEqualTo(1008);
+        // STOMP may reject a pre-CONNECT heartbeat as a protocol violation
+        // before the application authentication deadline closes the socket.
+        assertThat(socket.closed.get(2, TimeUnit.SECONDS)).isIn(1002, 1008);
+        await().atMost(Duration.ofSeconds(2)).until(() -> quota.activeConnections() == 0);
+    }
+
+    @Test void idleUnauthenticatedSocketIsClosedByTheApplicationDeadline() throws Exception {
+        SocketClient idle = open();
+        assertThat(idle.closed.get(6, TimeUnit.SECONDS)).isEqualTo(1008);
         await().atMost(Duration.ofSeconds(2)).until(() -> quota.activeConnections() == 0);
     }
 
