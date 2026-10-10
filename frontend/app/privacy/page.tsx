@@ -93,6 +93,7 @@ export default function PrivacyPage() {
           <a href="mailto:support.stoxsim@gmail.com"> support.stoxsim@gmail.com</a> from your registered address.
           We may need to verify your identity before acting.
         </p>
+        <p><a href="/delete-account">How to delete your StoxSim account and associated data</a>.</p>
       </section>
       <section>
         <h2>8. Children</h2>

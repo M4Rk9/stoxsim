@@ -1,0 +1,9 @@
+{
+  "name": "stoxsim-android",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "configure:association": "node configure-asset-links.mjs",
+    "test": "node --test *.test.mjs"
+  }
+}

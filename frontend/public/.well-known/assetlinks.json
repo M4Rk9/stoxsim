@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.stoxsim.app",
+      "sha256_cert_fingerprints": [
+        "BC:FF:92:AB:8B:2C:CA:DA:5C:06:BB:08:B6:B6:EA:DC:5A:58:E9:61:8D:25:05:2F:0C:10:84:8D:42:B8:6A:9B"
+      ]
+    }
+  }
+]

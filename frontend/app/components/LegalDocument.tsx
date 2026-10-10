@@ -34,6 +34,7 @@ export default function LegalDocument({
         <nav aria-label="Legal documents">
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/delete-account">Delete account</Link>
           <Link href="/cookies">Cookies</Link>
           <Link href="/disclaimer">Risk disclaimer</Link>
         </nav>

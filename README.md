@@ -169,6 +169,7 @@ The frontend provides the learner journey, stock-research workspace and portfoli
 * [Production deployment](docs/DEPLOYMENT.md)
 * [Operations and incident response](docs/OPERATIONS.md)
 * [Public release checklist](docs/RELEASE_CHECKLIST.md)
+* [Android app and paid Play Store launch](docs/ANDROID_PLAYSTORE_LAUNCH.md)
 
 ### Provider and compliance controls
 
