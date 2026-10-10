@@ -1,34 +1,45 @@
 # StoxSim Android and paid Google Play launch
 
-Owner decision: Android first, personal Play Console account already exists,
-and Plus/Pro purchases must be available at launch. This is a new release track;
+Owner decision: Android first with native app screens. Personal Play Console
+signup has started; the owner reports the $25 registration payment is still
+pending. Plus/Pro purchases must be available at launch. This is a new release track;
 the existing web-release milestones do not prove Android release readiness.
 
 ## Milestones
 
 | Milestone | Work | Current state / completion evidence |
 | --- | --- | --- |
-| A1 — Android foundation | Retain native TWA source, correct PWA icons/manifest, certificate-association setup and public deletion help | Prepared in this batch; website checks verified. Native compilation and device verification remain in A2. |
-| A2 — Installable Android build | SDK synchronization, device QA, app signing, verified full-screen domain association, signed AAB and internal Play installation | Pending SDK/device and Play Console setup. |
-| A3 — Verified paid subscriptions | Play product catalog, supported billing client/bridge, server verification, acknowledgements, user binding, renewals, cancellation/refund handling and restore | Pending. Existing Razorpay functionality is test-only; public checkout is disabled. |
-| A4 — Listing and review readiness | Store graphics/copy, accurate Data safety, privacy/deletion resources, app access instructions, content rating, financial declaration and account eligibility | Pending actual release behavior and owner Console information. |
-| A5 — Testing and publication | License-test purchases, lifecycle/security/real-device QA, required closed testing, production-access application and Google review | Pending A2–A4. Publication is subject to Google's review. |
+| A1 — Native foundation | Kotlin/Compose UI, backend login/session, native balances, instrument search and portfolio reads | Implemented on the native foundation branch; automated build and owner device checks are tracked in its PR. |
+| A2 — Native trading experience | Stock detail/charts, watchlists, order entry/history, sandbox selection and account controls | Pending; the previous TWA shell is superseded. |
+| A3 — Verified paid subscriptions | Play catalog/client, server verification, acknowledgement, renewals, cancellation/refund and restore | Pending. Existing Razorpay functionality is test-only; public checkout is disabled. |
+| A4 — Installable release and review readiness | Real-device QA, signing/AAB/internal Play installation, store listing, Data safety/deletion, app access and declarations | Pending native trading/billing and paid Play registration. |
+| A5 — Testing and publication | License purchases, lifecycle/security QA, required closed testing, production-access application and review | Pending A2–A4. Publication is subject to Google's review. |
 
 ## Architecture and security boundary
 
-Use the existing website and Spring backend. Do not duplicate users or market
-data/provider credentials on the phone. Keep authentication, order accounting,
-paid entitlements and receipt verification on the backend. Do not add a native
-JavaScript bridge that exposes credentials. The TWA runs web content in the
-browser's origin; the shell cannot directly read browser cookies or local storage.
+The Android UI uses Kotlin and Jetpack Compose and communicates directly with the
+existing Spring API at `https://api.stoxsim.com`. Keep the existing user accounts,
+virtual-money accounting, provider integration and entitlement logic on the
+backend. Do not duplicate market/provider credentials on the phone. The native
+app retains `com.stoxsim.app`; it does not require Chrome for its main screens.
 
-The app is an online educational simulator using virtual money. Live trading,
+A1 supports the existing authentication contract without weakening the backend:
+refresh values are read from secure HTTP-only response cookies and encrypted
+under Android Keystore; bearer access tokens stay in memory. Refresh/logout use
+the backend's existing JSON request contract. No browser sessions are imported,
+no credential JavaScript bridge is added and no private responses are cached.
+Core API requests use HTTPS, reject redirects and serialize refresh rotation.
+Legal/help pages and email reset/verification links deliberately open the system
+browser until scoped native handlers are implemented. A1 is not a trading or
+purchase release.
+
+The app remains an online educational simulator using virtual money. Live trading,
 deposits, broker credential collection and cash prizes are not part of this plan.
-Back navigation, small-screen layouts, password-reset/email-verification links,
-session persistence, external links and offline/reconnection behavior must be
-tested on a real Play-installed build. Browser test success is not device QA.
-Provide a useful connection-loss experience without caching private portfolio,
-authentication, API or nonce-bearing HTML responses.
+Test back navigation, large fonts, keyboard/window insets, rotation, password
+reset/email verification, revoked/expired sessions, connection loss and account
+changes on a real device. Synthetic emulator tests and successful compilation do
+not prove real-device or Play-installed release readiness. Preserve pricing-status
+and valuation-time indicators so stale/unavailable data is not shown as live.
 
 ## Paid subscriptions (A3)
 
@@ -47,9 +58,9 @@ Display Google's localized product prices and renewal terms in the app.
 Implement the following as a separately tested adapter:
 
 1. Detect actual Play billing capability rather than trusting a URL flag, user
-   agent or browser-supplied entitlement. Select a bridge/client supported by
+   agent or browser-supplied entitlement. Select a native client supported by
    current Play Billing requirements; audit the resolved Android dependency.
-   The starter shell intentionally does not enable an unverified billing bridge.
+   The foundation intentionally exposes no purchase or checkout UI.
 2. Start purchases from a signed-in account. Bind purchase intent to an opaque
    backend-issued account identifier where the supported billing interface permits it.
 3. Send purchase tokens to an authenticated, rate-limited Spring endpoint.
@@ -117,7 +128,8 @@ login and paid features; do not bypass account security globally for review.
 
 ## Official references (checked 10 October 2026)
 
-- [TWA overview](https://developer.chrome.com/docs/android/trusted-web-activity)
+- [Jetpack Compose setup](https://developer.android.com/develop/ui/compose/setup)
+- [Android Keystore](https://developer.android.com/privacy-and-security/keystore)
 - [Google Play payments policy](https://support.google.com/googleplay/android-developer/answer/10281818)
 - [Play Billing integration](https://developer.android.com/google/play/billing/integrate)
 - [Subscription lifecycle](https://developer.android.com/google/play/billing/lifecycle/subscriptions)
