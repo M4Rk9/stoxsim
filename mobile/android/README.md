@@ -8,8 +8,10 @@ compatible browser. Website updates continue to ship through normal deployment.
 
 The draft application ID is `com.stoxsim.app`. Confirm it before the first
 Play upload; changing the application ID later creates a different app.
-The shell currently has no purchase UI, no Play Billing adapter and no signing
-certificate association. Billing must be completed before the requested paid launch.
+The shell currently has no purchase UI or Play Billing adapter. The owner-provided
+debug signing certificate is associated for emulator testing after website deployment.
+The Play app-signing certificate must still be configured for a Play-distributed build.
+Billing must be completed before the requested paid launch.
 
 ## Open and build
 
@@ -30,9 +32,13 @@ SDK paths, signing keys and service-account credentials are ignored by Git.
 
 ### Website association
 
-Until a real certificate is supplied, `frontend/public/.well-known/assetlinks.json`
-contains `[]`; Chrome will fall back to a Custom Tab with browser controls.
-No certificate or verified full-screen launch is claimed in this batch.
+`frontend/public/.well-known/assetlinks.json` now includes the owner's debug
+certificate fingerprint, supplied after the owner built and launched the app in
+Android Studio. It authorizes `com.stoxsim.app` builds signed with that certificate.
+It takes effect only after the website change is deployed. Full-screen launch is
+still unverified. This is not the Play app-signing certificate; replace the debug
+association with the actual Play certificate before production release unless
+continued debug access is intentionally needed.
 
 Copy the **SHA-256 app-signing certificate** from Play Console's App integrity /
 App signing page. It is a public fingerprint, not a private key. The upload
@@ -70,8 +76,8 @@ node --test asset-links.test.mjs
 ```
 
 The frontend Android preparation tests exercise the production HTTP manifest,
-actual image dimensions, maskable background, public deletion help and initial
-unconfigured association. Run them against a started website:
+actual image dimensions, maskable background, public deletion help and the configured
+certificate association. Run them against a started website:
 
 ```bash
 cd ../../frontend
