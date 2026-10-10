@@ -16,6 +16,10 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     Optional<AppUser> findByEmailIgnoreCase(String email);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT user FROM AppUser user WHERE lower(user.email) = lower(:email)")
+    Optional<AppUser> findByEmailIgnoreCaseForUpdate(@Param("email") String email);
+
     boolean existsByEmailIgnoreCase(String email);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

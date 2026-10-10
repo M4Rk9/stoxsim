@@ -97,7 +97,9 @@ public class AuthenticationService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, String userAgent) {
-        var user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+        // Serialize password verification and session creation with credential
+        // changes/resets, which hold the same user lock through session revocation.
+        var user = userRepository.findByEmailIgnoreCaseForUpdate(normalizeEmail(request.email()))
             .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {

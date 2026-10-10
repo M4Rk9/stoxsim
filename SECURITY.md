@@ -33,3 +33,16 @@ Never use Next.js `env` configuration to pass private values to frontend code.
 `node scripts/verify-frontend-secrets.mjs` builds with fake backend credentials and
 checks browser assets and prerendered output for leaks; CI runs it on every change.
 See [the October 2026 secret audit](docs/SECRET_AUDIT_2026-10-08.md) for scope and findings.
+
+## Account recovery and credential changes
+
+Login holds the account's database lock from password verification through session
+creation. Password changes and resets hold the same lock through revocation, so
+an old-password login cannot create a surviving session after a credential update.
+
+Password recovery is limited per account to one email per minute and five emails
+in any rolling hour, shared across application instances. Suppressed requests
+return the same generic `202 Accepted` response as unknown recipients and leave
+the existing recovery link usable. Consumed and invalidated links still count
+toward the issuance budget. Existing IP request limits also remain in effect.
+The indexed token history supplies the budget; no new database migration is needed.

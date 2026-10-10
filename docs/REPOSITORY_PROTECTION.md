@@ -28,6 +28,19 @@ Open **Settings → Rules → Rulesets → New branch ruleset**.
 
 GitHub only offers a check after it has run at least once. Merge the workflow PR first if a new check is not yet selectable, then return and add it.
 
+### Security scans are enforced by the existing required backend check
+
+`CI` calls `.github/workflows/security-verification.yml` on every pull request and
+main push. The required `backend` job waits for both `Secret history scan` and
+`Dependency and configuration scan`, runs even if either fails or is skipped,
+and explicitly fails unless the reusable workflow result is `success`. Keep
+`backend` required in the active ruleset; this enforces both scans without a
+repository settings change. Independent scheduled and manual scans remain enabled.
+
+Do not replace this guard with only `needs: [security]`: GitHub treats skipped
+required jobs as successful for merge purposes. `scripts/test-security-merge-gate.py`
+checks the guard against success, failure, cancellation, skipped, and missing results.
+
 ## 2. Enable repository security
 
 Open **Settings → Security → Advanced Security** and enable:
