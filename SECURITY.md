@@ -71,7 +71,9 @@ metrics use fixed reason tags, never token, account or IP tags.
 Defaults are configurable through `stoxsim.security.websocket.*`. Limits apply
 per instance, including per-account/IP limits; they are not cluster-wide quotas.
 The production backend must remain private behind the existing trusted Caddy edge
-because forwarded addresses supply client IPs. Shared-NAT users share the IP cap.
+because forwarded addresses supply client IPs. Caddy removes caller-supplied
+`Forwarded` headers and regenerates `X-Forwarded-*` values at the trust boundary.
+Shared-NAT users share the IP cap.
 `WebSocketQuotaIntegrationTest` saturates a deliberately small quota on an isolated
 real server and verifies refusal, cleanup, healthy quote delivery and HTTP readiness.
 This proves enforcement and isolation, not a production capacity or user-count claim.

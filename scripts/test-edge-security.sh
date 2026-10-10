@@ -13,12 +13,15 @@ cleanup() {
 trap cleanup EXIT
 cat > "$TMP_DIR/upstream.py" <<'PY'
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
   self.send_response(200)
   for k,v in {'X-Frame-Options':'ALLOWALL', 'X-Content-Type-Options':'unsafe', 'Cache-Control':'public,max-age=999', 'X-Powered-By':'fixture'}.items():self.send_header(k,v)
   if self.path != '/no-csp':self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'nonce-ci-fixture'; script-src-attr 'none'; frame-ancestors 'none'")
-  self.end_headers();self.wfile.write(b'UPSTREAM')
+  self.end_headers()
+  body = json.dumps({name:self.headers.get(name) for name in ['Forwarded','X-Forwarded-For','X-Forwarded-Host','X-Forwarded-Proto']}).encode() if self.path == '/forwarded' else b'UPSTREAM'
+  self.wfile.write(body)
  def log_message(self,*args):pass
 HTTPServer(('127.0.0.1',18090),Handler).serve_forever()
 PY
@@ -41,7 +44,7 @@ PY
     sleep 0.25
   done
   python3 - <<'PY'
-import urllib.request,urllib.error
+import urllib.request,urllib.error,json
 for port in [18080,18081]:
  base=f'http://127.0.0.1:{port}'
  with urllib.request.urlopen(base) as r:
@@ -54,6 +57,19 @@ for port in [18080,18081]:
   assert r.headers.get('Server') is None
  with urllib.request.urlopen(base+'/no-csp') as r:
   assert r.headers['Content-Security-Policy']=="default-src 'none'; frame-ancestors 'none'"
+ # Spring prefers RFC 7239 Forwarded over X-Forwarded-For. Neither caller
+ # input may supply the client address used by application IP quotas.
+ request=urllib.request.Request(base+'/forwarded',headers={
+  'Forwarded':'for=198.51.100.10;proto=https;host=attacker.invalid',
+  'X-Forwarded-For':'198.51.100.20',
+  'X-Forwarded-Host':'attacker.invalid',
+  'X-Forwarded-Proto':'https'})
+ with urllib.request.urlopen(request) as r:
+  forwarded=json.load(r)
+  assert forwarded['Forwarded'] is None,forwarded
+  assert forwarded['X-Forwarded-For']=='127.0.0.1',forwarded
+  assert forwarded['X-Forwarded-Host']==f'127.0.0.1:{port}',forwarded
+  assert forwarded['X-Forwarded-Proto']=='http',forwarded
  for path in ['/.env','/.env.production','/.git/HEAD','/.git/config','/nested/.env','/nested/.git/config','/%2egit/config','/%2eenv','/.aws/credentials']:
   try:urllib.request.urlopen(base+path);raise AssertionError(path+' reached upstream')
   except urllib.error.HTTPError as e:assert e.code==404,(path,e.code)
@@ -66,5 +82,5 @@ PY
     grep -Fq 'Location: https://web.audit.test/' <<<"$headers"
   fi
   docker rm -f "$EDGE_CONTAINER" >/dev/null
-  echo "$environment edge: upstream header overrides and sensitive paths denied"
+  echo "$environment edge: nonce policy preserved, spoofed proxy headers sanitized, sensitive paths denied"
 done

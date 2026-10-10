@@ -26,7 +26,10 @@
 		-Server
 		-X-Powered-By
 	}
-	reverse_proxy frontend:3000
+	reverse_proxy frontend:3000 {
+		# Spring/Next must use Caddy's sanitized X-Forwarded-* headers.
+		header_up -Forwarded
+	}
 }
 
 {$STAGING_API_DOMAIN} {
@@ -50,5 +53,8 @@
 	request_body {
 		max_size 64KiB
 	}
-	reverse_proxy backend:8080
+	reverse_proxy backend:8080 {
+		# Strip caller-controlled RFC 7239 addresses before IP quota enforcement.
+		header_up -Forwarded
+	}
 }
