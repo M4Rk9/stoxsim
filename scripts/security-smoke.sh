@@ -54,6 +54,12 @@ validate_csp_sources() {
   csp="$(header_value "$response" "Content-Security-Policy")"
 
   require_header "$response" "Content-Security-Policy" "img-src 'self' data:"
+  require_header "$response" "Content-Security-Policy" "'nonce-"
+  require_header "$response" "Content-Security-Policy" "script-src-attr 'none'"
+  if [[ "$csp" =~ script-src[^\;]*unsafe-inline ]] || [[ "$csp" =~ script-src[^\;]*unsafe-eval ]]; then
+    echo "Content-Security-Policy must require nonces for inline scripts and forbid eval" >&2
+    exit 1
+  fi
   if [[ "$csp" =~ img-src[^\;]*https: ]] || [[ "$csp" =~ img-src[^\;]*\* ]]; then
     echo "Content-Security-Policy img-src must not allow broad HTTPS or wildcard sources" >&2
     exit 1

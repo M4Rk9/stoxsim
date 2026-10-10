@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.socket.CloseStatus;
 
 @Component
 public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
@@ -27,14 +28,29 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtDecoder jwtDecoder;
+    private final MarketWebSocketQuota quota;
     private final ConcurrentHashMap<String, Jwt> connected = new ConcurrentHashMap<>();
 
-    public MarketWebSocketAuthInterceptor(JwtDecoder jwtDecoder) {
+    public MarketWebSocketAuthInterceptor(JwtDecoder jwtDecoder, MarketWebSocketQuota quota) {
         this.jwtDecoder = jwtDecoder;
+        this.quota = quota;
     }
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        String id = SimpMessageHeaderAccessor.getSessionId(message.getHeaders());
+        try {
+            return process(message, channel);
+        } catch (MessagingException invalid) {
+            if (id != null) {
+                connected.remove(id);
+                quota.terminate(id, CloseStatus.POLICY_VIOLATION, "stomp_policy");
+            }
+            throw invalid;
+        }
+    }
+
+    private Message<?> process(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(
             message,
             StompHeaderAccessor.class
@@ -45,6 +61,8 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
             if (accessor.getSessionId() != null) connected.remove(accessor.getSessionId());
             return message;
         }
+        // A single WebSocket message can contain multiple STOMP frames.
+        if (!quota.stompFrame(accessor.getSessionId())) throw new MessagingException("Market-stream frame quota exceeded");
         // This is a read-only stream. Clients must never impersonate the broadcaster.
         if (command == StompCommand.SEND) throw new MessagingException("Market streaming is read-only");
         if (command != StompCommand.CONNECT) {
@@ -61,6 +79,10 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
                 throw new MessagingException("An authenticated market-stream session is required");
             }
             validate(authentication.getToken().getTokenValue());
+            if (command == StompCommand.SUBSCRIBE && !quota.subscribe(accessor.getSessionId(), accessor.getSubscriptionId())) {
+                throw new MessagingException("Only one quote subscription is allowed per connection");
+            }
+            if (command == StompCommand.UNSUBSCRIBE) quota.unsubscribe(accessor.getSessionId(), accessor.getSubscriptionId());
             return message;
         }
 
@@ -78,6 +100,9 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
         try {
             Jwt jwt = validate(tokenValue);
             if (accessor.getSessionId() == null) throw new MessagingException("Market-stream session is required");
+            if (!quota.authenticate(accessor.getSessionId(), jwt.getSubject(), jwt.getExpiresAt())) {
+                throw new MessagingException("Market-stream account connection quota exceeded");
+            }
             connected.put(accessor.getSessionId(), jwt);
             accessor.setUser(new JwtAuthenticationToken(
                 jwt,
@@ -103,7 +128,11 @@ public class MarketWebSocketAuthInterceptor implements ChannelInterceptor {
                 Jwt jwt = id == null ? null : connected.get(id);
                 if (jwt == null) return null;
                 try { jwtDecoder.decode(jwt.getTokenValue()); return message; }
-                catch (JwtException invalid) { connected.remove(id); return null; }
+                catch (JwtException invalid) {
+                    connected.remove(id);
+                    quota.terminate(id, CloseStatus.POLICY_VIOLATION, "revoked_session");
+                    return null;
+                }
             }
         };
     }

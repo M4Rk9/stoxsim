@@ -44,7 +44,7 @@ The committed `.zap/rules.tsv` changes only the severity of reviewed alerts. The
 | Rule | Public-beta decision | Compensating control | Review deadline |
 | --- | --- | --- | --- |
 | 10019 Content-Type Header Missing | Accepted only for Next.js bodyless 308 canonical redirects. | Content-bearing pages and assets retain explicit content types. | Before general availability or 2026-11-22, whichever comes first. |
-| 10055 CSP `unsafe-inline` | Temporarily accepted because Next.js server-rendered bootstrap scripts require inline execution in the current static/Caddy deployment. | `default-src 'self'`, `object-src 'none'`, and `frame-ancestors 'none'` remain enforced. The security smoke test rejects broad HTTPS and wildcard image or script sources. | Replace with per-request CSP nonces before general availability or 2026-11-22, whichever comes first. |
+| 10055 CSP inline styles | Accepted for React style attributes only. Scripts now require per-response nonces, with inline handlers and production eval forbidden. | Security smoke checks reject script `unsafe-inline`/`unsafe-eval`; browser tests verify nonces, hydration, injection blocking and billing-only checkout origins. | Re-review inline style handling before general availability or 2026-11-22, whichever comes first. |
 
 The other INFO entries cover documented framework behavior or non-security metadata. Re-review every entry before general availability and whenever the frontend framework, reverse proxy, or rendering mode changes.
 

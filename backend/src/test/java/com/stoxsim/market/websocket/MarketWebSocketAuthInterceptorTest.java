@@ -9,6 +9,9 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.web.socket.WebSocketSession;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessagingException;
@@ -22,9 +25,15 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 class MarketWebSocketAuthInterceptorTest {
 
     private final JwtDecoder jwtDecoder = mock(JwtDecoder.class);
-    private final MarketWebSocketAuthInterceptor interceptor =
-        new MarketWebSocketAuthInterceptor(jwtDecoder);
+    private final MarketWebSocketQuota quota = new MarketWebSocketQuota(MarketWebSocketLimits.defaults(), new SimpleMeterRegistry());
+    private final MarketWebSocketAuthInterceptor interceptor = new MarketWebSocketAuthInterceptor(jwtDecoder, quota);
     private final MessageChannel channel = mock(MessageChannel.class);
+
+    @BeforeEach void openTransport() {
+        WebSocketSession socket = mock(WebSocketSession.class);
+        when(socket.getId()).thenReturn("socket-1");
+        quota.open(socket);
+    }
 
     @Test
     void authenticatesAConnectFrameWithAValidBearerToken() {
@@ -68,6 +77,7 @@ class MarketWebSocketAuthInterceptorTest {
         }
         var headers = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
         headers.setDestination(MarketTickBroadcaster.QUOTE_TOPIC);
+        headers.setSubscriptionId("quotes");
         assertThrows(MessagingException.class, () -> interceptor.preSend(
             MessageBuilder.createMessage(new byte[0], headers.getMessageHeaders()), channel));
     }
@@ -82,6 +92,7 @@ class MarketWebSocketAuthInterceptorTest {
         headers.setSessionId("socket-1");
         headers.setDestination(MarketTickBroadcaster.QUOTE_TOPIC);
         headers.setUser(StompHeaderAccessor.wrap(connection).getUser());
+        headers.setSubscriptionId("quotes");
         var subscription = MessageBuilder.createMessage(new byte[0], headers.getMessageHeaders());
         org.junit.jupiter.api.Assertions.assertNotNull(interceptor.preSend(subscription, channel));
         var outgoing = org.springframework.messaging.simp.SimpMessageHeaderAccessor.create(
