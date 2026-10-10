@@ -36,6 +36,7 @@ public class MarketWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic");
         registry.setApplicationDestinationPrefixes("/app");
+        registry.setPreservePublishOrder(true);
     }
 
     @Override
@@ -60,6 +61,8 @@ public class MarketWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Keep subscribe/unsubscribe application budgets aligned with broker order.
+        registry.setPreserveReceiveOrder(true);
         registry.addEndpoint("/ws/market").setAllowedOrigins(frontendUrl);
     }
 }

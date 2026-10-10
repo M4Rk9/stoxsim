@@ -137,10 +137,14 @@ class WebSocketQuotaIntegrationTest {
     }
 
     private void assertHealthy(SocketClient socket) throws Exception {
-        // A receipt establishes broker subscription readiness before broadcasting.
+        // The simple broker has no STOMP receipt support. Probe eventual delivery
+        // rather than sleeping or assuming the asynchronous subscription is ready.
         String marker = UUID.randomUUID().toString();
-        broker.convertAndSend(MarketTickBroadcaster.QUOTE_TOPIC, (Object) Map.of("securityProbe", marker));
-        assertThat(socket.messages.poll(5, TimeUnit.SECONDS)).contains(marker);
+        await().atMost(Duration.ofSeconds(5)).until(() -> {
+            broker.convertAndSend(MarketTickBroadcaster.QUOTE_TOPIC, (Object) Map.of("securityProbe", marker));
+            String message = socket.messages.poll(100, TimeUnit.MILLISECONDS);
+            return message != null && message.contains(marker);
+        });
         long started = System.nanoTime();
         var response = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/actuator/health/readiness"))
             .timeout(Duration.ofSeconds(3)).build(), HttpResponse.BodyHandlers.ofString());
@@ -162,7 +166,7 @@ class WebSocketQuotaIntegrationTest {
     }
 
     private static String subscribeFrame(String id) {
-        return "SUBSCRIBE\nid:" + id + "\ndestination:" + MarketTickBroadcaster.QUOTE_TOPIC + "\nreceipt:ready\n\n\0";
+        return "SUBSCRIBE\nid:" + id + "\ndestination:" + MarketTickBroadcaster.QUOTE_TOPIC + "\n\n\0";
     }
 
     private static class SocketClient implements WebSocket.Listener {
@@ -187,7 +191,6 @@ class WebSocketQuotaIntegrationTest {
         }
         void subscribe(String id) throws Exception {
             send(subscribeFrame(id));
-            assertThat(messages.poll(5, TimeUnit.SECONDS)).startsWith("RECEIPT");
         }
     }
 }

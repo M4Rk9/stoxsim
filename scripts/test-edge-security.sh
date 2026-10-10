@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exercise actual production/staging Caddy routes against an intentionally unsafe upstream.
+# Exercise production/staging Caddy routes and trusted nonce-policy preservation.
 set -Eeuo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TMP_DIR=$(mktemp -d)
@@ -51,8 +51,9 @@ for port in [18080,18081]:
   assert 'frame-ancestors \'none\'' in r.headers['Content-Security-Policy']
   assert '*' not in r.headers['Content-Security-Policy'].split(';')[0]
   if port==18080:assert "script-src 'self' 'nonce-ci-fixture'" in r.headers['Content-Security-Policy']
- with urllib.request.urlopen(base+'/no-csp') as r:assert r.headers['Content-Security-Policy']=="default-src 'none'; frame-ancestors 'none'"
   assert r.headers.get('Server') is None
+ with urllib.request.urlopen(base+'/no-csp') as r:
+  assert r.headers['Content-Security-Policy']=="default-src 'none'; frame-ancestors 'none'"
  for path in ['/.env','/.env.production','/.git/HEAD','/.git/config','/nested/.env','/nested/.git/config','/%2egit/config','/%2eenv','/.aws/credentials']:
   try:urllib.request.urlopen(base+path);raise AssertionError(path+' reached upstream')
   except urllib.error.HTTPError as e:assert e.code==404,(path,e.code)
