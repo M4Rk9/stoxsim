@@ -31,11 +31,5 @@ public class AuthRecordCleanup {
                 ORDER BY expires_at LIMIT ? FOR UPDATE SKIP LOCKED
             )
             """, expired, BATCH_SIZE);
-        jdbc.update("""
-            DELETE FROM account_event WHERE id IN (
-                SELECT id FROM account_event WHERE created_at < ?
-                ORDER BY created_at LIMIT ? FOR UPDATE SKIP LOCKED
-            )
-            """, Timestamp.from(Instant.now().minus(Duration.ofDays(180))), BATCH_SIZE);
     }
 }

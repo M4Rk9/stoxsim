@@ -3,6 +3,7 @@ package com.stoxsim.market.websocket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import java.net.InetSocketAddress;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -83,6 +84,37 @@ class MarketWebSocketQuotaTest {
         // Reservations remain until the actual close callback, even on close failure.
         assertThat(quota.activeConnections()).isEqualTo(1);
         quota.closed("a");
+        assertThat(quota.activeConnections()).isZero();
+    }
+
+    @Test void instanceFrameBudgetsBoundWorkAcrossDifferentConnections() {
+        for (int i = 0; i < 3; i++) {
+            String id = "socket-" + i;
+            assertThat(quota.open(socket(id, i + 1))).isTrue();
+            for (int j = 0; j < (i == 2 ? 2 : 3); j++) {
+                assertThat(quota.rawFrame(id)).isTrue();
+                assertThat(quota.stompFrame(id)).isTrue();
+            }
+        }
+        // This connection still has a token, but the shared instance buckets do not.
+        assertThat(quota.rawFrame("socket-2")).isFalse();
+        assertThat(quota.stompFrame("socket-2")).isFalse();
+        now.addAndGet(1_000_000_000L);
+        assertThat(quota.rawFrame("socket-2")).isTrue();
+        assertThat(quota.stompFrame("socket-2")).isTrue();
+    }
+
+    @Test void expiredAuthenticationRetriesClosureWithoutReleasingTheReservationEarly() throws Exception {
+        var socket = socket("expired", 1);
+        doThrow(new IOException("close failed")).doNothing().when(socket).close(CloseStatus.POLICY_VIOLATION);
+        quota.open(socket);
+        quota.authenticate("expired", "owner", Instant.now().minusSeconds(1));
+        quota.expireUnauthenticated();
+        assertThat(quota.activeConnections()).isEqualTo(1);
+        assertThat(quota.rawFrame("expired")).isFalse();
+        quota.expireUnauthenticated();
+        verify(socket, times(2)).close(CloseStatus.POLICY_VIOLATION);
+        quota.closed("expired");
         assertThat(quota.activeConnections()).isZero();
     }
 

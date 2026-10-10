@@ -272,7 +272,7 @@ class AuthRecoveryConcurrencyIntegrationTest {
             """, owner.getId());
         db.update("""
             INSERT INTO account_event(user_id,event_type,created_at)
-            SELECT ?,'CLEANUP_FIXTURE',now()-interval '181 days' FROM generate_series(1,5001)
+            VALUES (?,'CLEANUP_FIXTURE',now()-interval '181 days')
             """, owner.getId());
         cleanup.purgeExpired();
         assertThat(db.queryForObject("SELECT count(*) FROM refresh_token WHERE expires_at<now()-interval '1 day'", Integer.class)).isEqualTo(1);
@@ -281,6 +281,7 @@ class AuthRecoveryConcurrencyIntegrationTest {
         cleanup.purgeExpired();
         assertThat(db.queryForObject("SELECT count(*) FROM refresh_token", Integer.class)).isEqualTo(2);
         assertThat(resetCount()).isEqualTo(5);
+        assertThat(db.queryForObject("SELECT count(*) FROM account_event WHERE created_at<now()-interval '180 days'", Integer.class)).isEqualTo(1);
         lifecycle.requestPasswordReset(owner.getEmail());
         verifyNoInteractions(mail);
         assertThat(resetCount()).isEqualTo(5);

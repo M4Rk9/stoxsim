@@ -45,7 +45,7 @@ in any rolling hour, shared across application instances. Suppressed requests
 return the same generic `202 Accepted` response as unknown recipients and leave
 the existing recovery link usable. Consumed and invalidated links still count
 toward the issuance budget. Existing IP request limits also remain in effect.
-The indexed token history supplies the budget; no new database migration is needed.
+The existing indexed token history supplies the recipient budget without schema changes.
 
 Password inputs must be valid Unicode and fit within BCrypt's 72-byte UTF-8
 limit. This applies to registration, login, recovery, password changes, email
@@ -90,6 +90,6 @@ Inline styles remain allowed for React style attributes.
 Hourly cleanup removes up to 5,000 rows from each authentication table per run.
 Refresh and account tokens are removed only after they have been expired for a day,
 preserving unexpired session rotation history and recent recovery issuance budgets.
-Security audit events are retained for 180 days. Indexed, ordered batches skip rows
+Security audit history is preserved. Indexed, ordered batches skip rows
 locked by another transaction and have a ten-second transaction timeout. Migration
-V118 adds the token/event cleanup indexes; existing live records are preserved.
+V118 adds an account-token expiry index; refresh-token expiry is already indexed.

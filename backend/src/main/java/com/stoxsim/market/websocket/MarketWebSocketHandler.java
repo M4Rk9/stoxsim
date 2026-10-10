@@ -28,7 +28,7 @@ public class MarketWebSocketHandler extends WebSocketHandlerDecorator {
         if (bytes > limits.maxFrameBytes()) {
             quota.terminate(session.getId(), CloseStatus.TOO_BIG_TO_PROCESS, "frame_size"); return;
         }
-        // Includes heartbeat/control traffic; reject before STOMP parsing or JWT/database work.
+        // Includes STOMP heartbeats; reject before STOMP parsing or JWT/database work.
         if (!quota.rawFrame(session.getId())) {
             quota.terminate(session.getId(), CloseStatus.POLICY_VIOLATION, "frame_rate"); return;
         }
