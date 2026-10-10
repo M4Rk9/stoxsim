@@ -52,6 +52,6 @@ test("checkout origins are permitted only on the billing route", async ({ reques
     nonce(policy);
     const scripts = policy.match(/script-src[^;]*/)?.[0] ?? "";
     const scriptSources = scripts.trim().split(/\s+/);
-    expect(scriptSources.includes("https://checkout.razorpay.com")).toBe(path === "/admin/billing");
+    expect(scriptSources.some(source => source === "https://checkout.razorpay.com")).toBe(path === "/admin/billing");
   }
 });
