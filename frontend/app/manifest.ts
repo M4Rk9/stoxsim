@@ -2,21 +2,40 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    id: "/",
     name: "StoxSim — Stock Market Simulator",
     short_name: "StoxSim",
     description:
       "Practise Indian and US stock markets with virtual money and no real-money risk.",
     start_url: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#f4f6f1",
     theme_color: "#0b8f55",
     categories: ["finance", "education", "productivity"],
     icons: [
       {
-        src: "/stoxsim-logo.png",
+        src: "/app-icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/app-icons/icon-512.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
       },
+      {
+        src: "/app-icons/maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    shortcuts: [
+      { name: "Research stocks", short_name: "Stocks", url: "/" },
+      { name: "Your portfolios", short_name: "Portfolio", url: "/portfolio" },
     ],
   };
 }
