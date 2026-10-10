@@ -16,7 +16,7 @@ internal data class Portfolio(
     val profitLoss: BigDecimal, val status: String, val valuedAt: String, val positions: List<Position>
 )
 
-internal fun JSONObject.money(name: String): BigDecimal = getString(name).toBigDecimal()
+internal fun JSONObject.money(name: String): BigDecimal = get(name).toString().toBigDecimal()
 internal fun <T> JSONArray.mapObjects(transform: (JSONObject) -> T): List<T> = (0 until length()).map { transform(getJSONObject(it)) }
 internal fun parseUser(json: JSONObject) = User(
     json.getString("displayName"), json.getString("email"), json.getBoolean("emailVerified"),
