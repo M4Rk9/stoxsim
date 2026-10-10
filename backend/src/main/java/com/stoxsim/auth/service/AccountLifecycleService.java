@@ -27,6 +27,10 @@ import com.stoxsim.common.error.UnauthorizedException;
 @Service
 public class AccountLifecycleService {
 
+    private static final Duration PASSWORD_RESET_COOLDOWN = Duration.ofMinutes(1);
+    private static final Duration PASSWORD_RESET_WINDOW = Duration.ofHours(1);
+    private static final int PASSWORD_RESET_WINDOW_LIMIT = 5;
+
     private final AppUserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -119,6 +123,21 @@ public class AccountLifecycleService {
             (rs, row) -> rs.getObject("id", UUID.class), normalizeEmail(email)).stream().findFirst().ifPresent(userId -> {
             AppUser locked = requireUserForUpdate(userId);
             if (!locked.getEmail().equalsIgnoreCase(normalizeEmail(email))) return;
+            // Count all issuances, including consumed links. Holding the user lock
+            // makes the budget shared and atomic across requests and app instances.
+            Instant now = Instant.now();
+            List<Instant> recent = jdbcTemplate.query("""
+                SELECT created_at FROM account_token
+                WHERE user_id = ? AND purpose = ? AND created_at > ?
+                ORDER BY created_at DESC LIMIT ?
+                """, (rs, row) -> rs.getTimestamp("created_at").toInstant(),
+                userId, AccountTokenService.PASSWORD_RESET,
+                Timestamp.from(now.minus(PASSWORD_RESET_WINDOW)), PASSWORD_RESET_WINDOW_LIMIT);
+            if (recent.size() >= PASSWORD_RESET_WINDOW_LIMIT
+                || (!recent.isEmpty() && recent.getFirst().isAfter(now.minus(PASSWORD_RESET_COOLDOWN)))) {
+                // Keep the generic accepted response and preserve the existing link.
+                return;
+            }
             String token = accountTokenService.issue(
                 locked.getId(),
                 AccountTokenService.PASSWORD_RESET,

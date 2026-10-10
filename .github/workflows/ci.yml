@@ -9,12 +9,28 @@ permissions:
   contents: read
 
 jobs:
+  security:
+    uses: ./.github/workflows/security-verification.yml
+
   backend:
+    needs: [security]
+    # A skipped required check can satisfy branch protection. Always run this
+    # existing required job and explicitly fail on any non-success scan result.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
     steps:
+      - name: Require successful security scans
+        working-directory: .
+        env:
+          SECURITY_RESULT: ${{ needs.security.result }}
+        run: |
+          if [ "$SECURITY_RESULT" != success ]; then
+            echo "::error::Security scans must succeed before backend can pass (result: $SECURITY_RESULT)."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
@@ -53,6 +69,7 @@ jobs:
           bash scripts/test-production-uptime-workflow.sh
           bash scripts/test-production-deploy-contract.sh
           bash scripts/test-edge-security.sh
+          python3 scripts/test-security-merge-gate.py
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/operations -p 'test_*.py'
           node --check scripts/staging-load.mjs
           python3 -m py_compile deploy/production/render-monitoring-config.py
