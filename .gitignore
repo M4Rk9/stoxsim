@@ -26,6 +26,7 @@ mobile/android/node_modules/
 mobile/android/generated/
 mobile/android/private/
 mobile/android/project/.gradle/
+mobile/android/project/.kotlin/
 mobile/android/project/.idea/
 mobile/android/project/local.properties
 mobile/android/project/build/

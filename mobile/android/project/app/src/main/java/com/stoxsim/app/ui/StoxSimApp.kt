@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,7 +37,7 @@ import java.util.Locale
         Scaffold(bottomBar = {
             if (state.user != null) NavigationBar {
                 listOf("Home" to Icons.Default.Home, "Markets" to Icons.Default.Search,
-                    "Portfolio" to Icons.Default.List, "Account" to Icons.Default.Person).forEach { (name, icon) ->
+                    "Portfolio" to Icons.AutoMirrored.Filled.List, "Account" to Icons.Default.Person).forEach { (name, icon) ->
                     NavigationBarItem(selected = tab == name, onClick = { tab = name },
                         icon = { Icon(icon, contentDescription = null) }, label = { Text(name) })
                 }

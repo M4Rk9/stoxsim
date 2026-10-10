@@ -20,7 +20,7 @@ internal data class AppState(
 )
 
 internal class AppViewModel(application: Application) : AndroidViewModel(application) {
-    private val api = StoxSimApi(EncryptedRefreshTokenStore(application))
+    private val api = (application as StoxSimApplication).api
     private val mutable = MutableStateFlow(AppState())
     val state = mutable.asStateFlow()
 

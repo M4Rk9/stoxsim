@@ -124,7 +124,7 @@ internal class StoxSimApi(
 
     private fun acceptSession(response: Response): User {
         val json = JSONObject(response.body?.string() ?: throw IOException("The server returned an empty response."))
-        val user = parseUser(json)
+        val user = parseUser(json.getJSONObject("user"))
         val access = json.getString("accessToken").also { require(it.isNotBlank()) }
         // The Spring DTO deliberately omits refreshToken from JSON. Retain only this secure, host-only cookie.
         val cookie = Cookie.parseAll(response.request.url, response.headers).singleOrNull {
