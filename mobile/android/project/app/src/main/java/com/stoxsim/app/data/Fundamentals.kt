@@ -56,9 +56,20 @@ internal fun companyExcerpt(value: String): String {
     return prefix.take(end).trimEnd('.', ',', ';', ':') + "…"
 }
 
-internal fun financialNumber(value: BigDecimal, units: String): String =
-    NumberFormat.getNumberInstance(if (units.contains("USD", ignoreCase = true)) Locale.US else Locale.forLanguageTag("en-IN"))
-        .apply { maximumFractionDigits = 2 }.format(value)
+internal fun financialNumber(value: BigDecimal, units: String): String {
+    if (!units.contains("crore", ignoreCase = true)) {
+        return NumberFormat.getNumberInstance(Locale.US).apply { maximumFractionDigits = 2 }.format(value)
+    }
+    // Java's en-IN locale uses Western grouping on some runtimes. Group explicitly
+    // so unit tests and Android display the same lakh/crore notation.
+    val rounded = value.setScale(2, RoundingMode.HALF_EVEN).stripTrailingZeros()
+    val parts = rounded.abs().toPlainString().split('.')
+    val integer = parts.first()
+    val grouped = if (integer.length <= 3) integer else
+        integer.dropLast(3).reversed().chunked(2).joinToString(",").reversed() + "," + integer.takeLast(3)
+    return (if (rounded.signum() < 0) "-" else "") + grouped +
+        (if (parts.size > 1) ".${parts[1]}" else "")
+}
 internal fun financialAmount(value: BigDecimal?, units: String): String {
     if (value == null) return "—"
     val amount = financialNumber(value, units)

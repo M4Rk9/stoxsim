@@ -48,6 +48,8 @@ class FundamentalsTest {
         assertEquals("₹1,00,000 Cr", financialAmount(BigDecimal("100000"), "crore"))
         assertEquals("\$100,000 M", financialAmount(BigDecimal("100000"), "USD million"))
         assertEquals("₹-5 Cr", financialAmount(BigDecimal("-5"), "crore"))
+        assertEquals("₹-12,34,567.89 Cr", financialAmount(BigDecimal("-1234567.891"), "crore"))
+        assertEquals("₹0 Cr", financialAmount(BigDecimal("-0.001"), "crore"))
         assertEquals("—", financialAmount(null, "USD million"))
     }
 
