@@ -153,7 +153,7 @@ internal class StoxSimApi(
         method: String? = null, idempotencyKey: String? = null): Response {
         val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.3.0")
+            .header("User-Agent", "StoxSim-Android/0.4.0")
         bearer?.let { request.header("Authorization", "Bearer $it") }
         if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
         idempotencyKey?.let { request.header("Idempotency-Key", it) }

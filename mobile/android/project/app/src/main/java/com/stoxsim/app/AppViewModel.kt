@@ -30,9 +30,13 @@ internal data class AppState(
     val chartMonths: Long = 1, val insightPeriod: String = "quarterly",
     val data: Map<String, JSONObject> = emptyMap(), val lists: Map<String, List<JSONObject>> = emptyMap(),
     val sectionErrors: Map<String, String> = emptyMap(), val export: String? = null,
+    val searchQuery: String = "", val recentStocks: List<Instrument> = emptyList(),
+    val chats: List<FinwizConversation> = emptyList(), val activeChatId: String? = null,
+    val learningModule: String = "LEARN", val readModules: Set<String> = emptySet(),
     val error: String? = null, val notice: String? = null
 ) {
     val account: Account? get() = user?.accounts?.find { it.id == accountId }
+    val activeChat: FinwizConversation? get() = chats.find { it.id == activeChatId }
     val currency: String get() = account?.currency ?: if (region == "INDIA") "INR" else "USD"
 }
 
@@ -75,7 +79,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             ?: user.accounts.firstOrNull()
         mutable.value = AppState(restoring = false, working = true, user = user,
             region = first?.region ?: "INDIA", accountId = first?.id.orEmpty(),
-            dark = preferences.getBoolean(user.email, false))
+            dark = preferences.getBoolean(user.email, false),
+            readModules = preferences.getStringSet("lessons:${user.email}", emptySet())?.toSet().orEmpty())
         readAccounts()
         loadPage()
         startStream()
@@ -90,7 +95,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun openScreen(screen: String) {
         if (screen !in listOf("Home", "Markets", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
-                "Learning path", "Competitions", "Campus", "Finwiz", "Account", "Weekly reports")) return
+                "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports")) return
         mutable.update { it.copy(screen = screen, error = null, notice = null) }
         if (mutable.value.working) pagePending = true else refresh()
     }
@@ -171,7 +176,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(region = region, accountId = account?.id.orEmpty(), portfolio = null,
             instruments = emptyList(), selected = null, quote = null, candles = emptyList(), searched = false,
             data = emptyMap(), lists = emptyMap(), sectionErrors = emptyMap(),
-            screen = if (it.screen == "Stock") "Markets" else it.screen) }
+            screen = when (it.screen) { "Stock" -> "Markets"; "Finwiz chat" -> "Finwiz"; else -> it.screen }, activeChatId = null, searchQuery = "") }
         refresh()
     }
     fun selectAccount(id: String) {
@@ -180,18 +185,19 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(accountId = id, region = account.region, portfolio = null,
             data = emptyMap(), lists = emptyMap(), sectionErrors = emptyMap(), selected = null, quote = null,
             candles = emptyList(), instruments = emptyList(), searched = false,
-            screen = if (it.screen == "Stock") "Markets" else it.screen) }
+            screen = when (it.screen) { "Stock" -> "Markets"; "Finwiz chat" -> "Finwiz"; else -> it.screen }, activeChatId = null, searchQuery = "") }
         refresh()
     }
     fun search(query: String) = runAction {
-        mutable.update { it.copy(instruments = emptyList(), searched = false) }
+        mutable.update { it.copy(screen = "Markets", searchQuery = query.trim(), instruments = emptyList(), searched = false, error = null) }
         val result = api.search(mutable.value.region, query)
         mutable.update { it.copy(instruments = result, searched = true) }
     }
     fun selectStock(instrument: Instrument) {
         if (mutable.value.working || instrument.region != mutable.value.region) return
         mutable.update { it.copy(selected = instrument, screen = "Stock", quote = null, candles = emptyList(),
-            data = it.data - "stockInsights", chartMonths = 1, insightPeriod = "quarterly") }
+            data = it.data - "stockInsights", chartMonths = 1, insightPeriod = "quarterly",
+            recentStocks = (listOf(instrument) + it.recentStocks.filterNot { recent -> recent.symbol == instrument.symbol && recent.exchange == instrument.exchange && recent.region == instrument.region }).take(10)) }
         refresh()
     }
     fun chartRange(months: Long) = runAction {
@@ -251,7 +257,10 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             "Competitions" -> { read("board", "competitions/current"); list("leagues", "leagues") }
             "Campus" -> { read("campus", "campus"); list("institutions", "campus/institutions"); read("membershipRequest", "campus/membership-request")
                 mutable.value.data["campus"]?.optJSONObject("membership")?.text("institutionId")?.takeIf { it.isNotBlank() }?.let { campusWorkspace(it) } }
-            "Account" -> { readAccounts(); read("subscription", "subscription"); list("sessions", "auth/sessions"); list("events", "auth/events") }
+            "Account" -> { readAccounts(); read("subscription", "subscription") }
+            "Profile & security" -> { readAccounts(); list("sessions", "auth/sessions"); list("events", "auth/events") }
+            "Subscriptions" -> { readAccounts(); read("subscription", "subscription") }
+            "Wallet" -> { readAccounts(); portfolio(); if (id.isNotBlank()) list("ledger", "accounts/$id/ledger") }
             "Weekly reports" -> { read("reportPreference", "reports/weekly/preferences"); list("reports", "reports/weekly") }
         }
     }
@@ -357,11 +366,55 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         read("campusManagement", "campus/institutions/$institution/manage")
     }
 
-    fun ask(question: String, topic: String, symbol: String, experience: String) = runAction {
-        val body = JSONObject().put("question", question.trim()).put("topic", topic).put("experienceLevel", experience)
-            .put("marketRegion", mutable.value.region)
-        if (symbol.isNotBlank()) body.put("symbol", symbol.trim()).put("exchange", if (mutable.value.region == "INDIA") "NSE" else "NASDAQ")
-        putData("finwiz", api.mutate("finwiz/ask", body = body))
+    fun openLesson(id: String) {
+        if (learningModules.none { it.id == id }) return
+        mutable.update { it.copy(learningModule = id) }; openScreen("Finwiz lesson")
+    }
+    fun markLessonRead(id: String) {
+        if (learningModules.none { it.id == id }) return
+        val read = mutable.value.readModules + id
+        mutable.value.user?.email?.let { preferences.edit().putStringSet("lessons:$it", read).apply() }
+        mutable.update { it.copy(readModules = read) }
+    }
+    fun newChat(topic: String = "LEARN", symbol: String = "", experience: String = "BEGINNER") {
+        if (mutable.value.working || learningModules.none { it.id == topic }) return
+        val chat = FinwizConversation(UUID.randomUUID().toString(), "New conversation", mutable.value.region,
+            topic, symbol.trim().take(32), experience)
+        mutable.update { it.copy(chats = (listOf(chat) + it.chats).take(10), activeChatId = chat.id) }
+        openScreen("Finwiz chat")
+    }
+    fun openChat(id: String) {
+        if (mutable.value.working || mutable.value.chats.none { it.id == id && it.region == mutable.value.region }) return
+        mutable.update { it.copy(activeChatId = id) }; openScreen("Finwiz chat")
+    }
+    fun deleteChat(id: String) {
+        if (mutable.value.working) return
+        mutable.update { it.copy(chats = it.chats.filterNot { chat -> chat.id == id },
+            activeChatId = if (it.activeChatId == id) null else it.activeChatId,
+            screen = if (it.activeChatId == id) "Finwiz" else it.screen) }
+    }
+    fun askChat(question: String) = runAction {
+        val chat = mutable.value.activeChat ?: return@runAction
+        require(chat.region == mutable.value.region && question.trim().length in 1..2000)
+        require(chat.messages.size < 40)
+        val message = FinwizMessage(UUID.randomUUID().toString(), "user", question.trim())
+        val messages = chat.messages + message
+        mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(
+            title = if (item.messages.isEmpty()) question.trim().take(60) else item.title, messages = messages) else item }) }
+        val body = JSONObject().put("question", finwizQuestion(question, chat.messages)).put("topic", chat.topic).put("experienceLevel", chat.experience)
+            .put("marketRegion", chat.region)
+        if (chat.symbol.isNotBlank()) body.put("symbol", chat.symbol).put("exchange", if (chat.region == "INDIA") "NSE" else "NASDAQ")
+        try {
+            val result = api.mutate("finwiz/ask", body = body)
+            val answer = FinwizMessage(UUID.randomUUID().toString(), "assistant", result.text("answer").take(24000),
+                result.text("provider"), result.text("generatedAt"), result.text("disclaimer"), result.strings("suggestedQuestions"))
+            mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + answer) else item }) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (expired: SessionExpired) { throw expired }
+        catch (failure: Exception) {
+            val error = FinwizMessage(UUID.randomUUID().toString(), "error", failureMessage(failure))
+            mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + error) else item }) }
+        }
     }
     fun profile(name: String, email: String, password: String) = runAction {
         val body = JSONObject().put("displayName", name.trim()).put("email", email.trim())

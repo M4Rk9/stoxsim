@@ -1,6 +1,6 @@
 # StoxSim native Android
 
-The Android Studio project is in `project/`. Version 0.3.0 replaces the previous
+The Android Studio project is in `project/`. Version 0.4.0 replaces the previous
 Trusted Web Activity launcher with Kotlin and Jetpack Compose. The app's main
 screens run natively and call `https://api.stoxsim.com` directly. Chrome is not
 needed for the main trading, portfolio and learning screens.
@@ -11,8 +11,9 @@ The application ID remains `com.stoxsim.app`; launcher artwork is retained.
 The UI follows the colours in `frontend/app/globals.css` / `theme.css`, uses the
 same brand artwork and section names, and defaults to light appearance like the
 website. Dark appearance is an explicit per-user device preference. Native bottom
-navigation provides Home, Markets, Portfolio, Orders and Explore; the account
-button opens settings. Cards, charts and forms adapt to a phone rather than copying
+navigation provides Stocks, Finwiz AI and Scenario Lab. Stocks has Explore,
+Holdings, Orders and Watchlist tabs. Global stock/ETF search sits at the top; the
+account avatar opens market, appearance, wallet, subscription and security controls. Cards, charts and forms adapt to a phone rather than copying
 the desktop columns.
 
 - Login, consent-based registration, password-reset requests, encrypted session
@@ -26,6 +27,8 @@ the desktop columns.
   cancellation, order history, executed trades and cash ledger.
 - Account valuation and holdings, StoxScore, allocation/attribution, daily history,
   benchmarks/drawdown/risk metrics where the existing plan and data permit them.
+- Eight Finwiz lesson modules and session chat history with question bubbles,
+  bounded follow-up context and explicit Send. Local read markers do not award XP.
 - Scenario Lab presets/custom paths and server credit balances; Finwiz questions;
   learning path/check-ins/achievements; global and private-league competitions.
 - Campus discovery, membership/verification requests, competition enrollment and
@@ -47,7 +50,7 @@ From your repository terminal:
 
 ```bash
 git fetch origin
-git switch feat/android-web-parity
+git switch feat/android-product-navigation
 git pull --ff-only
 ```
 
@@ -120,3 +123,5 @@ Digital Asset Links are not needed for these native screens. Future verified app
 links require explicitly scoped handlers and the actual Play signing certificate.
 
 Read [the paid launch plan](../../docs/ANDROID_PLAYSTORE_LAUNCH.md) before release.
+
+See [product UI mapping](../../docs/ANDROID_PRODUCT_UI.md) for the new navigation and chat behaviour.

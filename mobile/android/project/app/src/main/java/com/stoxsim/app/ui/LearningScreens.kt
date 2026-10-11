@@ -119,23 +119,3 @@ import java.math.BigDecimal
     if (items.isEmpty()) Muted("No standings yet.")
     items.forEach { ValueRow("#${it.text("rank")} ${it.text("displayName")}${if (it.optBoolean("currentUser")) " · You" else ""}", percent(it.decimal("returnPercent")), it.decimal("returnPercent")); Muted("${it.text("dataStatus")} · ${time(it.text("valuedAt"))}") }
 }
-@Composable internal fun FinwizScreen(state: AppState, model: AppViewModel) {
-    AccountSelector(state, model::changeRegion, model::selectAccount)
-    var question by rememberSaveable { mutableStateOf("") }
-    var topic by rememberSaveable { mutableStateOf("LEARN") }
-    var symbol by rememberSaveable { mutableStateOf("") }
-    var experience by rememberSaveable { mutableStateOf("BEGINNER") }
-    Panel("YOUR INVESTING COMPANION", "Ask Finwiz") {
-        ChoiceRow(listOf("LEARN" to "Learn", "STOCK_FUNDAMENTALS" to "Stock fundamentals", "TECHNICAL_ANALYSIS" to "Technical analysis", "FUNDAMENTAL_ANALYSIS" to "Fundamental analysis", "VALUATION" to "Valuation", "CASH_FLOW" to "Cash flow", "MARKET_EVALUATION" to "Market", "PORTFOLIO_EDUCATION" to "Portfolio"), topic, !state.working) { topic = it }
-        ChoiceRow(listOf("BEGINNER" to "Beginner", "INTERMEDIATE" to "Intermediate"), experience, !state.working) { experience = it }
-        OutlinedTextField(symbol, { symbol = it.take(32) }, label = { Text("Stock symbol (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(question, { question = it.take(2000) }, label = { Text("Your question") }, minLines = 3, modifier = Modifier.fillMaxWidth())
-        Button({ model.ask(question, topic, symbol, experience) }, enabled = question.isNotBlank() && !state.working, modifier = Modifier.fillMaxWidth()) { Text("Ask Finwiz") }
-        Muted("Educational explanations. Existing account access and service limits apply.")
-    }
-    state.data["finwiz"]?.let { data -> Panel(title = "Finwiz's answer") {
-        Text(data.text("answer")); Muted("${data.text("provider")} · ${time(data.text("generatedAt"))}")
-        data.strings("suggestedQuestions").forEach { suggestion -> TextButton({ question = suggestion }) { Text(suggestion) } }
-        Muted(data.text("disclaimer"))
-    } }
-}

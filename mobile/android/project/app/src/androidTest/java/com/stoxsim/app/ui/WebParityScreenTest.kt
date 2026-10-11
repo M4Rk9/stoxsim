@@ -48,7 +48,7 @@ class WebParityScreenTest {
     }
     @Test fun nativeMarketResultOpensSelectedStock() {
         var selected: Instrument? = null
-        compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { StockSearch(state().copy(instruments = listOf(instrument), searched = true), {}, { selected = it }) } } }
+        compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { StockResults(state().copy(instruments = listOf(instrument), searched = true), { selected = it }) } } }
         compose.onNodeWithText("ABC").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(instrument, selected) }
     }

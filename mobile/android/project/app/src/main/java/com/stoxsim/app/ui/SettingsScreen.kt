@@ -36,25 +36,6 @@ import org.json.JSONObject
         if (email.trim() != user.email) PasswordField(profilePassword, { profilePassword = it }, "Current password to change email", !state.working)
         Button({ model.profile(name, email, profilePassword); profilePassword = "" }, enabled = !state.working && name.trim().length in 2..100 && email.trim().contains('@') && (email.trim() == user.email || profilePassword.isNotEmpty())) { Text("Save profile") }
     }
-    Panel(title = "Appearance") {
-        Text("Choose how StoxSim looks. Your choice is remembered on this device.")
-        ChoiceRow(listOf("light" to "Light", "dark" to "Dark"), if (state.dark) "dark" else "light") { model.setDark(it == "dark") }
-    }
-    Panel("PLAN & PRACTICE ACCOUNTS", "Your benefits") {
-        SectionError(state, "subscription")
-        state.data["subscription"]?.let { data ->
-            Text("${data.text("plan")} · ${data.text("status")}", style = MaterialTheme.typography.titleLarge)
-            if (data.text("currentPeriodEnd").isNotBlank()) ValueRow("Current period ends", time(data.text("currentPeriodEnd")))
-            data.optJSONObject("entitlements")?.let { entitlements ->
-                ValueRow("Scenario allowance", entitlements.text("scenarioCredits")); ValueRow("Sandbox portfolios", entitlements.text("maximumSandboxPortfolios"))
-                ValueRow("Analytics", entitlements.text("analyticsTier")); ValueRow("Finwiz", entitlements.text("finwizTier"))
-            }
-            Text(data.text("notice"))
-            Muted("Existing plan benefits work in the app. Android subscription purchases are not available in this build.")
-            if (data.optJSONObject("sandboxProvisioning")?.optBoolean("canCreateAdditional") == true) OutlinedButton(model::createSandbox, enabled = !state.working) { Text("Create additional sandbox") }
-        }
-        user.accounts.forEach { account -> ValueRow(account.label, money(account.cash, account.currency)); Muted("${regionLabel(account.region)} · ${account.kind} · ${if (account.active) "Active" else "Locked"}") }
-    }
     Panel("ACCOUNT SECURITY", "Change password") {
         PasswordField(current, { current = it }, "Current password", !state.working)
         PasswordField(replacement, { replacement = it }, "New password", !state.working)
@@ -127,4 +108,32 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
         ValueRow("Total return", percent(market.decimal("totalReturnPercent"))); ValueRow("Trades executed", market.text("tradesExecuted")); Status(market.text("status"))
     }
     data.strings("learningNotes").forEach { Text(it) }; Muted(data.text("disclaimer"))
+}
+
+@Composable internal fun SubscriptionScreen(state: AppState, createSandbox: () -> Unit) {
+    val user = state.user ?: return
+    Panel("PLAN & PRACTICE ACCOUNTS", "Your benefits") {
+        SectionError(state, "subscription")
+        state.data["subscription"]?.let { data ->
+            Text("${data.text("plan")} · ${data.text("status")}", style = MaterialTheme.typography.titleLarge)
+            if (data.text("currentPeriodEnd").isNotBlank()) ValueRow("Current period ends", time(data.text("currentPeriodEnd")))
+            data.optJSONObject("entitlements")?.let { entitlements ->
+                ValueRow("Scenario allowance", entitlements.text("scenarioCredits")); ValueRow("Sandbox portfolios", entitlements.text("maximumSandboxPortfolios"))
+                ValueRow("Analytics", entitlements.text("analyticsTier")); ValueRow("Finwiz", entitlements.text("finwizTier"))
+            }
+            Text(data.text("notice"))
+            Muted("Existing plan benefits work in the app. Android subscription purchases are not available in this build.")
+            if (data.optJSONObject("sandboxProvisioning")?.optBoolean("canCreateAdditional") == true) OutlinedButton(createSandbox, enabled = !state.working) { Text("Create additional sandbox") }
+        }
+        user.accounts.forEach { account -> ValueRow(account.label, money(account.cash, account.currency)); Muted("${regionLabel(account.region)} · ${account.kind} · ${if (account.active) "Active" else "Locked"}") }
+    }
+    state.data["subscription"]?.objects("plans")?.forEach { plan -> Panel(title = plan.text("displayName")) {
+        ValueRow("Monthly price", money(plan.decimal("monthlyPriceInr"), "INR"))
+        plan.optJSONObject("entitlements")?.let { benefits ->
+            ValueRow("Scenario credits", benefits.text("scenarioCredits"))
+            ValueRow("Practice sandboxes", benefits.text("maximumSandboxPortfolios"))
+            ValueRow("Analytics", benefits.text("analyticsTier"))
+        }
+        Muted("Purchases are not available in this app yet.")
+    } }
 }
