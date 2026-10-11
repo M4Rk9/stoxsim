@@ -25,7 +25,9 @@ does not grant anyone a role or provide a public promotion endpoint.
 | First-trade conversion | Completed-a-first-trade count divided by new learners, times 100; null when the cohort is empty |
 | Orders by status / market | STANDARD-account orders submitted during the selected UTC dates by all currently existing learners, grouped by their current status and market; includes persisted rejections, not requests rejected before an order is stored |
 
-Every metric excludes platform administrators and deleted accounts. Removing
+Every metric excludes platform administrators, controlled test accounts marked
+with `app_user.is_test_account`, and deleted accounts. See
+[the controlled-test audit and cleanup guide](CONTROLLED_TEST_ACCOUNTS.md). Removing
 an account or changing its role changes past counts; these are current-record
 aggregates, not immutable historical snapshots. Sandbox orders never count
 toward conversion or order totals. The order table covers all learners and

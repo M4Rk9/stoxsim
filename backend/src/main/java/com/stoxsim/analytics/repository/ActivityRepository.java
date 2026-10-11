@@ -26,7 +26,7 @@ public class ActivityRepository {
         return jdbc.queryForObject("""
             SELECT COUNT(DISTINCT a.user_id) FROM product_activity a
             JOIN app_user u ON u.id = a.user_id
-            WHERE u.platform_role = 'USER' AND a.event_name <> 'ORDER_EXECUTED'
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.event_name <> 'ORDER_EXECUTED'
                 AND a.event_day >= ? AND a.event_day <= ?
                 AND a.first_at >= ? AND a.first_at < ?
             """, Long.class, utcDate(start), utcDate(end), Timestamp.from(start), Timestamp.from(end));
@@ -36,7 +36,7 @@ public class ActivityRepository {
         return jdbc.query("""
             SELECT event_day, COUNT(DISTINCT a.user_id) AS total FROM product_activity a
             JOIN app_user u ON u.id = a.user_id
-            WHERE u.platform_role = 'USER' AND a.event_name <> 'ORDER_EXECUTED'
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.event_name <> 'ORDER_EXECUTED'
                 AND a.event_day >= ? AND a.event_day <= ?
                 AND a.first_at >= ? AND a.first_at < ?
             GROUP BY event_day ORDER BY event_day
@@ -48,7 +48,7 @@ public class ActivityRepository {
         return jdbc.queryForObject("""
             WITH cohort AS (
                 SELECT id, created_at FROM app_user
-                WHERE platform_role = 'USER' AND created_at >= ? AND created_at < ?
+                WHERE platform_role = 'USER' AND NOT is_test_account AND created_at >= ? AND created_at < ?
             ), measured AS (
                 SELECT c.id, c.created_at,
                     MIN(a.first_at) FILTER (WHERE event_name = 'STOCK_OPENED') AS research,
@@ -85,7 +85,7 @@ public class ActivityRepository {
         return jdbc.queryForObject("""
             WITH cohort AS (
                 SELECT id, created_at, (created_at AT TIME ZONE 'UTC')::date + ? AS return_day
-                FROM app_user WHERE platform_role = 'USER' AND created_at >= ? AND created_at < ?
+                FROM app_user WHERE platform_role = 'USER' AND NOT is_test_account AND created_at >= ? AND created_at < ?
             )
             SELECT COUNT(*) FILTER (WHERE created_at >= ? AND return_day < ?) AS eligible,
                 COUNT(*) FILTER (WHERE created_at >= ? AND return_day >= ?) AS immature,

@@ -36,7 +36,7 @@ public class ProductActivityService {
         jdbc.update("""
             INSERT INTO product_activity(user_id, event_day, event_name, first_at)
             SELECT id, ?, ?, ? FROM app_user
-            WHERE id = ? AND platform_role = 'USER'
+            WHERE id = ? AND platform_role = 'USER' AND NOT is_test_account
             ON CONFLICT (user_id, event_day, event_name) DO NOTHING
             """, Date.valueOf(now.atZone(ZoneOffset.UTC).toLocalDate()), kind.name(), Timestamp.from(now), userId);
     }

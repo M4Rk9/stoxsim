@@ -80,7 +80,7 @@ export default function ActivityPanel({ from, to, revision }: { from: string; to
         <tbody>{data.retention.map(row => <tr key={row.day}><th scope="row">D{row.day}</th><td>{count(row.eligible)}</td>
           <td>{count(row.returned)}</td><td>{percent(row.percent)}</td><td>{count(row.immature)}</td><td>{count(row.excluded)}</td></tr>)}</tbody>
       </table></div>
-      <p>— means no eligible cohort, not zero retention. Deleted learners and current administrators are excluded.
+      <p>— means no eligible cohort, not zero retention. Deleted learners, current administrators and controlled test accounts are excluded.
         These counts can change after account deletion or role changes.</p>
     </div>
   </section>;

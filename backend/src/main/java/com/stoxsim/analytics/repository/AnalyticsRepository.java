@@ -24,7 +24,7 @@ public class AnalyticsRepository {
         return jdbc.queryForObject("""
             SELECT COUNT(*) AS registered,
                    COUNT(*) FILTER (WHERE email_verified_at <= ?) AS verified
-            FROM app_user WHERE platform_role = 'USER' AND created_at < ?
+            FROM app_user WHERE platform_role = 'USER' AND NOT is_test_account AND created_at < ?
             """, (rs, row) -> new UserTotals(rs.getLong("registered"), rs.getLong("verified")),
             Timestamp.from(asOf), Timestamp.from(asOf));
     }
@@ -38,7 +38,7 @@ public class AnalyticsRepository {
                   AND o.status = 'EXECUTED' AND o.executed_at < ?
             )) AS traded
             FROM app_user u
-            WHERE u.platform_role = 'USER' AND u.created_at >= ? AND u.created_at < ?
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND u.created_at >= ? AND u.created_at < ?
             """, (rs, row) -> {
                 long registered = rs.getLong("registered");
                 long traded = rs.getLong("traded");
@@ -51,7 +51,7 @@ public class AnalyticsRepository {
         return jdbc.query("""
             SELECT (created_at AT TIME ZONE 'UTC')::date AS day, COUNT(*) AS registered
             FROM app_user
-            WHERE platform_role = 'USER' AND created_at >= ? AND created_at < ?
+            WHERE platform_role = 'USER' AND NOT is_test_account AND created_at >= ? AND created_at < ?
             GROUP BY day ORDER BY day
             """, (rs, row) -> new DailySignups(rs.getDate("day").toLocalDate(), rs.getLong("registered")),
             Timestamp.from(start), Timestamp.from(end));
@@ -63,7 +63,7 @@ public class AnalyticsRepository {
             FROM paper_order o
             JOIN virtual_account a ON a.id = o.account_id
             JOIN app_user u ON u.id = a.user_id
-            WHERE u.platform_role = 'USER' AND a.account_kind = 'STANDARD'
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.account_kind = 'STANDARD'
               AND o.created_at >= ? AND o.created_at < ?
             GROUP BY a.market_region, o.status ORDER BY a.market_region, o.status
             """, (rs, row) -> new OrderCount(rs.getString("market_region"), rs.getString("status"),

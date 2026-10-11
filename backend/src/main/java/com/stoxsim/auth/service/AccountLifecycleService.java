@@ -207,7 +207,7 @@ public class AccountLifecycleService {
         export.put("profile", jdbcTemplate.queryForMap(
             """
             SELECT id, email, display_name, platform_role, email_verified_at,
-                   terms_accepted_at, terms_version, privacy_version,
+                   terms_accepted_at, terms_version, privacy_version, is_test_account,
                    created_at, updated_at
             FROM app_user
             WHERE id = ?
