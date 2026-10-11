@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
       <ActivityPanel from={data.from} to={data.to} revision={data.generatedAt} />
       <aside className={styles.notice}>
         <h2>About these numbers</h2>
-        <p>Administrator and deleted accounts are excluded. These are current records, so deleting an account changes past counts. India and US activity can each contribute to first-trade conversion; every learner counts once.</p>
+        <p>Administrator, deleted and controlled test accounts are excluded. These are current records, so deleting an account changes past counts. India and US activity can each contribute to first-trade conversion; every learner counts once.</p>
         <p>Activity and retention use observed events from the tracking start date. First-trade conversion above remains a separate measure based on current order records.</p>
       </aside>
     </>}

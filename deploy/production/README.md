@@ -149,3 +149,10 @@ If production must temporarily reuse the current Lightsail instance:
 9. Confirm HTTPS, email, backups and rollback before opening registration.
 
 The staging and production Compose projects use different named volumes, so the database does not move automatically. The verified dump/restore step is mandatory.
+
+## Controlled test-account audit
+
+Run `bash audit-test-accounts.sh` on the VPS for read-only aggregate counts, or
+`bash audit-test-accounts.sh --details` for private leftover review. V119 marks
+reserved test identities and excludes them from growth analytics without deletion.
+See [classification, cleanup and backend health](../../docs/CONTROLLED_TEST_ACCOUNTS.md).
