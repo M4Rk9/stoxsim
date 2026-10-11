@@ -61,12 +61,13 @@ class WebParityScreenTest {
         compose.runOnIdle { assertEquals("Account", destination) }
     }
     @Test fun darkThemeUsesWebsiteColours() {
-        var background = 0L; var primary = 0L
+        var background = 0L; var primary = 0L; var selected = 0L
         compose.setContent { StoxSimTheme(dark = true) {
             background = androidx.compose.material3.MaterialTheme.colorScheme.background.value.toLong()
             primary = androidx.compose.material3.MaterialTheme.colorScheme.primary.value.toLong()
+            selected = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.value.toLong()
             Column { androidx.compose.material3.Text("Shared StoxSim theme") }
         } }
-        compose.runOnIdle { assertEquals(androidx.compose.ui.graphics.Color(0xFF121212).value.toLong(), background); assertEquals(androidx.compose.ui.graphics.Color(0xFF00D09C).value.toLong(), primary) }
+        compose.runOnIdle { assertEquals(androidx.compose.ui.graphics.Color(0xFF121212).value.toLong(), background); assertEquals(androidx.compose.ui.graphics.Color(0xFF00D09C).value.toLong(), primary); assertEquals(androidx.compose.ui.graphics.Color(0xFF17332B).value.toLong(), selected) }
     }
 }

@@ -5,6 +5,11 @@ import android.graphics.Bitmap
 import android.provider.MediaStore
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.filters.SdkSuppress
@@ -13,6 +18,7 @@ import com.stoxsim.app.data.*
 import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertTrue
 import java.math.BigDecimal
 
 /** Render real native components with synthetic data for visual review, never a live account. */
@@ -39,7 +45,12 @@ class VisualSmokeTest {
         val resolver = instrumentation.targetContext.contentResolver
         val values = ContentValues().apply { put(MediaStore.Images.Media.DISPLAY_NAME, name); put(MediaStore.Images.Media.MIME_TYPE, "image/png"); put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/StoxSimReview") }
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)!!
-        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+        compose.onNodeWithText("Good day, Learner.").assertIsDisplayed()
+        // PixelCopy waits for the Compose root's draw, rather than racing the system compositor.
+        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        assertTrue("The captured native screen must contain rendered content", pixels.toSet().size > 20)
         resolver.openOutputStream(uri)!!.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }

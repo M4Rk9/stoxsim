@@ -14,9 +14,12 @@ import androidx.compose.ui.unit.sp
 private val Light = lightColorScheme(
     primary = Color(0xFF0B8F55), onPrimary = Color.White,
     primaryContainer = Color(0xFFE8F7EE), onPrimaryContainer = Color(0xFF087143),
-    secondary = Color(0xFF6D7C75), background = Color(0xFFF4F6F1),
+    secondary = Color(0xFF6D7C75), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE8F7EE), onSecondaryContainer = Color(0xFF087143),
+    background = Color(0xFFF4F6F1), surfaceTint = Color(0xFF0B8F55),
     surface = Color(0xFFFFFFFF), surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF8FAF7), surfaceVariant = Color(0xFFEEF2ED),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF8FAF7),
+    surfaceContainerHigh = Color.White, surfaceContainerHighest = Color(0xFFEEF2ED), surfaceVariant = Color(0xFFEEF2ED),
     onSurface = Color(0xFF17211D), onBackground = Color(0xFF17211D), onSurfaceVariant = Color(0xFF6D7C75),
     outline = Color(0xFF6D7C75), outlineVariant = Color(0xFFDFE5DE),
     error = Color(0xFFC33C3C), errorContainer = Color(0xFFFFF0EF), onErrorContainer = Color(0xFFC33C3C)
@@ -24,9 +27,12 @@ private val Light = lightColorScheme(
 private val Dark = darkColorScheme(
     primary = Color(0xFF00D09C), onPrimary = Color(0xFF06150D),
     primaryContainer = Color(0xFF17332B), onPrimaryContainer = Color(0xFF00D09C),
-    secondary = Color(0xFFA3A3A3), background = Color(0xFF121212),
+    secondary = Color(0xFFA3A3A3), onSecondary = Color(0xFF121212),
+    secondaryContainer = Color(0xFF17332B), onSecondaryContainer = Color(0xFF00D09C),
+    background = Color(0xFF121212), surfaceTint = Color(0xFF00D09C),
     surface = Color(0xFF1B1B1B), surfaceContainer = Color(0xFF1B1B1B),
-    surfaceContainerLow = Color(0xFF181818), surfaceVariant = Color(0xFF222222),
+    surfaceContainerLowest = Color(0xFF121212), surfaceContainerLow = Color(0xFF181818),
+    surfaceContainerHigh = Color(0xFF222222), surfaceContainerHighest = Color(0xFF262626), surfaceVariant = Color(0xFF222222),
     onSurface = Color(0xFFF1F1F1), onBackground = Color(0xFFF1F1F1), onSurfaceVariant = Color(0xFFA3A3A3),
     outline = Color(0xFFA3A3A3), outlineVariant = Color(0xFF303030),
     error = Color(0xFFEF6464), errorContainer = Color(0xFF331F1F), onErrorContainer = Color(0xFFFFAAAA)
