@@ -9,7 +9,7 @@ The five-minute Production uptime workflow is read-only and creates no learners.
 ## Inspect leftovers on the VPS
 
 The deployment bundle includes a read-only audit, compatible with the database
-both before and after V119:
+before V119, between V119/V120, and after V120:
 
 ```bash
 cd ~/stoxsim-production
@@ -20,9 +20,15 @@ bash audit-test-accounts.sh --details
 Use the actual deployment directory if it differs. The first command prints
 counts only. The optional detail command prints up to 100 account identifiers,
 emails and timestamps for private review. Do not upload that output publicly.
-It includes matching names as review candidates; a name alone does not establish
-that an account is controlled or disposable. No passwords/tokens are selected.
+It includes matching names and other `stoxsim.test` addresses as review
+candidates; a name alone does not establish that an account is controlled or disposable. No passwords/tokens are selected.
 The transaction and session are read-only and have a ten-second statement timeout.
+
+`unmarked_test_domain_learners` highlights remaining accounts on the reserved
+test domain for manual review, including formats that the classifier does not
+yet recognize. A nonzero count is not proof that all those accounts are tests.
+The detail list is capped at 100 rows; use the summary counts to assess the whole
+dataset. `--details` is a test/candidate list, not a list of public learners.
 
 The default monitored inbox is `support.stoxsim@gmail.com`. If the production
 smoke secret uses a different inbox, run with that base address explicitly:
@@ -39,11 +45,20 @@ production results must be collected on the VPS; CI fixtures are not live eviden
 
 V119 adds the database-owned `app_user.is_test_account` marker. It backfills
 the exact reserved identity combinations used by the production smoke, staging
-smoke, authorization A/B, load and CI capacity scripts. Production aliases must
-match an operator-controlled `controlled_test_mailbox` entry AND the expected
+smoke, authorization A/B, load and CI capacity scripts. V120 extends it to
+`Browser Learner` (both historical unlabelled addresses and the current ten
+journey labels), `Recovery Drill`, and the twelve numbered `Synthetic capacity
+learner` fixtures. It backfills existing records and replaces the classifier
+used by the existing registration trigger. V119 remains unchanged.
+Production aliases must match an operator-controlled `controlled_test_mailbox` entry AND the expected
 name and numeric suffix. The other scripts require their exact reserved name,
 address prefix/suffix and `stoxsim.test` domain. Similar names, other inboxes and
 arbitrary `.test` addresses remain ordinary learners.
+
+Browser formats were confirmed in `frontend/e2e/learner-journey.spec.ts`,
+including repository history before the labelled format was introduced. Recovery
+and numbered capacity formats come from `scripts/staging-recovery-drill.sh` and
+`scripts/operations/capacity.py`. All require the exact name and email format.
 
 A BEFORE INSERT trigger marks future reserved accounts in the registration
 transaction. The marker survives profile/email changes; it is not accepted in

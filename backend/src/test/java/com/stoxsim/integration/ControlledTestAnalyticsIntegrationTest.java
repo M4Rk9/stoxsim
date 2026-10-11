@@ -32,6 +32,7 @@ class ControlledTestAnalyticsIntegrationTest {
     private static final Instant COVERAGE = NOW.minusSeconds(30 * 86400);
     JdbcTemplate db;
     UUID legacy;
+    UUID[] additionalLegacy;
 
     @BeforeEach void setup() throws Exception {
         db = new JdbcTemplate(new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
@@ -50,6 +51,15 @@ class ControlledTestAnalyticsIntegrationTest {
         legacy = insert("support.stoxsim+production-smoke-1700000000-42@gmail.com", "Production Smoke", "USER");
         migrate("V111__product_activity.sql");
         migrate("V119__exclude_controlled_test_accounts.sql");
+        additionalLegacy = new UUID[]{
+            insert("browser-1700000000000-abcdef1234567@stoxsim.test", "Browser Learner", "USER"),
+            insert("browser-auth-1700000000000-abcdef1234567@stoxsim.test", "Browser Learner", "USER"),
+            insert("recovery-1700000000-42@stoxsim.test", "Recovery Drill", "USER"),
+            insert("m7-12@stoxsim.test", "Synthetic capacity learner", "USER")
+        };
+        for (var id : additionalLegacy) assertThat(marked(id)).isFalse();
+        assertThat(audit(false)).contains("5|1|4|0|4");
+        migrate("V120__classify_browser_and_recovery_test_accounts.sql");
     }
 
     private void migrate(String name) throws Exception {
@@ -87,6 +97,42 @@ class ControlledTestAnalyticsIntegrationTest {
         assertThat(marked(legacy)).isTrue();
     }
 
+    @Test void backfillsBrowserRecoveryAndCapacityWithoutBroadNameOrDomainExclusion() throws Exception {
+        for (var id : additionalLegacy) assertThat(marked(id)).isTrue();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM app_user", Long.class)).isEqualTo(5);
+        for (String label : new String[]{"auth", "markets", "finwiz", "lifecycle", "sandbox-switcher",
+                "onboarding", "progression", "competitions", "campus-verification", "pro-provisioning"}) {
+            assertThat(marked(insert("browser-" + label + "-1700000000000-abc123@stoxsim.test",
+                "Browser Learner", "USER"))).isTrue();
+        }
+        assertThat(marked(insert("browser-1700000000000-abc123@stoxsim.test", "Browser Learner", "USER"))).isTrue();
+        assertThat(marked(insert("recovery-1700000000-42@stoxsim.test", "Recovery Drill", "USER"))).isTrue();
+        assertThat(marked(insert("m7-1@stoxsim.test", "Synthetic capacity learner", "USER"))).isTrue();
+        for (String email : new String[]{"browser-unrecognized-1700000000000-abc123@stoxsim.test",
+                "browser-auth-1700000000000-nothex@stoxsim.test", "browser-1700000000000-abc123@example.test"}) {
+            assertThat(marked(insert(email, "Browser Learner", "USER"))).isFalse();
+        }
+        assertThat(marked(insert("browser-auth-1700000000000-abc123@stoxsim.test", "Real Learner", "USER"))).isFalse();
+        assertThat(marked(insert("recovery-1700000000-42@stoxsim.test", "Real Learner", "USER"))).isFalse();
+        assertThat(marked(insert("recovery-bad@stoxsim.test", "Recovery Drill", "USER"))).isFalse();
+        assertThat(marked(insert("recovery-1700000000-42@example.test", "Recovery Drill", "USER"))).isFalse();
+        assertThat(marked(insert("m7-13@stoxsim.test", "Synthetic capacity learner", "USER"))).isFalse();
+        assertThat(marked(insert("m7-1@stoxsim.test", "Real Learner", "USER"))).isFalse();
+        db.update("UPDATE app_user SET email='changed-browser@example.test',display_name='Changed' WHERE id=?", additionalLegacy[0]);
+        assertThat(marked(additionalLegacy[0])).isTrue();
+    }
+
+    @Test void auditSurfacesUnknownTestDomainCandidatesWithoutMarkingThem() throws Exception {
+        var candidate = insert("unrecognized-fixture@stoxsim.test", "Unknown fixture", "USER");
+        var real = insert("real@example.com", "Browser Learner", "USER");
+        assertThat(audit(false)).contains("7|5|0|2|1");
+        assertThat(audit(true)).contains("unrecognized-fixture@stoxsim.test", "real@example.com",
+            "browser-auth-1700000000000-abcdef1234567@stoxsim.test", "recovery-1700000000-42@stoxsim.test");
+        assertThat(marked(candidate)).isFalse();
+        assertThat(marked(real)).isFalse();
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM app_user", Long.class)).isEqualTo(7);
+    }
+
     @Test void mailboxAllowlistAndManualMarkerAreOperatorControlled() {
         assertThat(marked(insert("qa+production-smoke-1700000001-7@example.test", "Production Smoke", "USER"))).isFalse();
         db.update("INSERT INTO controlled_test_mailbox(base_email) VALUES ('qa@example.test')");
@@ -96,21 +142,21 @@ class ControlledTestAnalyticsIntegrationTest {
         assertThat(marked(manual)).isTrue();
     }
 
-    private String audit() throws Exception {
+    private String audit(boolean details) throws Exception {
         POSTGRES.copyFileToContainer(MountableFile.forHostPath(
             Path.of("../deploy/production/audit-test-accounts.sql").toAbsolutePath().normalize()), "/tmp/audit.sql");
         var result = POSTGRES.execInContainer("psql", "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1",
             "-U", POSTGRES.getUsername(), "-d", POSTGRES.getDatabaseName(),
-            "-v", "smoke_base_email=support.stoxsim@gmail.com", "-v", "show_details=false", "-f", "/tmp/audit.sql");
+            "-v", "smoke_base_email=support.stoxsim@gmail.com", "-v", "show_details=" + details, "-f", "/tmp/audit.sql");
         assertThat(result.getExitCode()).as(result.getStderr()).isZero();
         return result.getStdout();
     }
 
     @Test void readOnlyAuditWorksBeforeAndAfterMarkerMigration() throws Exception {
-        assertThat(audit()).contains("1|1|0|0");
+        assertThat(audit(false)).contains("5|5|0|0|0");
         db.execute("ALTER TABLE app_user DROP COLUMN is_test_account");
-        assertThat(audit()).contains("1|0|1|0");
-        assertThat(db.queryForObject("SELECT COUNT(*) FROM app_user", Long.class)).isEqualTo(1);
+        assertThat(audit(false)).contains("5|0|5|0|4");
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM app_user", Long.class)).isEqualTo(5);
     }
 
     private void journey(UUID id) {
@@ -132,6 +178,7 @@ class ControlledTestAnalyticsIntegrationTest {
         var otherMailbox = insert("other+production-smoke-1700000001-7@gmail.com", "Production Smoke", "USER");
         var admin = insert("owner@example.test", "Owner", "ADMIN");
         for (var id : new UUID[]{real, sameName, otherMailbox, legacy, admin}) journey(id);
+        for (var id : additionalLegacy) journey(id);
         var overview = new AnalyticsRepository(db);
         assertThat(overview.users(NOW).registered()).isEqualTo(3);
         assertThat(overview.users(NOW).emailVerified()).isEqualTo(3);
@@ -146,6 +193,11 @@ class ControlledTestAnalyticsIntegrationTest {
         assertThat(activity.activation(COVERAGE, NOW, COVERAGE, NOW).activated()).isEqualTo(3);
         assertThat(activity.retention(1, COVERAGE, NOW, COVERAGE, LocalDate.ofInstant(NOW, ZoneOffset.UTC)).returned()).isEqualTo(3);
         var capture = new ProductActivityService(db, Clock.fixed(NOW, ZoneOffset.UTC));
+        for (var id : additionalLegacy) {
+            capture.record(id, ProductActivityEvent.Kind.ACTIVE);
+            assertThat(db.queryForObject("SELECT COUNT(*) FROM product_activity WHERE user_id=? AND event_day=?::date",
+                Long.class, id, "2026-10-11")).isZero();
+        }
         capture.record(legacy, ProductActivityEvent.Kind.ACTIVE);
         assertThat(db.queryForObject("SELECT COUNT(*) FROM product_activity WHERE user_id=? AND event_day=?::date",
             Long.class, legacy, "2026-10-11")).isZero();
