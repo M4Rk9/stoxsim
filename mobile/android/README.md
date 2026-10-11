@@ -1,25 +1,45 @@
 # StoxSim native Android
 
-The Android Studio project is in `project/`. Version 0.2.0 replaces the previous
+The Android Studio project is in `project/`. Version 0.3.0 replaces the previous
 Trusted Web Activity launcher with Kotlin and Jetpack Compose. The app's main
 screens run natively and call `https://api.stoxsim.com` directly. Chrome is not
-needed for sign-in, account balances, stock search or portfolio viewing.
+needed for the main trading, portfolio and learning screens.
 The application ID remains `com.stoxsim.app`; launcher artwork is retained.
 
-## What this milestone includes
+## Website-aligned native experience
 
-- Native Material 3 UI, light/dark themes, bottom navigation and keyboard insets.
-- Existing-account login, registration with legal consent, and password-reset requests.
-- Secure session restoration, refresh-token rotation and sign-out.
-- Practice-account balances, India/US instrument search, and standard-account
-  portfolio valuation/holdings with pricing status and valuation timestamp.
-- Connection errors, retry actions and explicit session-expiry handling.
+The UI follows the colours in `frontend/app/globals.css` / `theme.css`, uses the
+same brand artwork and section names, and defaults to light appearance like the
+website. Dark appearance is an explicit per-user device preference. Native bottom
+navigation provides Home, Markets, Portfolio, Orders and Explore; the account
+button opens settings. Cards, charts and forms adapt to a phone rather than copying
+the desktop columns.
 
-This is the native **foundation**, not the full paid release. Charts, watchlists,
-order entry/history, sandbox portfolio selection, native profile/deletion controls
-and Play Billing are subsequent milestones. No purchase buttons are exposed.
-Terms/privacy/deletion help and email reset/verification links still use the
-system browser; the app intentionally does not intercept website links yet.
+- Login, consent-based registration, password-reset requests, encrypted session
+  restoration/rotation, sign-out and session expiry.
+- India/US markets, index snapshots, movers, symbol/company search, stock detail,
+  historical price charts, company fundamentals and quarterly/yearly financials.
+- Foreground-only authenticated quote streaming, connection/freshness indicators,
+  reconnects, and manual refresh. Backgrounding/sign-out closes the connection.
+- Watchlist add/remove, standard/sandbox account selection, locked-account states.
+- Reviewed market/limit buy/sell orders, simulated charge estimates, open-order
+  cancellation, order history, executed trades and cash ledger.
+- Account valuation and holdings, StoxScore, allocation/attribution, daily history,
+  benchmarks/drawdown/risk metrics where the existing plan and data permit them.
+- Scenario Lab presets/custom paths and server credit balances; Finwiz questions;
+  learning path/check-ins/achievements; global and private-league competitions.
+- Campus discovery, membership/verification requests, competition enrollment and
+  standings, organizer competition creation and membership-request review.
+- Profile/email/password controls, verification resend, active-session revocation,
+  logout-all, native account deletion, user-selected account export, weekly reports
+  and email preferences, and existing plan/sandbox benefits.
+
+This is a native trading/learning implementation, not a paid Play release. Android
+checkout/Play Billing, scoped email verification/reset app links, and the remaining
+campus moderation/platform-administration controls are separate work. No checkout
+buttons are exposed. Legal documents and email reset/verification links still open
+the system browser. See [the parity map](../../docs/ANDROID_WEB_PARITY.md) for
+feature mapping and owner device verification.
 
 ## Open and test in Android Studio
 
@@ -27,7 +47,8 @@ From your repository terminal:
 
 ```bash
 git fetch origin
-git switch feat/android-native-foundation
+git switch feat/android-web-parity
+git pull --ff-only
 ```
 
 Open `mobile/android/project`, allow Gradle sync, then press Run. Use JDK 17 or
@@ -77,9 +98,11 @@ The server omits refresh tokens from the auth JSON and issues a secure, HTTP-onl
 `stoxsim_refresh` cookie. The native client extracts only that host-only cookie
 from successful login/register/refresh responses and encrypts its value with
 AES-GCM under an Android Keystore key. It sends it back through the server's
-existing JSON refresh/logout contract. No generic cookie jar or browser bridge is
+existing JSON refresh/logout contract. Only the session inventory request attaches
+that cookie to identify this device, under the same API origin/auth path. No generic cookie jar or browser bridge is
 used. Access tokens stay in memory; passwords, account responses and portfolio
-responses are not saved to disk or instance state. Backup and device transfer
+responses are not saved to disk or instance state, apart from an explicit user
+export through the Android document picker. Appearance preferences are local. Backup and device transfer
 are excluded, cleartext traffic is disabled, and redirects/automatic transport
 retries/logging are disabled.
 

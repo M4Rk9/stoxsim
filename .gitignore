@@ -41,3 +41,5 @@ deploy/production/backups/
 deploy/production/.previous-image-tag
 deploy/production/monitoring/alertmanager.yml
 deploy/production/monitoring/metrics-scrape-token
+
+mobile/android/project/native-review/
