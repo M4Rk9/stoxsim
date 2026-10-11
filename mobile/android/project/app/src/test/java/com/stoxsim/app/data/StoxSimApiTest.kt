@@ -133,6 +133,64 @@ class StoxSimApiTest {
         assertEquals(2, url.querySize)
     }
 
+    @Test fun orderUsesSelectedAccountAndStableKeyWithoutAutomaticReplay() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("""{"id":"order","status":"OPEN"}"""))
+        val draft = OrderDraft("sandbox-id", Instrument("ABC", "ABC Company", "NSE", "INDIA"), "BUY", "LIMIT", 3, java.math.BigDecimal("120.50"))
+        api.mutate("accounts/sandbox-id/orders", body = draft.payload(), idempotencyKey = "retained-request-key")
+        val request = server.takeRequest()
+        assertEquals("/api/v1/accounts/sandbox-id/orders", request.path)
+        assertEquals("POST", request.method)
+        assertEquals("retained-request-key", request.getHeader("Idempotency-Key"))
+        val payload = JSONObject(request.body.readUtf8())
+        assertEquals(3L, payload.getLong("quantity")); assertEquals("LIMIT", payload.getString("orderType"))
+        assertEquals(0, java.math.BigDecimal("120.50").compareTo(payload.money("limitPrice")))
+        assertEquals("Bearer access", request.getHeader("Authorization")); assertNull(request.getHeader("Cookie"))
+    }
+    @Test fun write401ReconnectsButNeverResubmitsOrder() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setResponseCode(401)); server.enqueue(session("rotated"))
+        try { api.mutate("accounts/account/orders", idempotencyKey = "key"); fail("Expected explicit retry") }
+        catch (failure: java.io.IOException) { assertEquals("Session reconnected. Review the action and try again.", failure.message) }
+        assertEquals("/api/v1/accounts/account/orders", server.takeRequest().path)
+        assertEquals("/api/v1/auth/refresh", server.takeRequest().path)
+        assertEquals(3, server.requestCount); assertEquals("rotated", store.value)
+    }
+    @Test fun writeTimeoutDoesNotRetryOrLoseSession() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AFTER_REQUEST))
+        try { api.mutate("accounts/account/orders", idempotencyKey = "key"); fail("Expected network failure") }
+        catch (_: java.io.IOException) { }
+        assertEquals(2, server.requestCount); assertEquals("initial", store.value)
+    }
+    @Test fun sessionInventoryAloneSendsRefreshCookieToIdentifyCurrentDevice() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("[]")); api.arrayData("auth/sessions")
+        assertEquals("stoxsim_refresh=initial", server.takeRequest().getHeader("Cookie"))
+        server.enqueue(MockResponse().setBody("[]")); api.arrayData("accounts/account/orders")
+        assertNull(server.takeRequest().getHeader("Cookie"))
+    }
+    @Test fun quoteEncodesSymbolAsSinglePathSegment() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("""{"lastPrice":null,"previousClose":null,"dataStatus":"UNAVAILABLE","exchangeTimestamp":null}"""))
+        val quote = api.quote(Instrument("A/B?x", "Test", "NASDAQ", "UNITED_STATES"))
+        assertNull(quote.price)
+        val url = server.takeRequest().requestUrl!!
+        assertEquals("A/B?x", url.pathSegments[5]); assertEquals(0, url.querySize)
+    }
+    @Test fun tradingFailureDisplaysServerValidationAndDoesNotRetry() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setResponseCode(422).setBody("""{"message":"Insufficient available cash"}"""))
+        try { api.mutate("accounts/account/orders"); fail("Expected validation failure") }
+        catch (failure: ApiFailure) { assertEquals(422, failure.status); assertEquals("Insufficient available cash", failure.message) }
+        assertEquals(2, server.requestCount)
+    }
+    @Test fun emptyMembershipResponseIsAnEmptyObject() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("null"))
+        assertEquals(0, api.objectData("campus/membership-request").length())
+    }
+
     private fun session(token: String, access: String = "access") = MockResponse()
         .setBody(sessionBody(access))
         .addHeader("Set-Cookie", "stoxsim_refresh=$token; Path=/api/v1/auth; Secure; HttpOnly; SameSite=Strict; Max-Age=3600")

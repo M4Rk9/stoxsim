@@ -16,12 +16,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.time.LocalDate
+import java.time.ZoneId
 
-internal class ApiFailure(val status: Int) : IOException(when (status) {
+internal class ApiFailure(val status: Int, detail: String? = null) : IOException(detail ?: when (status) {
     400 -> "Check the information you entered and try again."
     401 -> "Your session has expired. Please sign in again."
     403 -> "This action is currently unavailable for your account."
+    404 -> "This item could not be found."
     409 -> "This account or action already exists."
+    422 -> "The order could not be placed. Check its quantity, price and available balance."
     429 -> "Too many requests. Wait a minute before trying again."
     else -> "StoxSim is unavailable right now. Please try again shortly."
 })
@@ -38,6 +42,7 @@ internal class StoxSimApi(
 ) {
     private val lock = Mutex()
     private var accessToken: String? = null
+    private var accessExpiresAt: Long = 0
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     suspend fun restore(): User? = serialized {
@@ -52,7 +57,7 @@ internal class StoxSimApi(
         request("api/v1/auth/" + if (name == null) "login" else "register", body).use { response ->
             if (!response.isSuccessful) {
                 if (response.code == 401) throw IOException("Email or password is incorrect.")
-                throw ApiFailure(response.code)
+                throw failure(response)
             }
             acceptSession(response)
         }
@@ -60,7 +65,7 @@ internal class StoxSimApi(
 
     suspend fun forgotPassword(email: String) = serialized {
         request("api/v1/auth/password/forgot", JSONObject().put("email", email.trim())).use {
-            if (!it.isSuccessful) throw ApiFailure(it.code)
+            if (!it.isSuccessful) throw failure(it)
         }
     }
 
@@ -72,7 +77,60 @@ internal class StoxSimApi(
 
     suspend fun search(region: String, query: String): List<Instrument> = serialized {
         JSONArray(authorizedGet("api/v1/instruments/search", mapOf("marketRegion" to region, "q" to query.trim())))
-            .mapObjects { Instrument(it.getString("tradingSymbol"), it.getString("name"), it.getString("exchange")) }
+            .mapObjects { parseInstrument(it, region) }
+    }
+
+    suspend fun quotes(): kotlinx.coroutines.flow.Flow<JSONObject> {
+        val token = serialized {
+            if (accessToken == null || System.currentTimeMillis() >= accessExpiresAt - 30_000) refresh()
+            accessToken!!
+        }
+        return marketStream(client, baseUrl, token)
+    }
+    suspend fun accounts(): List<Account> = serialized {
+        JSONArray(authorizedGet("api/v1/accounts")).mapObjects(::parseAccount)
+    }
+    suspend fun accountPortfolio(id: String): Portfolio = serialized {
+        parsePortfolio(JSONObject(authorizedGet("api/v1/accounts/$id/portfolio")))
+    }
+    suspend fun objectData(path: String, params: Map<String, String> = emptyMap()): JSONObject = serialized {
+        authorizedGet("api/v1/$path", params).let { JSONObject(if (it == "null") "{}" else it) }
+    }
+    suspend fun arrayData(path: String, params: Map<String, String> = emptyMap()): List<JSONObject> = serialized {
+        JSONArray(authorizedGet("api/v1/$path", params)).mapObjects { it }
+    }
+    suspend fun quote(instrument: Instrument): Quote = serialized {
+        parseQuote(JSONObject(authorizedGet(stockPath(instrument, "quote"))))
+    }
+    suspend fun candles(instrument: Instrument, months: Long): List<Candle> = serialized {
+        val to = LocalDate.now(ZoneId.of(if (instrument.region == "INDIA") "Asia/Kolkata" else "America/New_York"))
+        JSONObject(authorizedGet(stockPath(instrument, "candles"), mapOf("interval" to "ONE_DAY",
+            "from" to to.minusMonths(months).toString(), "to" to to.toString())))
+            .getJSONArray("candles").mapObjects { Candle(it.getString("timestamp"), it.money("close")) }
+    }
+    suspend fun insights(instrument: Instrument, period: String): JSONObject = serialized {
+        JSONObject(authorizedGet(stockPath(instrument, "insights"), mapOf("timePeriod" to period)))
+    }
+    suspend fun mutate(path: String, method: String = "POST", body: JSONObject = JSONObject(),
+        idempotencyKey: String? = null): JSONObject = serialized {
+        // Rotate before writes when the advertised token lifetime is almost over. Never replay a write.
+        if (accessToken == null || System.currentTimeMillis() >= accessExpiresAt - 30_000) refresh()
+        request("api/v1/$path", body, accessToken, method = method, idempotencyKey = idempotencyKey).use {
+            if (it.code == 401) {
+                // Reconnect for the user's next explicit attempt without resubmitting this action.
+                refresh()
+                throw IOException("Session reconnected. Review the action and try again.")
+            }
+            if (!it.isSuccessful) throw failure(it)
+            val data = it.body?.string().orEmpty()
+            if (data.isBlank()) JSONObject() else JSONObject(data)
+        }
+    }
+    suspend fun endLocalSession() = serialized { clearSession() }
+    private fun stockPath(instrument: Instrument, resource: String): String {
+        // Encode one path segment; a symbol must never become extra path/query components.
+        val segment = baseUrl.newBuilder().addPathSegment(instrument.symbol).build().encodedPath.removePrefix("/")
+        return "api/v1/instruments/${instrument.region}/${instrument.exchange}/$segment/$resource"
     }
 
     /** Always remove local secrets; a failed remote revocation is reported to the UI. */
@@ -91,12 +149,17 @@ internal class StoxSimApi(
 
     private suspend fun <T> serialized(action: () -> T): T = withContext(Dispatchers.IO) { lock.withLock { action() } }
 
-    private fun request(path: String, body: JSONObject? = null, bearer: String? = null, params: Map<String, String> = emptyMap()): Response {
-        val url = baseUrl.newBuilder().addPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
+    private fun request(path: String, body: JSONObject? = null, bearer: String? = null, params: Map<String, String> = emptyMap(),
+        method: String? = null, idempotencyKey: String? = null): Response {
+        val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.2.0")
+            .header("User-Agent", "StoxSim-Android/0.3.0")
         bearer?.let { request.header("Authorization", "Bearer $it") }
-        body?.let { request.post(it.toString().toRequestBody(jsonType)) }
+        if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
+        idempotencyKey?.let { request.header("Idempotency-Key", it) }
+        if (method != null) request.method(method, if (method == "DELETE") body?.toString()?.toRequestBody(jsonType)
+            else (body ?: JSONObject()).toString().toRequestBody(jsonType))
+        else body?.let { request.post(it.toString().toRequestBody(jsonType)) }
         return client.newCall(request.build()).execute()
     }
 
@@ -117,7 +180,7 @@ internal class StoxSimApi(
         val token = store.read() ?: throw SessionExpired()
         request("api/v1/auth/refresh", JSONObject().put("refreshToken", token)).use {
             if (it.code == 401 || it.code == 403) { clearSession(); throw SessionExpired() }
-            if (!it.isSuccessful) throw ApiFailure(it.code)
+            if (!it.isSuccessful) throw failure(it)
             acceptSession(it)
         }
     }
@@ -133,13 +196,21 @@ internal class StoxSimApi(
         } ?: run { clearSession(); throw SessionExpired() }
         store.write(cookie.value)
         accessToken = access
+        accessExpiresAt = System.currentTimeMillis() + json.optLong("expiresInSeconds", 900).coerceIn(1, 86400) * 1000
         return user
     }
 
+    private fun failure(response: Response): ApiFailure {
+        val detail = if (response.code in setOf(400, 403, 404, 409, 422)) try {
+            JSONObject(response.body?.string().orEmpty()).text("message").takeIf { it.isNotBlank() }?.take(500)
+        } catch (_: Exception) { null } else null
+        return ApiFailure(response.code, detail)
+    }
+
     private fun readSuccessful(response: Response): String {
-        if (!response.isSuccessful) throw ApiFailure(response.code)
+        if (!response.isSuccessful) throw failure(response)
         return response.body?.string() ?: throw IOException("The server returned an empty response.")
     }
 
-    private fun clearSession() { accessToken = null; store.clear() }
+    private fun clearSession() { accessToken = null; accessExpiresAt = 0; store.clear() }
 }

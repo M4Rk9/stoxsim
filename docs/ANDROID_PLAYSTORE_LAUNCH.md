@@ -9,8 +9,8 @@ the existing web-release milestones do not prove Android release readiness.
 
 | Milestone | Work | Current state / completion evidence |
 | --- | --- | --- |
-| A1 — Native foundation | Kotlin/Compose UI, backend login/session, native balances, instrument search and portfolio reads | Implemented on the native foundation branch; automated build and owner device checks are tracked in its PR. |
-| A2 — Native trading experience | Stock detail/charts, watchlists, order entry/history, sandbox selection and account controls | Pending; the previous TWA shell is superseded. |
+| A1 — Native foundation | Kotlin/Compose UI, backend login/session, native balances, instrument search and portfolio reads | Merged in PR #149; automated foundation checks passed and owner tested the initial installation. |
+| A2 — Native trading experience | Stock detail/charts, watchlists, order entry/history, sandbox selection and account controls | Implemented on feat/android-web-parity with website-aligned design and native learning/competition/settings flows. See ANDROID_WEB_PARITY.md and its PR for validation and remaining parity work. |
 | A3 — Verified paid subscriptions | Play catalog/client, server verification, acknowledgement, renewals, cancellation/refund and restore | Pending. Existing Razorpay functionality is test-only; public checkout is disabled. |
 | A4 — Installable release and review readiness | Real-device QA, signing/AAB/internal Play installation, store listing, Data safety/deletion, app access and declarations | Pending native trading/billing and paid Play registration. |
 | A5 — Testing and publication | License purchases, lifecycle/security QA, required closed testing, production-access application and review | Pending A2–A4. Publication is subject to Google's review. |
@@ -30,7 +30,7 @@ the backend's existing JSON request contract. No browser sessions are imported,
 no credential JavaScript bridge is added and no private responses are cached.
 Core API requests use HTTPS, reject redirects and serialize refresh rotation.
 Legal/help pages and email reset/verification links deliberately open the system
-browser until scoped native handlers are implemented. A1 is not a trading or
+browser until scoped native handlers are implemented. The trading/learning parity branch extends A1; neither milestone is a paid
 purchase release.
 
 The app remains an online educational simulator using virtual money. Live trading,
