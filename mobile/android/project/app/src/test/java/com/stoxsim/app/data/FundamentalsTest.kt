@@ -44,4 +44,11 @@ class FundamentalsTest {
         assertTrue(financialPeriodMatches(data, "quarterly")); assertFalse(financialPeriodMatches(data, "yearly"))
         assertTrue(financialPeriodMatches(JSONObject(), "yearly"))
     }
+    @Test fun reportedUnitsUseIndianAndUsFormattingWithoutRescalingValues() {
+        assertEquals("₹1,00,000 Cr", financialAmount(BigDecimal("100000"), "crore"))
+        assertEquals("\$100,000 M", financialAmount(BigDecimal("100000"), "USD million"))
+        assertEquals("₹-5 Cr", financialAmount(BigDecimal("-5"), "crore"))
+        assertEquals("—", financialAmount(null, "USD million"))
+    }
+
 }

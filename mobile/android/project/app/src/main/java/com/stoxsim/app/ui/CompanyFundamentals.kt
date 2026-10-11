@@ -88,15 +88,6 @@ import java.math.BigDecimal
     }
 }
 
-internal fun financialAmount(value: BigDecimal?, units: String): String {
-    if (value == null) return "—"
-    val amount = number(value)
-    return when {
-        units.contains("crore", ignoreCase = true) -> "₹$amount Cr"
-        units.contains("USD", ignoreCase = true) && units.contains("million", ignoreCase = true) -> "\$$amount M"
-        else -> "$amount${if (units.isBlank()) "" else " $units"}"
-    }
-}
 @Composable internal fun FinancialBars(financials: JSONObject, period: String) {
     val points = remember(financials) { financialPoints(financials) }
     if (points.none { it.revenue != null || it.profit != null }) { Muted("Revenue and net profit history are unavailable for this stock."); return }
@@ -115,7 +106,7 @@ internal fun financialAmount(value: BigDecimal?, units: String): String {
         ChartLegend("Revenue", revenueColor); ChartLegend("Net profit", profitColor)
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Muted(number(scale.high)); Muted(number(scale.low))
+        Muted(financialNumber(scale.high, units)); Muted(financialNumber(scale.low, units))
     }
     Canvas(Modifier.fillMaxWidth().height(190.dp).semantics { contentDescription = "Revenue and net profit bar chart, ${if (period == "yearly") "Yearly" else "Quarterly"}" }
         .pointerInput(points) { detectTapGestures { selected = ((it.x / size.width) * points.size).toInt().coerceIn(points.indices) } }) {

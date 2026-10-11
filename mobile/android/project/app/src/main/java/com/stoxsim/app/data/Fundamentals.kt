@@ -3,6 +3,7 @@ package com.stoxsim.app.data
 import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -53,4 +54,17 @@ internal fun companyExcerpt(value: String): String {
     val prefix = text.take(177)
     val end = prefix.lastIndexOf(' ').takeIf { it >= 120 } ?: prefix.length
     return prefix.take(end).trimEnd('.', ',', ';', ':') + "…"
+}
+
+internal fun financialNumber(value: BigDecimal, units: String): String =
+    NumberFormat.getNumberInstance(if (units.contains("USD", ignoreCase = true)) Locale.US else Locale.forLanguageTag("en-IN"))
+        .apply { maximumFractionDigits = 2 }.format(value)
+internal fun financialAmount(value: BigDecimal?, units: String): String {
+    if (value == null) return "—"
+    val amount = financialNumber(value, units)
+    return when {
+        units.contains("crore", ignoreCase = true) -> "₹$amount Cr"
+        units.contains("USD", ignoreCase = true) && units.contains("million", ignoreCase = true) -> "\$$amount M"
+        else -> "$amount${if (units.isBlank()) "" else " $units"}"
+    }
 }
