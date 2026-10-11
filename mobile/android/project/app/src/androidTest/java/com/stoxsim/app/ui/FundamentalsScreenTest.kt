@@ -62,6 +62,7 @@ class FundamentalsScreenTest {
     }
     @Test fun metricCardsAndDescriptionHaveACompactDefaultAndExpandOnDemand() {
         scrollContent { CompanyFundamentals(state(), {}) }
+        compose.onNodeWithText("Manufacturing").assertIsDisplayed()
         compose.onNodeWithText("P/E").assertIsDisplayed()
         compose.onNodeWithText("17.97").assertIsDisplayed()
         compose.onNodeWithText("Sector 21.5").assertIsDisplayed()
@@ -108,8 +109,11 @@ class FundamentalsScreenTest {
             for (value in listOf("quarterly", "yearly")) {
                 compose.runOnIdle { period.value = value }
                 compose.onNodeWithContentDescription("Revenue and net profit bar chart, ${if (value == "yearly") "Yearly" else "Quarterly"}").performScrollTo()
+                compose.onNodeWithText(if (value == "yearly") "2026" else "Jun\n2026").performScrollTo()
                 capture("financials-$value-$appearance.png")
             }
+            compose.onNodeWithText("Read more").performScrollTo()
+            capture("company-about-$appearance.png")
         }
     }
     private fun capture(name: String) {

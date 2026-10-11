@@ -32,12 +32,11 @@ import java.math.BigDecimal
             Status(data.text("status"))
             if (data.text("message").isNotBlank()) Muted(data.text("message"))
             val profile = data.optJSONObject("profile")
-            val cards = mutableListOf<Triple<String, String, String>>()
-            profile?.text("sector")?.takeIf { it.isNotBlank() }?.let { cards += Triple("Sector", it, "") }
+            profile?.text("sector")?.takeIf { it.isNotBlank() }?.let { MetricCard("Sector", it, "", Modifier.fillMaxWidth()) }
             val sectorCap = profile?.text("sectorMarketCapInrFormatted")?.takeIf { it.isNotBlank() }
                 ?: profile?.decimal("sectorMarketCapInrCrore")?.let { "₹${number(it)} Cr" }
-            if (sectorCap != null) cards += Triple("Sector market cap", sectorCap, "")
-            cards += data.objects("ratios").map { Triple(it.text("name"), it.text("companyValue").ifBlank { "—" }, it.text("sectorValue").takeIf { value -> value.isNotBlank() }?.let { "Sector $it" }.orEmpty()) }
+            if (sectorCap != null) MetricCard("Sector market cap", sectorCap, "", Modifier.fillMaxWidth())
+            val cards = data.objects("ratios").map { Triple(it.text("name"), it.text("companyValue").ifBlank { "—" }, it.text("sectorValue").takeIf { value -> value.isNotBlank() }?.let { "Sector $it" }.orEmpty()) }
             if (cards.isEmpty()) Muted("Valuation ratios are unavailable for this stock.") else MetricCards(cards)
             Muted("Source: ${data.text("provider").replace('_', ' ')} · Refreshed ${time(data.text("asOf"))}")
         }
