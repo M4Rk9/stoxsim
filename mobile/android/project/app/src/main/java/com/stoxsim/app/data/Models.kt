@@ -11,7 +11,17 @@ internal data class Account(
 )
 internal data class User(val displayName: String, val email: String, val verified: Boolean, val accounts: List<Account>)
 internal data class Instrument(val symbol: String, val name: String, val exchange: String,
-    val region: String = "INDIA", val id: String = "", val currency: String = "INR", val key: String = "")
+    val region: String = "INDIA", val id: String = "", val currency: String = "INR", val key: String = "") {
+    val canWatch get() = symbol.isNotBlank() && when (region) {
+        "INDIA" -> exchange in setOf("NSE", "BSE")
+        "UNITED_STATES" -> exchange in setOf("NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE")
+        else -> false
+    }
+    fun watchlistPayload(): JSONObject {
+        require(canWatch)
+        return JSONObject().put("marketRegion", region).put("exchange", exchange).put("symbol", symbol.trim())
+    }
+}
 internal data class Position(val symbol: String, val name: String, val quantity: Long, val value: BigDecimal, val status: String,
     val exchange: String = "NSE", val average: BigDecimal? = null, val price: BigDecimal? = null,
     val profit: BigDecimal? = null, val returnPercent: BigDecimal? = null, val blockedQuantity: Long = 0)

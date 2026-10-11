@@ -1,6 +1,6 @@
 # StoxSim native Android
 
-The Android Studio project is in `project/`. Version 0.4.0 replaces the previous
+The Android Studio project is in `project/`. Version 0.4.1 replaces the previous
 Trusted Web Activity launcher with Kotlin and Jetpack Compose. The app's main
 screens run natively and call `https://api.stoxsim.com` directly. Chrome is not
 needed for the main trading, portfolio and learning screens.
@@ -50,7 +50,7 @@ From your repository terminal:
 
 ```bash
 git fetch origin
-git switch feat/android-product-navigation
+git switch fix/android-watchlist-fundamentals
 git pull --ff-only
 ```
 
@@ -125,3 +125,7 @@ links require explicitly scoped handlers and the actual Play signing certificate
 Read [the paid launch plan](../../docs/ANDROID_PLAYSTORE_LAUNCH.md) before release.
 
 See [product UI mapping](../../docs/ANDROID_PRODUCT_UI.md) for the new navigation and chat behaviour.
+
+0.4.1 fixes watchlist additions using the server market/exchange/symbol contract and
+adds metric cards, quarterly/yearly financial bar charts and a short expandable company
+description. See `../../docs/ANDROID_FUNDAMENTALS_UI.md` for validation and device checks.

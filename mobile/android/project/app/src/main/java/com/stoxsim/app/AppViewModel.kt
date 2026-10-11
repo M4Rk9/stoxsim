@@ -265,8 +265,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         }
     }
     fun watch(instrument: Instrument) = runAction {
-        require(instrument.id.isNotBlank())
-        putData("watchlist", api.mutate("watchlists/default/items", body = JSONObject().put("instrumentId", instrument.id)))
+        putData("watchlist", api.addToWatchlist(instrument))
         mutable.update { it.copy(notice = "Added ${instrument.symbol} to My Watchlist.") }
     }
     fun removeWatch(id: String) = runAction { putData("watchlist", api.mutate("watchlists/default/items/$id", "DELETE")) }

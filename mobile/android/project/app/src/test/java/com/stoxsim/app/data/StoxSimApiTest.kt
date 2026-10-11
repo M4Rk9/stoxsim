@@ -191,6 +191,38 @@ class StoxSimApiTest {
         assertEquals(0, api.objectData("campus/membership-request").length())
     }
 
+    @Test fun searchedBseStockUsesTheWatchlistServerContract() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("""[{"tradingSymbol":"RELIANCE","name":"Example company","exchange":"BSE","marketRegion":"INDIA","currency":"INR"}]"""))
+        val stock = api.search("INDIA", "reliance").single(); server.takeRequest()
+        assertEquals("", stock.id)
+        server.enqueue(MockResponse().setResponseCode(201).setBody("""{"name":"My Watchlist","items":[{"symbol":"RELIANCE","exchange":"BSE","marketRegion":"INDIA"}]}"""))
+        assertEquals("RELIANCE", api.addToWatchlist(stock).objects("items").single().getString("symbol"))
+        val request = server.takeRequest(); val body = JSONObject(request.body.readUtf8())
+        assertEquals("POST", request.method); assertEquals("/api/v1/watchlists/default/items", request.path)
+        assertEquals(setOf("marketRegion", "exchange", "symbol"), body.keys().asSequence().toSet())
+        assertEquals("INDIA", body.getString("marketRegion")); assertEquals("BSE", body.getString("exchange")); assertEquals("RELIANCE", body.getString("symbol"))
+        assertEquals("Bearer access", request.getHeader("Authorization"))
+    }
+    @Test fun usEtfWatchlistPreservesItsActualExchange() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setResponseCode(201).setBody("""{"items":[]}"""))
+        api.addToWatchlist(Instrument("SPY", "Example ETF", "NYSE_ARCA", "UNITED_STATES", currency = "USD"))
+        val body = JSONObject(server.takeRequest().body.readUtf8())
+        assertEquals("UNITED_STATES", body.getString("marketRegion")); assertEquals("NYSE_ARCA", body.getString("exchange")); assertEquals("SPY", body.getString("symbol"))
+    }
+    @Test fun financialPeriodRequestsKeepQuarterlyAndYearlySeparate() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        val stock = Instrument("RELIANCE", "Example", "BSE")
+        for (period in listOf("quarterly", "yearly")) {
+            server.enqueue(MockResponse().setBody("""{"financials":{"timePeriod":"$period","metrics":[]}}"""))
+            assertEquals(period, api.insights(stock, period).getJSONObject("financials").getString("timePeriod"))
+            val url = server.takeRequest().requestUrl!!
+            assertEquals("/api/v1/instruments/INDIA/BSE/RELIANCE/insights", url.encodedPath)
+            assertEquals(period, url.queryParameter("timePeriod"))
+        }
+    }
+
     private fun session(token: String, access: String = "access") = MockResponse()
         .setBody(sessionBody(access))
         .addHeader("Set-Cookie", "stoxsim_refresh=$token; Path=/api/v1/auth; Secure; HttpOnly; SameSite=Strict; Max-Age=3600")
