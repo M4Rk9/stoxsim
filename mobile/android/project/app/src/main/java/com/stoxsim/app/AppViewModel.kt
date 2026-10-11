@@ -260,7 +260,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             "Account" -> { readAccounts(); read("subscription", "subscription") }
             "Profile & security" -> { readAccounts(); list("sessions", "auth/sessions"); list("events", "auth/events") }
             "Subscriptions" -> { readAccounts(); read("subscription", "subscription") }
-            "Wallet" -> { readAccounts(); portfolio(); if (id.isNotBlank()) list("ledger", "accounts/$id/ledger") }
+            "Wallet" -> { readAccounts(); portfolio(); mutable.value.accountId.takeIf { it.isNotBlank() }?.let { account -> list("ledger", "accounts/$account/ledger") } }
             "Weekly reports" -> { read("reportPreference", "reports/weekly/preferences"); list("reports", "reports/weekly") }
         }
     }

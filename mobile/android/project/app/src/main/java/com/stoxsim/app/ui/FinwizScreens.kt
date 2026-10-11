@@ -120,7 +120,7 @@ import com.stoxsim.app.data.*
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { Text("Finwiz", style = MaterialTheme.typography.titleLarge); Muted("${module?.title} · ${regionLabel(chat.region)}${if (chat.symbol.isNotBlank()) " · ${chat.symbol}" else ""}") }
-            TextButton({ configure = true }, enabled = !state.working) { Text("New chat") }
+            TextButton(newChat, enabled = !state.working) { Text("New chat") }
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
             if (chat.messages.isEmpty()) item {
