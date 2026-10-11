@@ -21,7 +21,6 @@ import java.math.RoundingMode
 
 @Composable internal fun AccountSelector(state: AppState, changeRegion: (String) -> Unit, select: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    ChoiceRow(listOf("INDIA" to "🇮🇳 India · INR", "UNITED_STATES" to "🇺🇸 US · USD"), state.region, !state.working, changeRegion)
     Box {
         OutlinedButton({ expanded = true }, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
             Text(state.account?.let { "${it.label}${if (!it.active) " · Locked" else ""} ▾" } ?: "Select a practice account")
@@ -53,12 +52,7 @@ import java.math.RoundingMode
 }
 
 @Composable internal fun DashboardScreen(state: AppState, model: AppViewModel) {
-    Text("Good day, ${state.user?.displayName?.substringBefore(' ')}.", style = MaterialTheme.typography.headlineMedium)
-    AccountSelector(state, model::changeRegion, model::selectAccount)
-    MarketBanner(state)
-    Indices(state)
-    PortfolioMetrics(state)
-    if (state.user?.verified == false) Message(null, "Verify your email to secure account recovery. Open Account settings to request a link.")
+    StocksExplore(state, model::openScreen, model::selectStock)
     val onboarding = state.data["onboarding"]
     if (onboarding != null && !onboarding.optBoolean("completed") && !onboarding.optBoolean("dismissed")) Panel("START HERE", "Your first practice portfolio") {
         Text("Choose a stock, explore its chart, and place a simulated order with virtual money.")
@@ -66,17 +60,68 @@ import java.math.RoundingMode
         else Button({ model.openScreen("Markets") }) { Text("Find your first stock") }
         TextButton({ model.onboarding("dismiss") }, enabled = !state.working) { Text("Dismiss introduction") }
     }
-    Movers(state, model::selectStock)
-    Panel("QUICK ACTIONS", "Keep practising") {
-        Button({ model.openScreen("Markets") }, modifier = Modifier.fillMaxWidth()) { Text("Find a stock & trade") }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton({ model.openScreen("Watchlist") }, Modifier.weight(1f)) { Text("Watchlist") }
-            OutlinedButton({ model.openScreen("Scenario Lab") }, Modifier.weight(1f)) { Text("Scenario Lab") }
+}
+@Composable internal fun StocksExplore(state: AppState, navigate: (String) -> Unit, select: (Instrument) -> Unit) {
+    Indices(state)
+    val recent = state.recentStocks.filter { it.region == state.region }
+    if (recent.isNotEmpty()) {
+        Text("Recently viewed", style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            recent.forEach { stock -> OutlinedCard(onClick = { select(stock) }, modifier = Modifier.width(105.dp),
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stock.symbol, maxLines = 1, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Muted(stock.exchange)
+                }
+            } }
         }
-        TextButton({ model.openScreen("Finwiz") }) { Text("Ask Finwiz") }
     }
-    WatchlistPanel(state, model::selectStock, model::removeWatch)
-    TradesPanel(state)
+    StockMoverGrid(state, select)
+    Panel(title = "Your investments") {
+        Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.headlineMedium)
+        ValueRow("Total return", percent(state.portfolio?.returnPercent), state.portfolio?.returnPercent)
+        Muted("${state.account?.label.orEmpty()} · ${money(state.portfolio?.cash ?: state.account?.cash, state.currency)} available")
+        SectionError(state, "portfolio")
+        TextButton({ navigate("Portfolio") }) { Text("View holdings & analysis →") }
+    }
+    Text("Products & tools", style = MaterialTheme.typography.titleLarge)
+    listOf("Watchlist" to "Follow your favourite stocks", "Competitions" to "Practise with other learners", "Campus" to "Join your institution").chunked(2).forEach { pair ->
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            pair.forEach { (route, description) -> OutlinedCard(onClick = { navigate(route) }, modifier = Modifier.weight(1f).fillMaxHeight(),
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(route, style = MaterialTheme.typography.titleMedium); Muted(description); Text("Explore →", color = MaterialTheme.colorScheme.primary) }
+            } }
+            if (pair.size == 1) Spacer(Modifier.weight(1f))
+        }
+    }
+    TextButton({ navigate("Wallet") }) { Text("View practice wallet →") }
+}
+@Composable private fun StockMoverGrid(state: AppState, select: (Instrument) -> Unit) {
+    var category by rememberSaveable(state.region) { mutableStateOf("gainers") }
+    var all by rememberSaveable(state.region, category) { mutableStateOf(false) }
+    val data = state.data["movers"]
+    Text("Market movers", style = MaterialTheme.typography.titleMedium)
+    ChoiceRow(listOf("gainers" to "Gainers", "losers" to "Losers"), category) { category = it }
+    SectionError(state, "movers")
+    val items = data?.objects(category).orEmpty()
+    if (items.isEmpty()) Muted(if (state.working) "Loading market snapshot…" else "No movers available for this snapshot.")
+    (if (all) items else items.take(4)).chunked(2).forEach { pair ->
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            pair.forEach { item -> OutlinedCard(onClick = { select(Instrument(item.text("symbol"), item.text("name"), item.text("exchange"), state.region, currency = state.currency, key = item.text("instrumentKey"))) },
+                modifier = Modifier.weight(1f).fillMaxHeight(), enabled = !state.working,
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.text("symbol"), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(item.text("name").ifBlank { item.text("symbol") }, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(money(item.decimal("lastPrice"), state.currency), fontWeight = FontWeight.Bold)
+                    Text(percent(item.decimal("changePercent")), color = item.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } }
+            if (pair.size == 1) Spacer(Modifier.weight(1f))
+        }
+    }
+    if (items.size > 4) TextButton({ all = !all }) { Text(if (all) "Show less" else "See all movers →") }
+    data?.let { Muted("${it.text("dataStatus")} · ${time(it.text("generatedAt"))}") }
 }
 @Composable private fun MarketBanner(state: AppState) {
     val m = state.data["market"]
@@ -94,14 +139,19 @@ import java.math.RoundingMode
 @Composable private fun Indices(state: AppState) {
     SectionError(state, "indices")
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        state.lists["indices"].orEmpty().forEach { index ->
-            Box(Modifier.width(166.dp)) { Panel {
-                Kicker(index.text("label"))
-                Text(number(index.decimal("value")), style = MaterialTheme.typography.titleLarge)
-                Text(percent(index.decimal("changePercent")), color = index.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
-                Status(index.text("dataStatus")); Muted(time(index.text("exchangeTimestamp")))
-            } }
-        }
+        state.lists["indices"].orEmpty().forEach { index -> OutlinedCard(modifier = Modifier.width(230.dp),
+            colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(index.text("label"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(percent(index.decimal("changePercent")), style = MaterialTheme.typography.bodySmall, color = index.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(number(index.decimal("value")), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("${index.text("dataStatus")} · ${time(index.text("exchangeTimestamp"))}", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+            }
+        } }
     }
 }
 @Composable internal fun Movers(state: AppState, select: (Instrument) -> Unit) {
@@ -128,20 +178,20 @@ import java.math.RoundingMode
     }
 }
 @Composable internal fun MarketsScreen(state: AppState, model: AppViewModel) {
-    AccountSelector(state, model::changeRegion, model::selectAccount)
-    Row { TextButton({ model.openScreen("Watchlist") }) { Text("My Watchlist →") } }
-    StockSearch(state, model::search, model::selectStock)
-    MarketBanner(state); Indices(state); Movers(state, model::selectStock)
+    StockResults(state, model::selectStock)
+    if (!state.searched) { Indices(state); Movers(state, model::selectStock) }
 }
-@Composable internal fun StockSearch(state: AppState, search: (String) -> Unit, select: (Instrument) -> Unit) {
-    var query by rememberSaveable(state.region) { mutableStateOf("") }
-    Panel("DISCOVER", if (state.region == "INDIA") "Find an NSE stock" else "Find a US stock or ETF") {
-        OutlinedTextField(query, { query = it.take(100) }, label = { Text("Search symbol or company") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Button({ search(query) }, enabled = query.trim().isNotEmpty() && !state.working, modifier = Modifier.fillMaxWidth()) { Text("Search stocks") }
-        if (state.searched && state.instruments.isEmpty()) Muted("No stocks match your search.")
+@Composable internal fun StockResults(state: AppState, select: (Instrument) -> Unit) {
+    Panel(title = if (state.searched) "Results for ${state.searchQuery}" else "Search stocks & ETFs") {
+        Muted("${regionLabel(state.region)} · ${state.currency} · Use the search bar above")
+        if (!state.searched) Muted("Search by symbol or company name.")
+        if (state.searched && state.instruments.isEmpty()) Muted("No instruments match your search.")
         state.instruments.forEach { instrument ->
             TextButton({ select(instrument) }, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth()) { Text(instrument.symbol, fontWeight = FontWeight.Bold); Muted("${instrument.name} · ${instrument.exchange}") }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) { Text(instrument.symbol, fontWeight = FontWeight.Bold); Muted("${instrument.name} · ${instrument.exchange}") }
+                    Text("→")
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }

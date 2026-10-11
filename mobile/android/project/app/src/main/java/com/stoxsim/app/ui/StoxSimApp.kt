@@ -4,6 +4,17 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -51,9 +62,9 @@ import com.stoxsim.app.R
             model.exportSaved()
         } catch (_: Exception) { exportError = "Could not save the export. Choose another location and try again." }
     }
-    BackHandler(state.user != null && state.screen != "Home") { model.openScreen(if (state.screen == "Stock") "Markets" else "Home") }
+    BackHandler(state.user != null && state.screen != "Home") { model.openScreen(parentScreen(state.screen)) }
     StoxSimTheme(state.dark) {
-        AppFrame(state, model::openScreen, model::refresh) {
+        AppFrame(state, model::openScreen, model::refresh, model::search) {
             when {
                 state.restoring -> { CircularProgressIndicator(); Text("Connecting to your account…") }
                 state.restoreFailed -> { Message(state.error); Button(model::restore, enabled = !state.working) { Text("Retry connection") } }
@@ -75,8 +86,13 @@ import com.stoxsim.app.R
                         "Learning path" -> LearningScreen(state, model)
                         "Competitions" -> CompetitionScreen(state, model)
                         "Campus" -> CampusScreen(state, model)
-                        "Finwiz" -> FinwizScreen(state, model)
-                        "Account" -> SettingsScreen(state, model)
+                        "Finwiz" -> FinwizHub(state, model::openLesson, model::newChat, model::openChat, model::deleteChat, model::openScreen)
+                        "Finwiz lesson" -> FinwizLesson(state, model::markLessonRead, { model.newChat(it) })
+                        "Finwiz chat" -> FinwizChatScreen(state, model::askChat, { model.newChat() })
+                        "Account" -> AccountHub(state, model::openScreen, model::changeRegion, model::selectAccount, model::setDark, model::logout)
+                        "Profile & security" -> SettingsScreen(state, model)
+                        "Subscriptions" -> SubscriptionScreen(state, model::createSandbox)
+                        "Wallet" -> WalletScreen(state, model::selectAccount, model::openScreen)
                         "Weekly reports" -> ReportsScreen(state, model)
                     }
                     if (state.export != null) Panel(title = "Your account export") {
@@ -90,40 +106,82 @@ import com.stoxsim.app.R
     }
 }
 
+internal fun parentScreen(screen: String) = when (screen) {
+    "Finwiz lesson", "Finwiz chat", "Learning path" -> "Finwiz"
+    "Stock" -> "Markets"
+    "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Competitions", "Campus" -> "Account"
+    else -> "Home"
+}
+internal fun productTab(screen: String) = when (screen) {
+    "Finwiz", "Finwiz lesson", "Finwiz chat", "Learning path" -> "Finwiz"
+    "Scenario Lab" -> "Scenario Lab"
+    else -> "Home"
+}
+
 @Composable internal fun AppFrame(state: AppState, navigate: (String) -> Unit, refresh: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit) {
-    val brandColor = MaterialTheme.colorScheme.primary
-    val main = listOf("Home", "Markets", "Portfolio", "Orders", "Explore")
-    val activeTab = when (state.screen) { "Stock", "Watchlist" -> "Markets"; in main -> state.screen; else -> "Explore" }
+    search: (String) -> Unit = { navigate("Markets") }, content: @Composable ColumnScope.() -> Unit) {
+    val signedIn = state.user != null
+    val focus = LocalFocusManager.current
+    var query by rememberSaveable(state.region, state.user?.email) { mutableStateOf("") }
+    val stockPages = listOf("Home", "Markets", "Portfolio", "Orders", "Watchlist")
+    val main = stockPages + listOf("Finwiz", "Scenario Lab")
+    val chat = state.screen == "Finwiz chat"
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         Column(Modifier.statusBarsPadding().fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (state.user != null && state.screen !in main) IconButton({ navigate(if (state.screen == "Stock") "Markets" else "Explore") }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                Image(painterResource(R.drawable.stoxsim_logo), null, Modifier.size(34.dp))
-                Text(buildAnnotatedString { append("Stox"); withStyle(SpanStyle(color = brandColor)) { append("Sim") } }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                if (state.user != null) {
-                    IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh ${state.screen}") }
-                    IconButton({ navigate("Account") }) { Icon(Icons.Default.Person, "Account settings") }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (signedIn) {
+                    if (state.screen !in main) IconButton({ navigate(parentScreen(state.screen)) }, Modifier.size(32.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    OutlinedTextField(query, { query = it.take(100) }, placeholder = { Text("Search stocks & ETFs", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        singleLine = true, enabled = !state.working, shape = RoundedCornerShape(12.dp), textStyle = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f).semantics { contentDescription = "Stock and ETF search" },
+                        leadingIcon = { IconButton({ focus.clearFocus(); if (query.isBlank()) navigate("Markets") else search(query) }, enabled = !state.working) { Icon(Icons.Default.Search, "Search stocks and ETFs") } },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = {
+                            if (!state.working && query.isNotBlank()) { focus.clearFocus(); search(query) }
+                        }))
+                    Surface(onClick = { focus.clearFocus(); navigate("Account") }, shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(42.dp).semantics { contentDescription = "Account settings" }, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        Box(contentAlignment = Alignment.Center) { Text(state.user?.displayName?.trim()?.take(1)?.uppercase().orEmpty(), color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold) }
+                    }
+                } else {
+                    Image(painterResource(R.drawable.stoxsim_logo), null, Modifier.size(34.dp))
+                    val brandColor = MaterialTheme.colorScheme.primary
+                    Text(buildAnnotatedString { append("Stox"); withStyle(SpanStyle(color = brandColor)) { append("Sim") } }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (signedIn && state.screen in stockPages) StocksTabs(state.screen, navigate)
+            else HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }, bottomBar = {
-        if (state.user != null) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-            val icons = listOf(Icons.Default.Home, Icons.Default.Search, Icons.AutoMirrored.Filled.List, Icons.Default.DateRange, Icons.Default.MoreVert)
-            main.forEachIndexed { i, name -> NavigationBarItem(selected = activeTab == name, onClick = { navigate(name) },
-                icon = { Icon(icons[i], null) }, label = { Text(name) }) }
+        if (signedIn) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            val items = listOf(Triple("Home", "Stocks", Icons.Default.Home), Triple("Finwiz", "Finwiz AI", Icons.Default.Star), Triple("Scenario Lab", "Scenario Lab", Icons.Default.DateRange))
+            items.forEach { (route, label, icon) -> NavigationBarItem(selected = productTab(state.screen) == route,
+                onClick = { focus.clearFocus(); navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" }, icon = { Icon(icon, null) }, label = { Text(label, maxLines = 1) }) }
         }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding().verticalScroll(key(state.screen) { rememberScrollState() })
-                .padding(horizontal = 16.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (state.user != null) Text(if (state.screen == "Home") "Dashboard" else state.screen, style = MaterialTheme.typography.headlineSmall)
+            val base = Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding()
+            Column((if (chat) base.fillMaxSize() else base.verticalScroll(key(state.screen) { rememberScrollState() }))
+                .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 12.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen in stockPages || state.screen == "Finwiz") 8.dp else 16.dp)) {
+                if (signedIn && state.screen !in stockPages && !chat && state.screen != "Finwiz") {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                        IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh ${state.screen}") }
+                    }
+                }
                 content()
-                if (state.user != null) Muted("Educational simulator • No real-money trading")
+                if (signedIn && !chat) Muted("Educational simulator • No real-money trading")
             }
         }
+    }
+}
+@Composable internal fun StocksTabs(screen: String, navigate: (String) -> Unit) {
+    val items = listOf("Home" to "Explore", "Portfolio" to "Holdings", "Orders" to "Orders", "Watchlist" to "Watchlist")
+    val index = items.indexOfFirst { it.first == screen }.coerceAtLeast(0)
+    TabRow(index, containerColor = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.primary) {
+        items.forEach { (route, label) -> Tab(selected = route == items[index].first, onClick = { navigate(route) }) {
+            Text(label, Modifier.padding(horizontal = 2.dp, vertical = 14.dp), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+        } }
     }
 }

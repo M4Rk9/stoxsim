@@ -1,6 +1,6 @@
 # Native Android / website parity
 
-The website is the product reference. Version 0.3.0 implements its consumer
+The website is the product reference. Version 0.4.0 implements its consumer
 trading/learning flows as native Compose screens using the same Spring APIs,
 accounts and entitlements. It does not embed a WebView or launch a TWA.
 
@@ -12,7 +12,7 @@ accounts and entitlements. It does not embed a WebView or launch a TWA.
 | `theme.css` dark tokens | Paper #121212; panels #1b1b1b; ink #f1f1f1; muted #a3a3a3; mint #00d09c; borders #303030 |
 | `stoxsim-logo.png` and two-colour wordmark | Same logo resource and Stox/Sim colours |
 | Panel/index/metric hierarchy | Outlined native cards, kicker labels, large values and status/time badges |
-| Desktop header/account menu/tools | Phone bottom tabs plus account button and Explore destinations |
+| Desktop header/account menu/tools | Three product tabs, Stocks section tabs, top search and account hub |
 | Light default and explicit dark preference | Light default; choice remembered for this user's email on this device |
 
 The app uses Android's sans-serif text and accessible native controls rather than
@@ -30,19 +30,19 @@ local to each client, matching the website's existing local preference model.
 | Indices/movers | Home/Markets; `/market/status`, `/market/indices`, `/market/movers` | Implemented |
 | Stock discovery, quote/history/fundamentals | Markets/stock screen; `/instruments` endpoints | Implemented; absent values stay absent |
 | Live quotes | Authenticated `/ws/market` STOMP quote subscription | Implemented; foreground only, one subscription, reconnects |
-| Watchlist | Markets/Explore; default watchlist GET/POST/DELETE | Implemented |
+| Watchlist | Stocks/Watchlist; default watchlist GET/POST/DELETE | Implemented |
 | Market/limit buy/sell, charges | Reviewed native order ticket; account-scoped orders and charge estimate | Implemented; whole shares and positive limit validation |
 | Orders/trades/ledger/cancel | Orders; account-scoped endpoints | Implemented |
 | Holdings/StoxScore/allocation/P&L attribution | Portfolio; analytics/insights endpoints | Implemented |
 | Daily history/benchmark/drawdown/risk | Portfolio history; 30/90/365-day endpoint | Implemented; plan restrictions/data gaps respected |
-| Scenario Lab presets/custom paths | Explore/Lab; scenarios/catalog/credits/account run | Implemented; 1–12 cumulative shocks, existing credit balance |
-| Finwiz topics/stock questions | Explore/Finwiz; existing ask endpoint | Implemented; server service limits apply |
-| XP/challenges/check-in/achievements | Explore/Learning path; progression endpoints | Implemented |
-| Global leaderboard/private leagues | Explore/Competitions; current season and league endpoints | Implemented; create/join/rotate/leave/delete |
-| Campus membership/verification and competition participation | Explore/Campus; existing campus endpoints | Implemented |
+| Scenario Lab presets/custom paths | Scenario Lab; scenarios/catalog/credits/account run | Implemented; 1–12 cumulative shocks, existing credit balance |
+| Finwiz topics/stock questions | Finwiz learning modules/chat; existing ask endpoint | Implemented; server service limits apply |
+| XP/challenges/check-in/achievements | Finwiz/Learning path; progression endpoints | Implemented |
+| Global leaderboard/private leagues | Account/Competitions; current season and league endpoints | Implemented; create/join/rotate/leave/delete |
+| Campus membership/verification and competition participation | Account/Campus; existing campus endpoints | Implemented |
 | Campus organizer create/review | Campus workspace | Implemented |
 | Profile/security/delete/export | Account; existing authenticated controls | Implemented; destructive operations require in-app review |
-| Weekly email preferences/report history/preview | Explore/Account/Weekly reports | Implemented |
+| Weekly email preferences/report history/preview | Account/Weekly reports | Implemented |
 | Existing plan benefits/additional sandbox | Account; subscription/provisioning endpoints | Implemented; server enforces eligibility |
 | Purchasing/renewal/restoring Play subscriptions | Android Play Billing plus verified backend purchase lifecycle | Not implemented; separate A3 milestone |
 | Email verification/reset links | Email link opens existing website; return to app and sign in/refresh | Native link completion pending |
@@ -83,7 +83,7 @@ account-specific plan eligibility, actual email delivery or production billing.
 Owner device checklist:
 
 1. Update the branch, sync Gradle and run with the same debug key; verify version
-   0.3.0, native navigation and that no Chrome chrome appears in core screens.
+   0.4.0, native navigation and that no Chrome chrome appears in core screens.
 2. Compare one India and one US account against the website. Select each sandbox;
    verify its account label, currency, balances/holdings and locked state.
 3. Check light/dark appearance, rotation, Back, keyboard, narrow screens and large
