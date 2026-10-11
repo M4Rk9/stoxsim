@@ -163,7 +163,7 @@ internal fun productTab(screen: String) = when (screen) {
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             val base = Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding()
             Column((if (chat) base.fillMaxSize() else base.verticalScroll(key(state.screen) { rememberScrollState() }))
-                .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat) 8.dp else 16.dp)) {
+                .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 12.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen in stockPages || state.screen == "Finwiz") 8.dp else 16.dp)) {
                 if (signedIn && state.screen !in stockPages && !chat && state.screen != "Finwiz") {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
@@ -180,7 +180,8 @@ internal fun productTab(screen: String) = when (screen) {
     val items = listOf("Home" to "Explore", "Portfolio" to "Holdings", "Orders" to "Orders", "Watchlist" to "Watchlist")
     val index = items.indexOfFirst { it.first == screen }.coerceAtLeast(0)
     TabRow(index, containerColor = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.primary) {
-        items.forEach { (route, label) -> Tab(selected = route == items[index].first, onClick = { navigate(route) },
-            text = { Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) }) }
+        items.forEach { (route, label) -> Tab(selected = route == items[index].first, onClick = { navigate(route) }) {
+            Text(label, Modifier.padding(horizontal = 2.dp, vertical = 14.dp), style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+        } }
     }
 }

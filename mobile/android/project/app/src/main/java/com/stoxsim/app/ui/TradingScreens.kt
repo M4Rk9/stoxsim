@@ -62,18 +62,14 @@ import java.math.RoundingMode
     }
 }
 @Composable internal fun StocksExplore(state: AppState, navigate: (String) -> Unit, select: (Instrument) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Stocks", style = MaterialTheme.typography.headlineMedium)
-        TextButton({ navigate("Account") }) { Text("${if (state.region == "INDIA") "IND" else "US"} · ${state.currency} ▾") }
-    }
     Indices(state)
     val recent = state.recentStocks.filter { it.region == state.region }
     if (recent.isNotEmpty()) {
-        Text("Recently viewed", style = MaterialTheme.typography.titleLarge)
+        Text("Recently viewed", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             recent.forEach { stock -> OutlinedCard(onClick = { select(stock) }, modifier = Modifier.width(105.dp),
                 colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stock.symbol.take(2), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Text(stock.symbol, maxLines = 1, style = MaterialTheme.typography.labelLarge)
                     Muted(stock.exchange)
@@ -105,7 +101,7 @@ import java.math.RoundingMode
     var category by rememberSaveable(state.region) { mutableStateOf("gainers") }
     var all by rememberSaveable(state.region, category) { mutableStateOf(false) }
     val data = state.data["movers"]
-    Text("Market movers", style = MaterialTheme.typography.titleLarge)
+    Text("Market movers", style = MaterialTheme.typography.titleMedium)
     ChoiceRow(listOf("gainers" to "Gainers", "losers" to "Losers"), category) { category = it }
     SectionError(state, "movers")
     val items = data?.objects(category).orEmpty()
@@ -115,10 +111,9 @@ import java.math.RoundingMode
             pair.forEach { item -> OutlinedCard(onClick = { select(Instrument(item.text("symbol"), item.text("name"), item.text("exchange"), state.region, currency = state.currency, key = item.text("instrumentKey"))) },
                 modifier = Modifier.weight(1f).fillMaxHeight(), enabled = !state.working,
                 colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(item.text("symbol").take(2), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.text("symbol"), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text(item.text("name").ifBlank { item.text("symbol") }, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                    Muted(item.text("symbol"))
                     Text(money(item.decimal("lastPrice"), state.currency), fontWeight = FontWeight.Bold)
                     Text(percent(item.decimal("changePercent")), color = item.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -145,13 +140,15 @@ import java.math.RoundingMode
 @Composable private fun Indices(state: AppState) {
     SectionError(state, "indices")
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        state.lists["indices"].orEmpty().forEach { index -> OutlinedCard(modifier = Modifier.width(170.dp),
+        state.lists["indices"].orEmpty().forEach { index -> OutlinedCard(modifier = Modifier.width(200.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(index.text("label"), style = MaterialTheme.typography.labelLarge)
-                Text(number(index.decimal("value")), fontWeight = FontWeight.Bold)
-                Text(percent(index.decimal("changePercent")), style = MaterialTheme.typography.bodySmall, color = index.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
-                Muted("${index.text("dataStatus")} · ${time(index.text("exchangeTimestamp"))}")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(number(index.decimal("value")), fontWeight = FontWeight.Bold)
+                    Text(percent(index.decimal("changePercent")), style = MaterialTheme.typography.bodySmall, color = index.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text("${index.text("dataStatus")} · ${time(index.text("exchangeTimestamp"))}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         } }
     }

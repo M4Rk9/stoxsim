@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.stoxsim.app.AppState
 import com.stoxsim.app.data.*
 
@@ -36,12 +35,6 @@ import com.stoxsim.app.data.*
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text("Finwiz AI", style = MaterialTheme.typography.headlineLarge); Muted("Your investing companion") }
         FilledTonalButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
-    }
-    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(18.dp)) {
-        Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("✦", fontSize = 34.sp, color = MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f)) { Text("Learn. Ask. Practise.", style = MaterialTheme.typography.titleLarge); Text("Explore a module or ask Finwiz a question.", style = MaterialTheme.typography.bodyMedium) }
-        }
     }
     TabRow(tab, containerColor = MaterialTheme.colorScheme.background) {
         Tab(tab == 0, { tab = 0 }, text = { Text("Learn") })
@@ -57,12 +50,12 @@ import com.stoxsim.app.data.*
                     OutlinedCard(onClick = { lesson(module.id) }, modifier = Modifier.weight(1f).fillMaxHeight(),
                         shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Column(Modifier.padding(14.dp).heightIn(min = 166.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(12.dp).heightIn(min = 156.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                                Text("${row * 2 + column + 1}".padStart(2, '0'), Modifier.padding(10.dp), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("${row * 2 + column + 1}".padStart(2, '0'), Modifier.padding(8.dp), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                             Text(module.title, style = MaterialTheme.typography.titleMedium)
-                            Muted(module.summary)
+                            Text(module.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             Spacer(Modifier.weight(1f))
                             Text(if (module.id in state.readModules) "✓ Read · Review →" else "3 lessons · Start →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         }
