@@ -13,23 +13,31 @@ WITH classified AS (
             OR (display_name = 'Staging Smoke' AND lower(email) ~ '^staging-smoke-[0-9]+-[0-9]+@stoxsim\.test$')
             OR (display_name = 'StoxSim Load Test' AND lower(email) ~ '^load-[0-9]+-[0-9]+@stoxsim\.test$')
             OR (display_name = 'CI capacity fixture' AND lower(email) ~ '^m7-[0-9a-f]{24}@stoxsim\.test$')
+            OR (display_name = 'Browser Learner' AND lower(email) ~ '^browser-((auth|markets|finwiz|lifecycle|sandbox-switcher|onboarding|progression|competitions|campus-verification|pro-provisioning)-)?[0-9]+-[0-9a-f]+@stoxsim\.test$')
+            OR (display_name = 'Recovery Drill' AND lower(email) ~ '^recovery-[0-9]+-[0-9]+@stoxsim\.test$')
+            OR (display_name = 'Synthetic capacity learner' AND lower(email) ~ '^m7-([1-9]|1[0-2])@stoxsim\.test$')
         ) AS reserved_identity
     FROM app_user u
 )
 SELECT COUNT(*) FILTER (WHERE platform_role = 'USER') AS stored_learner_accounts,
        COUNT(*) FILTER (WHERE platform_role = 'USER' AND marked_test) AS marked_test_learners,
        COUNT(*) FILTER (WHERE platform_role = 'USER' AND reserved_identity AND NOT marked_test) AS unmarked_reserved_test_learners,
-       COUNT(*) FILTER (WHERE platform_role = 'USER' AND NOT marked_test AND NOT reserved_identity) AS learners_outside_reserved_tests
+       COUNT(*) FILTER (WHERE platform_role = 'USER' AND NOT marked_test AND NOT reserved_identity) AS learners_outside_reserved_tests,
+       COUNT(*) FILTER (WHERE platform_role = 'USER' AND NOT marked_test
+         AND split_part(lower(email), '@', 2) = 'stoxsim.test') AS unmarked_test_domain_learners
 FROM classified;
 
 \if :show_details
--- Names alone are candidates for manual review, never automatic deletion.
+-- Names and other addresses on the test domain are manual-review candidates,
+-- never automatic classification or deletion. Detail output is capped at 100 rows.
 SELECT id, email, display_name, platform_role, email_verified_at, created_at,
        COALESCE((to_jsonb(u)->>'is_test_account')::boolean, false) AS marked_test
 FROM app_user u
 WHERE COALESCE((to_jsonb(u)->>'is_test_account')::boolean, false)
+   OR split_part(lower(email), '@', 2) = 'stoxsim.test'
    OR display_name IN ('Production Smoke', 'Authorization A', 'Authorization B',
-                       'Staging Smoke', 'StoxSim Load Test', 'CI capacity fixture')
+                       'Staging Smoke', 'StoxSim Load Test', 'CI capacity fixture', 'Browser Learner',
+                       'Recovery Drill', 'Synthetic capacity learner')
 ORDER BY created_at DESC LIMIT 100;
 \endif
 ROLLBACK;
