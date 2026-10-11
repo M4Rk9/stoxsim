@@ -8,9 +8,13 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -53,8 +57,11 @@ class VisualSmokeTest {
             for ((route, filename) in listOf("Home" to "stocks", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
                 compose.runOnIdle { page.value = route }; compose.waitForIdle()
                 if (route == "Home") {
-                    compose.onNodeWithText("Watchlist").assertIsDisplayed()
+                    compose.onNode(hasText("Watchlist") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertIsDisplayed()
                     compose.onNodeWithText("Example Company").assertIsDisplayed()
+                    val priceBottom = compose.onNodeWithText("₹825.00", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.bottom
+                    val navigationTop = compose.onNodeWithContentDescription("Open Stocks").fetchSemanticsNode().boundsInRoot.top
+                    assertTrue("First mover price must fit above navigation", priceBottom <= navigationTop)
                 }
                 if (route == "Finwiz") compose.onAllNodesWithText("3 lessons · Start →").onFirst().assertIsDisplayed()
                 capture("$filename-$appearance.png")

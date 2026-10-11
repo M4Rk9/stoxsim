@@ -70,8 +70,7 @@ import java.math.RoundingMode
             recent.forEach { stock -> OutlinedCard(onClick = { select(stock) }, modifier = Modifier.width(105.dp),
                 colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stock.symbol.take(2), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text(stock.symbol, maxLines = 1, style = MaterialTheme.typography.labelLarge)
+                    Text(stock.symbol, maxLines = 1, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Muted(stock.exchange)
                 }
             } }
@@ -113,7 +112,7 @@ import java.math.RoundingMode
                 colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(item.text("symbol"), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    Text(item.text("name").ifBlank { item.text("symbol") }, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                    Text(item.text("name").ifBlank { item.text("symbol") }, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text(money(item.decimal("lastPrice"), state.currency), fontWeight = FontWeight.Bold)
                     Text(percent(item.decimal("changePercent")), color = item.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -140,15 +139,17 @@ import java.math.RoundingMode
 @Composable private fun Indices(state: AppState) {
     SectionError(state, "indices")
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        state.lists["indices"].orEmpty().forEach { index -> OutlinedCard(modifier = Modifier.width(200.dp),
+        state.lists["indices"].orEmpty().forEach { index -> OutlinedCard(modifier = Modifier.width(230.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
             Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(index.text("label"), style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(number(index.decimal("value")), fontWeight = FontWeight.Bold)
+                    Text(index.text("label"), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     Text(percent(index.decimal("changePercent")), style = MaterialTheme.typography.bodySmall, color = index.decimal("changePercent")?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("${index.text("dataStatus")} · ${time(index.text("exchangeTimestamp"))}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(number(index.decimal("value")), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("${index.text("dataStatus")} · ${time(index.text("exchangeTimestamp"))}", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
             }
         } }
     }
