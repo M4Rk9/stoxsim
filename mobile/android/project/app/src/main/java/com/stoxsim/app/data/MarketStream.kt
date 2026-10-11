@@ -62,7 +62,7 @@ internal fun marketStream(client: OkHttpClient, base: HttpUrl, token: String) = 
     require(token.none { it == '\n' || it == '\r' || it == '\u0000' })
     val decoder = StompDecoder()
     val request = Request.Builder().url(base.newBuilder().addPathSegments("ws/market").build())
-        .header("Sec-WebSocket-Protocol", "v12.stomp").header("User-Agent", "StoxSim-Android/0.4.0").build()
+        .header("Sec-WebSocket-Protocol", "v12.stomp").header("User-Agent", "StoxSim-Android/0.4.1").build()
     val socket = client.newWebSocket(request, object : WebSocketListener() {
         private var subscribed = false
         override fun onOpen(webSocket: WebSocket, response: Response) {

@@ -111,6 +111,8 @@ internal class StoxSimApi(
     suspend fun insights(instrument: Instrument, period: String): JSONObject = serialized {
         JSONObject(authorizedGet(stockPath(instrument, "insights"), mapOf("timePeriod" to period)))
     }
+    suspend fun addToWatchlist(instrument: Instrument): JSONObject =
+        mutate("watchlists/default/items", body = instrument.watchlistPayload())
     suspend fun mutate(path: String, method: String = "POST", body: JSONObject = JSONObject(),
         idempotencyKey: String? = null): JSONObject = serialized {
         // Rotate before writes when the advertised token lifetime is almost over. Never replay a write.
@@ -153,7 +155,7 @@ internal class StoxSimApi(
         method: String? = null, idempotencyKey: String? = null): Response {
         val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.4.0")
+            .header("User-Agent", "StoxSim-Android/0.4.1")
         bearer?.let { request.header("Authorization", "Bearer $it") }
         if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
         idempotencyKey?.let { request.header("Idempotency-Key", it) }

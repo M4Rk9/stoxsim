@@ -230,9 +230,7 @@ import java.math.RoundingMode
         if (delta != null) Text(percent(delta), color = tone(delta))
         Status(quote?.status ?: "UNAVAILABLE"); Muted("Quote ${time(quote?.at.orEmpty())}")
         SectionError(state, "quote")
-        val watched = state.data["watchlist"]?.objects("items")?.any { it.text("symbol") == instrument.symbol && it.text("exchange") == instrument.exchange } == true
-        OutlinedButton({ model.watch(instrument) }, enabled = !state.working && !watched && instrument.id.isNotBlank()) { Text(if (watched) "★ Watching" else "☆ Add to watchlist") }
-        if (instrument.id.isBlank() && !watched) Muted("Search this symbol in Markets to add it to your watchlist.")
+        WatchStockButton(state, instrument, model::watch)
         ValueRow("Open", money(quote?.open, instrument.currency)); ValueRow("Day high / low", "${money(quote?.high, instrument.currency)} / ${money(quote?.low, instrument.currency)}")
         ValueRow("Previous close", money(quote?.previous, instrument.currency)); ValueRow("Volume", quote?.volume?.toString() ?: "—")
     }
@@ -243,26 +241,15 @@ import java.math.RoundingMode
         Muted("Daily closing prices · ${instrument.currency}")
     }
     OrderTicket(state, model::estimate, model::placeOrder)
-    Panel("STUDY THE BUSINESS", "Company fundamentals") {
-        ChoiceRow(listOf("quarterly" to "Quarterly", "yearly" to "Yearly"), state.insightPeriod, !state.working, model::financialPeriod)
-        SectionError(state, "stockInsights")
-        val insights = state.data["stockInsights"]
-        if (insights == null && !state.working) Muted("Company fundamentals are temporarily unavailable.")
-        insights?.let { data ->
-            Status(data.text("status")); Muted("As of ${time(data.text("asOf"))}")
-            if (data.text("message").isNotBlank()) Text(data.text("message"))
-            data.optJSONObject("profile")?.let { profile ->
-                Text(profile.text("description")); ValueRow("Sector", profile.text("sector").ifBlank { "—" })
-            }
-            data.objects("ratios").forEach { ValueRow(it.text("name"), it.text("companyValue").ifBlank { "—" }) }
-            data.optJSONObject("financials")?.let { financials ->
-                Muted("${financials.text("statementType")} · ${financials.text("unitsIn")}")
-                financials.objects("metrics").forEach { metric ->
-                    Text(metric.text("category"), style = MaterialTheme.typography.titleMedium)
-                    metric.objects("history").forEach { ValueRow(it.text("period"), number(it.decimal("value"))) }
-                }
-            }
-        }
+    CompanyFundamentals(state, model::financialPeriod)
+}
+
+@Composable internal fun WatchStockButton(state: AppState, instrument: Instrument, add: (Instrument) -> Unit) {
+    val watched = state.data["watchlist"]?.objects("items")?.any {
+        it.text("symbol").equals(instrument.symbol, ignoreCase = true) && it.text("exchange") == instrument.exchange && it.text("marketRegion") == instrument.region
+    } == true
+    OutlinedButton({ add(instrument) }, enabled = !state.working && !watched && instrument.canWatch) {
+        Text(if (watched) "★ Watching" else "☆ Add to watchlist")
     }
 }
 
