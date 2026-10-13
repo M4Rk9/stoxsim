@@ -1,11 +1,12 @@
-# Android product navigation — 0.4.0
+# Android product navigation
 
 The owner's reference screens guide the layout, while StoxSim keeps its own logo,
 light/dark colours and simulator identity. This is native Compose.
 
 | Area | Behaviour |
 | --- | --- |
-| Bottom navigation | Stocks, Finwiz AI, Scenario Lab |
+| Bottom navigation | Stock (price chart), Finwiz AI (AI processor), Scenario Lab (lab flask), Competition (trophy); four always-labelled tabs |
+| Competition | Opens the existing season leaderboard and private leagues directly; selects its own tab and Back returns to Stock |
 | Stocks tabs | Explore, Holdings, Orders, Watchlist |
 | Top search | Symbol/company search for instruments supported in the selected India/US market; keyboard Search or magnifier submits |
 | Stocks Explore | Compact index cards, recently viewed symbols, real market movers, investments summary and tools |
@@ -47,7 +48,9 @@ No production AI requests or orders are made by tests.
 
 On the owner's device:
 
-1. Check version 0.4.0 and all three bottom tabs. Open Holdings, Orders and Watchlist.
+1. Check all four bottom tabs and their matching icons in light and dark appearance.
+   Open Competition; verify its tab is selected, season/private leagues load and
+   Back returns to Stock. Open Holdings, Orders and Watchlist.
 2. Search a symbol using keyboard Search and the magnifier. Switch IND/US in Account;
    verify currency/results/wallet change and stale results clear.
 3. Read a Finwiz module, mark it read, open its chat and explicitly send a question.

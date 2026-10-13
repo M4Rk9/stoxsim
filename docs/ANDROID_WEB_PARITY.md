@@ -12,7 +12,7 @@ accounts and entitlements. It does not embed a WebView or launch a TWA.
 | `theme.css` dark tokens | Paper #121212; panels #1b1b1b; ink #f1f1f1; muted #a3a3a3; mint #00d09c; borders #303030 |
 | `stoxsim-logo.png` and two-colour wordmark | Same logo resource and Stox/Sim colours |
 | Panel/index/metric hierarchy | Outlined native cards, kicker labels, large values and status/time badges |
-| Desktop header/account menu/tools | Three product tabs, Stocks section tabs, top search and account hub |
+| Desktop header/account menu/tools | Four product tabs (Stock, Finwiz AI, Scenario Lab, Competition), Stocks section tabs, top search and account hub |
 | Light default and explicit dark preference | Light default; choice remembered for this user's email on this device |
 
 The app uses Android's sans-serif text and accessible native controls rather than
@@ -38,7 +38,7 @@ local to each client, matching the website's existing local preference model.
 | Scenario Lab presets/custom paths | Scenario Lab; scenarios/catalog/credits/account run | Implemented; 1–12 cumulative shocks, existing credit balance |
 | Finwiz topics/stock questions | Finwiz learning modules/chat; existing ask endpoint | Implemented; server service limits apply |
 | XP/challenges/check-in/achievements | Finwiz/Learning path; progression endpoints | Implemented |
-| Global leaderboard/private leagues | Account/Competitions; current season and league endpoints | Implemented; create/join/rotate/leave/delete |
+| Global leaderboard/private leagues | Competition tab (also reachable from Account); current season and league endpoints | Implemented; create/join/rotate/leave/delete |
 | Campus membership/verification and competition participation | Account/Campus; existing campus endpoints | Implemented |
 | Campus organizer create/review | Campus workspace | Implemented |
 | Profile/security/delete/export | Account; existing authenticated controls | Implemented; destructive operations require in-app review |

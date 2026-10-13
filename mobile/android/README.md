@@ -11,7 +11,8 @@ The application ID remains `com.stoxsim.app`; launcher artwork is retained.
 The UI follows the colours in `frontend/app/globals.css` / `theme.css`, uses the
 same brand artwork and section names, and defaults to light appearance like the
 website. Dark appearance is an explicit per-user device preference. Native bottom
-navigation provides Stocks, Finwiz AI and Scenario Lab. Stocks has Explore,
+navigation provides Stock, Finwiz AI, Scenario Lab and Competition, with stock-chart,
+AI-processor, lab-flask and trophy icons. Stock has Explore,
 Holdings, Orders and Watchlist tabs. Global stock/ETF search sits at the top; the
 account avatar opens market, appearance, wallet, subscription and security controls. Cards, charts and forms adapt to a phone rather than copying
 the desktop columns.
@@ -50,7 +51,7 @@ From your repository terminal:
 
 ```bash
 git fetch origin
-git switch fix/android-watchlist-fundamentals
+git switch fix/android-bottom-navigation
 git pull --ff-only
 ```
 

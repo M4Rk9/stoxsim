@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -109,12 +110,13 @@ import com.stoxsim.app.R
 internal fun parentScreen(screen: String) = when (screen) {
     "Finwiz lesson", "Finwiz chat", "Learning path" -> "Finwiz"
     "Stock" -> "Markets"
-    "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Competitions", "Campus" -> "Account"
+    "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Campus" -> "Account"
     else -> "Home"
 }
 internal fun productTab(screen: String) = when (screen) {
     "Finwiz", "Finwiz lesson", "Finwiz chat", "Learning path" -> "Finwiz"
     "Scenario Lab" -> "Scenario Lab"
+    "Competitions" -> "Competitions"
     else -> "Home"
 }
 
@@ -124,7 +126,7 @@ internal fun productTab(screen: String) = when (screen) {
     val focus = LocalFocusManager.current
     var query by rememberSaveable(state.region, state.user?.email) { mutableStateOf("") }
     val stockPages = listOf("Home", "Markets", "Portfolio", "Orders", "Watchlist")
-    val main = stockPages + listOf("Finwiz", "Scenario Lab")
+    val main = stockPages + listOf("Finwiz", "Scenario Lab", "Competitions")
     val chat = state.screen == "Finwiz chat"
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         Column(Modifier.statusBarsPadding().fillMaxWidth()) {
@@ -155,9 +157,16 @@ internal fun productTab(screen: String) = when (screen) {
         }
     }, bottomBar = {
         if (signedIn) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-            val items = listOf(Triple("Home", "Stocks", Icons.Default.Home), Triple("Finwiz", "Finwiz AI", Icons.Default.Star), Triple("Scenario Lab", "Scenario Lab", Icons.Default.DateRange))
+            val items = listOf(
+                Triple("Home", "Stock", R.drawable.ic_nav_stock),
+                Triple("Finwiz", "Finwiz AI", R.drawable.ic_nav_finwiz),
+                Triple("Scenario Lab", "Scenario Lab", R.drawable.ic_nav_scenario),
+                Triple("Competitions", "Competition", R.drawable.ic_nav_competition)
+            )
             items.forEach { (route, label, icon) -> NavigationBarItem(selected = productTab(state.screen) == route,
-                onClick = { focus.clearFocus(); navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" }, icon = { Icon(icon, null) }, label = { Text(label, maxLines = 1) }) }
+                onClick = { focus.clearFocus(); navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" },
+                icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
+                label = { Text(label, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center) }) }
         }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
