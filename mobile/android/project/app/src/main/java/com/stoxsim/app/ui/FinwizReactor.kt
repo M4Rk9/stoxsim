@@ -28,7 +28,7 @@ import kotlin.math.sin
     val ink = MaterialTheme.colorScheme.onSurface
     val guide = MaterialTheme.colorScheme.outlineVariant
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val compact = maxWidth < 300.dp || LocalDensity.current.fontScale > 1.3f
+        val compact = maxWidth < 240.dp || LocalDensity.current.fontScale > 1.3f
         if (compact) Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             ReactorCore(Modifier.size(100.dp))
             learningModules.chunked(2).forEach { pair -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -91,7 +91,13 @@ import kotlin.math.sin
         border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f) else MaterialTheme.colorScheme.outlineVariant)) {
         Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(module.title, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+            Text(when (module.id) {
+                "STOCK_FUNDAMENTALS" -> "Fundamentals"
+                "TECHNICAL_ANALYSIS" -> "Technicals"
+                "FUNDAMENTAL_ANALYSIS" -> "Statements"
+                "MARKET_EVALUATION" -> "Market view"
+                else -> module.title
+            }, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
             if (read) Text("✓ Read", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

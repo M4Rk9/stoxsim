@@ -4,6 +4,14 @@ import android.content.ContentValues
 import android.graphics.Bitmap
 import android.provider.MediaStore
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
@@ -51,7 +59,7 @@ class VisualSmokeTest {
                 "Wallet" -> WalletScreen(base, {}, {})
                 "Portfolio" -> HoldingsWorkspace(base, {}, {})
                 "Portfolio analysis" -> PortfolioAnalysisScreen(base, {})
-                "Scenario Lab" -> ScenarioWorkspace(base.copy(lists = base.lists + ("scenarios" to listOf(
+                "Scenario Lab" -> ScenarioWorkspace(base.copy(dark = dark.value, lists = base.lists + ("scenarios" to listOf(
                     JSONObject("""{"id":"recovery","title":"Fall and partial recovery","version":1,"shocks":[-20,-35,-15,0,10],"lesson":"An ending gain can hide a deep drawdown."}"""),
                     JSONObject("""{"id":"selloff","title":"Market sell-off","version":1,"shocks":[-10,-20,-30],"lesson":"Cash cushions a uniform fall."}"""),
                     JSONObject("""{"id":"whipsaw","title":"Rally then reversal","version":1,"shocks":[15,30,5,-10],"lesson":"Explore a reversal."}"""),
@@ -75,8 +83,34 @@ class VisualSmokeTest {
             }
         }
     }
-    private fun capture(name: String) {
-        listOf("Stock", "Finwiz AI", "Scenario Lab", "Competition").forEach { label ->
+    @Test @SdkSuppress(minSdkVersion = 29) fun captureBrandScreensInBothAppearances() {
+        val dark = mutableStateOf(false); val welcome = mutableStateOf(false)
+        compose.setContent { StoxSimTheme(dark.value) {
+            if (welcome.value) WelcomeScreen(AppState(restoring = false, dark = dark.value), { _, _, _ -> }, {}, {})
+            else LaunchScreen(AppState(dark = dark.value), {})
+        } }
+        for (appearance in listOf("light", "dark")) {
+            compose.runOnIdle { dark.value = appearance == "dark" }
+            for (screen in listOf("launch", "welcome")) {
+                compose.runOnIdle { welcome.value = screen == "welcome" }
+                compose.waitForIdle(); capture("$screen-$appearance.png", navigation = false)
+            }
+        }
+    }
+    @Test @SdkSuppress(minSdkVersion = 29) fun captureCompactReactorWithLargeText() {
+        val account = Account("INDIA", "Standard India", "STANDARD", "INR", BigDecimal("500000"), BigDecimal.ZERO, true, "synthetic")
+        val state = AppState(restoring = false, user = User("Learner", "learner@example.com", true, listOf(account)), screen = "Finwiz", accountId = account.id, dark = true)
+        compose.setContent { StoxSimTheme(dark = true) {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
+                Box(Modifier.width(320.dp).height(640.dp)) {
+                    AppFrame(state, {}, {}) { FinwizHub(state, {}, { _, _, _ -> }, {}, {}, {}) }
+                }
+            }
+        } }
+        compose.waitForIdle(); capture("finwiz-compact-large-text.png")
+    }
+    private fun capture(name: String, navigation: Boolean = true) {
+        if (navigation) listOf("Stock", "Finwiz AI", "Scenario Lab", "Competition").forEach { label ->
             compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
         }
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()

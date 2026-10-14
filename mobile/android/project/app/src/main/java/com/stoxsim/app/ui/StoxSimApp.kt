@@ -187,7 +187,7 @@ internal fun productTab(screen: String) = when (screen) {
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             val base = Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding()
             Column((if (chat) base.fillMaxSize() else base.verticalScroll(key(state.screen) { rememberScrollState() }))
-                .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen == "Home") 8.dp else 16.dp)) {
+                .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen == "Home") 8.dp else if (state.screen == "Finwiz") 12.dp else 16.dp)) {
                 if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab")) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)

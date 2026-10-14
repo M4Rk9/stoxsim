@@ -75,6 +75,17 @@ class PremiumUiTest {
         compose.onNodeWithText("Run scenario · 1 credit").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, runs); assertEquals("custom", id); assertEquals(listOf("15", "25", "50"), path.map { it.stripTrailingZeros().toPlainString() }) }
     }
+    @Test fun inlineChatShowsAnswersBelowTheReactorAndCanOpenItsHistory() {
+        var opened = ""
+        val chat = FinwizConversation("example-chat", "What is an ETF?", "INDIA", messages = listOf(
+            FinwizMessage("q", "user", "What is an ETF?"), FinwizMessage("a", "assistant", "A fund traded on an exchange.")))
+        compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) {
+            FinwizHub(state().copy(chats = listOf(chat), activeChatId = chat.id), {}, { _, _, _ -> }, { opened = it }, {}, {})
+        } } }
+        compose.onNodeWithText("A fund traded on an exchange.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("View full conversation →").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(chat.id, opened) }
+    }
     @Test fun invalidPathsCannotRun() {
         compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { ScenarioWorkspace(state(), {}, {}, { _, _, _ -> fail("Invalid scenario ran") }, {}) } } }
         compose.onNodeWithContentDescription("Select scenario Custom price shock").performScrollTo().performClick()

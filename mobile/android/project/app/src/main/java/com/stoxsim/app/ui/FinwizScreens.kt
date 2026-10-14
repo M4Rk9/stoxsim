@@ -21,6 +21,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +41,8 @@ import com.stoxsim.app.data.*
     var configure by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<String?>(null) }
     val module = learningModules.first { it.id == selected }
+    val focus = LocalFocusManager.current
+    val inlineChat = state.activeChat?.takeIf { it.region == state.region && it.topic == selected && it.symbol.isBlank() }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.ic_nav_finwiz), null, Modifier.size(30.dp))
         Column(Modifier.weight(1f)) { Text("Finwiz AI", style = MaterialTheme.typography.headlineMedium); Muted("Knowledge is your edge.") }
@@ -60,6 +65,7 @@ import com.stoxsim.app.data.*
                     colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest, contentColor = MaterialTheme.colorScheme.onSurface)) { Text("Read module →") }
             }
         }
+        inlineChat?.let { InlineFinwizConversation(it, state.working, { draft = it.take(2000) }) { openChat(inlineChat.id) } }
         Panel {
             Text("Ask. Understand. Practise.", style = MaterialTheme.typography.titleLarge)
             Muted("Ask Finwiz about ${module.title.lowercase()}.")
@@ -68,13 +74,14 @@ import com.stoxsim.app.data.*
                     modifier = Modifier.weight(1f).semantics { contentDescription = "Finwiz question" }, minLines = 1, maxLines = 4,
                     enabled = !state.working, shape = RoundedCornerShape(18.dp), textStyle = MaterialTheme.typography.bodyMedium,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
-                FilledIconButton({ val question = draft.trim(); draft = ""; startChat(selected, question) },
-                    enabled = draft.isNotBlank() && !state.working, modifier = Modifier.size(48.dp),
+                FilledIconButton({ val question = draft.trim(); draft = ""; focus.clearFocus(); startChat(selected, question) },
+                    enabled = draft.isNotBlank() && !state.working && (inlineChat?.messages?.size ?: 0) < 40, modifier = Modifier.size(48.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
                     Icon(Icons.Default.Send, "Send Finwiz question")
                 }
             }
             Muted("Educational AI · Verify answers")
+            if ((inlineChat?.messages?.size ?: 0) >= 40) Muted("This conversation is full. Use New chat to continue.")
         }
         TextButton({ navigate("Learning path") }, Modifier.fillMaxWidth()) { Text("Your challenges & achievements →") }
     } else {
@@ -102,6 +109,33 @@ import com.stoxsim.app.data.*
         text = { Text("Its messages will be removed from this app session.") },
         confirmButton = { TextButton({ deleting = null; deleteChat(id) }, enabled = !state.working) { Text("Delete") } },
         dismissButton = { TextButton({ deleting = null }) { Text("Keep chat") } }) }
+}
+
+@Composable private fun InlineFinwizConversation(chat: FinwizConversation, working: Boolean, suggestion: (String) -> Unit, open: () -> Unit) {
+    val response = remember(chat.id) { BringIntoViewRequester() }
+    LaunchedEffect(chat.id, chat.messages.size) { if (chat.messages.isNotEmpty()) response.bringIntoView() }
+    Column(Modifier.fillMaxWidth().bringIntoViewRequester(response), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        chat.messages.takeLast(4).forEach { message ->
+            Surface(Modifier.fillMaxWidth(), color = when (message.role) {
+                "user" -> MaterialTheme.colorScheme.surfaceContainerHighest
+                "error" -> MaterialTheme.colorScheme.errorContainer
+                else -> MaterialTheme.colorScheme.surface
+            }, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Kicker(if (message.role == "user") "You" else if (message.role == "error") "Could not get an answer" else "Finwiz")
+                    SelectionContainer { Text(message.text) }
+                    if (message.role == "assistant") {
+                        if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
+                        message.suggestions.take(2).forEach { TextButton({ suggestion(it) }, enabled = !working) { Text(it) } }
+                    }
+                }
+            }
+        }
+        if (working) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…")
+        }
+        TextButton(open, enabled = !working) { Text("View full conversation →") }
+    }
 }
 
 @Composable internal fun FinwizLesson(state: AppState, read: (String) -> Unit, chat: (String) -> Unit) {

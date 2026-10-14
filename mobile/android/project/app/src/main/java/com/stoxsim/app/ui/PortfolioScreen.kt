@@ -43,26 +43,26 @@ import com.stoxsim.app.data.*
         }
     }
     if (section == "Allocation") {
-    Panel("ALLOCATION & ATTRIBUTION", "Understand your portfolio") {
-        SectionError(state, "insights")
-        state.data["insights"]?.let { data ->
-            Status(data.text("status")); ValueRow("Cash weight", percent(data.decimal("cashWeightPercent")))
-            data.objects("allocations").forEach { allocation ->
-                ValueRow(allocation.text("symbol"), percent(allocation.decimal("accountWeightPercent")))
-                LinearProgressIndicator(progress = { (allocation.decimal("accountWeightPercent")?.toFloat()?.div(100) ?: 0f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+        Panel("ALLOCATION & ATTRIBUTION", "Understand your portfolio") {
+            SectionError(state, "insights")
+            state.data["insights"]?.let { data ->
+                Status(data.text("status")); ValueRow("Cash weight", percent(data.decimal("cashWeightPercent")))
+                data.objects("allocations").forEach { allocation ->
+                    ValueRow(allocation.text("symbol"), percent(allocation.decimal("accountWeightPercent")))
+                    LinearProgressIndicator(progress = { (allocation.decimal("accountWeightPercent")?.toFloat()?.div(100) ?: 0f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                }
+                Text("P/L contribution", style = MaterialTheme.typography.titleMedium)
+                data.objects("attributions").forEach { ValueRow(it.text("symbol"), money(it.decimal("totalContribution"), state.currency), it.decimal("totalContribution")) }
+                data.strings("observations").forEach { Text(it) }; Muted(data.text("disclaimer"))
             }
-            Text("P/L contribution", style = MaterialTheme.typography.titleMedium)
-            data.objects("attributions").forEach { ValueRow(it.text("symbol"), money(it.decimal("totalContribution"), state.currency), it.decimal("totalContribution")) }
-            data.strings("observations").forEach { Text(it) }; Muted(data.text("disclaimer"))
         }
-    }
-    Panel("STOX ANALYSIS", "Sector allocation") {
-        SectionError(state, "sectors")
-        val sectors = state.lists["sectors"].orEmpty()
-        if (sectors.isEmpty()) Muted("Make your first trade to see sector allocation.")
-        SectorChart(sectors.map { it.decimal("percent") ?: java.math.BigDecimal.ZERO })
-        sectors.forEach { ValueRow(it.text("name"), percent(it.decimal("percent"))); Muted(money(it.decimal("value"), state.currency)) }
-    }
+        Panel("STOX ANALYSIS", "Sector allocation") {
+            SectionError(state, "sectors")
+            val sectors = state.lists["sectors"].orEmpty()
+            if (sectors.isEmpty()) Muted("Make your first trade to see sector allocation.")
+            SectorChart(sectors.map { it.decimal("percent") ?: java.math.BigDecimal.ZERO })
+            sectors.forEach { ValueRow(it.text("name"), percent(it.decimal("percent"))); Muted(money(it.decimal("value"), state.currency)) }
+        }
     }
 }
 @Composable internal fun HistoryPanel(state: AppState, change: (Int) -> Unit) {

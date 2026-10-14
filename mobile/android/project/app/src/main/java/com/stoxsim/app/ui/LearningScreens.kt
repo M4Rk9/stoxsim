@@ -27,7 +27,7 @@ import java.math.BigDecimal
     }
 }
 @Composable internal fun ScenarioScreen(state: AppState, model: AppViewModel) {
-    ScenarioWorkspace(state, model::changeRegion, model::selectAccount, model::scenario) { model.clearData("scenarioResult") }
+    ScenarioWorkspace(state, model::changeRegion, model::selectAccount, model::scenario, { model.clearData("scenarioResult") }, model::refresh)
 }
 @Composable internal fun LearningScreen(state: AppState, model: AppViewModel) {
     SectionError(state, "progression")

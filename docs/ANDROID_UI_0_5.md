@@ -14,8 +14,9 @@ four product tabs, account boundaries and existing API contracts.
   previewing makes no request. Only Run uses the server and its one-credit cost.
 - **Finwiz:** brain icon, monochrome arc reactor with eight connected topic buttons,
   selected-module summary and Read action, plus a question composer underneath.
-  Selecting topics makes no AI request. Send creates a conversation for the selected
-  topic and invokes the existing bounded-context request flow once.
+  Selecting topics makes no AI request. Send starts or continues a conversation for
+  the selected topic, displays replies below the reactor and invokes the existing
+  bounded-context request flow once. Full conversation history is still available.
 - **Shared UI:** neutral phone surfaces, consistent rounded panels, clearer type,
   pill stock tabs, quieter bottom navigation and visible product entries on Explore.
 - **Launch:** branded starting window on API 28–30; masked-safe StoxSim mark and a

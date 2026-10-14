@@ -41,8 +41,9 @@ import com.stoxsim.app.R
 @Composable internal fun WelcomeScreen(state: AppState, authenticate: (String, String, String?) -> Unit,
     forgot: (String) -> Unit, clearMessage: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp)
-            .widthIn(max = 520.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 520.dp).fillMaxWidth().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Image(painterResource(R.drawable.stoxsim_logo), null, Modifier.size(42.dp))
                 Text("StoxSim", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -52,6 +53,7 @@ import com.stoxsim.app.R
                 Text("Stocks. Finwiz AI. Scenario Lab.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Panel { AuthScreen(state, authenticate, forgot, clearMessage) }
+        }
         }
     }
 }

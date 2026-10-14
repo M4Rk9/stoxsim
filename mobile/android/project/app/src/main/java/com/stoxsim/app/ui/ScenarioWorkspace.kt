@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -19,6 +21,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.stoxsim.app.AppState
@@ -29,7 +32,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 
 @Composable internal fun ScenarioWorkspace(state: AppState, changeRegion: (String) -> Unit, selectAccount: (String) -> Unit,
-    run: (JSONObject, String, List<BigDecimal>) -> Unit, clearResult: () -> Unit) {
+    run: (JSONObject, String, List<BigDecimal>) -> Unit, clearResult: () -> Unit, refresh: () -> Unit = {}) {
     var selected by rememberSaveable(state.accountId) { mutableStateOf("recovery") }
     var title by rememberSaveable(state.accountId) { mutableStateOf("My market path") }
     var input by rememberSaveable(state.accountId) { mutableStateOf("10, 25, 50") }
@@ -44,7 +47,7 @@ import java.math.RoundingMode
     val preview = if (selected == "custom") if (pathValid) shocks.filterNotNull() else emptyList()
         else definition?.optJSONArray("shocks")?.let { a -> (0 until a.length()).mapNotNull { a.opt(it)?.toString()?.toBigDecimalOrNull() } }.orEmpty()
 
-    ScenarioHero(state)
+    ScenarioHero(state, refresh)
     AccountSelector(state, changeRegion, selectAccount)
     SectionError(state, "scenarios"); SectionError(state, "credits")
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -59,16 +62,16 @@ import java.math.RoundingMode
                 val accent = if (custom || item.text("id") == "whipsaw") purple else MaterialTheme.colorScheme.primary
                 val active = item.text("id") == selected
                 OutlinedCard(onClick = { selected = item.text("id"); step = 0; clearResult() }, enabled = !state.working,
-                    modifier = Modifier.weight(1f).fillMaxHeight().semantics { contentDescription = "Select scenario ${item.text("title")}" },
+                    modifier = Modifier.weight(1f).fillMaxHeight().semantics { contentDescription = "Select scenario ${item.text("title")}"; this.selected = active },
                     shape = MaterialTheme.shapes.medium, border = BorderStroke(if (active) 1.5.dp else 1.dp, if (active) accent else MaterialTheme.colorScheme.outlineVariant),
                     colors = CardDefaults.outlinedCardColors(containerColor = if (active) accent.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface)) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Surface(shape = RoundedCornerShape(12.dp), color = accent.copy(alpha = 0.12f)) {
                             Icon(painterResource(if (custom) R.drawable.ic_nav_scenario else R.drawable.ic_nav_stock), null,
-                                Modifier.padding(10.dp).size(22.dp), tint = accent)
+                                Modifier.padding(6.dp).size(22.dp), tint = accent)
                         }
-                        Text(item.text("title"), style = MaterialTheme.typography.titleMedium)
-                        Text(if (custom) "Build your own price path" else "${item.optJSONArray("shocks")?.length() ?: 0} hypothetical moves", style = MaterialTheme.typography.bodySmall,
+                        Text(when (item.text("id")) { "recovery" -> "Recovery path"; "selloff" -> "Market sell-off"; "whipsaw" -> "Rally & reversal"; "custom" -> "Custom path"; else -> item.text("title") }, style = MaterialTheme.typography.titleMedium)
+                        Text(if (custom) "Your own path" else "${item.optJSONArray("shocks")?.length() ?: 0} price moves", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(if (active) "Selected ✓" else "Explore path →", style = MaterialTheme.typography.labelMedium, color = accent)
                     }
@@ -123,17 +126,17 @@ import java.math.RoundingMode
     ScenarioResult(state, purple)
 }
 
-@Composable private fun ScenarioHero(state: AppState) {
+@Composable private fun ScenarioHero(state: AppState, refresh: () -> Unit) {
     val credits = state.data["credits"]
     Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
-        .background(Brush.linearGradient(listOf(Color(0xFF103E35), Color(0xFF25203F)))).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        .background(Brush.linearGradient(listOf(Color(0xFF103E35), Color(0xFF25203F)))).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(painterResource(R.drawable.ic_nav_scenario), null, Modifier.size(24.dp), tint = Color(0xFF8CE3C2))
-            Text("Scenario Lab", color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text("Scenario Lab", Modifier.weight(1f), color = Color.White, style = MaterialTheme.typography.titleLarge)
+            IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh Scenario Lab", tint = Color.White) }
         }
-        Text("See the what-if.\nFind your next insight.", color = Color.White, style = MaterialTheme.typography.headlineMedium)
-        Text("Test market moves against your portfolio.", color = Color(0xFFD1D9D8), style = MaterialTheme.typography.bodyMedium)
+        Text("Try a market path. See its impact.", color = Color(0xFFD1D9D8), style = MaterialTheme.typography.bodyMedium)
         Surface(color = Color.White.copy(alpha = 0.09f), shape = RoundedCornerShape(50)) {
             Text(credits?.let { "${it.text("remaining")} / ${it.text("allowance")} credits · ${it.text("plan")}" } ?: "Credits unavailable",
                 Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = Color(0xFFCFC4FF), style = MaterialTheme.typography.labelMedium)

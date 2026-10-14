@@ -390,9 +390,14 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun startChatWithQuestion(topic: String, question: String) {
         if (mutable.value.user == null || mutable.value.working || question.trim().length !in 1..2000 || learningModules.none { it.id == topic }) return
+        val current = mutable.value.activeChat
+        if (current != null && current.region == mutable.value.region && current.topic == topic && current.symbol.isBlank()) {
+            if (current.messages.size < 40) askChat(question)
+            return
+        }
         val chat = FinwizConversation(UUID.randomUUID().toString(), "New conversation", mutable.value.region, topic)
         mutable.update { it.copy(chats = (listOf(chat) + it.chats).take(10), activeChatId = chat.id,
-            screen = "Finwiz chat", error = null, notice = null) }
+            screen = "Finwiz", error = null, notice = null) }
         askChat(question)
     }
     fun deleteChat(id: String) {
