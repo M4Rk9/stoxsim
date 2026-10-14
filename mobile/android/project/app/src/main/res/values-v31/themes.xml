@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.StoxSim" parent="Theme.StoxSim.Base">
+        <item name="android:windowBackground">@color/launch_surface</item>
+        <item name="android:windowSplashScreenBackground">@color/launch_surface</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_brand</item>
+    </style>
+</resources>

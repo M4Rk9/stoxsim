@@ -53,10 +53,12 @@ class ProductNavigationTest {
             compose.onNodeWithContentDescription("Open $label").assertDoesNotExist()
         }
     }
-    @Test fun tappingAModuleOpensTheLessonWithoutAskingAI() {
+    @Test fun selectingAModuleAndReadingItDoesNotAskAI() {
         var module = ""; var chats = 0
         compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { FinwizHub(state(), { module = it }, { _, _, _ -> chats++ }, {}, {}, {}) } } }
-        compose.onNodeWithText("Market basics").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Select module Market basics").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("", module); assertEquals(0, chats) }
+        compose.onNodeWithText("Read module →").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("LEARN", module); assertEquals(0, chats) }
     }
     @Test fun lessonsAreReadableAndChatIsAnExplicitAction() {

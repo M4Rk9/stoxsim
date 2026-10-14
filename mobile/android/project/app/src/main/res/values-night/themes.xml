@@ -1,9 +1,9 @@
 <resources>
-    <style name="Theme.StoxSim" parent="android:style/Theme.Material.NoActionBar">
+    <style name="Theme.StoxSim.Base" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:colorAccent">#7CDAA7</item>
-        <item name="android:windowBackground">#101C17</item>
+        <item name="android:colorAccent">#00D09C</item>
+        <item name="android:windowBackground">@color/launch_surface</item>
     </style>
 </resources>

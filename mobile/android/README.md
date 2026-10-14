@@ -1,6 +1,6 @@
 # StoxSim native Android
 
-The Android Studio project is in `project/`. Version 0.4.1 replaces the previous
+The Android Studio project is in `project/`. Version 0.5.0 replaces the previous
 Trusted Web Activity launcher with Kotlin and Jetpack Compose. The app's main
 screens run natively and call `https://api.stoxsim.com` directly. Chrome is not
 needed for the main trading, portfolio and learning screens.
@@ -12,7 +12,7 @@ The UI follows the colours in `frontend/app/globals.css` / `theme.css`, uses the
 same brand artwork and section names, and defaults to light appearance like the
 website. Dark appearance is an explicit per-user device preference. Native bottom
 navigation provides Stock, Finwiz AI, Scenario Lab and Competition, with stock-chart,
-AI-processor, lab-flask and trophy icons. Stock has Explore,
+brain, lab-flask and trophy icons. Stock has Explore,
 Holdings, Orders and Watchlist tabs. Global stock/ETF search sits at the top; the
 account avatar opens market, appearance, wallet, subscription and security controls. Cards, charts and forms adapt to a phone rather than copying
 the desktop columns.
@@ -130,3 +130,14 @@ See [product UI mapping](../../docs/ANDROID_PRODUCT_UI.md) for the new navigatio
 0.4.1 fixes watchlist additions using the server market/exchange/symbol contract and
 adds metric cards, quarterly/yearly financial bar charts and a short expandable company
 description. See `../../docs/ANDROID_FUNDAMENTALS_UI.md` for validation and device checks.
+
+## 0.5.0 UI upgrade
+
+Holdings now has a current-value summary, invested/unrealized return, compact stock
+rows, search/sorting and a dedicated portfolio-analysis screen. Cash and account P/L
+stay separate from open holdings. Finwiz uses a brain icon and an accessible reactor
+with connected module buttons; its composer starts a topic chat only after Send.
+Scenario Lab has green/purple preset cards, a free price-path preview and custom
+step controls. Run still uses the existing server contract and spends one credit.
+Launch uses the StoxSim mark, a short native splash exit and honest restore/retry states.
+See [the upgrade notes](../../docs/ANDROID_UI_0_5.md) for acceptance and screenshot evidence.

@@ -43,7 +43,7 @@ internal data class AppState(
 internal class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val api = (application as StoxSimApplication).api
     private val preferences = application.getSharedPreferences("appearance", 0)
-    private val mutable = MutableStateFlow(AppState())
+    private val mutable = MutableStateFlow(AppState(dark = preferences.getBoolean("last-dark", false)))
     val state = mutable.asStateFlow()
     // Retain a write's key after an ambiguous network failure. Explicit retries reuse it.
     private var pendingOrder: Pair<OrderDraft, String>? = null
@@ -81,6 +81,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             region = first?.region ?: "INDIA", accountId = first?.id.orEmpty(),
             dark = preferences.getBoolean(user.email, false),
             readModules = preferences.getStringSet("lessons:${user.email}", emptySet())?.toSet().orEmpty())
+        preferences.edit().putBoolean("last-dark", mutable.value.dark).apply()
         readAccounts()
         loadPage()
         startStream()
@@ -91,11 +92,12 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun setDark(dark: Boolean) {
         mutable.value.user?.email?.let { preferences.edit().putBoolean(it, dark).apply() }
+        preferences.edit().putBoolean("last-dark", dark).apply()
         mutable.update { it.copy(dark = dark) }
     }
     fun openScreen(screen: String) {
         if (screen !in listOf("Home", "Markets", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
-                "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports")) return
+                "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Portfolio analysis")) return
         mutable.update { it.copy(screen = screen, error = null, notice = null) }
         if (mutable.value.working) pagePending = true else refresh()
     }
@@ -247,7 +249,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
                 section("stockInsights") { putData("stockInsights", api.insights(instrument, mutable.value.insightPeriod)) }
                 read("watchlist", "watchlists/default")
             }
-            "Portfolio" -> {
+            "Portfolio", "Portfolio analysis" -> {
                 portfolio()
                 if (id.isNotBlank()) { read("analytics", "accounts/$id/portfolio/analytics"); read("insights", "accounts/$id/portfolio/insights"); read("history", "accounts/$id/portfolio/history", mapOf("days" to "30")); list("sectors", "accounts/$id/portfolio/sectors") }
             }
@@ -386,6 +388,13 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         if (mutable.value.working || mutable.value.chats.none { it.id == id && it.region == mutable.value.region }) return
         mutable.update { it.copy(activeChatId = id) }; openScreen("Finwiz chat")
     }
+    fun startChatWithQuestion(topic: String, question: String) {
+        if (mutable.value.user == null || mutable.value.working || question.trim().length !in 1..2000 || learningModules.none { it.id == topic }) return
+        val chat = FinwizConversation(UUID.randomUUID().toString(), "New conversation", mutable.value.region, topic)
+        mutable.update { it.copy(chats = (listOf(chat) + it.chats).take(10), activeChatId = chat.id,
+            screen = "Finwiz chat", error = null, notice = null) }
+        askChat(question)
+    }
     fun deleteChat(id: String) {
         if (mutable.value.working) return
         mutable.update { it.copy(chats = it.chats.filterNot { chat -> chat.id == id },
@@ -451,6 +460,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun logout() = runAction {
         streamJob?.cancel(); streamJob = null
         val revoked = api.logout()
+        preferences.edit().putBoolean("last-dark", false).apply()
         pendingOrder = null; pendingScenario = null; pendingSandbox = null
         mutable.value = AppState(restoring = false, working = true,
             notice = if (revoked) "Signed out." else "Signed out on this device. Server sign-out could not be confirmed. Revoke this session from another signed-in device.")

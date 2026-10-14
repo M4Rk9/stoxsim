@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -28,53 +30,65 @@ import com.stoxsim.app.AppState
 import com.stoxsim.app.data.*
 
 @Composable internal fun FinwizHub(state: AppState, lesson: (String) -> Unit, newChat: (String, String, String) -> Unit,
-    openChat: (String) -> Unit, deleteChat: (String) -> Unit, navigate: (String) -> Unit) {
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    openChat: (String) -> Unit, deleteChat: (String) -> Unit, navigate: (String) -> Unit,
+    startChat: (String, String) -> Unit = { _, _ -> }) {
+    var tab by rememberSaveable { mutableStateOf("Modules") }
+    var selected by rememberSaveable { mutableStateOf("LEARN") }
+    var draft by remember { mutableStateOf("") }
     var configure by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<String?>(null) }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text("Finwiz AI", style = MaterialTheme.typography.headlineLarge); Muted("Your investing companion") }
-        FilledTonalButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
+    val module = learningModules.first { it.id == selected }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.ic_nav_finwiz), null, Modifier.size(30.dp))
+        Column(Modifier.weight(1f)) { Text("Finwiz AI", style = MaterialTheme.typography.headlineMedium); Muted("Knowledge is your edge.") }
+        TextButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
     }
-    TabRow(tab, containerColor = MaterialTheme.colorScheme.background) {
-        Tab(tab == 0, { tab = 0 }, text = { Text("Learn") })
-        Tab(tab == 1, { tab = 1 }, text = { Text("Chats") })
-    }
-    if (tab == 0) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column { Text("Learning modules", style = MaterialTheme.typography.titleLarge); Muted("${state.readModules.size} of ${learningModules.size} read · On this device") }
-        }
-        learningModules.chunked(2).forEachIndexed { row, pair ->
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                pair.forEachIndexed { column, module ->
-                    OutlinedCard(onClick = { lesson(module.id) }, modifier = Modifier.weight(1f).fillMaxHeight(),
-                        shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                        Column(Modifier.padding(12.dp).heightIn(min = 156.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                                Text("${row * 2 + column + 1}".padStart(2, '0'), Modifier.padding(8.dp), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
-                            Text(module.title, style = MaterialTheme.typography.titleMedium)
-                            Text(module.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            Spacer(Modifier.weight(1f))
-                            Text(if (module.id in state.readModules) "✓ Read · Review →" else "3 lessons · Start →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
+    ChoiceRow(listOf("Modules" to "Modules", "Chats" to "Chats"), tab) { tab = it }
+    if (tab == "Modules") {
+        Panel {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Kicker("THE KNOWLEDGE REACTOR")
+                Muted("${state.readModules.size}/${learningModules.size} read")
+            }
+            FinwizReactor(selected, state.readModules, { selected = it }, !state.working)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Text(module.summary, style = MaterialTheme.typography.bodyMedium)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Muted("${module.lessons.size} lessons${if (module.id in state.readModules) " · Read" else " · Start here"}")
+                Spacer(Modifier.weight(1f))
+                FilledTonalButton({ lesson(module.id) }, enabled = !state.working,
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest, contentColor = MaterialTheme.colorScheme.onSurface)) { Text("Read module →") }
             }
         }
-        OutlinedButton({ navigate("Learning path") }, Modifier.fillMaxWidth()) { Text("Your challenges & achievements →") }
+        Panel {
+            Text("Ask. Understand. Practise.", style = MaterialTheme.typography.titleLarge)
+            Muted("Ask Finwiz about ${module.title.lowercase()}.")
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(draft, { draft = it.take(2000) }, placeholder = { Text("What would you like to learn?") },
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Finwiz question" }, minLines = 1, maxLines = 4,
+                    enabled = !state.working, shape = RoundedCornerShape(18.dp), textStyle = MaterialTheme.typography.bodyMedium,
+                    colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
+                FilledIconButton({ val question = draft.trim(); draft = ""; startChat(selected, question) },
+                    enabled = draft.isNotBlank() && !state.working, modifier = Modifier.size(48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
+                    Icon(Icons.Default.Send, "Send Finwiz question")
+                }
+            }
+            Muted("Educational AI · Verify answers")
+        }
+        TextButton({ navigate("Learning path") }, Modifier.fillMaxWidth()) { Text("Your challenges & achievements →") }
     } else {
         Text("Your conversations", style = MaterialTheme.typography.titleLarge)
-        Muted("Chats stay in memory for this sign-in session. Recent messages are included when they fit the question limit; restate older context when needed.")
+        Muted("Conversations stay in memory for this sign-in session.")
         val chats = state.chats.filter { it.region == state.region }
         if (chats.isEmpty()) Panel(title = "Start a conversation") {
             Text("Ask about a concept, a stock or a lesson you just read.")
             Button({ configure = true }, enabled = !state.working) { Text("Ask Finwiz") }
         }
         chats.forEach { chat ->
-            OutlinedCard(onClick = { openChat(chat.id) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Row(Modifier.padding(start = 14.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedCard(onClick = { openChat(chat.id) }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Row(Modifier.padding(start = 18.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) { Text(chat.title, style = MaterialTheme.typography.titleMedium, maxLines = 2); Muted("${regionLabel(chat.region)} · ${learningModules.find { it.id == chat.topic }?.title} · ${chat.messages.count { it.role == "user" }} questions") }
                     IconButton({ deleting = chat.id }, enabled = !state.working) { Icon(Icons.Default.Delete, "Delete conversation ${chat.title}") }
                 }
@@ -112,6 +126,7 @@ import com.stoxsim.app.data.*
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.ic_nav_finwiz), null, Modifier.padding(end = 10.dp).size(26.dp))
             Column(Modifier.weight(1f)) { Text("Finwiz", style = MaterialTheme.typography.titleLarge); Muted("${module?.title} · ${regionLabel(chat.region)}${if (chat.symbol.isNotBlank()) " · ${chat.symbol}" else ""}") }
             TextButton(newChat, enabled = !state.working) { Text("New chat") }
         }
@@ -128,8 +143,8 @@ import com.stoxsim.app.data.*
             items(chat.messages, key = { it.id }) { message ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.role == "user") Arrangement.End else Arrangement.Start) {
                     Surface(Modifier.widthIn(max = 520.dp).fillMaxWidth(if (message.role == "user") 0.88f else 1f),
-                        color = when (message.role) { "user" -> MaterialTheme.colorScheme.primaryContainer; "error" -> MaterialTheme.colorScheme.errorContainer; else -> MaterialTheme.colorScheme.surface },
-                        shape = RoundedCornerShape(16.dp), border = if (message.role == "assistant") BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
+                        color = when (message.role) { "user" -> MaterialTheme.colorScheme.surfaceContainerHighest; "error" -> MaterialTheme.colorScheme.errorContainer; else -> MaterialTheme.colorScheme.surface },
+                        shape = RoundedCornerShape(22.dp), border = if (message.role == "assistant") BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Kicker(when (message.role) { "user" -> "You"; "error" -> "Could not get an answer"; else -> "Finwiz" })
                             SelectionContainer { Text(message.text) }

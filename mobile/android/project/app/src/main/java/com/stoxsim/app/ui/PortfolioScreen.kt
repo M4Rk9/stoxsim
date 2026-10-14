@@ -5,16 +5,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import com.stoxsim.app.AppState
 import com.stoxsim.app.AppViewModel
 import com.stoxsim.app.data.*
 
-@Composable internal fun PortfolioScreen(state: AppState, model: AppViewModel) {
-    AccountSelector(state, model::changeRegion, model::selectAccount)
-    PortfolioMetrics(state)
-    HoldingsPanel(state, model::selectStock)
-    Panel("PORTFOLIO STRUCTURE", "StoxScore") {
+@Composable internal fun PortfolioAnalysisScreen(state: AppState, change: (Int) -> Unit) {
+    var section by rememberSaveable(state.accountId) { mutableStateOf("Performance") }
+    Panel {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge) }
+            Column(Modifier.weight(1f)) { Muted("Starting capital"); Text(money(state.portfolio?.capital, state.currency), style = MaterialTheme.typography.titleLarge) }
+        }
+        ValueRow("All-time return", percent(state.portfolio?.returnPercent), state.portfolio?.returnPercent)
+        state.portfolio?.let { SnapshotLabel(it.status, it.valuedAt) }
+        SectionError(state, "portfolio")
+    }
+    ChoiceRow(listOf("Performance", "Allocation", "StoxScore").map { it to it }, section) { section = it }
+    if (section == "Performance") HistoryPanel(state, change)
+    if (section == "StoxScore") Panel("PORTFOLIO STRUCTURE", "StoxScore") {
         SectionError(state, "analytics")
         state.data["analytics"]?.let { data ->
             Text(data.decimal("stoxScore")?.let { "${number(it)} / 100" } ?: "Not enough data", style = MaterialTheme.typography.headlineMedium)
@@ -22,7 +32,9 @@ import com.stoxsim.app.data.*
             ValueRow("Coverage", percent(data.decimal("dataCoveragePercent")))
             ValueRow("Largest position", percent(data.decimal("largestPositionWeightPercent")))
             ValueRow("Top three positions", percent(data.decimal("topThreeWeightPercent")))
-            data.objects("components").forEach { component ->
+            var expanded by remember { mutableStateOf(false) }
+            TextButton({ expanded = !expanded }) { Text(if (expanded) "Hide score breakdown" else "View score breakdown") }
+            if (expanded) data.objects("components").forEach { component ->
                 Text(component.text("label"), fontWeight = FontWeight.Bold)
                 ValueRow("Score / weight", "${number(component.decimal("score"))} / ${percent(component.decimal("weightPercent"))}")
                 Text(component.text("explanation"))
@@ -30,6 +42,7 @@ import com.stoxsim.app.data.*
             data.strings("observations").forEach { Text(it) }; Muted(data.text("disclaimer"))
         }
     }
+    if (section == "Allocation") {
     Panel("ALLOCATION & ATTRIBUTION", "Understand your portfolio") {
         SectionError(state, "insights")
         state.data["insights"]?.let { data ->
@@ -50,24 +63,6 @@ import com.stoxsim.app.data.*
         SectorChart(sectors.map { it.decimal("percent") ?: java.math.BigDecimal.ZERO })
         sectors.forEach { ValueRow(it.text("name"), percent(it.decimal("percent"))); Muted(money(it.decimal("value"), state.currency)) }
     }
-    HistoryPanel(state, model::history)
-}
-@Composable internal fun HoldingsPanel(state: AppState, select: (Instrument) -> Unit) {
-    Panel("PORTFOLIO", "Your holdings") {
-        SectionError(state, "portfolio")
-        val positions = state.portfolio?.positions.orEmpty()
-        if (positions.isEmpty()) Muted("Your holdings will appear after a practice order executes.")
-        positions.forEach { position ->
-            TextButton({ select(Instrument(position.symbol, position.name, position.exchange, state.region, currency = state.currency)) }, enabled = !state.working) {
-                Column(Modifier.fillMaxWidth()) { Text(position.symbol, fontWeight = FontWeight.Bold); Muted(position.name) }
-            }
-            ValueRow("Shares / reserved", "${position.quantity} / ${position.blockedQuantity}")
-            ValueRow("Average / current", "${money(position.average, state.currency)} / ${money(position.price, state.currency)}")
-            ValueRow("Market value", money(position.value, state.currency))
-            ValueRow("Unrealized P/L", money(position.profit, state.currency), position.profit)
-            ValueRow("Return", percent(position.returnPercent), position.returnPercent); Status(position.status)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
     }
 }
 @Composable internal fun HistoryPanel(state: AppState, change: (Int) -> Unit) {

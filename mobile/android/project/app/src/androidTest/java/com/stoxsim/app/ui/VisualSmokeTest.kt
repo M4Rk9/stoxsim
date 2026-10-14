@@ -40,7 +40,7 @@ class VisualSmokeTest {
             FinwizMessage("1", "user", "What is diversification?"), FinwizMessage("2", "assistant", "Diversification spreads exposure across different investments. Several stocks in one sector can still leave a portfolio concentrated. Look at your largest position and sector allocation in StoxSim.", disclaimer = "Synthetic screenshot example · Educational only")))
         val base = AppState(restoring = false, user = User("Learner", "learner@example.com", true, listOf(account)), accountId = "synthetic", portfolio = portfolio,
             recentStocks = listOf(Instrument("EXAMPLE", "Example Company", "NSE"), Instrument("SAMPLE", "Sample Industries", "NSE")),
-            lists = mapOf("indices" to indices), data = mapOf("movers" to movers), chats = listOf(chat), activeChatId = chat.id)
+            lists = mapOf("indices" to indices), data = mapOf("movers" to movers, "history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-06","equity":500000,"quality":"OBSERVED"},{"day":"2026-10-07","equity":500650,"quality":"OBSERVED"},{"day":"2026-10-08","equity":500200,"quality":"OBSERVED"},{"day":"2026-10-09","equity":501450,"quality":"OBSERVED"},{"day":"2026-10-10","equity":502350,"quality":"OBSERVED"}]}""")), chats = listOf(chat), activeChatId = chat.id)
         compose.setContent { StoxSimTheme(dark.value) { AppFrame(base.copy(screen = page.value, dark = dark.value), {}, {}) {
             when (page.value) {
                 "Home" -> StocksExplore(base, {}, {})
@@ -49,11 +49,19 @@ class VisualSmokeTest {
                 "Finwiz chat" -> FinwizChatScreen(base, {}, {})
                 "Account" -> AccountHub(base, {}, {}, {}, {}, {})
                 "Wallet" -> WalletScreen(base, {}, {})
+                "Portfolio" -> HoldingsWorkspace(base, {}, {})
+                "Portfolio analysis" -> PortfolioAnalysisScreen(base, {})
+                "Scenario Lab" -> ScenarioWorkspace(base.copy(lists = base.lists + ("scenarios" to listOf(
+                    JSONObject("""{"id":"recovery","title":"Fall and partial recovery","version":1,"shocks":[-20,-35,-15,0,10],"lesson":"An ending gain can hide a deep drawdown."}"""),
+                    JSONObject("""{"id":"selloff","title":"Market sell-off","version":1,"shocks":[-10,-20,-30],"lesson":"Cash cushions a uniform fall."}"""),
+                    JSONObject("""{"id":"whipsaw","title":"Rally then reversal","version":1,"shocks":[15,30,5,-10],"lesson":"Explore a reversal."}"""),
+                    JSONObject("""{"id":"custom","title":"Custom price shock","version":1,"shocks":[-10],"lesson":"Build your own path."}"""))),
+                    data = base.data + ("credits" to JSONObject("""{"remaining":2,"allowance":2,"plan":"FREE"}"""))), {}, {}, { _, _, _ -> }, {})
             }
         } } }
         for (appearance in listOf("light", "dark")) {
             compose.runOnIdle { dark.value = appearance == "dark" }
-            for ((route, filename) in listOf("Home" to "stocks", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
+            for ((route, filename) in listOf("Home" to "stocks", "Portfolio" to "holdings", "Portfolio analysis" to "portfolio-analysis", "Scenario Lab" to "scenario-lab", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
                 compose.runOnIdle { page.value = route }; compose.waitForIdle()
                 if (route == "Home") {
                     compose.onNode(hasText("Watchlist") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertIsDisplayed()
@@ -62,7 +70,7 @@ class VisualSmokeTest {
                     val navigationTop = compose.onNodeWithContentDescription("Open Stock").fetchSemanticsNode().boundsInRoot.top
                     assertTrue("First mover price must fit above navigation", priceBottom <= navigationTop)
                 }
-                if (route == "Finwiz") compose.onAllNodesWithText("3 lessons · Start →").onFirst().assertIsDisplayed()
+                if (route == "Finwiz") compose.onNodeWithContentDescription("Select module Stock fundamentals").assertIsDisplayed()
                 capture("$filename-$appearance.png")
             }
         }

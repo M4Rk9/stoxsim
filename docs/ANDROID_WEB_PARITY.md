@@ -1,6 +1,6 @@
 # Native Android / website parity
 
-The website is the product reference. Version 0.4.0 implements its consumer
+The website is the product reference. Version 0.5.0 implements its consumer
 trading/learning flows as native Compose screens using the same Spring APIs,
 accounts and entitlements. It does not embed a WebView or launch a TWA.
 
@@ -8,7 +8,7 @@ accounts and entitlements. It does not embed a WebView or launch a TWA.
 
 | Website source | Native mapping |
 | --- | --- |
-| `globals.css` light tokens | Paper #f4f6f1; white panels; ink #17211d; muted #6d7c75; green #0b8f55; borders #dfe5de |
+| `globals.css` light tokens | Neutral paper #f7f8fa; white panels; ink #17211d; muted #6d7c75; green #0b8f55; borders #dfe5de |
 | `theme.css` dark tokens | Paper #121212; panels #1b1b1b; ink #f1f1f1; muted #a3a3a3; mint #00d09c; borders #303030 |
 | `stoxsim-logo.png` and two-colour wordmark | Same logo resource and Stox/Sim colours |
 | Panel/index/metric hierarchy | Outlined native cards, kicker labels, large values and status/time badges |
@@ -34,7 +34,7 @@ local to each client, matching the website's existing local preference model.
 | Market/limit buy/sell, charges | Reviewed native order ticket; account-scoped orders and charge estimate | Implemented; whole shares and positive limit validation |
 | Orders/trades/ledger/cancel | Orders; account-scoped endpoints | Implemented |
 | Holdings/StoxScore/allocation/P&L attribution | Portfolio; analytics/insights endpoints | Implemented |
-| Daily history/benchmark/drawdown/risk | Portfolio history; 30/90/365-day endpoint | Implemented; plan restrictions/data gaps respected |
+| Daily history/benchmark/drawdown/risk | Portfolio analysis; 30/90/365-day endpoint | Implemented; plan restrictions/data gaps respected |
 | Scenario Lab presets/custom paths | Scenario Lab; scenarios/catalog/credits/account run | Implemented; 1–12 cumulative shocks, existing credit balance |
 | Finwiz topics/stock questions | Finwiz learning modules/chat; existing ask endpoint | Implemented; server service limits apply |
 | XP/challenges/check-in/achievements | Finwiz/Learning path; progression endpoints | Implemented |

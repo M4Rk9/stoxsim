@@ -6,7 +6,11 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ### Changed
 
-- Replace Android bottom navigation artwork with stock-chart, AI-processor, lab-flask
+- Upgrade Android to 0.5.0 with compact holdings, a separate portfolio-analysis view,
+  a monochrome Finwiz reactor/module map and inline question composer, an interactive
+  green/purple Scenario Lab, refined shared navigation and branded launch/reconnect states.
+
+- Replace Android bottom navigation artwork with stock-chart, brain, lab-flask
   and trophy icons; expose Stock, Finwiz AI, Scenario Lab and Competition as four tabs.
 
 - Remove default JWT signing credentials; reject known template keys, isolate environment
