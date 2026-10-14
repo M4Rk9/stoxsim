@@ -138,8 +138,11 @@ class PremiumUiTest {
             val results = mutableListOf<TextLayoutResult>()
             compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
-            compose.runOnIdle { assertTrue("$label must fit its text box: ${results.map { "size=${it.size}, lines=${it.lineCount}, widthOverflow=${it.didOverflowWidth}, heightOverflow=${it.didOverflowHeight}" }}",
-                results.isNotEmpty() && results.none { it.hasVisualOverflow }) }
+            // Semantics can expose a paragraph's wrapping width, larger than the
+            // painted text. Check glyph-line widths and truncation, allowing 1 px rounding.
+            compose.runOnIdle { assertTrue("$label must fit its text box: ${results.map { "size=${it.size}, lines=${it.lineCount}" }}",
+                results.isNotEmpty() && results.all { layout -> !layout.multiParagraph.didExceedMaxLines &&
+                    (0 until layout.lineCount).all { line -> layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f } }) }
         }
     }
     @Test fun analysisGraphFitsAboveBottomNavigationOnANarrowPhone() {
