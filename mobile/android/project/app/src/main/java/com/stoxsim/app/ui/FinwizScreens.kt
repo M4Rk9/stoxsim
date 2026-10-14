@@ -47,7 +47,7 @@ import com.stoxsim.app.data.*
     val inlineChat = state.activeChat?.takeIf { it.region == state.region && it.topic == selected && it.symbol.isBlank() }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.ic_nav_finwiz), null, Modifier.size(30.dp))
-        Column(Modifier.weight(1f)) { Text("Finwiz AI", style = MaterialTheme.typography.headlineMedium); Muted("Knowledge is your edge.") }
+        Column(Modifier.weight(1f)) { Text("Finwiz AI", style = if (largeText) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium); Muted("Knowledge is your edge.") }
         if (!largeText) TextButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
     }
     if (largeText) TextButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }

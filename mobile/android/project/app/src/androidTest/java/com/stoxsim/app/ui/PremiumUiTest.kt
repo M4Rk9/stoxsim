@@ -138,7 +138,8 @@ class PremiumUiTest {
             val results = mutableListOf<TextLayoutResult>()
             compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
-            compose.runOnIdle { assertTrue("$label must fit its text box", results.isNotEmpty() && results.none { it.hasVisualOverflow }) }
+            compose.runOnIdle { assertTrue("$label must fit its text box: ${results.map { "size=${it.size}, lines=${it.lineCount}, widthOverflow=${it.didOverflowWidth}, heightOverflow=${it.didOverflowHeight}" }}",
+                results.isNotEmpty() && results.none { it.hasVisualOverflow }) }
         }
     }
     @Test fun analysisGraphFitsAboveBottomNavigationOnANarrowPhone() {
