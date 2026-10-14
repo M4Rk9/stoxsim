@@ -2,10 +2,10 @@ name: Android native
 
 on:
   pull_request:
-    paths: ['mobile/android/project/**', '.github/workflows/android.yml']
+    paths: ['mobile/android/project/**', '.github/workflows/android.yml', '.github/scripts/android-device-check.sh']
   push:
     branches: [main]
-    paths: ['mobile/android/project/**', '.github/workflows/android.yml']
+    paths: ['mobile/android/project/**', '.github/workflows/android.yml', '.github/scripts/android-device-check.sh']
   workflow_dispatch:
 
 permissions:
@@ -72,9 +72,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           working-directory: mobile/android/project
-          script: |
-            ./gradlew :app:connectedDebugAndroidTest --console=plain
-            adb pull /sdcard/Pictures/StoxSimReview native-review
+          script: bash ../../../.github/scripts/android-device-check.sh
       - name: Upload device test reports
         if: always()
         uses: actions/upload-artifact@v4

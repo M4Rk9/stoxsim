@@ -4,6 +4,14 @@ import android.content.ContentValues
 import android.graphics.Bitmap
 import android.provider.MediaStore
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
@@ -40,7 +48,7 @@ class VisualSmokeTest {
             FinwizMessage("1", "user", "What is diversification?"), FinwizMessage("2", "assistant", "Diversification spreads exposure across different investments. Several stocks in one sector can still leave a portfolio concentrated. Look at your largest position and sector allocation in StoxSim.", disclaimer = "Synthetic screenshot example · Educational only")))
         val base = AppState(restoring = false, user = User("Learner", "learner@example.com", true, listOf(account)), accountId = "synthetic", portfolio = portfolio,
             recentStocks = listOf(Instrument("EXAMPLE", "Example Company", "NSE"), Instrument("SAMPLE", "Sample Industries", "NSE")),
-            lists = mapOf("indices" to indices), data = mapOf("movers" to movers), chats = listOf(chat), activeChatId = chat.id)
+            lists = mapOf("indices" to indices), data = mapOf("movers" to movers, "history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-06","equity":500000,"quality":"OBSERVED"},{"day":"2026-10-07","equity":500650,"quality":"OBSERVED"},{"day":"2026-10-08","equity":500200,"quality":"OBSERVED"},{"day":"2026-10-09","equity":501450,"quality":"OBSERVED"},{"day":"2026-10-10","equity":502350,"quality":"OBSERVED"}]}""")), chats = listOf(chat), activeChatId = chat.id)
         compose.setContent { StoxSimTheme(dark.value) { AppFrame(base.copy(screen = page.value, dark = dark.value), {}, {}) {
             when (page.value) {
                 "Home" -> StocksExplore(base, {}, {})
@@ -49,26 +57,62 @@ class VisualSmokeTest {
                 "Finwiz chat" -> FinwizChatScreen(base, {}, {})
                 "Account" -> AccountHub(base, {}, {}, {}, {}, {})
                 "Wallet" -> WalletScreen(base, {}, {})
+                "Portfolio" -> HoldingsWorkspace(base, {}, {})
+                "Portfolio analysis" -> PortfolioAnalysisScreen(base, {})
+                "Scenario Lab" -> ScenarioWorkspace(base.copy(dark = dark.value, lists = base.lists + ("scenarios" to listOf(
+                    JSONObject("""{"id":"recovery","title":"Fall and partial recovery","version":1,"shocks":[-20,-35,-15,0,10],"lesson":"An ending gain can hide a deep drawdown."}"""),
+                    JSONObject("""{"id":"selloff","title":"Market sell-off","version":1,"shocks":[-10,-20,-30],"lesson":"Cash cushions a uniform fall."}"""),
+                    JSONObject("""{"id":"whipsaw","title":"Rally then reversal","version":1,"shocks":[15,30,5,-10],"lesson":"Explore a reversal."}"""),
+                    JSONObject("""{"id":"custom","title":"Custom price shock","version":1,"shocks":[-10],"lesson":"Build your own path."}"""))),
+                    data = base.data + ("credits" to JSONObject("""{"remaining":2,"allowance":2,"plan":"FREE"}"""))), {}, {}, { _, _, _ -> }, {})
             }
         } } }
         for (appearance in listOf("light", "dark")) {
             compose.runOnIdle { dark.value = appearance == "dark" }
-            for ((route, filename) in listOf("Home" to "stocks", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
+            for ((route, filename) in listOf("Home" to "stocks", "Portfolio" to "holdings", "Portfolio analysis" to "portfolio-analysis", "Scenario Lab" to "scenario-lab", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
                 compose.runOnIdle { page.value = route }; compose.waitForIdle()
                 if (route == "Home") {
                     compose.onNode(hasText("Watchlist") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertIsDisplayed()
                     compose.onNodeWithText("Example Company").assertIsDisplayed()
                     val priceBottom = compose.onNodeWithText("₹825.00", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.bottom
-                    val navigationTop = compose.onNodeWithContentDescription("Open Stocks").fetchSemanticsNode().boundsInRoot.top
+                    val navigationTop = compose.onNodeWithContentDescription("Open Stock").fetchSemanticsNode().boundsInRoot.top
                     assertTrue("First mover price must fit above navigation", priceBottom <= navigationTop)
                 }
-                if (route == "Finwiz") compose.onAllNodesWithText("3 lessons · Start →").onFirst().assertIsDisplayed()
+                if (route == "Finwiz") compose.onNodeWithContentDescription("Select module Stock fundamentals").assertIsDisplayed()
                 capture("$filename-$appearance.png")
             }
         }
     }
-    private fun capture(name: String) {
-        compose.onNodeWithContentDescription("Open Stocks").assertIsDisplayed()
+    @Test @SdkSuppress(minSdkVersion = 29) fun captureBrandScreensInBothAppearances() {
+        val dark = mutableStateOf(false); val welcome = mutableStateOf(false)
+        compose.setContent { StoxSimTheme(dark.value) {
+            if (welcome.value) WelcomeScreen(AppState(restoring = false, dark = dark.value), { _, _, _ -> }, {}, {})
+            else LaunchScreen(AppState(dark = dark.value), {})
+        } }
+        for (appearance in listOf("light", "dark")) {
+            compose.runOnIdle { dark.value = appearance == "dark" }
+            for (screen in listOf("launch", "welcome")) {
+                compose.runOnIdle { welcome.value = screen == "welcome" }
+                compose.waitForIdle(); capture("$screen-$appearance.png", navigation = false)
+            }
+        }
+    }
+    @Test @SdkSuppress(minSdkVersion = 29) fun captureCompactReactorWithLargeText() {
+        val account = Account("INDIA", "Standard India", "STANDARD", "INR", BigDecimal("500000"), BigDecimal.ZERO, true, "synthetic")
+        val state = AppState(restoring = false, user = User("Learner", "learner@example.com", true, listOf(account)), screen = "Finwiz", accountId = account.id, dark = true)
+        compose.setContent { StoxSimTheme(dark = true) {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
+                Box(Modifier.width(320.dp).height(640.dp)) {
+                    AppFrame(state, {}, {}) { FinwizHub(state, {}, { _, _, _ -> }, {}, {}, {}) }
+                }
+            }
+        } }
+        compose.waitForIdle(); capture("finwiz-compact-large-text.png")
+    }
+    private fun capture(name: String, navigation: Boolean = true) {
+        if (navigation) listOf("Stock", "Finwiz AI", "Scenario Lab", "Competition").forEach { label ->
+            compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
+        }
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         val pixels = IntArray(bitmap.width * bitmap.height)
         bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)

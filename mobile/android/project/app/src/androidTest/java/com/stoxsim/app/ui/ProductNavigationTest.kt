@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -19,25 +20,45 @@ class ProductNavigationTest {
     private val account = Account("INDIA", "Standard India", "STANDARD", "INR", BigDecimal("500000"), BigDecimal.ZERO, true, "practice")
     private fun state() = AppState(restoring = false, user = User("Learner", "learner@example.com", true, listOf(account)), accountId = account.id)
 
-    @Test fun threeProductTabsAndTopSearchAreFunctional() {
+    @Test fun fourProductTabsAndTopSearchAreFunctional() {
         var route = ""; var query = ""
-        compose.setContent { StoxSimTheme { AppFrame(state(), { route = it }, {}, { query = it }) { androidx.compose.material3.Text("Stock content") } } }
-        compose.onNodeWithContentDescription("Open Finwiz AI").performClick()
-        compose.runOnIdle { assertEquals("Finwiz", route) }
-        compose.onNodeWithContentDescription("Open Scenario Lab").performClick()
-        compose.runOnIdle { assertEquals("Scenario Lab", route) }
-        compose.onNodeWithContentDescription("Open Stocks").performClick()
-        compose.runOnIdle { assertEquals("Home", route) }
+        val screen = mutableStateOf("Home")
+        val tabs = listOf("Stock" to "Home", "Finwiz AI" to "Finwiz", "Scenario Lab" to "Scenario Lab", "Competition" to "Competitions")
+        compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = screen.value), { route = it; screen.value = it }, {}, { query = it }) { androidx.compose.material3.Text("Product content") } } }
+        tabs.forEach { (label, destination) ->
+            compose.onNodeWithContentDescription("Open $label").assertIsDisplayed().performClick()
+            compose.runOnIdle { assertEquals(destination, route) }
+            compose.onNodeWithContentDescription("Open $label").assertIsSelected()
+            tabs.filter { it.first != label }.forEach { (other, _) ->
+                compose.onNodeWithContentDescription("Open $other").assertIsNotSelected()
+            }
+            compose.onNodeWithContentDescription("Back").assertDoesNotExist()
+        }
+        compose.runOnIdle { assertEquals("Home", parentScreen("Competitions")) }
+        compose.onNodeWithContentDescription("Open Stock").performClick()
         compose.onNodeWithContentDescription("Stock and ETF search").performTextInput("AAPL")
         compose.onNodeWithContentDescription("Stock and ETF search").performImeAction()
         compose.runOnIdle { assertEquals("AAPL", query) }
         compose.onNodeWithContentDescription("Account settings").performClick()
         compose.runOnIdle { assertEquals("Account", route) }
     }
-    @Test fun tappingAModuleOpensTheLessonWithoutAskingAI() {
+    @Test fun finwizLessonsKeepTheFinwizTabSelected() {
+        compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = "Finwiz lesson"), {}, {}) {} } }
+        compose.onNodeWithContentDescription("Open Finwiz AI").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Competition").assertIsNotSelected()
+    }
+    @Test fun signedOutUsersDoNotSeeProductNavigation() {
+        compose.setContent { StoxSimTheme { AppFrame(AppState(restoring = false), {}, {}) {} } }
+        listOf("Stock", "Finwiz AI", "Scenario Lab", "Competition").forEach { label ->
+            compose.onNodeWithContentDescription("Open $label").assertDoesNotExist()
+        }
+    }
+    @Test fun selectingAModuleAndReadingItDoesNotAskAI() {
         var module = ""; var chats = 0
         compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { FinwizHub(state(), { module = it }, { _, _, _ -> chats++ }, {}, {}, {}) } } }
-        compose.onNodeWithText("Market basics").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Select module Market basics").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("", module); assertEquals(0, chats) }
+        compose.onNodeWithText("Read module →").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("LEARN", module); assertEquals(0, chats) }
     }
     @Test fun lessonsAreReadableAndChatIsAnExplicitAction() {

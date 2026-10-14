@@ -30,7 +30,7 @@ import java.util.Locale
 @Composable internal fun Panel(kicker: String = "", title: String = "", content: @Composable ColumnScope.() -> Unit) {
     Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (kicker.isNotBlank()) Kicker(kicker)
             if (title.isNotBlank()) Text(title, style = MaterialTheme.typography.titleLarge)
             content()
@@ -55,7 +55,7 @@ import java.util.Locale
 @Composable internal fun ValueRow(label: String, value: String, amount: BigDecimal? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-        Text(value, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, color = if (amount == null) MaterialTheme.colorScheme.onSurface else tone(amount))
+        Text(value, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontWeight = FontWeight.SemiBold, color = if (amount == null) MaterialTheme.colorScheme.onSurface else tone(amount))
     }
 }
 @Composable internal fun tone(amount: BigDecimal) = if (amount.signum() >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -69,9 +69,10 @@ internal fun regionLabel(region: String) = if (region == "INDIA") "India" else "
 
 /** Null marks and explicit history breaks leave gaps instead of implying unobserved returns. */
 @Composable internal fun LineChart(values: List<BigDecimal?>, labels: List<String>, title: String,
-    benchmark: List<BigDecimal?> = emptyList(), connect: Boolean = true) {
+    benchmark: List<BigDecimal?> = emptyList(), connect: Boolean = true,
+    lineColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary) {
     var selected by remember(values) { mutableIntStateOf(-1) }
-    val primary = MaterialTheme.colorScheme.primary
+    val primary = lineColor
     val grid = MaterialTheme.colorScheme.outlineVariant
     val secondary = MaterialTheme.colorScheme.secondary
     val marks = (values + benchmark).filterNotNull()

@@ -1,19 +1,23 @@
-# Android product navigation — 0.4.0
+# Android product navigation
 
 The owner's reference screens guide the layout, while StoxSim keeps its own logo,
 light/dark colours and simulator identity. This is native Compose.
 
 | Area | Behaviour |
 | --- | --- |
-| Bottom navigation | Stocks, Finwiz AI, Scenario Lab |
-| Stocks tabs | Explore, Holdings, Orders, Watchlist |
+| Bottom navigation | Stock (price chart), Finwiz AI (brain), Scenario Lab (lab flask), Competition (trophy); four always-labelled tabs |
+| Competition | Opens the existing season leaderboard and private leagues directly; selects its own tab and Back returns to Stock |
+| Stocks tabs | Explore, Holdings, Orders, Watchlist; restrained pill navigation |
+| Holdings | Current value, invested/unrealized return, cash/account P/L, searchable/sortable stock rows, separate portfolio analysis |
+| Scenario Lab | Green/purple presets, price-path preview, bounded custom step controls and explicit one-credit Run |
+| Launch | Branded native splash, session-restore progress/retry and a native welcome/sign-in screen |
 | Top search | Symbol/company search for instruments supported in the selected India/US market; keyboard Search or magnifier submits |
 | Stocks Explore | Compact index cards, recently viewed symbols, real market movers, investments summary and tools |
 | Top-right account | Profile avatar opens account hub |
 | Account hub | India/US market, standard/sandbox account, light/dark appearance, wallet, subscriptions, profile/security, competitions/campus and reports |
 | Wallet | Account-scoped available/reserved virtual cash, starting capital and ledger; no real deposits/withdrawals |
 | Subscriptions | Existing plan, dates, entitlements, plan catalogue and eligible additional sandbox; Play purchasing remains pending |
-| Finwiz Learn | Eight topic cards, each with three bundled lessons, optional local read marker and explicit Ask Finwiz action |
+| Finwiz Learn | Eight connected reactor modules, each with three bundled lessons, local read marker and an explicit Read module action; question composer below |
 | Finwiz Chats | New chat/topic/experience/optional symbol, user/assistant bubbles, suggested questions, send state, errors, reopen/delete conversations |
 
 Lesson topic IDs match `frontend/app/finwiz/FinwizReactor.tsx` and the existing
@@ -28,7 +32,7 @@ text is authored for StoxSim, with investor education links for further reading:
 AI requests use the existing endpoint and server account/service limits. The latest
 question stays intact; up to four recent user/assistant messages are included when
 they fit the 2,000-character request contract. Older context may be omitted. Errors
-are not sent as conversation context. Nothing is submitted by opening a lesson,
+are not sent as conversation context. The reactor composer starts a chat and submits its typed question only on Send. Nothing is submitted by selecting a module, opening a lesson,
 selecting a suggestion, reopening a conversation or changing tabs.
 
 Chats are memory-only, bounded to ten conversations and twenty question/answer
@@ -47,7 +51,9 @@ No production AI requests or orders are made by tests.
 
 On the owner's device:
 
-1. Check version 0.4.0 and all three bottom tabs. Open Holdings, Orders and Watchlist.
+1. Check all four bottom tabs and their matching icons in light and dark appearance.
+   Open Competition; verify its tab is selected, season/private leagues load and
+   Back returns to Stock. Open Holdings, Orders and Watchlist.
 2. Search a symbol using keyboard Search and the magnifier. Switch IND/US in Account;
    verify currency/results/wallet change and stale results clear.
 3. Read a Finwiz module, mark it read, open its chat and explicitly send a question.

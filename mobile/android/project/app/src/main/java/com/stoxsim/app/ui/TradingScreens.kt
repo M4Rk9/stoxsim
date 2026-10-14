@@ -1,6 +1,10 @@
 package com.stoxsim.app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
+import com.stoxsim.app.R
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,8 +26,17 @@ import java.math.RoundingMode
 @Composable internal fun AccountSelector(state: AppState, changeRegion: (String) -> Unit, select: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton({ expanded = true }, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
-            Text(state.account?.let { "${it.label}${if (!it.active) " · Locked" else ""} ▾" } ?: "Select a practice account")
+        Surface(onClick = { expanded = true }, enabled = !state.working, modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.medium,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(state.account?.label ?: "Select a practice account", style = MaterialTheme.typography.labelLarge)
+                    Muted("${regionLabel(state.region)} · ${state.currency}${if (state.account?.active == false) " · Locked" else " · Virtual money"}")
+                }
+                Text("⌄", style = MaterialTheme.typography.titleLarge)
+            }
         }
         DropdownMenu(expanded, { expanded = false }) {
             state.user?.accounts?.filter { it.region == state.region }?.forEach { account ->
@@ -84,7 +97,21 @@ import java.math.RoundingMode
         SectionError(state, "portfolio")
         TextButton({ navigate("Portfolio") }) { Text("View holdings & analysis →") }
     }
-    Text("Products & tools", style = MaterialTheme.typography.titleLarge)
+    Text("Go beyond the chart", style = MaterialTheme.typography.titleLarge)
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        listOf(Triple("Finwiz", "Finwiz AI", R.drawable.ic_nav_finwiz), Triple("Scenario Lab", "Scenario Lab", R.drawable.ic_nav_scenario)).forEach { (route, label, icon) ->
+            OutlinedCard(onClick = { navigate(route) }, modifier = Modifier.weight(1f).fillMaxHeight(), shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(painterResource(icon), null, Modifier.size(28.dp))
+                    Text(label, style = MaterialTheme.typography.titleMedium)
+                    Muted(if (route == "Finwiz") "Learn. Ask. Understand." else "Explore your portfolio's what-if.")
+                    Text("Open →", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
+    Text("More from StoxSim", style = MaterialTheme.typography.titleMedium)
     listOf("Watchlist" to "Follow your favourite stocks", "Competitions" to "Practise with other learners", "Campus" to "Join your institution").chunked(2).forEach { pair ->
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             pair.forEach { (route, description) -> OutlinedCard(onClick = { navigate(route) }, modifier = Modifier.weight(1f).fillMaxHeight(),

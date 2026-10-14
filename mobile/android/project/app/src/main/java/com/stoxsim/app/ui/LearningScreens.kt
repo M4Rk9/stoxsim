@@ -27,42 +27,7 @@ import java.math.BigDecimal
     }
 }
 @Composable internal fun ScenarioScreen(state: AppState, model: AppViewModel) {
-    AccountSelector(state, model::changeRegion, model::selectAccount)
-    Text("What if?", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary)
-    Text("Your ideas. Your market. Explore what could happen.")
-    var selected by rememberSaveable(state.accountId) { mutableStateOf("recovery") }
-    var title by rememberSaveable(state.accountId) { mutableStateOf("My next big idea") }
-    var input by rememberSaveable(state.accountId) { mutableStateOf("10, 25, 50") }
-    val catalog = state.lists["scenarios"].orEmpty()
-    val definition = catalog.find { it.text("id") == selected }
-    val credits = state.data["credits"]
-    val shocks = input.split(',').map { it.trim().toBigDecimalOrNull() }
-    val valid = selected != "custom" || (title.trim().isNotEmpty() && title.length <= 80 && shocks.size in 1..12 && shocks.all { it != null && it >= BigDecimal("-100") && it <= BigDecimal("100") && it.stripTrailingZeros().scale() <= 2 })
-    Panel("START WITH AN IDEA", "Scenario Lab") {
-        SectionError(state, "scenarios"); SectionError(state, "credits")
-        Text(credits?.let { "${it.optInt("remaining")} / ${it.optInt("allowance")} credits · ${it.text("plan")}" } ?: "Loading credits…", fontWeight = FontWeight.Bold)
-        ChoiceRow(catalog.map { it.text("id") to it.text("title") }, selected, !state.working) { selected = it; model.clearData("scenarioResult") }
-        if (selected == "custom") {
-            OutlinedTextField(title, { title = it.take(80); model.clearData("scenarioResult") }, label = { Text("Scenario name") }, modifier = Modifier.fillMaxWidth(), enabled = !state.working)
-            OutlinedTextField(input, { input = it.take(180); model.clearData("scenarioResult") }, label = { Text("Price changes (%) separated by commas") }, modifier = Modifier.fillMaxWidth(), enabled = !state.working)
-            Muted("Use 1–12 moves between −100% and +100%, with at most two decimals. Each move is relative to today's price.")
-        } else definition?.let { Text(it.text("lesson")); Text(it.optJSONArray("shocks")?.toString().orEmpty() + "% cumulative price moves") }
-        Button({ definition?.let { model.scenario(it, title, shocks.filterNotNull()) } }, enabled = !state.working && definition != null && valid && (credits?.optInt("remaining") ?: 0) > 0 && state.accountId.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Run scenario · 1 credit") }
-        if (credits?.optInt("remaining") == 0) Muted("No credits remain in your current allowance.")
-    }
-    state.data["scenarioResult"]?.let { result -> Panel("YOUR WHAT-IF RESULT", result.optJSONObject("scenario")?.text("title").orEmpty()) {
-        val projection = result.getJSONObject("projection")
-        val steps = projection.objects("steps")
-        Text(money(steps.lastOrNull()?.decimal("equity"), state.currency), style = MaterialTheme.typography.headlineLarge)
-        ValueRow("Portfolio change", percent(projection.decimal("returnPercent")), projection.decimal("returnPercent"))
-        LineChart(steps.map { it.decimal("equity") }, steps.map { "Step ${it.text("step")}" }, "Hypothetical portfolio value by scenario step")
-        ValueRow("Starting value", money(result.decimal("startingEquity"), state.currency)); ValueRow("Cash held", money(result.decimal("cash"), state.currency))
-        ValueRow("Largest drawdown", percent(projection.decimal("maximumDrawdownPercent")))
-        Text("Step-by-step", style = MaterialTheme.typography.titleMedium)
-        steps.forEach { ValueRow("${it.text("step")} · ${percent(it.decimal("shockPercent"))}", money(it.decimal("equity"), state.currency)) }
-        result.objects("positions").forEach { ValueRow(it.text("symbol"), money(it.decimal("endingValue"), state.currency)); ValueRow("Change", money(it.decimal("change"), state.currency), it.decimal("change")) }
-        result.strings("assumptions").forEach { Muted(it) }
-    } }
+    ScenarioWorkspace(state, model::changeRegion, model::selectAccount, model::scenario, { model.clearData("scenarioResult") }, model::refresh)
 }
 @Composable internal fun LearningScreen(state: AppState, model: AppViewModel) {
     SectionError(state, "progression")

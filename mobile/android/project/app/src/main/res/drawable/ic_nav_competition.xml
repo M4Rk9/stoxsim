@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- A winners' cup for leaderboards and leagues. -->
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF000000"
+        android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M7,3 L17,3 L17,9 A5,5 0,0 1,7 9 Z M7,5 L3,5 L3,7 A4,4 0,0 0,7 11 M17,5 L21,5 L21,7 A4,4 0,0 1,17 11 M12,14 L12,18 M9,18 L15,18 L16,21 L8,21 Z" />
+</vector>
