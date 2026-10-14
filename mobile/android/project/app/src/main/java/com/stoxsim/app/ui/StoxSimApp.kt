@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -137,11 +138,16 @@ internal fun productTab(screen: String) = when (screen) {
     val stockPages = listOf("Home", "Markets", "Portfolio", "Orders", "Watchlist")
     val main = stockPages + listOf("Finwiz", "Scenario Lab", "Competitions")
     val chat = state.screen == "Finwiz chat"
+    val largeText = LocalDensity.current.fontScale > 1.3f
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         Column(Modifier.statusBarsPadding().fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (signedIn) {
+                if (signedIn && state.screen == "Portfolio analysis") {
+                    IconButton({ navigate("Portfolio") }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    Text("Portfolio analysis", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                    IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh portfolio analysis") }
+                } else if (signedIn) {
                     if (state.screen !in main) IconButton({ navigate(parentScreen(state.screen)) }, Modifier.size(32.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                     OutlinedTextField(query, { query = it.take(100) }, placeholder = { Text("Search stocks & ETFs", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         singleLine = true, enabled = !state.working, shape = RoundedCornerShape(28.dp), textStyle = MaterialTheme.typography.bodyMedium,
@@ -180,7 +186,8 @@ internal fun productTab(screen: String) = when (screen) {
                 icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onSurface,
                     selectedTextColor = MaterialTheme.colorScheme.onSurface, indicatorColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                label = { Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center) }) }
+                label = { Text(if (largeText) when (route) { "Finwiz" -> "Finwiz"; "Scenario Lab" -> "Lab"; "Competitions" -> "Contest"; else -> "Stock" } else label,
+                    style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = if (largeText) 1 else Int.MAX_VALUE) }) }
             }
         }
     }) { padding ->
@@ -188,7 +195,7 @@ internal fun productTab(screen: String) = when (screen) {
             val base = Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding()
             Column((if (chat) base.fillMaxSize() else base.verticalScroll(key(state.screen) { rememberScrollState() }))
                 .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen == "Home") 8.dp else if (state.screen == "Finwiz") 12.dp else 16.dp)) {
-                if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab")) {
+                if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab", "Portfolio analysis")) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
                         IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh ${state.screen}") }

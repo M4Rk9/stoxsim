@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.semantics.contentDescription
@@ -41,19 +42,21 @@ import com.stoxsim.app.data.*
     var configure by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<String?>(null) }
     val module = learningModules.first { it.id == selected }
+    val largeText = LocalDensity.current.fontScale > 1.3f
     val focus = LocalFocusManager.current
     val inlineChat = state.activeChat?.takeIf { it.region == state.region && it.topic == selected && it.symbol.isBlank() }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Icon(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.ic_nav_finwiz), null, Modifier.size(30.dp))
         Column(Modifier.weight(1f)) { Text("Finwiz AI", style = MaterialTheme.typography.headlineMedium); Muted("Knowledge is your edge.") }
-        TextButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
+        if (!largeText) TextButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
     }
+    if (largeText) TextButton({ configure = true }, enabled = !state.working) { Text("+ New chat") }
     ChoiceRow(listOf("Modules" to "Modules", "Chats" to "Chats"), tab) { tab = it }
     if (tab == "Modules") {
         Panel {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Kicker("THE KNOWLEDGE REACTOR")
-                Muted("${state.readModules.size}/${learningModules.size} read")
+            if (largeText) Column { Kicker("LEARNING MAP"); Muted("${state.readModules.size} of ${learningModules.size} modules read") }
+            else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Kicker("THE KNOWLEDGE REACTOR"); Muted("${state.readModules.size}/${learningModules.size} read")
             }
             FinwizReactor(selected, state.readModules, { selected = it }, !state.working)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

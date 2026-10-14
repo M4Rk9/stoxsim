@@ -13,17 +13,9 @@ import com.stoxsim.app.data.*
 
 @Composable internal fun PortfolioAnalysisScreen(state: AppState, change: (Int) -> Unit) {
     var section by rememberSaveable(state.accountId) { mutableStateOf("Performance") }
-    Panel {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge) }
-            Column(Modifier.weight(1f)) { Muted("Starting capital"); Text(money(state.portfolio?.capital, state.currency), style = MaterialTheme.typography.titleLarge) }
-        }
-        ValueRow("All-time return", percent(state.portfolio?.returnPercent), state.portfolio?.returnPercent)
-        state.portfolio?.let { SnapshotLabel(it.status, it.valuedAt) }
-        SectionError(state, "portfolio")
-    }
     ChoiceRow(listOf("Performance", "Allocation", "StoxScore").map { it to it }, section) { section = it }
-    if (section == "Performance") HistoryPanel(state, change)
+    if (section == "Performance") HistoryPanel(state, change) { AnalysisSummary(state) }
+    else Panel { AnalysisSummary(state); state.portfolio?.let { SnapshotLabel(it.status, it.valuedAt) } }
     if (section == "StoxScore") Panel("PORTFOLIO STRUCTURE", "StoxScore") {
         SectionError(state, "analytics")
         state.data["analytics"]?.let { data ->
@@ -65,13 +57,20 @@ import com.stoxsim.app.data.*
         }
     }
 }
-@Composable internal fun HistoryPanel(state: AppState, change: (Int) -> Unit) {
+@Composable private fun AnalysisSummary(state: AppState) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge) }
+        Column(Modifier.weight(1f)) { Muted("Starting capital"); Text(money(state.portfolio?.capital, state.currency), style = MaterialTheme.typography.titleLarge) }
+    }
+    ValueRow("All-time return", percent(state.portfolio?.returnPercent), state.portfolio?.returnPercent)
+    SectionError(state, "portfolio")
+}
+@Composable internal fun HistoryPanel(state: AppState, change: (Int) -> Unit, summary: @Composable () -> Unit = {}) {
     var days by rememberSaveable(state.accountId) { mutableStateOf("30") }
-    Panel("PERFORMANCE OVER TIME", "Portfolio history") {
-        ChoiceRow(listOf("30" to "30 days", "90" to "90 days · Plus", "365" to "1 year · Plus"), days, !state.working) { days = it; change(it.toInt()) }
+    Panel {
+        summary()
         SectionError(state, "history")
         state.data["history"]?.let { data ->
-            Status(data.text("status"))
             val normalized = data.text("tier") != "FREE"
             val points = data.objects("points")
             val values = points.map { it.decimal(if (normalized) "portfolioIndex" else "equity") }
@@ -79,6 +78,9 @@ import com.stoxsim.app.data.*
             val connect = data.optInt("missingSessions") == 0 && data.optInt("cashFlowBreaks") == 0
             if (!connect) Muted("Some performance metrics need more history. Gaps and cash adjustments are not connected.")
             LineChart(values, points.map { it.text("day") }, "Observed portfolio history", benchmark, connect)
+            ChoiceRow(listOf("30" to "1M", "90" to "3M · Plus", "365" to "1Y · Plus"), days, !state.working) { days = it; change(it.toInt()) }
+            state.portfolio?.let { SnapshotLabel(it.status, it.valuedAt) }
+            Status(data.text("status"))
             Muted(if (normalized) "Portfolio: green · Benchmark: grey · Starting index 100" else "Observed equity · ${data.text("currency")}")
             if (normalized) {
                 ValueRow("Observed return", percent(data.decimal("returnPercent")))
@@ -92,6 +94,6 @@ import com.stoxsim.app.data.*
             var expanded by remember { mutableStateOf(false) }
             TextButton({ expanded = !expanded }) { Text(if (expanded) "Hide daily observations" else "View daily observations") }
             if (expanded) points.forEach { ValueRow(it.text("day"), money(it.decimal("equity"), state.currency)); Muted(it.text("quality")) }
-        }
+        } ?: Muted("Observed performance will appear as your portfolio builds a history.")
     }
 }

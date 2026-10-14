@@ -19,6 +19,9 @@ four product tabs, account boundaries and existing API contracts.
   bounded-context request flow once. Full conversation history is still available.
 - **Shared UI:** neutral phone surfaces, consistent rounded panels, clearer type,
   pill stock tabs, quieter bottom navigation and visible product entries on Explore.
+  Large text moves header actions to their own row and uses short bottom labels
+  with full accessible destination names. Analysis brings the observed graph into
+  the first viewport and uses a dedicated Back/title toolbar.
 - **Launch:** branded starting window on API 28–30; masked-safe StoxSim mark and a
   short native exit on API 31+. Actual restore/retry uses a branded screen. No fixed
   delay, extra splash activity, WebView, or network work is added to a fresh sign-in.

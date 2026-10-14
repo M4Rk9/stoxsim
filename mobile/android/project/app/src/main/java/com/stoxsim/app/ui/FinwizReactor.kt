@@ -92,7 +92,7 @@ import kotlin.math.sin
         Column(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(when (module.id) {
-                "STOCK_FUNDAMENTALS" -> "Fundamentals"
+                "STOCK_FUNDAMENTALS" -> "Stock data"
                 "TECHNICAL_ANALYSIS" -> "Technicals"
                 "FUNDAMENTAL_ANALYSIS" -> "Statements"
                 "MARKET_EVALUATION" -> "Market view"

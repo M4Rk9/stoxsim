@@ -1,6 +1,9 @@
 package com.stoxsim.app.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.CompositionLocalProvider
@@ -9,6 +12,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.semantics.SemanticsActions
 import com.stoxsim.app.AppState
 import com.stoxsim.app.data.*
 import org.json.JSONObject
@@ -119,5 +125,27 @@ class PremiumUiTest {
         compose.onNodeWithText("Retry connection").performClick()
         compose.onNodeWithContentDescription("Open Stock").assertDoesNotExist()
         compose.runOnIdle { assertTrue(retried) }
+    }
+    @Test fun largeTextHeaderAndNavigationLabelsDoNotOverflow() {
+        compose.setContent { StoxSimTheme {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
+                Box(Modifier.width(320.dp).height(640.dp)) {
+                    AppFrame(state().copy(screen = "Finwiz"), {}, {}) { FinwizHub(state(), {}, { _, _, _ -> }, {}, {}, {}) }
+                }
+            }
+        } }
+        listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read", "Stock", "Finwiz", "Lab", "Contest").forEach { label ->
+            val results = mutableListOf<TextLayoutResult>()
+            compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
+                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
+            compose.runOnIdle { assertTrue("$label must fit its text box", results.isNotEmpty() && results.none { it.hasVisualOverflow }) }
+        }
+    }
+    @Test fun analysisGraphFitsAboveBottomNavigationOnANarrowPhone() {
+        val base = state().copy(screen = "Portfolio analysis", data = mapOf("history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-12","equity":10000},{"day":"2026-10-13","equity":10100}]}""")))
+        compose.setContent { StoxSimTheme { Box(Modifier.width(320.dp).height(640.dp)) { AppFrame(base, {}, {}) { PortfolioAnalysisScreen(base, {}) } } } }
+        val graph = compose.onNodeWithContentDescription("Observed portfolio history").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val navigation = compose.onNodeWithContentDescription("Open Stock").fetchSemanticsNode().boundsInRoot
+        compose.runOnIdle { assertTrue("The full graph must fit above navigation", graph.bottom <= navigation.top) }
     }
 }
