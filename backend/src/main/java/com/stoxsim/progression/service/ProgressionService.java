@@ -102,8 +102,8 @@ public class ProgressionService {
         new MissionDefinition(
             "THREE_DAY_STREAK",
             "CONSISTENCY",
-            "Return for three learning days",
-            "Return on three consecutive local dates to build your daily streak.",
+            "Build a three-day streak",
+            "Record a learning visit on three consecutive local dates. Where visits are not recorded automatically, use the daily check-in button.",
             100,
             3,
             metrics -> metrics.effectiveStreak() >= 3

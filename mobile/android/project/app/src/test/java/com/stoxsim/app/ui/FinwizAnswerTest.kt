@@ -25,6 +25,13 @@ class FinwizAnswerTest {
         assertTrue(answer.text.contains("3. Check price * shares\n4. Read EPS"))
         assertTrue(answer.text.contains("(1) / ((2) / (3))"))
     }
+    @Test fun singleDollarFormulasRenderAlongsideOrdinaryCurrency() {
+        val dollar = '$'
+        val source = "Shares cost ${dollar}50 and ${dollar}2.50. Ratio: ${dollar}\\frac{P}{E}${dollar}; ${dollar}P/E${dollar}; ${dollar}2 \\times 3${dollar}."
+        assertEquals("Shares cost ${dollar}50 and ${dollar}2.50. Ratio: (P) / (E); P/E; 2 × 3.", formatFinwizAnswer(source).text)
+        assertEquals("${dollar}50 to ${dollar}100; ${dollar}USD${dollar}", readableFinwizMath("${dollar}50 to ${dollar}100; ${dollar}USD${dollar}"))
+        assertEquals("\\${dollar}P/E\\${dollar}", readableFinwizMath("\\${dollar}P/E\\${dollar}"))
+    }
     @Test fun tableCellsKeepHeadersWithoutRawPipes() {
         val text = formatFinwizAnswer("| Metric | Value |\n| --- | --- |\n| P/E | 15x |\n| EPS | $2 |" ).text
         assertEquals("Metric: P/E\nValue: 15x\n\nMetric: EPS\nValue: $2", text)

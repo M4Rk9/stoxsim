@@ -122,9 +122,14 @@ internal fun readableFinwizMath(source: String): String {
         return expression().trim()
     }
     // Bound deeply nested math separately from Markdown; retain unfamiliar input instead of crashing.
-    val math = Regex("\\$\\$([\\s\\S]*?)\\$\\$|\\\\\\[([\\s\\S]*?)\\\\\\]|\\\\\\(([\\s\\S]*?)\\\\\\)")
+    val math = Regex("\\$\\$([\\s\\S]*?)\\$\\$|\\\\\\[([\\s\\S]*?)\\\\\\]|\\\\\\(([\\s\\S]*?)\\\\\\)|(?<![\\\\$])\\$(?![\\s$])([^$\\r\\n]*?[^\\s$\\\\])\\$(?!\\$)")
     return math.replace(source) { match ->
         val value = match.groupValues.drop(1).firstOrNull { it.isNotEmpty() }.orEmpty()
+        // Single dollars also denote currency. Only unwrap formula-like contents, and
+        // require tight delimiters so "$50 and $" cannot consume a later formula opener.
+        if (match.groups[4] != null && !Regex("\\\\[A-Za-z]+|[=^_]|[A-Za-z]\\s*/\\s*[A-Za-z]").containsMatchIn(value)) {
+            return@replace match.value
+        }
         if (value.count { it == '{' } > 64) value else formula(value)
     }
 }
