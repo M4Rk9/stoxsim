@@ -20,7 +20,7 @@ for (const eligible of [true, false]) test(`Pro competition requires explicit op
   await page.goto("/competitions");
   await page.getByRole("button", { name: "Open Pro leaderboard" }).click();
   if (!eligible) {
-    await expect(page.getByRole("alert")).toContainText("active Pro");
+    await expect(page.getByRole("alert").filter({ hasText: "active Pro" })).toContainText("active Pro");
     await expect(page.getByRole("button", { name: "Join Pro leaderboard" })).toHaveCount(0);
   } else {
     await expect(page.getByRole("button", { name: "Join Pro leaderboard" })).toBeDisabled();
