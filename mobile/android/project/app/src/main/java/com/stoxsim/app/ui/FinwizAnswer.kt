@@ -25,8 +25,8 @@ private val answerParser = Parser.builder().extensions(listOf(TablesExtension.cr
 internal fun formatFinwizAnswer(source: String): AnnotatedString {
     val output = AnnotatedString.Builder()
     fun gap() {
-        if (output.length > 0 && !output.toString().endsWith("\n\n")) {
-            if (!output.toString().endsWith("\n")) output.append("\n")
+        if (output.length > 0 && !output.toAnnotatedString().text.endsWith("\n\n")) {
+            if (!output.toAnnotatedString().text.endsWith("\n")) output.append("\n")
             output.append("\n")
         }
     }
@@ -50,7 +50,7 @@ internal fun formatFinwizAnswer(source: String): AnnotatedString {
                 children(node).forEachIndexed { index, item ->
                     output.append(if (node is OrderedList) "${node.startNumber + index}. " else "• ")
                     render(item, depth + 1)
-                    if (!output.toString().endsWith("\n")) output.append("\n")
+                    if (!output.toAnnotatedString().text.endsWith("\n")) output.append("\n")
                 }
                 gap()
             }
