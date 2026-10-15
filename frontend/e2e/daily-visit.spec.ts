@@ -40,3 +40,25 @@ test("failed recording retries after a minute and hidden pages do not record", a
   await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
   await expect.poll(() => calls.length).toBe(2);
 });
+
+test("a cached visit cannot overwrite more recent mission XP", async ({ page }) => {
+  const progression = { version: "learning-progression-v1", totalXp: 100, level: 1, levelName: "Starter", levelFloorXp: 0, nextLevelXp: 200,
+    currentStreak: 1, longestStreak: 1, checkedInToday: true, lastCheckInDate: "2026-10-16", checkInZoneId: "Asia/Kolkata", challenges: [], achievements: [], disclaimer: "Education" };
+  await page.addInitScript(value => {
+    sessionStorage.setItem("stoxsim-session", JSON.stringify(value));
+    window.addEventListener("stoxsim-daily-visit", () => { document.documentElement.dataset.visitRecorded = "yes"; });
+  }, learner);
+  await page.route("**/api/v1/**", async route => {
+    const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" };
+    if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+    if (route.request().url().endsWith("/progression/check-in")) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ...progression, totalXp: 50 }) });
+    if (route.request().url().endsWith("/progression")) {
+      await page.waitForFunction(() => document.documentElement.dataset.visitRecorded === "yes");
+      return route.fulfill({ status: 200, headers, body: JSON.stringify(progression) });
+    }
+    return route.fulfill({ status: 204, headers });
+  });
+  await page.goto("/progress");
+  await expect(page.getByText("100 XP", { exact: true })).toBeVisible();
+  await expect(page.getByText("Today’s visit recorded", { exact: true })).toBeVisible();
+});
