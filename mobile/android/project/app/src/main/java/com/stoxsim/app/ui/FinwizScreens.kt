@@ -83,7 +83,6 @@ import com.stoxsim.app.data.*
                     Icon(Icons.Default.Send, "Send Finwiz question")
                 }
             }
-            Muted("Educational AI · Verify answers")
             if ((inlineChat?.messages?.size ?: 0) >= 40) Muted("This conversation is full. Use New chat to continue.")
         }
         TextButton({ navigate("Learning path") }, Modifier.fillMaxWidth()) { Text("Your challenges & achievements →") }
@@ -126,7 +125,7 @@ import com.stoxsim.app.data.*
             }, shape = MaterialTheme.shapes.medium, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Kicker(if (message.role == "user") "You" else if (message.role == "error") "Could not get an answer" else "Finwiz")
-                    SelectionContainer { Text(message.text) }
+                    SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                     if (message.role == "assistant") {
                         if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
                         message.suggestions.take(2).forEach { TextButton({ suggestion(it) }, enabled = !working) { Text(it) } }
@@ -184,7 +183,7 @@ import com.stoxsim.app.data.*
                         shape = RoundedCornerShape(22.dp), border = if (message.role == "assistant") BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Kicker(when (message.role) { "user" -> "You"; "error" -> "Could not get an answer"; else -> "Finwiz" })
-                            SelectionContainer { Text(message.text) }
+                            SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                             if (message.role == "assistant") {
                                 if (message.provider.isNotBlank()) Muted("${message.provider} · ${time(message.generatedAt)}")
                                 if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
@@ -204,7 +203,6 @@ import com.stoxsim.app.data.*
             FilledIconButton({ val question = draft.trim(); draft = ""; send(question) }, enabled = draft.isNotBlank() && !state.working && chat.messages.size < 40,
                 modifier = Modifier.padding(bottom = 6.dp).size(48.dp)) { Icon(Icons.Default.Send, "Send question") }
         }
-        Muted("Educational AI · Verify answers · Recent context is limited")
     }
 }
 

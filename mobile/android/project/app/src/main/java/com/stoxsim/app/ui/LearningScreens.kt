@@ -31,13 +31,14 @@ import java.math.BigDecimal
 }
 @Composable internal fun LearningScreen(state: AppState, model: AppViewModel) {
     SectionError(state, "progression")
+    SectionError(state, "dailyStreak")
     val data = state.data["progression"]
     if (data == null) { Muted("Your learning path will appear when the connection is available."); return }
     Panel("YOUR LEARNING PATH", data.text("levelName")) {
         ValueRow("Level / XP", "${data.text("level")} / ${data.text("totalXp")}")
         ValueRow("Current / longest streak", "${data.text("currentStreak")} / ${data.text("longestStreak")} days")
-        Button(model::checkIn, enabled = !state.working && !data.optBoolean("checkedInToday"), modifier = Modifier.fillMaxWidth()) { Text(if (data.optBoolean("checkedInToday")) "Checked in today" else "Daily check-in") }
-        Muted("Check-in timezone: ${data.text("checkInZoneId")}")
+        Muted(if (data.optBoolean("checkedInToday")) "Today’s visit recorded" else "Your daily visit syncs automatically while you’re signed in.")
+        Muted("Streak timezone: ${data.text("checkInZoneId")}")
     }
     data.objects("challenges").forEach { challenge -> Panel("${challenge.text("completedMissions")} / ${challenge.text("totalMissions")} MISSIONS", challenge.text("title")) {
         Text(challenge.text("description"))
