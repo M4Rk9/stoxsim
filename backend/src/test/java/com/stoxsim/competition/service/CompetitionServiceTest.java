@@ -56,6 +56,7 @@ class CompetitionServiceTest {
     @Mock private AppUserRepository users;
     @Mock private PortfolioValuationService valuations;
     @Mock private TokenService tokens;
+    @Mock private com.stoxsim.subscription.repository.UserSubscriptionRepository subscriptions;
 
     private AppUser user;
     private CompetitionSeason season;
@@ -169,6 +170,32 @@ class CompetitionServiceTest {
         verify(members, never()).save(any());
     }
 
+    @Test
+    void premiumBoardsDenyFreeMissingAndTestEntitlementsBeforeValuation() {
+        when(subscriptions.findByUserIdForUpdate(USER_ID)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service().premiumBoard(USER_ID)).isInstanceOf(ResponseStatusException.class).hasMessageContaining("active Pro");
+        var subscription = mock(com.stoxsim.subscription.domain.UserSubscription.class);
+        when(subscriptions.findByUserIdForUpdate(USER_ID)).thenReturn(Optional.of(subscription));
+        assertThatThrownBy(() -> service().enrollPremium(USER_ID)).isInstanceOf(ResponseStatusException.class).hasMessageContaining("test benefits");
+        verify(valuations, never()).value(any(), any());
+    }
+
+    @Test
+    void premiumEnrollmentUsesIndependentSeasonAndStandardCapital() {
+        var subscription = mock(com.stoxsim.subscription.domain.UserSubscription.class);
+        when(subscription.hasActiveEntitlement(com.stoxsim.subscription.domain.SubscriptionFeature.PREMIUM_COMPETITIONS)).thenReturn(true);
+        when(subscription.getCurrentPeriodEnd()).thenReturn(NOW.plusSeconds(86400));
+        when(subscriptions.findByUserIdForUpdate(USER_ID)).thenReturn(Optional.of(subscription));
+        when(seasons.findByCode("2026-Q3-PRO")).thenReturn(Optional.of(season));
+        var entry = new CompetitionEntry(season, user, new BigDecimal("485000.00"), PricingStatus.CLOSED, NOW);
+        when(entries.findForUpdate(SEASON_ID, USER_ID)).thenReturn(Optional.empty(), Optional.of(entry));
+        when(valuations.value(USER_ID, MarketRegion.INDIA)).thenReturn(portfolio("500000.00", "485000.00"));
+        when(entries.findAllBySeasonIdOrderByReturnPercentDescJoinedAtAsc(org.mockito.ArgumentMatchers.eq(SEASON_ID), any(Pageable.class))).thenReturn(List.of(entry));
+        assertThat(service().enrollPremium(USER_ID).enrolled()).isTrue();
+        verify(seasons).ensureSeason("2026-Q3-PRO", "2026 Q3 Pro Learning Season", Instant.parse("2026-07-01T00:00:00Z"), Instant.parse("2026-10-01T00:00:00Z"), NOW);
+        verify(valuations).value(USER_ID, MarketRegion.INDIA);
+    }
+
     private CompetitionService service() {
         return new CompetitionService(
             seasons,
@@ -178,6 +205,7 @@ class CompetitionServiceTest {
             users,
             valuations,
             tokens,
+            subscriptions,
             Clock.fixed(NOW, ZoneOffset.UTC),
             new SimpleMeterRegistry()
         );

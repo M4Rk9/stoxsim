@@ -57,3 +57,10 @@ XP and achievements must remain separate from competitive portfolio ranking.
 The next leaderboard batch must rank only comparable standard portfolios and
 must never convert progression XP into financial performance or an advantage in
 a competition.
+
+## Automatic daily visits
+
+Current Android and website clients record daily visits automatically while signed
+in and foregrounded, through the existing idempotent check-in endpoint. The server
+owns dates/timezones, streaks and XP. There is no manual check-in requirement on
+current clients and no historical backfill. Legacy clients remain compatible.

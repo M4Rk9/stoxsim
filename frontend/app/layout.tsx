@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import DailyVisitTracker from "./components/DailyVisitTracker";
 import ProductActivityTracker from "./components/ProductActivityTracker";
 import DashboardTools from "./components/DashboardTools";
 import {
@@ -100,6 +101,7 @@ export default async function RootLayout({
         {children}
         <DashboardTools />
         <ProductActivityTracker />
+        <DailyVisitTracker />
       </body>
     </html>
   );

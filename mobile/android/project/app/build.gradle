@@ -3,6 +3,8 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.compose'
 }
+def uploadSigning = ['STOXSIM_UPLOAD_KEYSTORE', 'STOXSIM_UPLOAD_STORE_PASSWORD', 'STOXSIM_UPLOAD_KEY_ALIAS', 'STOXSIM_UPLOAD_KEY_PASSWORD'].collectEntries { [(it): System.getenv(it)] }
+def hasUploadSigning = uploadSigning.values().every { it != null && !it.isBlank() }
 android {
     namespace 'com.stoxsim.app'
     compileSdk 36
@@ -10,12 +12,23 @@ android {
         applicationId 'com.stoxsim.app'
         minSdk 28
         targetSdk 36
-        versionCode 7
-        versionName '0.5.1'
+        versionCode 8
+        versionName '0.5.2'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    signingConfigs {
+        if (hasUploadSigning) {
+            upload {
+                storeFile file(uploadSigning.STOXSIM_UPLOAD_KEYSTORE)
+                storePassword uploadSigning.STOXSIM_UPLOAD_STORE_PASSWORD
+                keyAlias uploadSigning.STOXSIM_UPLOAD_KEY_ALIAS
+                keyPassword uploadSigning.STOXSIM_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         release {
+            if (hasUploadSigning) signingConfig signingConfigs.upload
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -54,4 +67,13 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+
+// CI can compile unsigned releases; distribution explicitly requires the protected upload key.
+tasks.register('verifyReleaseSigning') {
+    doLast {
+        if (!hasUploadSigning || !file(uploadSigning.STOXSIM_UPLOAD_KEYSTORE).isFile()) {
+            throw new GradleException('Provision all four STOXSIM_UPLOAD_* signing settings through protected secrets before distribution')
+        }
+    }
 }

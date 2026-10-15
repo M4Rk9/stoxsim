@@ -292,6 +292,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             "Learning path" -> read("progression", "progression")
             "Competitions" -> { read("board", "competitions/current"); list("leagues", "leagues") }
             "Campus" -> { read("campus", "campus"); list("institutions", "campus/institutions"); read("membershipRequest", "campus/membership-request")
+                if (mutable.value.data["campus"]?.optBoolean("platformAdmin") == true) list("campusVerificationQueue", "campus/admin/verification-requests")
                 mutable.value.data["campus"]?.optJSONObject("membership")?.text("institutionId")?.takeIf { it.isNotBlank() }?.let { campusWorkspace(it) } }
             "Account" -> { readAccounts(); read("subscription", "subscription") }
             "Profile & security" -> { readAccounts(); list("sessions", "auth/sessions"); list("events", "auth/events") }
@@ -327,6 +328,12 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         api.mutate("accounts/${mutable.value.accountId}/orders/$id", "DELETE")
         loadPage(); mutable.update { it.copy(notice = "Order canceled. Reserved cash or shares have been released.") }
     }
+    fun modifyOrder(id: String, quantity: Long, limit: BigDecimal) = runAction {
+        require(quantity > 0 && limit.signum() > 0 && mutable.value.account?.active == true)
+        api.mutate("accounts/${mutable.value.accountId}/orders/$id", "PUT", JSONObject().put("quantity", quantity).put("limitPrice", limit))
+        loadPage()
+        mutable.update { it.copy(notice = "Pending order updated. Reservations have been recalculated.") }
+    }
     fun history(days: Int) = runAction {
         mutable.update { it.copy(data = it.data - "history") }
         read("history", "accounts/${mutable.value.accountId}/portfolio/history", mapOf("days" to days.toString()))
@@ -344,6 +351,9 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         read("credits", "scenarios/credits")
     }
     fun onboarding(action: String) = runAction { putData("onboarding", api.mutate("onboarding/$action")) }
+    fun premiumBoard(enroll: Boolean = false) = runAction {
+        if (enroll) putData("premiumBoard", api.mutate("competitions/premium/enroll")) else read("premiumBoard", "competitions/premium")
+    }
     fun enroll() = runAction { putData("board", api.mutate("competitions/current/enroll")) }
     fun league(id: String) = runAction { read("league", "leagues/$id") }
     fun createLeague(name: String) = runAction {
@@ -398,6 +408,38 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val institution = mutable.value.data["selectedInstitution"]?.text("id") ?: return@runAction
         api.mutate("campus/institutions/$institution/membership-requests/$id/review", body = JSONObject().put("approve", approved).put("note", note.trim()))
         read("campusManagement", "campus/institutions/$institution/manage")
+    }
+
+    fun campusLeave(note: String) = runAction {
+        val institution = mutable.value.data["campus"]?.optJSONObject("membership")?.text("institutionId") ?: return@runAction
+        val user = mutable.value.user?.id?.takeIf { it.isNotBlank() } ?: return@runAction
+        api.mutate("campus/institutions/$institution/members/$user/remove", body = JSONObject().put("note", note.trim()))
+        read("campus", "campus")
+        mutable.update { it.copy(data = it.data - "selectedInstitution" - "campusWorkspace" - "campusManagement" - "campusBoard") }
+    }
+    fun campusMember(target: String, role: String?, note: String = "") = runAction {
+        val institution = mutable.value.data["selectedInstitution"]?.text("id") ?: return@runAction
+        require(role == null || role in listOf("ORGANIZER", "MEMBER"))
+        api.mutate("campus/institutions/$institution/members/$target/${if (role == null) "remove" else "role"}",
+            body = if (role == null) JSONObject().put("note", note.trim()) else JSONObject().put("role", role))
+        read("campus", "campus")
+        if (target == mutable.value.user?.id && role == null) {
+            mutable.update { it.copy(data = it.data - "selectedInstitution" - "campusWorkspace" - "campusManagement" - "campusBoard") }
+        } else campusWorkspace(institution)
+    }
+    fun campusSuspension(suspended: Boolean, note: String) = runAction {
+        val institution = mutable.value.data["selectedInstitution"]?.text("id") ?: return@runAction
+        api.mutate("campus/institutions/$institution/suspension", body = JSONObject().put("suspended", suspended).put("note", note.trim()))
+        campusWorkspace(institution)
+    }
+    fun campusRecovery(email: String, note: String) = runAction {
+        val institution = mutable.value.data["selectedInstitution"]?.text("id") ?: return@runAction
+        api.mutate("campus/institutions/$institution/organizer-recovery", body = JSONObject().put("email", email.trim()).put("note", note.trim()))
+        campusWorkspace(institution)
+    }
+    fun campusVerificationReview(id: String, approve: Boolean, note: String) = runAction {
+        api.mutate("campus/admin/verification-requests/$id/${if (approve) "approve" else "reject"}", body = JSONObject().put("note", note.trim()))
+        list("campusVerificationQueue", "campus/admin/verification-requests")
     }
 
     fun openLesson(id: String) {

@@ -187,7 +187,7 @@ Production includes:
 * Isolated PostgreSQL and Redis services
 * Immutable image deployment
 * Protected release workflows
-* Verified rollback procedures
+* Automated rollback support
 * Private monitoring
 * Encrypted off-host backups
 * Automated production uptime checks

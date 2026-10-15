@@ -83,3 +83,13 @@ memberships are deleted by account cascade. Deleting an owner account deletes
 the leagues they own and their memberships.
 
 No new market-data provider, secret or paid infrastructure is required.
+
+## Pro season
+
+`GET /api/v1/competitions/premium` and `POST /api/v1/competitions/premium/enroll`
+expose a separate quarterly Pro roster, code `YYYY-Qn-PRO`. Active Pro, a future
+period end and a non-test subscription are required on every call. Enrollment is
+explicit and independent of the global season; standard India capital and scoring
+are reused without changing paid sandbox balances. Expiry blocks access/refresh
+while retaining the original entry baseline and last observed standings. See
+[completion and acceptance](MEDIUM_LOW_COMPLETION.md) for the full contract.

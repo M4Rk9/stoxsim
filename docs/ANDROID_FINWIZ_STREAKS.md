@@ -17,7 +17,7 @@ extra calls that day in the same session. A foreground timer notices midnight an
 retries failed recording at most once per minute. It pauses during explicit user
 operations and stops on background/sign-out. It does not send emails or award XP
 locally; server locking, timezone rules, missing-day resets and unique mission
-awards remain unchanged. Older clients and the website can still use manual check-in.
+awards remain unchanged. The current website also records visits automatically; older clients remain compatible with manual check-in.
 No historical visits are invented or backfilled.
 
 Validation includes native inline/full-chat UI tests, Markdown/formula/table unit

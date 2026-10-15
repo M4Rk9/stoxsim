@@ -1,6 +1,6 @@
 # Native Android / website parity
 
-The website is the product reference. Version 0.5.0 implements its consumer
+The website is the product reference. Version 0.5.2 implements its consumer
 trading/learning flows as native Compose screens using the same Spring APIs,
 accounts and entitlements. It does not embed a WebView or launch a TWA.
 
@@ -32,12 +32,12 @@ local to each client, matching the website's existing local preference model.
 | Live quotes | Authenticated `/ws/market` STOMP quote subscription | Implemented; foreground only, one subscription, reconnects |
 | Watchlist | Stocks/Watchlist; default watchlist GET/POST/DELETE | Implemented |
 | Market/limit buy/sell, charges | Reviewed native order ticket; account-scoped orders and charge estimate | Implemented; whole shares and positive limit validation |
-| Orders/trades/ledger/cancel | Orders; account-scoped endpoints | Implemented |
+| Orders/trades/ledger/modify/cancel | Orders; account-scoped endpoints | Implemented |
 | Holdings/StoxScore/allocation/P&L attribution | Portfolio; analytics/insights endpoints | Implemented |
 | Daily history/benchmark/drawdown/risk | Portfolio analysis; 30/90/365-day endpoint | Implemented; plan restrictions/data gaps respected |
 | Scenario Lab presets/custom paths | Scenario Lab; scenarios/catalog/credits/account run | Implemented; 1–12 cumulative shocks, existing credit balance |
 | Finwiz topics/stock questions | Finwiz learning modules/chat; existing ask endpoint | Implemented; server service limits apply |
-| XP/challenges/check-in/achievements | Finwiz/Learning path; progression endpoints | Implemented |
+| XP/challenges/automatic daily visits/achievements | Finwiz/Learning path; progression endpoints | Implemented |
 | Global leaderboard/private leagues | Competition tab (also reachable from Account); current season and league endpoints | Implemented; create/join/rotate/leave/delete |
 | Campus membership/verification and competition participation | Account/Campus; existing campus endpoints | Implemented |
 | Campus organizer create/review | Campus workspace | Implemented |
@@ -46,7 +46,7 @@ local to each client, matching the website's existing local preference model.
 | Existing plan benefits/additional sandbox | Account; subscription/provisioning endpoints | Implemented; server enforces eligibility |
 | Purchasing/renewal/restoring Play subscriptions | Android Play Billing plus verified backend purchase lifecycle | Not implemented; separate A3 milestone |
 | Email verification/reset links | Email link opens existing website; return to app and sign in/refresh | Native link completion pending |
-| Remaining campus role/moderation/admin controls | Website organizer/admin pages | Pending native controls |
+| Campus role/moderation/admin controls | Native campus workspace and review dialogs | Implemented; live-role acceptance remains required |
 | Platform-admin analytics/billing operations | Website admin pages | Remain web-only |
 
 ## Write and session behaviour
@@ -83,7 +83,7 @@ account-specific plan eligibility, actual email delivery or production billing.
 Owner device checklist:
 
 1. Update the branch, sync Gradle and run with the same debug key; verify version
-   0.4.0, native navigation and that no Chrome chrome appears in core screens.
+   0.5.2, native navigation and that no Chrome chrome appears in core screens.
 2. Compare one India and one US account against the website. Select each sandbox;
    verify its account label, currency, balances/holdings and locked state.
 3. Check light/dark appearance, rotation, Back, keyboard, narrow screens and large
@@ -97,7 +97,7 @@ Owner device checklist:
 6. Inspect history/score/allocation/attribution. Check plan-gated ranges and missing
    observations; never expect a continuous line across unavailable data.
 7. Run one scenario only when intentionally accepting its credit cost; compare
-   result/remaining credits on the website. Ask Finwiz, check in, view challenges,
+   result/remaining credits on the website. Ask Finwiz, verify automatic daily visits, view challenges,
    opt into a competition, and create/join a private league where eligible.
 8. Exercise campus requests/participation only with test institutional data and
    eligible roles. Confirm failed/denied actions do not change membership or scores.
@@ -106,3 +106,6 @@ Owner device checklist:
    session revocation/logout-all and account deletion only on a disposable account.
 10. Do not mark this Play-release ready until A3–A5 and the outstanding parity items
     are complete and reviewed.
+
+Pro competitions: a separate opt-in board is available in both clients. Active Pro
+access and a future period end are required; test benefits are excluded.

@@ -54,6 +54,21 @@ import java.math.BigDecimal
         Button(model::enroll, enabled = !state.working && !data.optBoolean("enrolled")) { Text(if (data.optBoolean("enrolled")) "Enrolled" else "Join this season") }
         Standings(data.objects("standings")); Text(data.text("comparisonNote")); Muted(data.text("disclaimer"))
     } }
+    Panel("PRO", "Pro leaderboard") {
+        Muted("A separate opt-in roster using your standard ₹5 lakh India portfolio. Active Pro access is required; test benefits are not eligible.")
+        OutlinedButton({ model.premiumBoard() }, enabled = !state.working) { Text("Open Pro leaderboard") }
+        SectionError(state, "premiumBoard")
+        state.data["premiumBoard"]?.let { board ->
+            var consent by rememberSaveable(board.optJSONObject("season")?.text("code")) { mutableStateOf(false) }
+            Text(board.optJSONObject("season")?.text("title").orEmpty())
+            ValueRow("Participants", board.text("participantCount")); ValueRow("Your rank", board.text("yourRank").ifBlank { "—" })
+            if (!board.optBoolean("enrolled")) {
+                Row { Checkbox(consent, { consent = it }); Text("Share my display name, entry-relative return, join time and pricing status with eligible Pro participants.", Modifier.weight(1f)) }
+                Button({ model.premiumBoard(true) }, enabled = consent && !state.working && board.optJSONObject("season")?.optBoolean("open") == true) { Text("Join Pro leaderboard") }
+            }
+            Standings(board.objects("standings")); Muted(board.text("comparisonNote"))
+        }
+    }
     OutlinedButton({ model.openScreen("Campus") }) { Text("Campus competitions →") }
     var name by rememberSaveable { mutableStateOf("") }
     var code by rememberSaveable { mutableStateOf("") }
