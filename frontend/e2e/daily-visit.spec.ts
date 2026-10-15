@@ -1,9 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-const learner = { accessToken: "token-a", user: { id: "learner-a" } };
+const learner = { accessToken: "token-a", expiresInSeconds: 900, user: { id: "learner-a", email: "learner@example.test", displayName: "Learner", emailVerified: true, platformAdmin: false, accounts: [] } };
 async function setup(page: Page, failFirst = false) {
   const calls: string[] = [];
   await page.clock.install({ time: new Date("2026-10-15T18:29:00Z") });
-  await page.addInitScript(value => sessionStorage.setItem("stoxsim-session", JSON.stringify(value)), learner);
+  await page.addInitScript(value => {
+    sessionStorage.setItem("stoxsim-session", JSON.stringify(value));
+    window.addEventListener("stoxsim-daily-visit", () => { document.documentElement.dataset.visitRecorded = "yes"; });
+  }, learner);
   await page.route("**/api/v1/analytics/events", route => route.fulfill({ status: 204 }));
   await page.route("**/api/v1/progression/check-in", async route => {
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Headers": "authorization", "Access-Control-Allow-Methods": "POST", "Access-Control-Allow-Credentials": "true" } });
@@ -16,13 +19,14 @@ test("opening a signed-in page records a visit, respects server midnight and iso
   const calls = await setup(page);
   await page.goto("/learn-stock-trading");
   await expect.poll(() => calls.length).toBe(1);
+  await page.waitForFunction(() => document.documentElement.dataset.visitRecorded === "yes");
   await page.clock.runFor(45_000);
   expect(calls).toHaveLength(1);
   await page.clock.runFor(15_000);
   await expect.poll(() => calls.length).toBe(2); // Local midnight, though UTC day is unchanged.
   await page.clock.runFor(60_000);
   expect(calls).toHaveLength(2);
-  await page.evaluate(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "token-b", user: { id: "learner-b" } })));
+  await page.evaluate(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "token-b", expiresInSeconds: 900, user: { id: "learner-b", email: "other@example.test", displayName: "Other learner", emailVerified: true, platformAdmin: false, accounts: [] } })));
   await page.clock.runFor(15_000);
   await expect.poll(() => calls.length).toBe(3);
   expect(calls[2]).toBe("Bearer token-b");
@@ -42,6 +46,7 @@ test("failed recording retries after a minute and hidden pages do not record", a
 });
 
 test("a cached visit cannot overwrite more recent mission XP", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-10-15T19:00:00Z") });
   const progression = { version: "learning-progression-v1", totalXp: 100, level: 1, levelName: "Starter", levelFloorXp: 0, nextLevelXp: 200,
     currentStreak: 1, longestStreak: 1, checkedInToday: true, lastCheckInDate: "2026-10-16", checkInZoneId: "Asia/Kolkata", challenges: [], achievements: [], disclaimer: "Education" };
   await page.addInitScript(value => {

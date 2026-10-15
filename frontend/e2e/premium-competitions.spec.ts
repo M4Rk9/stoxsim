@@ -7,7 +7,7 @@ async function reply(route: Route, status: number, body: unknown) {
 }
 for (const eligible of [true, false]) test(`Pro competition requires explicit opt-in and server eligibility (${eligible})`, async ({ page }) => {
   let enrolled = 0;
-  await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "token", user: { id: "learner" } })));
+  await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "token", expiresInSeconds: 900, user: { id: "learner", email: "learner@example.test", displayName: "Learner", emailVerified: true, platformAdmin: false, accounts: [] } })));
   await page.route("**/api/v1/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/competitions/premium/enroll") { if (route.request().method() !== "OPTIONS") enrolled++; return reply(route, 200, { ...board, enrolled: true, participantCount: 1 }); }
