@@ -30,7 +30,10 @@ import org.json.JSONObject
     Panel("YOUR ACCOUNT", user.displayName) {
         Text(user.email)
         Status(if (user.verified) "Email verified" else "Email not verified")
-        if (!user.verified) OutlinedButton(model::resendVerification, enabled = !state.working) { Text("Resend verification email") }
+        if (!user.verified) {
+            Muted("Can’t find the verification email? Check Spam/Junk and mark it as not spam. You can request a new link below.")
+            OutlinedButton(model::resendVerification, enabled = !state.working) { Text("Resend verification email") }
+        }
         OutlinedTextField(name, { name = it.take(100) }, label = { Text("Display name") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(email, { email = it.take(320) }, label = { Text("Email address") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
         if (email.trim() != user.email) PasswordField(profilePassword, { profilePassword = it }, "Current password to change email", !state.working)

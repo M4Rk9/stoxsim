@@ -52,6 +52,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private var pagePending = false
     private var foreground = false
     private var streamJob: Job? = null
+    private var streakJob: Job? = null
+    private var streakTracker = DailyStreakTracker()
 
     init { restore() }
 
@@ -74,6 +76,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         signedIn(api.authenticate(email, password, name))
     }
     private suspend fun signedIn(user: User) {
+        streakJob?.cancel(); streakJob = null
+        streakTracker = DailyStreakTracker()
         pendingOrder = null; pendingScenario = null; pendingSandbox = null
         val first = user.accounts.firstOrNull { it.region == "INDIA" && it.kind == "STANDARD" }
             ?: user.accounts.firstOrNull()
@@ -103,8 +107,38 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun foreground(active: Boolean) {
         foreground = active
-        if (!active) { streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
-        else { startStream(); if (mutable.value.user != null && !mutable.value.working) refresh() }
+        if (!active) { streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
+        else { startStream(); startDailyStreak(); if (mutable.value.user != null && !mutable.value.working) refresh() }
+    }
+    private fun startDailyStreak() {
+        if (!foreground || mutable.value.user == null || streakJob?.isActive == true) return
+        val tracker = streakTracker
+        streakJob = viewModelScope.launch {
+            while (isActive && foreground && mutable.value.user != null && tracker === streakTracker) {
+                val now = Instant.now()
+                // Do not queue optional work ahead of a trade or another explicit user action.
+                if (!mutable.value.working && tracker.shouldRecord(now)) {
+                    tracker.attempted(now)
+                    try {
+                        val result = api.mutate("progression/check-in")
+                        if (isActive && tracker === streakTracker && mutable.value.user != null) {
+                            if (result.optBoolean("checkedInToday")) tracker.confirmed(result.text("lastCheckInDate"), result.text("checkInZoneId"))
+                            putData("progression", result)
+                            mutable.update { it.copy(sectionErrors = it.sectionErrors - "dailyStreak") }
+                        }
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: SessionExpired) {
+                        mutable.value = AppState(restoring = false, error = "Your session has expired. Please sign in again.")
+                        streamJob?.cancel(); streamJob = null
+                        break
+                    } catch (_: Exception) {
+                        if (isActive && tracker === streakTracker) mutable.update { it.copy(sectionErrors = it.sectionErrors +
+                            ("dailyStreak" to "Your daily streak will sync automatically when the connection is available.")) }
+                    }
+                }
+                delay(60_000)
+            }
+        }
     }
     private fun startStream() {
         if (!foreground || mutable.value.user == null || streamJob?.isActive == true) return
@@ -158,7 +192,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             state.copy(quote = quote, data = if (watch == null) state.data else state.data + ("watchlist" to watch), lists = if (indices == null) state.lists else state.lists + ("indices" to indices))
         }
     }
-    override fun onCleared() { streamJob?.cancel(); super.onCleared() }
+    override fun onCleared() { streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
     fun refresh() = runAction { loadPage() }
     fun refreshUser() = runAction { readAccounts() }
     fun loadPortfolio() = refresh()
@@ -309,7 +343,6 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         pendingScenario = null
         read("credits", "scenarios/credits")
     }
-    fun checkIn() = runAction { putData("progression", api.mutate("progression/check-in")) }
     fun onboarding(action: String) = runAction { putData("onboarding", api.mutate("onboarding/$action")) }
     fun enroll() = runAction { putData("board", api.mutate("competitions/current/enroll")) }
     fun league(id: String) = runAction { read("league", "leagues/$id") }
@@ -438,7 +471,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             mutable.value = AppState(restoring = false, working = true, notice = "Email updated. Sign in again and check your inbox for verification.")
         } else mutable.update { it.copy(user = user, notice = "Your profile has been updated.") }
     }
-    fun resendVerification() = runAction { api.mutate("auth/email-verification/resend"); mutable.update { it.copy(notice = "Verification email requested. Check your inbox.") } }
+    fun resendVerification() = runAction { api.mutate("auth/email-verification/resend"); mutable.update { it.copy(notice = "Verification email requested. Check your inbox and Spam/Junk folder. If it is in spam, mark it as not spam before opening the link.") } }
     fun password(current: String, replacement: String) = runAction {
         api.mutate("auth/me/password", "PATCH", JSONObject().put("currentPassword", current).put("newPassword", replacement))
         api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "Password updated. Sign in again.")
@@ -463,6 +496,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun clearData(key: String) { mutable.update { it.copy(data = it.data - key) } }
     fun clearMessage() { mutable.update { it.copy(error = null, notice = null) } }
     fun logout() = runAction {
+        streakJob?.cancel(); streakJob = null
+        streakTracker = DailyStreakTracker()
         streamJob?.cancel(); streamJob = null
         val revoked = api.logout()
         preferences.edit().putBoolean("last-dark", false).apply()
@@ -486,7 +521,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             catch (failure: Exception) { mutable.update { it.copy(error = failureMessage(failure)) } }
             finally {
                 mutable.update { it.copy(working = false) }
-                if (mutable.value.user == null) { streamJob?.cancel(); streamJob = null } else startStream()
+                if (mutable.value.user == null) { streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null } else { startStream(); startDailyStreak() }
                 if (pagePending && mutable.value.user != null) { pagePending = false; refresh() }
             }
         }
