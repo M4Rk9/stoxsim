@@ -427,13 +427,11 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             mutable.update { it.copy(data = it.data - "selectedInstitution" - "campusWorkspace" - "campusManagement" - "campusBoard") }
         } else campusWorkspace(institution)
     }
-    fun campusSuspension(suspended: Boolean, note: String) = runAction {
-        val institution = mutable.value.data["selectedInstitution"]?.text("id") ?: return@runAction
+    fun campusSuspension(institution: String, suspended: Boolean, note: String) = runAction {
         api.mutate("campus/institutions/$institution/suspension", body = JSONObject().put("suspended", suspended).put("note", note.trim()))
         campusWorkspace(institution)
     }
-    fun campusRecovery(email: String, note: String) = runAction {
-        val institution = mutable.value.data["selectedInstitution"]?.text("id") ?: return@runAction
+    fun campusRecovery(institution: String, email: String, note: String) = runAction {
         api.mutate("campus/institutions/$institution/organizer-recovery", body = JSONObject().put("email", email.trim()).put("note", note.trim()))
         campusWorkspace(institution)
     }

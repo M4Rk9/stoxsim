@@ -32,7 +32,7 @@ changed by merging these files.
   authoritative. Platform analytics and billing administration remain web-only.
 - Dependency updates from #118, #120, #154 and #156 are incorporated in this branch:
   Upstox SDK 1.29, Next 16.4/React 19.3, TypeScript 7/Playwright 1.64 and Actions updates.
-  Existing dependency PRs become redundant only after this change is merged.
+  The security scanner retains the TypeScript 6 compiler API under a separate npm alias; typechecking explicitly uses the TypeScript 7 executable. Existing dependency PRs become redundant only after this change is merged.
 - Android 0.5.2 (version code 8) compiles AABs in normal CI. The manual signed-bundle
   workflow runs from main through the `android-release` environment, requires the
   protected upload key, and uploads only the AAB/checksum/commit. It never uploads

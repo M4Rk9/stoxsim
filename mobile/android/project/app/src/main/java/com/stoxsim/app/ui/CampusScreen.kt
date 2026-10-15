@@ -79,8 +79,8 @@ import java.time.format.DateTimeFormatter
         }
         state.data["campusWorkspace"]?.let { workspace -> Panel("PLATFORM ADMIN", "Institution controls") {
             val suspended = workspace.getJSONObject("institution").optBoolean("suspended")
-            OutlinedButton({ decision = CampusDecision(if (suspended) "Restore institution?" else "Suspend institution?", "Suspension pauses new requests, competitions and enrollment.") { note, _ -> model.campusSuspension(!suspended, note) } }, enabled = !state.working) { Text(if (suspended) "Restore institution" else "Suspend institution") }
-            OutlinedButton({ decision = CampusDecision("Recover organizer", "Assign a verified existing learner after checking affiliation independently.", true) { note, email -> model.campusRecovery(email, note) } }, enabled = !state.working) { Text("Recover organizer") }
+            OutlinedButton({ decision = CampusDecision(if (suspended) "Restore institution?" else "Suspend institution?", "Suspension pauses new requests, competitions and enrollment.") { note, _ -> model.campusSuspension(workspace.getJSONObject("institution").text("id"), !suspended, note) } }, enabled = !state.working) { Text(if (suspended) "Restore institution" else "Suspend institution") }
+            OutlinedButton({ decision = CampusDecision("Recover organizer", "Assign a verified existing learner after checking affiliation independently.", true) { note, email -> model.campusRecovery(workspace.getJSONObject("institution").text("id"), email, note) } }, enabled = !state.working) { Text("Recover organizer") }
         } }
     }
     SectionError(state, "campusBoard")
@@ -89,7 +89,7 @@ import java.time.format.DateTimeFormatter
         var consent by rememberSaveable(competition.text("id")) { mutableStateOf(false) }
         var withdraw by remember { mutableStateOf(false) }
         Panel("CAMPUS STANDINGS", competition.text("title")) {
-            if (state.data["campusWorkspace"]?.text("viewerRole") in listOf("ORGANIZER", "ADMIN") && competition.text("status") in listOf("UPCOMING", "OPEN"))
+            if (state.data["campusWorkspace"]?.text("viewerRole") in listOf("ORGANIZER", "ADMIN") && competition.text("status") in listOf("SCHEDULED", "OPEN"))
                 TextButton({ decision = CampusDecision("Cancel competition?", "${competition.text("title")} will stop accepting participation. The reason is visible to participants.") { note, _ -> model.campusBoardAction("cancel", note) } }, enabled = !state.working) { Text("Cancel competition") }
             Status(competition.text("status")); Muted("${time(competition.text("startsAt"))} – ${time(competition.text("endsAt"))}")
             if (board.optBoolean("refreshUnavailable")) Message(null, "Prices are unavailable. Your last usable score is shown.")
