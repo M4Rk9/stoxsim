@@ -35,7 +35,11 @@ export function recordDailyVisit(): Promise<Visit | null> {
     if (!response.ok) return null; // Existing page auth owns refresh; this optional request never logs a user out.
     const result = await response.json() as Visit;
     if (owner !== id || session()?.user?.id !== id) return null;
-    if (result.checkedInToday && result.lastCheckInDate && result.checkInZoneId) confirmed = result;
+    if (result.checkedInToday && result.lastCheckInDate && result.checkInZoneId) {
+      // Cache only visit acknowledgement. A cached full progression response would
+      // overwrite newer XP/missions when Learning path loads later that day.
+      confirmed = { checkedInToday: true, lastCheckInDate: result.lastCheckInDate, checkInZoneId: result.checkInZoneId };
+    }
     window.dispatchEvent(new CustomEvent(DAILY_VISIT_EVENT, { detail: result }));
     return result;
   }).catch(() => null).finally(() => { if (pending === request) pending = null; });
