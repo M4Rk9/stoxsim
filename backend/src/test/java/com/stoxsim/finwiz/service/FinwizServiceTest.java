@@ -188,6 +188,13 @@ class FinwizServiceTest {
         if (depth == FinwizDepth.FULL) assertThat(fallback.answer()).contains("Compare assumptions and practise");
         else assertThat(fallback.answer()).doesNotContain("Compare assumptions and practise");
 
+        when(contexts.build(request)).thenReturn(new ContextSnapshot(true, "TEST", Instant.now(), "verified metric ".repeat(1000)));
+        var longContext = service.ask(USER, request);
+        assertThat(longContext.answer()).contains("Missing values remain unknown", "Additional context omitted");
+        assertThat(longContext.answer().length()).isLessThanOrEqualTo(depth.characters);
+        if (depth != FinwizDepth.BASIC) assertThat(longContext.answer()).contains("Worked example");
+        if (depth == FinwizDepth.FULL) assertThat(longContext.answer()).contains("Compare assumptions and practise");
+
         var body = new AtomicReference<String>();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1beta/models/gemini-3.6-flash:generateContent", exchange -> {

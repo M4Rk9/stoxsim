@@ -240,19 +240,23 @@ public class FinwizService {
             .append(topic)
             .append("\n\n");
 
-        if (context.grounded()) {
-            answer.append("What the verified StoxSim data says\n")
-                .append(context.text())
-                .append("\n");
-        }
-
-        answer.append(fallbackLesson(request.topic()))
-            .append("\n\nYour question\n")
-            .append(question)
-            .append("\n\nUse the framework above to inspect the available data. Missing values should remain unknown rather than being estimated.");
-
+        answer.append(fallbackLesson(request.topic()));
         if (depth != FinwizDepth.BASIC) answer.append("\n\nWorked example\n").append(workedExample(request.topic()));
         if (depth == FinwizDepth.FULL) answer.append("\n\nCompare assumptions and practise\n").append(deeperLesson(request.topic()));
+        String limitation = "\n\nUse this framework to inspect the available data. Missing values remain unknown rather than estimated.";
+        if (context.grounded()) {
+            String heading = "\n\nWhat the verified StoxSim data says\n";
+            String omitted = "\nAdditional context omitted from this answer.";
+            // Preserve the lesson, depth-specific material and limitations before fitting a data excerpt.
+            int budget = Math.max(0, depth.characters - answer.length() - heading.length() - limitation.length() - omitted.length());
+            String text = context.text();
+            if (text.length() > budget) {
+                int end = budget;
+                if (end > 0 && Character.isHighSurrogate(text.charAt(end - 1))) end--;
+                answer.append(heading).append(text, 0, end).append(omitted);
+            } else answer.append(heading).append(text);
+        }
+        answer.append(limitation);
         return response(
             answer.toString(),
             "STOXSIM_EDUCATIONAL_FALLBACK",
