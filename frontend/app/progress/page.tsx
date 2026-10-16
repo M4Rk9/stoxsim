@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { DAILY_VISIT_EVENT, recordDailyVisit } from "../lib/daily-visit";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./progress.module.css";
 
@@ -119,17 +120,19 @@ export default function ProgressPage() {
   const [progression, setProgression] = useState<Progression | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [checkingIn, setCheckingIn] = useState(false);
+
 
   useEffect(() => {
     let active = true;
+    const updated = (event: Event) => { if (active) setProgression((event as CustomEvent<Progression>).detail); };
+    window.addEventListener(DAILY_VISIT_EVENT, updated);
     void authorized<Progression>("/api/v1/progression")
-      .then((value) => { if (active) setProgression(value); })
+      .then(async (value) => { const visit = await recordDailyVisit(); if (active) setProgression(visit ? { ...value, ...visit } : value); })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : "Progression could not be loaded.");
       })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    return () => { active = false; window.removeEventListener(DAILY_VISIT_EVENT, updated); };
   }, []);
 
   const levelPercent = useMemo(() => {
@@ -137,18 +140,6 @@ export default function ProgressPage() {
     const span = progression.nextLevelXp - progression.levelFloorXp;
     return Math.max(0, Math.min(100, ((progression.totalXp - progression.levelFloorXp) / span) * 100));
   }, [progression]);
-
-  async function checkIn() {
-    setCheckingIn(true);
-    setError("");
-    try {
-      setProgression(await authorized<Progression>("/api/v1/progression/check-in", { method: "POST" }));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Today's check-in could not be recorded.");
-    } finally {
-      setCheckingIn(false);
-    }
-  }
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
@@ -188,9 +179,7 @@ export default function ProgressPage() {
             <strong>{progression.currentStreak} {progression.currentStreak === 1 ? "day" : "days"}</strong>
             <small>Longest: {progression.longestStreak} · {progression.checkInZoneId}</small>
           </div>
-          <button type="button" onClick={checkIn} disabled={checkingIn || progression.checkedInToday}>
-            {progression.checkedInToday ? "Checked in today" : checkingIn ? "Recording…" : "Record today’s check-in"}
-          </button>
+          <span role="status">{progression.checkedInToday ? "Today’s visit recorded" : "Your daily visit syncs automatically while you’re signed in."}</span>
           <small>Last check-in: {progression.lastCheckInDate ?? "Not yet"}</small>
         </article>
       </section>

@@ -1,0 +1,57 @@
+name: Android signed release bundle
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-signed-release
+  cancel-in-progress: false
+jobs:
+  bundle:
+    if: github.ref == 'refs/heads/main'
+    environment: android-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: '13114758'
+          packages: 'platform-tools'
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v6
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - name: Build with protected upload key
+        working-directory: mobile/android/project
+        env:
+          UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          STOXSIM_UPLOAD_STORE_PASSWORD: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+          STOXSIM_UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
+          STOXSIM_UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/stoxsim-signing.XXXXXX")
+          trap 'rm -rf "$signing_dir"' EXIT
+          test -n "$UPLOAD_KEYSTORE_BASE64"
+          export STOXSIM_UPLOAD_KEYSTORE="$signing_dir/upload.jks"
+          printf '%s' "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$STOXSIM_UPLOAD_KEYSTORE"
+          ./gradlew :app:verifyReleaseSigning :app:bundleRelease --console=plain
+          sha256sum app/build/outputs/bundle/release/app-release.aab > app/build/outputs/bundle/release/SHA256SUMS
+          git rev-parse HEAD > app/build/outputs/bundle/release/COMMIT
+      - uses: actions/upload-artifact@v7
+        with:
+          name: stoxsim-signed-bundle-${{ github.sha }}
+          path: |
+            mobile/android/project/app/build/outputs/bundle/release/app-release.aab
+            mobile/android/project/app/build/outputs/bundle/release/SHA256SUMS
+            mobile/android/project/app/build/outputs/bundle/release/COMMIT
+          retention-days: 14
+          if-no-files-found: error

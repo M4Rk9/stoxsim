@@ -64,6 +64,7 @@ public class CompetitionService {
     private final AppUserRepository users;
     private final PortfolioValuationService valuations;
     private final TokenService tokens;
+    private final com.stoxsim.subscription.repository.UserSubscriptionRepository subscriptions;
     private final Clock clock;
     private final MeterRegistry meterRegistry;
 
@@ -75,6 +76,7 @@ public class CompetitionService {
         AppUserRepository users,
         PortfolioValuationService valuations,
         TokenService tokens,
+        com.stoxsim.subscription.repository.UserSubscriptionRepository subscriptions,
         Clock clock,
         MeterRegistry meterRegistry
     ) {
@@ -85,8 +87,38 @@ public class CompetitionService {
         this.users = users;
         this.valuations = valuations;
         this.tokens = tokens;
+        this.subscriptions = subscriptions;
         this.clock = clock;
         this.meterRegistry = meterRegistry;
+    }
+
+    /** Separate opt-in roster and baseline; paid sandbox capital never enters rankings. */
+    @Transactional
+    public CompetitionBoardResponse premiumBoard(UUID userId) {
+        requirePremium(userId);
+        CompetitionSeason season = seasonFor(true);
+        CompetitionEntry own = entries.findForUpdate(season.getId(), userId)
+            .map(entry -> refresh(entry, season)).orElse(null);
+        return board(season, userId, own);
+    }
+
+    @Transactional
+    public CompetitionBoardResponse enrollPremium(UUID userId) {
+        AppUser user = requirePremium(userId);
+        CompetitionSeason season = seasonFor(true);
+        ensureOpen(season);
+        return board(season, userId, enrollEntry(season, user));
+    }
+
+    private AppUser requirePremium(UUID userId) {
+        AppUser user = requireUser(userId);
+        if (subscriptions.findByUserIdForUpdate(userId)
+            .filter(subscription -> subscription.hasActiveEntitlement(com.stoxsim.subscription.domain.SubscriptionFeature.PREMIUM_COMPETITIONS)
+                && subscription.getCurrentPeriodEnd() != null && subscription.getCurrentPeriodEnd().isAfter(clock.instant()))
+            .isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Pro competitions require an active Pro subscription; test benefits are not eligible");
+        }
+        return user;
     }
 
     @Transactional
@@ -378,7 +410,9 @@ public class CompetitionService {
         return portfolio;
     }
 
-    private CompetitionSeason currentSeason() {
+    private CompetitionSeason currentSeason() { return seasonFor(false); }
+
+    private CompetitionSeason seasonFor(boolean premium) {
         Instant now = clock.instant();
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
         int quarter = ((today.getMonthValue() - 1) / 3) + 1;
@@ -390,10 +424,10 @@ public class CompetitionService {
             .plusMonths(3)
             .atStartOfDay(ZoneOffset.UTC)
             .toInstant();
-        String code = today.getYear() + "-Q" + quarter;
+        String code = today.getYear() + "-Q" + quarter + (premium ? "-PRO" : "");
         seasons.ensureSeason(
             code,
-            today.getYear() + " Q" + quarter + " Learning Season",
+            today.getYear() + " Q" + quarter + (premium ? " Pro Learning Season" : " Learning Season"),
             startsAt,
             endsAt,
             now

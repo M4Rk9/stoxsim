@@ -4,6 +4,20 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+### Medium/low completion
+
+- Android 0.5.2: reviewed pending limit-order edits, complete campus member/moderation
+  controls, and an opt-in Pro leaderboard using equal standard India capital.
+- Automatic foreground website daily visits; remove manual learning check-in.
+- Separate Pro competition seasons with active, unexpired, non-test entitlement
+  checks and independent enrollment/baselines.
+- Add protected manual upload-key signing and AAB build preparation.
+- Update Upstox SDK, frontend/tooling and GitHub Actions dependencies.
+- Reconcile stale roadmap entries; distinguish implemented code from benchmark,
+  device/Play and isolated production recovery/capacity acceptance.
+- Payment work, Finwiz tier behavior and email delivery remain separate.
+
+
 ### Changed
 
 - Upgrade Android to 0.5.0 with compact holdings, a separate portfolio-analysis view,

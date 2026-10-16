@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, relative } from "node:path";
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import ts from "../frontend/node_modules/typescript/lib/typescript.js";
+import ts from "../frontend/node_modules/typescript-compiler-api/lib/typescript.js";
 
 const root = resolve(import.meta.dirname, "..");
 const frontend = resolve(root, "frontend");

@@ -41,6 +41,16 @@ public class CompetitionController {
         return competitions.enroll(userId(jwt));
     }
 
+    @GetMapping("/competitions/premium")
+    public CompetitionBoardResponse premium(@AuthenticationPrincipal Jwt jwt) {
+        return competitions.premiumBoard(userId(jwt));
+    }
+
+    @PostMapping("/competitions/premium/enroll")
+    public CompetitionBoardResponse enrollPremium(@AuthenticationPrincipal Jwt jwt) {
+        return competitions.enrollPremium(userId(jwt));
+    }
+
     @GetMapping("/leagues")
     public List<LeagueSummaryResponse> leagues(@AuthenticationPrincipal Jwt jwt) {
         return competitions.leagues(userId(jwt));

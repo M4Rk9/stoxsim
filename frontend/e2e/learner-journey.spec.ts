@@ -353,17 +353,12 @@ test("learning progression awards authoritative missions and daily check-ins onc
   await expect(page.getByText("learning-progression-v1", { exact: true })).toBeVisible();
   await expect(page.getByText("50 XP", { exact: false }).first()).toBeVisible();
 
-  const checkInResponse = page.waitForResponse((response) =>
-    response.request().method() === "POST"
-    && response.url().endsWith("/api/v1/progression/check-in")
-  );
-  await page.getByRole("button", { name: "Record today’s check-in" }).click();
-  await expect((await checkInResponse).ok()).toBe(true);
-  await expect(page.getByRole("button", { name: "Checked in today" })).toBeDisabled();
+  await expect(page.getByText("Today’s visit recorded", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Record today’s check-in" })).toHaveCount(0);
   await expect(page.getByText("1 day", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Checked in today" })).toBeDisabled();
+  await expect(page.getByText("Today’s visit recorded", { exact: true })).toBeVisible();
   await expect(page.getByText("1 day", { exact: true })).toBeVisible();
 });
 

@@ -323,6 +323,7 @@ import java.math.RoundingMode
 @Composable internal fun OrdersScreen(state: AppState, model: AppViewModel) {
     AccountSelector(state, model::changeRegion, model::selectAccount)
     var cancel by remember { mutableStateOf<String?>(null) }
+    var editing by remember { mutableStateOf<org.json.JSONObject?>(null) }
     Panel("PENDING & HISTORY", "Your orders") {
         SectionError(state, "orders")
         val orders = state.lists["orders"].orEmpty()
@@ -333,6 +334,8 @@ import java.math.RoundingMode
             ValueRow("Limit / executed", "${money(order.decimal("limitPrice"), state.currency)} / ${money(order.decimal("executionPrice"), state.currency)}")
             Muted(time(order.text("createdAt")))
             if (order.text("rejectionReason").isNotBlank()) Text(order.text("rejectionReason"))
+            if (order.text("status") == "OPEN" && order.text("orderType") == "LIMIT")
+                TextButton({ editing = order }, enabled = !state.working && state.account?.active == true) { Text("Edit pending order") }
             if (order.text("status") == "OPEN") OutlinedButton({ cancel = order.text("id") }, enabled = !state.working) { Text("Cancel order") }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
@@ -347,6 +350,9 @@ import java.math.RoundingMode
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
+    editing?.let { order -> EditPendingOrder(order, state.currency, !state.working, { editing = null }) { quantity, price ->
+        editing = null; model.modifyOrder(order.text("id"), quantity, price)
+    } }
     cancel?.let { id -> AlertDialog(onDismissRequest = { cancel = null }, title = { Text("Cancel this practice order?") },
         text = { Text("Reserved virtual cash or shares will be released if cancellation succeeds.") },
         confirmButton = { TextButton({ cancel = null; model.cancelOrder(id) }) { Text("Cancel order") } }, dismissButton = { TextButton({ cancel = null }) { Text("Keep order") } }) }
@@ -363,4 +369,28 @@ import java.math.RoundingMode
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
+}
+
+@Composable internal fun EditPendingOrder(order: org.json.JSONObject, currency: String, enabled: Boolean,
+    dismiss: () -> Unit, save: (Long, java.math.BigDecimal) -> Unit) {
+    var quantity by rememberSaveable(order.text("id")) { mutableStateOf(order.text("quantity")) }
+    var limit by rememberSaveable(order.text("id")) { mutableStateOf(order.text("limitPrice")) }
+    val qty = quantity.toLongOrNull()?.takeIf { it > 0 }
+    val price = limit.toBigDecimalOrNull()?.takeIf { it >= java.math.BigDecimal("0.0001") && it.scale() <= 4 }
+    var review by remember { mutableStateOf(false) }
+    AlertDialog(onDismissRequest = dismiss, title = { Text(if (review) "Confirm order changes" else "Edit pending order") }, text = {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("${order.text("side")} · ${order.text("symbol")}")
+            if (review) {
+                Text("${order.text("quantity")} → $quantity shares")
+                Text("${money(order.decimal("limitPrice"), currency)} → ${money(price, currency)}")
+                Muted("The server rechecks funds, holdings and order status. Check Orders before retrying after a connection interruption.")
+            } else {
+                OutlinedTextField(quantity, { quantity = it.take(12) }, label = { Text("Quantity (whole shares)") })
+                OutlinedTextField(limit, { limit = it.take(18) }, label = { Text("Limit price ($currency)") })
+                Muted("Cash or share reservations change when the update succeeds.")
+            }
+        }
+    }, confirmButton = { TextButton({ if (review) save(qty!!, price!!) else review = true }, enabled = enabled && qty != null && price != null) { Text(if (review) "Confirm changes" else "Review changes") } },
+        dismissButton = { TextButton({ if (review) review = false else dismiss() }) { Text("Back") } })
 }

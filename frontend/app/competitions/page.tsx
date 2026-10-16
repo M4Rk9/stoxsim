@@ -191,6 +191,8 @@ function Standings({ standings }: { standings: Standing[] }) {
 }
 
 export default function CompetitionsPage() {
+  const [premium, setPremium] = useState<Board | null>(null);
+  const [premiumConsent, setPremiumConsent] = useState(false);
   const [board, setBoard] = useState<Board | null>(null);
   const [leagues, setLeagues] = useState<LeagueSummary[]>([]);
   const [selected, setSelected] = useState<LeagueDetail | null>(null);
@@ -368,6 +370,22 @@ export default function CompetitionsPage() {
         <div className={styles.sectionHeading}><div><span>GLOBAL SEASON</span><h2>Standard leaderboard</h2></div><small>Top 50</small></div>
         <Standings standings={board.standings} />
         <p className={styles.note}>{board.comparisonNote}</p>
+      </section>
+
+      <section className={styles.board} aria-label="Pro competition">
+        <h2>Pro leaderboard</h2>
+        <p>A separate quarterly roster for eligible Pro learners, using the standard ₹5 lakh India portfolio. Paid sandbox capital is excluded. Test subscriptions are not eligible.</p>
+        <button type="button" disabled={Boolean(busy)} onClick={() => void act("premium", async () => { setPremium(await authorized<Board>("/api/v1/competitions/premium")); })}>Open Pro leaderboard</button>
+        {premium && <>
+          <h3>{premium.season.title}</h3>
+          <p>{premium.participantCount} participants · Your rank: {premium.yourRank ?? "—"}</p>
+          {!premium.enrolled && <>
+            <label><input type="checkbox" checked={premiumConsent} onChange={event => setPremiumConsent(event.target.checked)} /> Share my display name, entry-relative return, join time and pricing status with eligible Pro participants.</label>
+            <button type="button" disabled={!premiumConsent || Boolean(busy) || !premium.season.open} onClick={() => void act("premium", async () => { setPremium(await authorized<Board>("/api/v1/competitions/premium/enroll", { method: "POST" })); })}>Join Pro leaderboard</button>
+          </>}
+          <Standings standings={premium.standings} />
+          <p>{premium.comparisonNote}</p>
+        </>}
       </section>
 
       {campus && <section className={styles.campusArea} aria-labelledby="campus-title">

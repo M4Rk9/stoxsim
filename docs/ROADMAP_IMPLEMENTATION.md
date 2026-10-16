@@ -20,9 +20,9 @@ owner overview; it does not mark the remaining premium/campus batches complete.
 | Weekly portfolio reports | Implemented | Immutable snapshots, explicit opt-in, timezone-aware delivery, preview and history were deployed in PR #96. |
 | Challenges, missions, XP and achievements | Implemented | Server-owned missions, idempotent XP, levels, daily learning streaks and persisted achievements were deployed in PR #97. |
 | Improved leaderboards | Implemented | Opt-in quarterly ranking uses only entry-relative performance of the standard ₹5 lakh account; deployed in PR #98 and hardened in PR #99. |
-| Private leagues and campus competitions | In progress | Capped invite-only leagues are deployed; M3 adds scoped membership review, organizer controls and opt-in campus standings; candidate validation is tracked in POST_RELEASE_MILESTONES.md. |
-| Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning were deployed through PR #102; checkout remains intentionally disabled. |
-| Scenario Lab and advanced history | Missing | Pro roadmap item; historical-data licensing and retention must be verified first. |
+| Private leagues and campus competitions | Implemented | Scoped membership, organizer controls, opt-in standings and moderation exist. See CAMPUS_COMPETITIONS.md for live acceptance. |
+| Plus and Pro architecture | Implemented foundation | Entitlements, isolated account trading and controlled Pro multi-portfolio provisioning were deployed through PR #102; public purchases remain disabled; Razorpay administrator test billing exists. |
+| Scenario Lab and advanced history | Implemented | Synthetic Scenario Lab and observed account history/risk exist. Long-term benchmark retention remains default-off pending permission confirmation. |
 | Owner analytics overview | M1 and M2 merged/deployed | Owner confirmed dashboard access. M2 adds first-party activity, seven-day activation and mature-cohort retention; CI passed and owner reported deployment. |
 
 ## Batch 1 — guided onboarding and first trade
@@ -196,10 +196,11 @@ owner overview; it does not mark the remaining premium/campus batches complete.
   moderation queue without changing any leaderboard or portfolio query.
 - No new secret, provider, paid service or market-data use is introduced.
 
-## Next batch
+## Current remaining work
 
-Add institution-scoped organizer controls, student membership requests and
-campus competition creation/standings using only the existing standard ₹5 lakh
-season entry. Paid checkout remains deferred until a billing provider and
-webhook operating model are explicitly approved; market-data-dependent premium
-analytics remain behind the documented provider-permission gate.
+See [medium/low completion and external acceptance](MEDIUM_LOW_COMPLETION.md).
+Paid web/Play checkout and Finwiz tier differentiation are separate work. Pro
+competitions now have an independent opt-in board; it does not enable billing.
+Benchmark retention, real backup recovery, VPS capacity and Play publication still
+need their external acceptance evidence. Do not treat historical batch descriptions
+of disabled features as the current implementation status.

@@ -55,6 +55,8 @@ class CampusCompetitionIntegrationTest {
     @Autowired AppUserRepository users;
     @Autowired VirtualAccountRepository accounts;
     @Autowired CampusCompetitionService service;
+    @Autowired com.stoxsim.competition.service.CompetitionService competitions;
+    @Autowired com.stoxsim.subscription.repository.UserSubscriptionRepository subscriptions;
     @Autowired AccountLifecycleService lifecycle;
     @Autowired WebApplicationContext context;
     @MockitoBean PortfolioValuationService valuations;
@@ -233,6 +235,31 @@ class CampusCompetitionIntegrationTest {
         assertThat(service.refreshBoard(organizer.getId(),campus,event.id()).standings()).isEmpty();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM campus_audit WHERE actor_user_id=? OR target_user_id=?",Long.class,learner.getId(),learner.getId())).isZero();
     }
+    @Test void proCompetitionHasIndependentConsentBaselineAndExpiryChecks() throws Exception {
+        var mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mvc.perform(get("/api/v1/competitions/premium")).andExpect(status().isUnauthorized());
+        expectStatus(403, () -> competitions.enrollPremium(learner.getId()));
+        var subscription=new com.stoxsim.subscription.domain.UserSubscription(learner);
+        subscription.apply(new com.stoxsim.subscription.provider.BillingSubscriptionUpdate(learner.getId(), SubscriptionPlan.PRO,
+            com.stoxsim.subscription.domain.SubscriptionStatus.ACTIVE,"GOOGLE_PLAY","customer","purchase",Instant.now().plusSeconds(86400)),Instant.now());
+        subscriptions.saveAndFlush(subscription);
+        assertThat(competitions.premiumBoard(learner.getId()).enrolled()).isFalse();
+        assertThat(competitions.currentBoard(learner.getId()).enrolled()).isFalse();
+        value(learner,"485000",PricingStatus.CLOSED,false);
+        var first=competitions.enrollPremium(learner.getId());
+        assertThat(first.season().code()).endsWith("-PRO");
+        assertThat(first.yourBaselineValue()).isEqualByComparingTo("485000");
+        assertThat(competitions.currentBoard(learner.getId()).participantCount()).isZero();
+        value(learner,"500000",PricingStatus.CLOSED,false);
+        assertThat(competitions.enrollPremium(learner.getId()).yourBaselineValue()).isEqualByComparingTo("485000");
+        mvc.perform(get("/api/v1/competitions/premium").with(jwt().jwt(t->t.subject(outsider.getId().toString())))).andExpect(status().isForbidden());
+        jdbc.update("UPDATE user_subscription SET billing_provider='RAZORPAY_TEST',test_access_until=now()+interval '1 day' WHERE user_id=?",learner.getId());
+        expectStatus(403, () -> competitions.premiumBoard(learner.getId()));
+        jdbc.update("UPDATE user_subscription SET billing_provider='GOOGLE_PLAY',current_period_end=now()-interval '1 day' WHERE user_id=?",learner.getId());
+        expectStatus(403, () -> competitions.enrollPremium(learner.getId()));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM competition_entry WHERE user_id=?",Long.class,learner.getId())).isEqualTo(1);
+    }
+
     private AppUser user(String name) { var u=new AppUser(name+"@example.test","hash",name);u.markEmailVerified();return users.saveAndFlush(u); }
     private UUID institution(String name) { var id=UUID.randomUUID();jdbc.update("INSERT INTO campus_institution(id,name,normalized_name,email_domain,verified_at) VALUES (?,?,?,?,now())",id,name,name.toLowerCase(),id+".edu");return id; }
     private void member(UUID institution,AppUser user,String role) { jdbc.update("INSERT INTO campus_membership(institution_id,user_id,member_role,joined_at) VALUES (?,?,?,now())",institution,user.getId(),role); }
