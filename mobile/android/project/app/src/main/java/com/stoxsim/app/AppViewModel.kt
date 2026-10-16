@@ -136,6 +136,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
 
     fun authenticate(email: String, password: String, name: String?) = runAction {
         signedIn(api.authenticate(email, password, name))
+        if (name != null) mutable.update { it.copy(notice = "Account created. Verify your email address. " + EMAIL_GUIDANCE) }
     }
     private suspend fun signedIn(user: User) {
         streakJob?.cancel(); streakJob = null

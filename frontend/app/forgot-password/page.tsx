@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
       <span className={styles.eyebrow}>ACCOUNT RECOVERY</span>
       <h1>Reset your password</h1>
       <p className={styles.lead}>
-        {EMAIL_GUIDANCE} Enter your sign-in email. The response is intentionally the same whether
+        Enter your sign-in email. The response is intentionally the same whether
         or not an account exists.
       </p>
       <form className={styles.card} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
