@@ -80,7 +80,7 @@ import org.json.JSONObject
         }) { Text("Confirm") } }, dismissButton = { TextButton({ confirm = "" }) { Text("Back") } })
 }
 internal fun validNewPassword(value: String) = value.length in 8..72 && value.toByteArray(Charsets.UTF_8).size <= 72 && value.isNotBlank()
-@Composable private fun PasswordField(value: String, change: (String) -> Unit, label: String, enabled: Boolean) {
+@Composable internal fun PasswordField(value: String, change: (String) -> Unit, label: String, enabled: Boolean) {
     OutlinedTextField(value, change, label = { Text(label) }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth(), enabled = enabled)
 }
 @Composable internal fun ReportsScreen(state: AppState, model: AppViewModel) {

@@ -29,7 +29,7 @@ gets fresh in-memory state. No historical app activity is backfilled.
 
 | Effective plan | Depth | Provider output cap | Response character cap | Suggested follow-ups |
 | --- | --- | --- | --- | --- |
-| Free | Basic: concise core concepts, simple example and key limitation | 350 tokens | 1,800 | 2 |
+| Free | Basic: concise concepts and key limitations | 350 tokens | 1,800 | 2 |
 | Plus | Expanded: worked numerical examples and interpretation mistakes | 650 tokens | 3,600 | 3 |
 | Pro | Full: comparisons, sensitivity to assumptions and practice exercises | 900 tokens | 6,000 | 4 |
 

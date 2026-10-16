@@ -94,7 +94,7 @@ public enum SubscriptionPlan {
 
     public String finwizDescription() {
         return switch (this) {
-            case FREE -> "Basic: concise concepts, a simple example and key limitations.";
+            case FREE -> "Basic: concise concept explanations and key limitations.";
             case PLUS -> "Expanded: more detailed explanations, worked numerical examples and common mistakes.";
             case PRO -> "Full: worked examples, comparisons, sensitivity to assumptions and practice exercises.";
         };
