@@ -28,6 +28,7 @@ interface FinwizResponse {
   dataAsOf?: string;
   suggestedQuestions: string[];
   disclaimer: string;
+  finwizTier?: string;
 }
 
 class ApiError extends Error {
@@ -225,7 +226,7 @@ export default function FinwizPage() {
         <div className={styles.assistantMark} aria-hidden="true">F</div>
         <div className={styles.assistantBody}>
           <div className={styles.answerMeta}>
-            <span>{selectedTopic.label}</span>
+            <span>{selectedTopic.label}{answer.finwizTier ? ` · ${answer.finwizTier.toLowerCase()} depth` : ""}</span>
             <small>{answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small>
           </div>
           <FinwizAnswer answer={answer.answer} />

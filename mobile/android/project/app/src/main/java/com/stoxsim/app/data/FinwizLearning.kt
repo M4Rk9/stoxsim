@@ -49,7 +49,7 @@ internal val learningModules = listOf(
         "Explain portfolio concentration, diversification and drawdown with a simple example.", DIVERSIFICATION)
 )
 internal data class FinwizMessage(val id: String, val role: String, val text: String,
-    val provider: String = "", val generatedAt: String = "", val disclaimer: String = "", val suggestions: List<String> = emptyList())
+    val provider: String = "", val generatedAt: String = "", val disclaimer: String = "", val suggestions: List<String> = emptyList(), val tier: String = "")
 internal data class FinwizConversation(val id: String, val title: String, val region: String, val topic: String = "LEARN",
     val symbol: String = "", val experience: String = "BEGINNER", val messages: List<FinwizMessage> = emptyList())
 

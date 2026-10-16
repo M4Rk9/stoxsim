@@ -127,6 +127,7 @@ import com.stoxsim.app.data.*
                     Kicker(if (message.role == "user") "You" else if (message.role == "error") "Could not get an answer" else "Finwiz")
                     SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                     if (message.role == "assistant") {
+                        if (message.tier.isNotBlank()) Muted("${message.tier.lowercase().replaceFirstChar { it.uppercase() }} depth")
                         if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
                         message.suggestions.take(2).forEach { TextButton({ suggestion(it) }, enabled = !working) { Text(it) } }
                     }
@@ -185,9 +186,10 @@ import com.stoxsim.app.data.*
                             Kicker(when (message.role) { "user" -> "You"; "error" -> "Could not get an answer"; else -> "Finwiz" })
                             SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                             if (message.role == "assistant") {
+                                if (message.tier.isNotBlank()) Muted("${message.tier.lowercase().replaceFirstChar { it.uppercase() }} depth")
                                 if (message.provider.isNotBlank()) Muted("${message.provider} · ${time(message.generatedAt)}")
                                 if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
-                                message.suggestions.take(3).forEach { suggestion -> TextButton({ draft = suggestion.take(2000) }, enabled = !state.working) { Text(suggestion) } }
+                                message.suggestions.take(4).forEach { suggestion -> TextButton({ draft = suggestion.take(2000) }, enabled = !state.working) { Text(suggestion) } }
                             }
                         }
                     }

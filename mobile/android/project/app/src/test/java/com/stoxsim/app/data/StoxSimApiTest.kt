@@ -223,11 +223,61 @@ class StoxSimApiTest {
         }
     }
 
+    @Test fun analyticsUsesMinimalPayloadAndNeverRefreshesOrSignsOutOnFailure() = runBlocking {
+        assertFalse(api.recordActivity("learner-id", ProductActivity.ACTIVE)); assertEquals(0, server.requestCount)
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        assertFalse(api.recordActivity("other-user", ProductActivity.ACTIVE)); assertEquals(1, server.requestCount)
+        server.enqueue(MockResponse().setResponseCode(401))
+        assertFalse(api.recordActivity("learner-id", ProductActivity.ACTIVE))
+        val request = server.takeRequest()
+        assertEquals("/api/v1/analytics/events", request.path)
+        assertEquals("Bearer access", request.getHeader("Authorization")); assertNull(request.getHeader("Cookie"))
+        val payload = JSONObject(request.body.readUtf8())
+        assertEquals(setOf("version", "event"), payload.keys().asSequence().toSet())
+        assertEquals("ACTIVE", payload.getString("event")); assertEquals("initial", store.value)
+        server.enqueue(MockResponse().setResponseCode(204)); assertTrue(api.recordActivity("learner-id", ProductActivity.STOCK_OPENED))
+        assertEquals("STOCK_OPENED", JSONObject(server.takeRequest().body.readUtf8()).getString("event"))
+        assertEquals(3, server.requestCount)
+    }
+    @Test fun analyticsDoesNotLoseAVisitWhileAReadHoldsTheSessionLock() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody(user).setBodyDelay(500, java.util.concurrent.TimeUnit.MILLISECONDS))
+        val reading = async(kotlinx.coroutines.Dispatchers.Default) { api.currentUser() }
+        assertNotNull(server.takeRequest(2, java.util.concurrent.TimeUnit.SECONDS))
+        server.enqueue(MockResponse().setResponseCode(204))
+        assertTrue(api.recordActivity("learner-id", ProductActivity.ACTIVE))
+        assertEquals("/api/v1/analytics/events", server.takeRequest().path)
+        reading.await()
+        api.endLocalSession()
+        assertFalse(api.recordActivity("learner-id", ProductActivity.ACTIVE))
+        assertEquals(3, server.requestCount)
+    }
+
+    @Test fun emailActionsArePublicAndResetSuccessClearsOnlyAfterServerConfirmation() = runBlocking {
+        val token = "t".repeat(43)
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setResponseCode(204))
+        api.completeEmailLink(EmailActionLink(EmailAction.VERIFY_EMAIL, token))
+        val verification = server.takeRequest()
+        assertEquals("/api/v1/auth/email-verification/confirm", verification.path)
+        assertNull(verification.getHeader("Authorization")); assertNull(verification.getHeader("Cookie"))
+        assertEquals("initial", store.value)
+        val link = EmailActionLink(EmailAction.RESET_PASSWORD, token)
+        server.enqueue(MockResponse().setResponseCode(401))
+        try { api.completeEmailLink(link, "password2"); fail("Expected invalid link") } catch (_: ApiFailure) { }
+        server.takeRequest(); assertEquals("initial", store.value)
+        server.enqueue(MockResponse().setResponseCode(204)); api.completeEmailLink(link, "password2")
+        val reset = server.takeRequest(); assertEquals("/api/v1/auth/password/reset", reset.path)
+        assertNull(reset.getHeader("Authorization")); assertNull(reset.getHeader("Cookie"))
+        assertEquals("password2", JSONObject(reset.body.readUtf8()).getString("newPassword"))
+        assertNull(store.value); assertNull(api.restore()); assertEquals(4, server.requestCount)
+    }
+
     private fun session(token: String, access: String = "access") = MockResponse()
         .setBody(sessionBody(access))
         .addHeader("Set-Cookie", "stoxsim_refresh=$token; Path=/api/v1/auth; Secure; HttpOnly; SameSite=Strict; Max-Age=3600")
     private fun sessionBody(access: String) = """{"accessToken":"$access","tokenType":"Bearer","expiresInSeconds":900,"user":$user}"""
-    private val user = """{"displayName":"Learner","email":"learner@example.com","emailVerified":true,"accounts":[]}"""
+    private val user = """{"id":"learner-id","displayName":"Learner","email":"learner@example.com","emailVerified":true,"accounts":[]}"""
     private class MemoryStore : RefreshTokenStore {
         var value: String? = null
         override fun read() = value

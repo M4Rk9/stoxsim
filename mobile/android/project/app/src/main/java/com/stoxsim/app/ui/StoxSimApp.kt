@@ -50,6 +50,7 @@ import com.stoxsim.app.R
 
 @Composable internal fun StoxSimApp(model: AppViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
+    val emailAction by model.emailLinkAction.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle, model) {
         val observer = LifecycleEventObserver { _, event ->
@@ -79,6 +80,12 @@ import com.stoxsim.app.R
     }
     BackHandler(state.user != null && state.screen != "Home") { model.openScreen(parentScreen(state.screen)) }
     StoxSimTheme(state.dark) {
+        if (emailAction != null) {
+            key(emailAction!!.id) {
+                EmailLinkScreen(emailAction!!.action, state.working, state.error, { model.completeEmailLink(it) }, model::dismissEmailLink, model::emailBrowserUrl)
+            }
+            return@StoxSimTheme
+        }
         when {
             state.restoring || state.restoreFailed -> { LaunchScreen(state, model::restore); return@StoxSimTheme }
             state.user == null -> { WelcomeScreen(state, model::authenticate, model::forgot, model::clearMessage); return@StoxSimTheme }

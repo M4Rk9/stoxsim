@@ -1,5 +1,7 @@
 "use client";
 
+import { EMAIL_GUIDANCE } from "../lib/email-guidance";
+
 import { FormEvent, useState } from "react";
 import styles from "../settings/settings.module.css";
 
@@ -24,7 +26,7 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
       if (!response.ok) throw new Error("The reset request could not be submitted.");
-      setMessage("If an account exists for this email, a reset link has been sent.");
+      setMessage("If an account exists for this email, a reset link has been sent. " + EMAIL_GUIDANCE);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The request failed");
     } finally {
@@ -41,7 +43,7 @@ export default function ForgotPasswordPage() {
       <span className={styles.eyebrow}>ACCOUNT RECOVERY</span>
       <h1>Reset your password</h1>
       <p className={styles.lead}>
-        Enter your sign-in email. The response is intentionally the same whether
+        {EMAIL_GUIDANCE} Enter your sign-in email. The response is intentionally the same whether
         or not an account exists.
       </p>
       <form className={styles.card} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>

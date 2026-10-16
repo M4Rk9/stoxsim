@@ -148,3 +148,7 @@ Session counts/duration, feature frequency, symbol popularity, acquisition
 attribution and operational latency/error dashboards remain outside M2.
 Operational metrics continue through the existing monitoring stack. Add a
 warehouse or read replica only after capacity evidence warrants it.
+
+## Android collection
+
+Native Android 0.5.3 contributes foreground ACTIVE and stock-detail STOCK_OPENED markers through the same API and daily uniqueness constraints as the website. No client identifier is added; web/app totals deduplicate. See [collection and failure behavior](ANDROID_ENGAGEMENT_FINWIZ_LINKS.md#android-activity-m2).
