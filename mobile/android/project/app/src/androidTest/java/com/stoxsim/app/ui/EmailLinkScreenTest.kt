@@ -25,7 +25,7 @@ class EmailLinkScreenTest {
         compose.onNodeWithText("Confirm new password").performTextInput("different")
         compose.onNodeWithText("Reset password").assertIsNotEnabled()
         compose.onNodeWithText("Confirm new password").performTextReplacement("password2")
-        compose.onNodeWithText("Reset password").performClick()
-        assertEquals("password2", submitted)
+        compose.onNodeWithText("Reset password").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals("password2", submitted) }
     }
 }
