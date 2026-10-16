@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("welcome stays focused and recovery shows mail guidance only after a request", async ({ page }) => {
+test("welcome stays focused and recovery shows mail guidance only after a request", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByText(/Check Inbox and Spam\/Junk/)).toHaveCount(0);
+  await testInfo.attach("welcome-form", { body: await page.locator("#get-started").screenshot(), contentType: "image/png" });
   await page.route("**/api/v1/auth/password/forgot", async route => {
     const headers = { "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" };
     await route.fulfill({ status: 204, headers });

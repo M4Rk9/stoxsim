@@ -166,6 +166,16 @@ jobs:
       - name: Run authenticated learner journey
         working-directory: frontend
         run: npm run e2e
+      - name: Upload email UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: email-ui-layout-screenshots
+          path: |
+            frontend/test-results/email-status-layout-*/attachments/*.png
+            frontend/test-results/email-guidance-*/attachments/*.png
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Record candidate identity and runner envelope
         run: |
           mkdir -p candidate-evidence
