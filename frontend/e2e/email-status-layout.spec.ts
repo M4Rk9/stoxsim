@@ -14,7 +14,7 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) for (con
     const user = { id: "layout-learner", email: "learner@example.test", displayName: "Learner", emailVerified: verified, platformAdmin: false, accounts: [] };
     await page.addInitScript(({ user, dark }) => {
       sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "layout-fixture", expiresInSeconds: 900, user }));
-      localStorage.setItem("stoxsim-theme", dark ? "dark" : "light");
+      localStorage.setItem(`stoxsim-theme:${user.id}`, dark ? "dark" : "light");
     }, { user, dark });
     await page.route("**/api/v1/**", async route => {
       const path = new URL(route.request().url()).pathname;
@@ -26,6 +26,7 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) for (con
       return reply(route, null, 204);
     });
     await page.goto("/settings");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", dark ? "dark" : "light");
     const profile = page.locator("#profile");
     const badge = profile.getByText(verified ? "Email verified" : "Email verification pending", { exact: true });
     await expect(badge).toBeVisible();
