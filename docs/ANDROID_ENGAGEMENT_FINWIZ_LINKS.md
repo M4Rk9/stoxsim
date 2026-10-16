@@ -2,9 +2,10 @@
 
 ## Email guidance
 
-Registration, password recovery, email changes/resends, account settings and weekly
-report settings tell learners to check Inbox and Spam/Junk for StoxSim emails and
+After registration or a password-recovery/verification request, confirmations tell learners to check Inbox and Spam/Junk for StoxSim emails and
 mark misplaced mail as not spam. Password recovery keeps its generic response.
+Welcome forms and compact email-status badges do not contain this guidance.
+Verification resend feedback appears next to its action and wraps independently.
 This is user guidance; it does not claim to repair sender authentication or guarantee
 inbox delivery. Email verification is still required.
 

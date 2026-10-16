@@ -438,6 +438,7 @@
 }
 
 .message {
+  overflow-wrap: anywhere;
   margin-top: 16px;
   padding: 11px 13px;
   border-radius: 10px;
@@ -522,7 +523,11 @@
 
 .verified,
 .unverified {
-  display: inline-flex;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
   margin-top: 16px;
   padding: 7px 10px;
   border-radius: 999px;

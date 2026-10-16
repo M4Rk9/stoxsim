@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-test("registration and recovery explain where to look for email without revealing account existence", async ({ page }) => {
+test("welcome stays focused and recovery shows mail guidance only after a request", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText(/Check Inbox and Spam\/Junk/)).toBeVisible();
+  await expect(page.getByText(/Check Inbox and Spam\/Junk/)).toHaveCount(0);
   await page.route("**/api/v1/auth/password/forgot", async route => {
     const headers = { "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST,OPTIONS" };
     await route.fulfill({ status: 204, headers });
   });
   await page.goto("/forgot-password");
+  await expect(page.getByText(/Check Inbox and Spam\/Junk/)).toHaveCount(0);
   await page.getByLabel("Email address").fill("unknown@example.test");
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByText(/If an account exists for this email/)).toContainText("Spam/Junk");

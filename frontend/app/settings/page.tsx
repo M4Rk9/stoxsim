@@ -457,14 +457,14 @@ export default function SettingsPage() {
   }
 
   async function resendVerification() {
-    setSecurityMessage("");
-    setSecurityError("");
+    setProfileMessage("");
+    setProfileError("");
     try {
       await authorized<void>("/api/v1/auth/email-verification/resend", { method: "POST" });
-      setSecurityMessage("A new verification link was sent. " + EMAIL_GUIDANCE);
+      setProfileMessage("A new verification link was sent. " + EMAIL_GUIDANCE);
       await loadSecurity();
     } catch (cause) {
-      setSecurityError(cause instanceof Error ? cause.message : "Verification email could not be sent");
+      setProfileError(cause instanceof Error ? cause.message : "Verification email could not be sent");
     }
   }
 
@@ -585,9 +585,8 @@ export default function SettingsPage() {
               value={profilePassword} onChange={(event) => setProfilePassword(event.target.value)} />
             <small>Changing your email signs out all sessions. Verify your new address after signing in.</small>
           </label>}
-          <div className={session.user.emailVerified ? styles.verified : styles.unverified}>
+          <div className={session.user.emailVerified ? styles.verified : styles.unverified} role="status">
             {session.user.emailVerified ? "Email verified" : "Email verification pending"}
-            <p>{EMAIL_GUIDANCE}</p>
           </div>
           {!session.user.emailVerified && <button
             className={styles.secondary}
