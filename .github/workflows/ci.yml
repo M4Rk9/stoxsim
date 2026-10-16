@@ -171,11 +171,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: email-ui-layout-screenshots
-          path: |
-            frontend/test-results/email-status-layout-*/attachments/*.png
-            frontend/test-results/email-guidance-*/attachments/*.png
+          path: frontend/playwright-report/data/*.png
           retention-days: 14
-          if-no-files-found: ignore
+          if-no-files-found: error
       - name: Record candidate identity and runner envelope
         run: |
           mkdir -p candidate-evidence
