@@ -31,7 +31,7 @@ import org.json.JSONObject
         Text(user.email)
         Status(if (user.verified) "Email verified" else "Email not verified")
         if (!user.verified) {
-            Muted("Can’t find the verification email? Check Spam/Junk and mark it as not spam. You can request a new link below.")
+            Muted(com.stoxsim.app.data.EMAIL_GUIDANCE)
             OutlinedButton(model::resendVerification, enabled = !state.working) { Text("Resend verification email") }
         }
         OutlinedTextField(name, { name = it.take(100) }, label = { Text("Display name") }, modifier = Modifier.fillMaxWidth())
@@ -91,7 +91,7 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
         SectionError(state, "reportPreference")
         Row { Checkbox(enabled, { enabled = it }, enabled = !state.working); Text("Receive weekly portfolio reports") }
         OutlinedTextField(zone, { zone = it.take(100) }, label = { Text("Report timezone") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Muted(preference?.text("schedule").orEmpty()); Muted("Reports require a verified email.")
+        Muted(preference?.text("schedule").orEmpty()); Muted("Reports require a verified email. " + com.stoxsim.app.data.EMAIL_GUIDANCE)
         Button({ model.reportPreference(enabled, zone) }, enabled = !state.working && preference != null && zone.isNotBlank()) { Text("Save preferences") }
         OutlinedButton(model::reportPreview, enabled = !state.working) { Text("Preview current report") }
         SectionError(state, "reportPreview")
@@ -123,6 +123,7 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
             data.optJSONObject("entitlements")?.let { entitlements ->
                 ValueRow("Scenario allowance", entitlements.text("scenarioCredits")); ValueRow("Sandbox portfolios", entitlements.text("maximumSandboxPortfolios"))
                 ValueRow("Analytics", entitlements.text("analyticsTier")); ValueRow("Finwiz", entitlements.text("finwizTier"))
+                Muted(entitlements.text("finwizDescription"))
             }
             Text(data.text("notice"))
             Muted("Existing plan benefits work in the app. Android subscription purchases are not available in this build.")
@@ -136,6 +137,7 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
             ValueRow("Scenario credits", benefits.text("scenarioCredits"))
             ValueRow("Practice sandboxes", benefits.text("maximumSandboxPortfolios"))
             ValueRow("Analytics", benefits.text("analyticsTier"))
+            Muted(benefits.text("finwizDescription"))
         }
         Muted("Purchases are not available in this app yet.")
     } }

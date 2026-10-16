@@ -29,8 +29,9 @@ under Android Keystore; bearer access tokens stay in memory. Refresh/logout use
 the backend's existing JSON request contract. No browser sessions are imported,
 no credential JavaScript bridge is added and no private responses are cached.
 Core API requests use HTTPS, reject redirects and serialize refresh rotation.
-Legal/help pages and email reset/verification links deliberately open the system
-browser until scoped native handlers are implemented. The trading/learning parity branch extends A1; neither milestone is a paid
+Legal/help pages open the system browser. Scoped native verification/reset handlers
+now support the existing email links with explicit confirmation and browser fallback.
+Distribution App Link verification requires the matching signing certificate. The trading/learning parity branch extends A1; neither milestone is a paid
 purchase release.
 
 The app remains an online educational simulator using virtual money. Live trading,

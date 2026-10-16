@@ -1,5 +1,9 @@
 package com.stoxsim.finwiz.api;
 
+import java.util.UUID;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,7 +26,7 @@ public class FinwizController {
     }
 
     @PostMapping("/ask")
-    public FinwizResponse ask(@Valid @RequestBody FinwizRequest request) {
-        return finwiz.ask(request);
+    public FinwizResponse ask(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody FinwizRequest request) {
+        return finwiz.ask(UUID.fromString(jwt.getSubject()), request);
     }
 }

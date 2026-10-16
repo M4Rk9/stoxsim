@@ -142,10 +142,12 @@ step controls. Run still uses the existing server contract and spends one credit
 Launch uses the StoxSim mark, a short native splash exit and honest restore/retry states.
 See [the upgrade notes](../../docs/ANDROID_UI_0_5.md) for acceptance and screenshot evidence.
 
-## 0.5.2 completion
+## 0.5.3 completion
 
 Pending limit-order edits, campus moderation/member controls and a separate Pro
 leaderboard are native. Build/unit/lint CI also compiles the AAB. Signed release
 preparation and unresolved external acceptance are documented in
 [MEDIUM_LOW_COMPLETION.md](../../docs/MEDIUM_LOW_COMPLETION.md). No live purchases
 are enabled. Current website clients also record daily visits automatically.
+
+Activity and native email link validation: [contract](../../docs/ANDROID_ENGAGEMENT_FINWIZ_LINKS.md).

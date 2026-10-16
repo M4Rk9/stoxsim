@@ -1,5 +1,7 @@
 "use client";
 
+import { EMAIL_GUIDANCE } from "../lib/email-guidance";
+
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./settings.module.css";
 
@@ -39,6 +41,7 @@ interface Entitlements {
   scenarioCredits: number;
   maximumSandboxPortfolios: number;
   finwizTier: string;
+  finwizDescription?: string;
   analyticsTier: string;
   privateLeagues: boolean;
   scenarioLab: boolean;
@@ -368,7 +371,7 @@ export default function SettingsPage() {
       );
       setReportPreference(preference);
       setReportMessage(preference.enabled
-        ? "Weekly portfolio reports are enabled."
+        ? "Weekly portfolio reports are enabled. " + EMAIL_GUIDANCE
         : "Weekly portfolio reports are disabled.");
     } catch (cause) {
       setReportError(cause instanceof Error ? cause.message : "Report preference could not be saved");
@@ -416,7 +419,7 @@ export default function SettingsPage() {
       setProfileMessage(
         user.emailVerified
           ? "Profile details updated."
-          : "Profile updated. Check your inbox to verify this email address.",
+          : "Profile updated. Verify this email address. " + EMAIL_GUIDANCE,
       );
       await loadSecurity();
     } catch (cause) {
@@ -458,7 +461,7 @@ export default function SettingsPage() {
     setSecurityError("");
     try {
       await authorized<void>("/api/v1/auth/email-verification/resend", { method: "POST" });
-      setSecurityMessage("A new verification link was sent.");
+      setSecurityMessage("A new verification link was sent. " + EMAIL_GUIDANCE);
       await loadSecurity();
     } catch (cause) {
       setSecurityError(cause instanceof Error ? cause.message : "Verification email could not be sent");
@@ -584,6 +587,7 @@ export default function SettingsPage() {
           </label>}
           <div className={session.user.emailVerified ? styles.verified : styles.unverified}>
             {session.user.emailVerified ? "Email verified" : "Email verification pending"}
+            <p>{EMAIL_GUIDANCE}</p>
           </div>
           {!session.user.emailVerified && <button
             className={styles.secondary}
@@ -662,7 +666,7 @@ export default function SettingsPage() {
               <ul>
                 <li>{item.plan === "FREE" ? "₹5 lakh" : item.plan === "PLUS" ? "₹25 lakh" : "₹1 crore"} · India</li>
                 <li>{reportMoney(item.entitlements.sandboxCapitalUsd ?? 10000, "USD")} · US</li>
-                <li>{eventLabel(item.entitlements.finwizTier)} FinWiz</li>
+                <li>{item.entitlements.finwizDescription ?? `${eventLabel(item.entitlements.finwizTier)} FinWiz`}</li>
                 <li>{eventLabel(item.entitlements.analyticsTier)} analytics</li>
                 <li>{item.entitlements.scenarioCredits} Scenario Lab credits{item.plan !== "FREE" ? " / renewal" : ""}</li>
               </ul>

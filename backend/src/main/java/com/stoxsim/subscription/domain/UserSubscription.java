@@ -147,6 +147,11 @@ public class UserSubscription {
             || !user.isPlatformAdmin() || !user.isEmailVerified())) return SubscriptionPlan.FREE;
         return plan;
     }
+    public SubscriptionPlan effectiveFinwizPlan(Instant now) {
+        var effective = effectivePlan();
+        if (effective != SubscriptionPlan.FREE && (currentPeriodEnd == null || !currentPeriodEnd.isAfter(now))) return SubscriptionPlan.FREE;
+        return effective;
+    }
     public void clearTestBenefits(Instant now) {
         if (!isTestBilling()) return;
         plan = SubscriptionPlan.FREE; status = SubscriptionStatus.ACTIVE;

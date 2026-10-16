@@ -58,6 +58,7 @@ import java.util.Locale
         supportingText = if (register) { { Text("8–72 characters, at most 72 UTF-8 bytes.") } } else null,
         trailingIcon = { TextButton(onClick = { passwordVisible = !passwordVisible }) { Text(if (passwordVisible) "Hide" else "Show") } },
         enabled = !state.working, modifier = Modifier.fillMaxWidth())
+    if (register || recovering) Text(com.stoxsim.app.data.EMAIL_GUIDANCE, style = MaterialTheme.typography.bodySmall)
     if (register) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(accepted, { accepted = it }, enabled = !state.working)

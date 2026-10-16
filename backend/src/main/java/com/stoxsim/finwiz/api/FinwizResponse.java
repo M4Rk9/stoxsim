@@ -11,6 +11,7 @@ public record FinwizResponse(
     Instant generatedAt,
     Instant dataAsOf,
     List<String> suggestedQuestions,
-    String disclaimer
+    String disclaimer,
+    String finwizTier
 ) {
 }

@@ -1,6 +1,6 @@
 # Native Android / website parity
 
-The website is the product reference. Version 0.5.2 implements its consumer
+The website is the product reference. Version 0.5.3 implements its consumer
 trading/learning flows as native Compose screens using the same Spring APIs,
 accounts and entitlements. It does not embed a WebView or launch a TWA.
 
@@ -45,7 +45,7 @@ local to each client, matching the website's existing local preference model.
 | Weekly email preferences/report history/preview | Account/Weekly reports | Implemented |
 | Existing plan benefits/additional sandbox | Account; subscription/provisioning endpoints | Implemented; server enforces eligibility |
 | Purchasing/renewal/restoring Play subscriptions | Android Play Billing plus verified backend purchase lifecycle | Not implemented; separate A3 milestone |
-| Email verification/reset links | Email link opens existing website; return to app and sign in/refresh | Native link completion pending |
+| Email verification/reset links | Scoped native App Links with explicit verification/reset forms and browser fallback | Implemented; distribution certificate/device acceptance required |
 | Campus role/moderation/admin controls | Native campus workspace and review dialogs | Implemented; live-role acceptance remains required |
 | Platform-admin analytics/billing operations | Website admin pages | Remain web-only |
 
@@ -83,7 +83,7 @@ account-specific plan eligibility, actual email delivery or production billing.
 Owner device checklist:
 
 1. Update the branch, sync Gradle and run with the same debug key; verify version
-   0.5.2, native navigation and that no Chrome chrome appears in core screens.
+   0.5.3, native navigation and that no Chrome chrome appears in core screens.
 2. Compare one India and one US account against the website. Select each sandbox;
    verify its account label, currency, balances/holdings and locked state.
 3. Check light/dark appearance, rotation, Back, keyboard, narrow screens and large
@@ -109,3 +109,5 @@ Owner device checklist:
 
 Pro competitions: a separate opt-in board is available in both clients. Active Pro
 access and a future period end are required; test benefits are excluded.
+
+Android activity and native email link contracts: [ANDROID_ENGAGEMENT_FINWIZ_LINKS.md](ANDROID_ENGAGEMENT_FINWIZ_LINKS.md).

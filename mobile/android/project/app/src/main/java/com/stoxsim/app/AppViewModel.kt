@@ -20,6 +20,8 @@ import java.io.IOException
 import java.math.BigDecimal
 import java.util.UUID
 
+internal data class EmailLinkPrompt(val action: EmailAction, val id: String = UUID.randomUUID().toString())
+
 internal data class AppState(
     val restoring: Boolean = true, val restoreFailed: Boolean = false,
     val working: Boolean = false, val user: User? = null,
@@ -54,6 +56,66 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private var streamJob: Job? = null
     private var streakJob: Job? = null
     private var streakTracker = DailyStreakTracker()
+    private var activityTracker = ProductActivityTracker()
+    private var activityJob: Job? = null
+    private var pendingEmailLink: EmailActionLink? = null
+    private val emailAction = MutableStateFlow<EmailLinkPrompt?>(null)
+    val emailLinkAction = emailAction.asStateFlow()
+
+    fun receiveEmailLink(raw: String?) {
+        val link = EmailActionLink.parse(raw)
+        if (link == null) {
+            pendingEmailLink = null; emailAction.value = null
+            mutable.update { it.copy(error = "This StoxSim email link is invalid. Request a new link and check Inbox and Spam/Junk.") }
+            return
+        }
+        pendingEmailLink = link
+        emailAction.value = EmailLinkPrompt(link.action)
+        clearMessage()
+    }
+    fun dismissEmailLink() { pendingEmailLink = null; emailAction.value = null; clearMessage() }
+    fun emailBrowserUrl(): String? = pendingEmailLink?.browserUrl()
+    fun completeEmailLink(password: String? = null) = runAction {
+        val link = pendingEmailLink ?: return@runAction
+        try { api.completeEmailLink(link, password) }
+        catch (failure: ApiFailure) {
+            mutable.update { it.copy(error = if (failure.status == 401) "This email link is invalid, expired or already used. Request a new link and check Inbox and Spam/Junk." else failure.message) }
+            return@runAction
+        }
+        if (pendingEmailLink === link) { pendingEmailLink = null; emailAction.value = null }
+        if (link.action == EmailAction.RESET_PASSWORD) {
+            mutable.value = AppState(restoring = false, working = true, notice = "Password reset. All existing sessions have been signed out. Sign in with your new password.")
+        } else {
+            if (mutable.value.user != null) {
+                try { val user = api.currentUser(); mutable.update { it.copy(user = user) } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Verification succeeded; profile can refresh independently. */ }
+            }
+            mutable.update { it.copy(notice = "Email verified. You can continue in StoxSim.") }
+        }
+    }
+
+    private fun startProductActivity() {
+        if (!foreground || mutable.value.user == null || activityJob?.isActive == true) return
+        val tracker = activityTracker
+        val userId = mutable.value.user!!.id
+        activityJob = viewModelScope.launch {
+            while (isActive && foreground && mutable.value.user?.id == userId && tracker === activityTracker) {
+                if (!mutable.value.working && emailAction.value == null) {
+                    val events = if (mutable.value.screen == "Stock" && mutable.value.selected != null)
+                        listOf(ProductActivity.ACTIVE, ProductActivity.STOCK_OPENED) else listOf(ProductActivity.ACTIVE)
+                    for (event in events) {
+                        if (!foreground || mutable.value.user?.id != userId || tracker !== activityTracker) break
+                        val day = tracker.attempt(event, Instant.now()) ?: continue
+                        if (api.recordActivity(userId, event) && tracker === activityTracker) tracker.confirmed(event, day)
+                    }
+                }
+                delay(60_000)
+            }
+        }
+    }
+    private fun restartProductActivity() { activityJob?.cancel(); activityJob = null; startProductActivity() }
+
 
     init { restore() }
 
@@ -78,6 +140,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private suspend fun signedIn(user: User) {
         streakJob?.cancel(); streakJob = null
         streakTracker = DailyStreakTracker()
+        activityJob?.cancel(); activityJob = null; activityTracker = ProductActivityTracker()
         pendingOrder = null; pendingScenario = null; pendingSandbox = null
         val first = user.accounts.firstOrNull { it.region == "INDIA" && it.kind == "STANDARD" }
             ?: user.accounts.firstOrNull()
@@ -92,7 +155,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun forgot(email: String) = runAction {
         api.forgotPassword(email)
-        mutable.update { it.copy(notice = "If an account exists for this email, a reset link has been sent. Open the link in your email to finish resetting your password.") }
+        mutable.update { it.copy(notice = "If an account exists for this email, a reset link has been sent. " + EMAIL_GUIDANCE + " Open the link to finish resetting your password.") }
     }
     fun setDark(dark: Boolean) {
         mutable.value.user?.email?.let { preferences.edit().putBoolean(it, dark).apply() }
@@ -107,8 +170,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun foreground(active: Boolean) {
         foreground = active
-        if (!active) { streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
-        else { startStream(); startDailyStreak(); if (mutable.value.user != null && !mutable.value.working) refresh() }
+        if (!active) { activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
+        else { startStream(); startDailyStreak(); startProductActivity(); if (mutable.value.user != null && !mutable.value.working) refresh() }
     }
     private fun startDailyStreak() {
         if (!foreground || mutable.value.user == null || streakJob?.isActive == true) return
@@ -192,7 +255,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             state.copy(quote = quote, data = if (watch == null) state.data else state.data + ("watchlist" to watch), lists = if (indices == null) state.lists else state.lists + ("indices" to indices))
         }
     }
-    override fun onCleared() { streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
+    override fun onCleared() { pendingEmailLink = null; activityJob?.cancel(); streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
     fun refresh() = runAction { loadPage() }
     fun refreshUser() = runAction { readAccounts() }
     fun loadPortfolio() = refresh()
@@ -234,6 +297,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(selected = instrument, screen = "Stock", quote = null, candles = emptyList(),
             data = it.data - "stockInsights", chartMonths = 1, insightPeriod = "quarterly",
             recentStocks = (listOf(instrument) + it.recentStocks.filterNot { recent -> recent.symbol == instrument.symbol && recent.exchange == instrument.exchange && recent.region == instrument.region }).take(10)) }
+        restartProductActivity()
         refresh()
     }
     fun chartRange(months: Long) = runAction {
@@ -493,7 +557,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         try {
             val result = api.mutate("finwiz/ask", body = body)
             val answer = FinwizMessage(UUID.randomUUID().toString(), "assistant", result.text("answer").take(24000),
-                result.text("provider"), result.text("generatedAt"), result.text("disclaimer"), result.strings("suggestedQuestions"))
+                result.text("provider"), result.text("generatedAt"), result.text("disclaimer"), result.strings("suggestedQuestions"), result.text("finwizTier"))
             mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + answer) else item }) }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (expired: SessionExpired) { throw expired }
@@ -508,10 +572,10 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val user = parseUser(api.mutate("auth/me", "PATCH", body))
         if (user.email.lowercase() != mutable.value.user?.email?.lowercase()) {
             api.endLocalSession()
-            mutable.value = AppState(restoring = false, working = true, notice = "Email updated. Sign in again and check your inbox for verification.")
+            mutable.value = AppState(restoring = false, working = true, notice = "Email updated. Sign in again to verify your email. " + EMAIL_GUIDANCE)
         } else mutable.update { it.copy(user = user, notice = "Your profile has been updated.") }
     }
-    fun resendVerification() = runAction { api.mutate("auth/email-verification/resend"); mutable.update { it.copy(notice = "Verification email requested. Check your inbox and Spam/Junk folder. If it is in spam, mark it as not spam before opening the link.") } }
+    fun resendVerification() = runAction { api.mutate("auth/email-verification/resend"); mutable.update { it.copy(notice = "Verification email requested. " + EMAIL_GUIDANCE) } }
     fun password(current: String, replacement: String) = runAction {
         api.mutate("auth/me/password", "PATCH", JSONObject().put("currentPassword", current).put("newPassword", replacement))
         api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "Password updated. Sign in again.")
@@ -561,7 +625,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             catch (failure: Exception) { mutable.update { it.copy(error = failureMessage(failure)) } }
             finally {
                 mutable.update { it.copy(working = false) }
-                if (mutable.value.user == null) { streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null } else { startStream(); startDailyStreak() }
+                if (mutable.value.user == null) { activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null } else { startStream(); startDailyStreak(); restartProductActivity() }
                 if (pagePending && mutable.value.user != null) { pagePending = false; refresh() }
             }
         }

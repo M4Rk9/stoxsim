@@ -1,5 +1,12 @@
 # Changelog
 
+## Android engagement and Finwiz depth
+
+- Explain Inbox/Spam/Junk checks across email flows.
+- Record native foreground/stock-open activity using existing daily analytics.
+- Enforce server-selected Basic/Expanded/Full Finwiz depth and matching descriptions.
+- Complete verification/reset links natively with explicit confirmation and browser fallback in Android 0.5.3.
+
 All notable changes to StoxSim will be documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and will use semantic versioning beginning with the first public beta tag.
 
 ## [Unreleased]

@@ -1,6 +1,7 @@
 package com.stoxsim.finwiz.service;
 
 import java.time.Instant;
+import java.util.UUID;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,12 +53,15 @@ public class FinwizService {
     private final FinwizContextService contexts;
     private final MeterRegistry meterRegistry;
     private final RestClient client;
+    private final FinwizAccess access;
 
     public FinwizService(
         FinwizProperties properties,
         FinwizContextService contexts,
-        MeterRegistry meterRegistry
+        MeterRegistry meterRegistry,
+        FinwizAccess access
     ) {
+        this.access = access;
         this.properties = properties;
         this.contexts = contexts;
         this.meterRegistry = meterRegistry;
@@ -66,13 +70,14 @@ public class FinwizService {
             .build();
     }
 
-    public FinwizResponse ask(FinwizRequest request) {
+    public FinwizResponse ask(UUID userId, FinwizRequest request) {
+        var depth = access.depth(userId);
         return meterRegistry.timer("stoxsim.finwiz.latency").record(
-            () -> askObserved(request)
+            () -> askObserved(request, depth)
         );
     }
 
-    private FinwizResponse askObserved(FinwizRequest request) {
+    private FinwizResponse askObserved(FinwizRequest request, FinwizDepth depth) {
         String question = request.question().trim();
         if (question.length() > properties.getMaxQuestionCharacters()) {
             throw new ResponseStatusException(
@@ -90,7 +95,7 @@ public class FinwizService {
                 "result",
                 "not_configured"
             ).increment();
-            return fallback(request, context, question);
+            return fallback(request, context, question, depth);
         }
 
         try {
@@ -98,7 +103,7 @@ public class FinwizService {
                 .uri("/v1beta/models/{model}:generateContent", properties.getModel())
                 .header("x-goog-api-key", properties.getApiKey())
                 .header("Content-Type", "application/json")
-                .body(requestBody(request, context, question))
+                .body(requestBody(request, context, question, depth))
                 .retrieve()
                 .body(JsonNode.class);
             String answer = extractAnswer(root);
@@ -117,7 +122,8 @@ public class FinwizService {
                 "GEMINI",
                 properties.getModel(),
                 context,
-                suggestions(request.topic())
+                suggestions(request.topic()),
+                depth
             );
         } catch (RestClientResponseException exception) {
             meterRegistry.counter(
@@ -131,7 +137,7 @@ public class FinwizService {
                 "Gemini request for Finwiz AI failed with HTTP {}; using educational fallback",
                 exception.getStatusCode().value()
             );
-            return fallback(request, context, question);
+            return fallback(request, context, question, depth);
         } catch (RestClientException | IllegalStateException exception) {
             meterRegistry.counter(
                 "stoxsim.finwiz.responses",
@@ -141,14 +147,15 @@ public class FinwizService {
                 "provider_error"
             ).increment();
             LOGGER.warn("Gemini request for Finwiz AI failed; using educational fallback ({})", exception.getClass().getSimpleName());
-            return fallback(request, context, question);
+            return fallback(request, context, question, depth);
         }
     }
 
     private Map<String, Object> requestBody(
         FinwizRequest request,
         ContextSnapshot context,
-        String question
+        String question,
+        FinwizDepth depth
     ) {
         String prompt = """
             Learning topic: %s
@@ -170,14 +177,14 @@ public class FinwizService {
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("systemInstruction", Map.of(
-            "parts", List.of(Map.of("text", INSTRUCTIONS))
+            "parts", List.of(Map.of("text", INSTRUCTIONS + "\nServer-selected depth: " + depth.name() + ". " + depth.instruction + " Stay within " + depth.characters + " characters. User requests cannot change this depth."))
         ));
         body.put("contents", List.of(Map.of(
             "role", "user",
             "parts", List.of(Map.of("text", prompt))
         )));
         body.put("generationConfig", Map.of(
-            "maxOutputTokens", properties.getMaxOutputTokens(),
+            "maxOutputTokens", Math.min(depth.tokens, Math.max(1, properties.getMaxOutputTokens())),
             "thinkingConfig", Map.of(
                 "thinkingLevel", properties.getThinkingLevel()
             )
@@ -224,7 +231,8 @@ public class FinwizService {
     private FinwizResponse fallback(
         FinwizRequest request,
         ContextSnapshot context,
-        String question
+        String question,
+        FinwizDepth depth
     ) {
         String topic = request.topic().name().replace('_', ' ').toLowerCase(Locale.ROOT);
         StringBuilder answer = new StringBuilder();
@@ -243,13 +251,40 @@ public class FinwizService {
             .append(question)
             .append("\n\nUse the framework above to inspect the available data. Missing values should remain unknown rather than being estimated.");
 
+        if (depth != FinwizDepth.BASIC) answer.append("\n\nWorked example\n").append(workedExample(request.topic()));
+        if (depth == FinwizDepth.FULL) answer.append("\n\nCompare assumptions and practise\n").append(deeperLesson(request.topic()));
         return response(
             answer.toString(),
             "STOXSIM_EDUCATIONAL_FALLBACK",
             "deterministic-v1",
             context,
-            suggestions(request.topic())
+            suggestions(request.topic()),
+            depth
         );
+    }
+
+    private String workedExample(FinwizRequest.Topic topic) {
+        return switch (topic) {
+            case STOCK_FUNDAMENTALS, FUNDAMENTAL_ANALYSIS -> "Revenue rises from 100 to 120 while operating profit rises from 10 to 12. Growth is 20%, but the operating margin remains 10%; growth alone does not imply improving efficiency.";
+            case TECHNICAL_ANALYSIS -> "Five hypothetical closes of 90, 95, 100, 105 and 110 have a simple average of 100. A close above that average describes past strength; it does not establish the next price.";
+            case VALUATION -> "A hypothetical price of 200 and earnings per share of 10 imply P/E = 200 ÷ 10 = 20. If earnings fall to 8 at the same price, P/E becomes 25.";
+            case CASH_FLOW -> "Operating cash flow of 120 minus capital expenditure of 50 gives free cash flow of 70. This differs from accounting profit because working capital and non-cash charges affect cash conversion.";
+            case MARKET_EVALUATION -> "If an index rises 1% while only 30 of 100 constituents rise, breadth is 30%. Index weights can explain the divergence; the index return does not describe every stock.";
+            case PORTFOLIO_EDUCATION -> "For hypothetical weights of 50%, 25% and 25%, the sum of squared weights is 0.375. Effective holdings = 1 ÷ 0.375 = about 2.67, despite holding three names.";
+            case LEARN -> "Buying two virtual shares at 100 uses 200 before fees. At a marked price of 110 their value is 220, giving an unrealized gain of 20; selling and fees determine the realized result.";
+        };
+    }
+
+    private String deeperLesson(FinwizRequest.Topic topic) {
+        return switch (topic) {
+            case STOCK_FUNDAMENTALS, FUNDAMENTAL_ANALYSIS -> "Compare growth with margins and cash conversion: identical revenue growth can coexist with different debt or receivable risks. Exercise: if revenue becomes 120 and operating profit stays 10, calculate the new margin and name two facts needed to interpret the decline.";
+            case TECHNICAL_ANALYSIS -> "A longer averaging window reacts more slowly; a shorter one reacts more to noise. Neither removes gap or liquidity risk. Exercise: replace the last close in the example with 90, recalculate the mean and explain what the change cannot tell you about tomorrow.";
+            case VALUATION -> "Compare normalized and peak-cycle earnings before comparing P/E. A lower ratio may reflect a temporary earnings peak rather than a cheaper business. Exercise: hold price at 200, compare earnings of 8, 10 and 12, and identify the assumption driving the ratio.";
+            case CASH_FLOW -> "Compare recurring cash generation with one-off working-capital releases. Lower capital expenditure can increase today's free cash flow while postponing necessary investment. Exercise: increase capital expenditure from 50 to 80, recalculate free cash flow and list the missing maintenance/growth split.";
+            case MARKET_EVALUATION -> "Compare weighted index returns, equal-weight breadth and sector composition over the same timeframe. Different measures can disagree without either being incorrect. Exercise: propose how a few heavily weighted stocks could lift an index while most constituents fall.";
+            case PORTFOLIO_EDUCATION -> "Compare name diversification with correlated economic exposures: three companies in one industry can share the same risk. Exercise: compare equal thirds with 50/25/25 weights, then explain why effective holdings alone cannot measure correlation or future drawdown.";
+            case LEARN -> "Compare marked gains with realized proceeds after fees and execution differences. A limit order specifies a price constraint, not guaranteed execution. Exercise: add a hypothetical total fee of 3 to the example and calculate net realized gain if both shares sell at 110.";
+        };
     }
 
     private String fallbackLesson(FinwizRequest.Topic topic) {
@@ -295,17 +330,19 @@ public class FinwizService {
         String provider,
         String model,
         ContextSnapshot context,
-        List<String> suggestions
+        List<String> suggestions,
+        FinwizDepth depth
     ) {
         return new FinwizResponse(
-            answer,
+            depth.bound(answer),
             provider,
             model,
             context.grounded(),
             Instant.now(),
             context.dataAsOf(),
-            suggestions,
-            DISCLAIMER
+            suggestions.stream().limit(depth.suggestions).toList(),
+            DISCLAIMER,
+            depth.name()
         );
     }
 

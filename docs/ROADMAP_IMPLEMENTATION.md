@@ -199,7 +199,7 @@ owner overview; it does not mark the remaining premium/campus batches complete.
 ## Current remaining work
 
 See [medium/low completion and external acceptance](MEDIUM_LOW_COMPLETION.md).
-Paid web/Play checkout and Finwiz tier differentiation are separate work. Pro
+Paid web/Play checkout remains separate work. Backend Finwiz tier differentiation is implemented; see ANDROID_ENGAGEMENT_FINWIZ_LINKS.md. Pro
 competitions now have an independent opt-in board; it does not enable billing.
 Benchmark retention, real backup recovery, VPS capacity and Play publication still
 need their external acceptance evidence. Do not treat historical batch descriptions

@@ -41,6 +41,7 @@ internal class StoxSimApi(
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()
 ) {
     private val lock = Mutex()
+    private var sessionUserId: String? = null
     private var accessToken: String? = null
     private var accessExpiresAt: Long = 0
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -67,6 +68,32 @@ internal class StoxSimApi(
         request("api/v1/auth/password/forgot", JSONObject().put("email", email.trim())).use {
             if (!it.isSuccessful) throw failure(it)
         }
+    }
+
+    /** Optional analytics never rotates tokens, clears a session or queues behind user operations. */
+    suspend fun recordActivity(userId: String, event: ProductActivity): Boolean = withContext(Dispatchers.IO) {
+        if (!lock.tryLock()) return@withContext false
+        val token = try {
+            accessToken?.takeIf { userId.isNotBlank() && userId == sessionUserId && System.currentTimeMillis() < accessExpiresAt }
+        } finally { lock.unlock() } ?: return@withContext false
+        try {
+            val url = baseUrl.newBuilder().addPathSegments("api/v1/analytics/events").build()
+            val body = JSONObject().put("version", 1).put("event", event.name)
+            val request = Request.Builder().url(url).header("Authorization", "Bearer $token")
+                .post(body.toString().toRequestBody(jsonType)).build()
+            val call = client.newCall(request)
+            call.timeout().timeout(5, TimeUnit.SECONDS)
+            call.execute().use { it.isSuccessful }
+        } catch (_: IOException) { false }
+    }
+
+    /** Email action tokens use public endpoints, without any account's bearer/cookie or write replay. */
+    suspend fun completeEmailLink(link: EmailActionLink, password: String? = null) = serialized {
+        val body = JSONObject().put("token", link.token)
+        if (link.action == EmailAction.RESET_PASSWORD) body.put("newPassword", requireNotNull(password))
+        val path = if (link.action == EmailAction.VERIFY_EMAIL) "email-verification/confirm" else "password/reset"
+        request("api/v1/auth/$path", body).use { if (!it.isSuccessful) throw failure(it) }
+        if (link.action == EmailAction.RESET_PASSWORD) clearSession()
     }
 
     suspend fun currentUser(): User = serialized { parseUser(JSONObject(authorizedGet("api/v1/auth/me"))) }
@@ -155,7 +182,7 @@ internal class StoxSimApi(
         method: String? = null, idempotencyKey: String? = null): Response {
         val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.5.2")
+            .header("User-Agent", "StoxSim-Android/0.5.3")
         bearer?.let { request.header("Authorization", "Bearer $it") }
         if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
         idempotencyKey?.let { request.header("Idempotency-Key", it) }
@@ -197,6 +224,7 @@ internal class StoxSimApi(
                 it.path == "/api/v1/auth" && it.expiresAt > System.currentTimeMillis() && it.value.isNotBlank()
         } ?: run { clearSession(); throw SessionExpired() }
         store.write(cookie.value)
+        sessionUserId = user.id
         accessToken = access
         accessExpiresAt = System.currentTimeMillis() + json.optLong("expiresInSeconds", 900).coerceIn(1, 86400) * 1000
         return user
@@ -214,5 +242,5 @@ internal class StoxSimApi(
         return response.body?.string() ?: throw IOException("The server returned an empty response.")
     }
 
-    private fun clearSession() { accessToken = null; accessExpiresAt = 0; store.clear() }
+    private fun clearSession() { sessionUserId = null; accessToken = null; accessExpiresAt = 0; store.clear() }
 }

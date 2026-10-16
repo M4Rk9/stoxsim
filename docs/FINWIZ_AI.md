@@ -114,3 +114,7 @@ Before unrestricted public launch, add:
 - admin controls to disable the provider without disabling the deterministic lessons
 - user-visible data timestamps and provider status
 - separate analytics events for opened, asked, answered, fallback and failed states
+
+## Plan depth
+
+Basic, Expanded and Full behavior is selected and bounded on the backend. See [depth contract, limits and tests](ANDROID_ENGAGEMENT_FINWIZ_LINKS.md#server-selected-finwiz-depth). Plan descriptions and answer metadata reflect the applied tier.

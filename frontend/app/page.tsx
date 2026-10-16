@@ -1,5 +1,7 @@
 "use client";
 
+import { EMAIL_GUIDANCE } from "./lib/email-guidance";
+
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Client, IMessage } from "@stomp/stompjs";
@@ -1137,6 +1139,7 @@ export default function Home() {
               <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
             </div>
             <h2>{authMode === "register" ? "Your first virtual portfolio" : "Welcome back"}</h2>
+            {authMode === "register" && <p>{EMAIL_GUIDANCE}</p>}
             <p>{authMode === "register" ? "Free, educational and no brokerage account required." : "Continue practising where you stopped."}</p>
             {authMode === "register" && (
               <label>Display name<input required minLength={2} value={authForm.displayName} onChange={(event) => setAuthForm({ ...authForm, displayName: event.target.value })} placeholder="Market learner" /></label>
@@ -1265,7 +1268,7 @@ export default function Home() {
       </section>
 
       {!session.user.emailVerified && <div className="message verificationMessage" role="status">
-        Verify your email to secure account recovery. <a href="/settings">Open settings</a>
+        Verify your email to secure account recovery. {EMAIL_GUIDANCE} <a href="/settings">Open settings</a>
       </div>}
       {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`} role={error ? "alert" : "status"} aria-live="polite">{error || notice}<button type="button" aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
       {activeAccount && !activeAccount.active && <div className="message accountLockedMessage">
