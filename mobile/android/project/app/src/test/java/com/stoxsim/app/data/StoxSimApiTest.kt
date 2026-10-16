@@ -239,6 +239,20 @@ class StoxSimApiTest {
         assertEquals("STOCK_OPENED", JSONObject(server.takeRequest().body.readUtf8()).getString("event"))
         assertEquals(3, server.requestCount)
     }
+    @Test fun analyticsDoesNotLoseAVisitWhileAReadHoldsTheSessionLock() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody(user).setBodyDelay(500, java.util.concurrent.TimeUnit.MILLISECONDS))
+        val reading = async(kotlinx.coroutines.Dispatchers.Default) { api.currentUser() }
+        assertNotNull(server.takeRequest(2, java.util.concurrent.TimeUnit.SECONDS))
+        server.enqueue(MockResponse().setResponseCode(204))
+        assertTrue(api.recordActivity("learner-id", ProductActivity.ACTIVE))
+        assertEquals("/api/v1/analytics/events", server.takeRequest().path)
+        reading.await()
+        api.endLocalSession()
+        assertFalse(api.recordActivity("learner-id", ProductActivity.ACTIVE))
+        assertEquals(3, server.requestCount)
+    }
+
     @Test fun emailActionsArePublicAndResetSuccessClearsOnlyAfterServerConfirmation() = runBlocking {
         val token = "t".repeat(43)
         server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()

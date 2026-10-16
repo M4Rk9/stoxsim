@@ -20,7 +20,7 @@ remain aggregate across clients, not separate app session counts.
 
 Per-sign-in memory suppresses acknowledged events for that UTC day and retries
 failed attempts at most every five minutes, while foreground. App restart may send
-again; server uniqueness is authoritative. Analytics skips busy session operations,
+again; server uniqueness is authoritative. Analytics reads an immutable session snapshot without waiting behind user operations,
 uses existing unexpired access only, has a five-second timeout and never rotates
 credentials, signs out a user or changes a trading result on failure. Each account
 gets fresh in-memory state. No historical app activity is backfilled.

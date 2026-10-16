@@ -41,7 +41,8 @@ internal class StoxSimApi(
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()
 ) {
     private val lock = Mutex()
-    private var sessionUserId: String? = null
+    private data class ActivitySession(val userId: String, val token: String, val expiresAt: Long)
+    @Volatile private var activitySession: ActivitySession? = null
     private var accessToken: String? = null
     private var accessExpiresAt: Long = 0
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -72,14 +73,15 @@ internal class StoxSimApi(
 
     /** Optional analytics never rotates tokens, clears a session or queues behind user operations. */
     suspend fun recordActivity(userId: String, event: ProductActivity): Boolean = withContext(Dispatchers.IO) {
-        if (!lock.tryLock()) return@withContext false
-        val token = try {
-            accessToken?.takeIf { userId.isNotBlank() && userId == sessionUserId && System.currentTimeMillis() < accessExpiresAt }
-        } finally { lock.unlock() } ?: return@withContext false
+        // An immutable snapshot avoids competing with session refresh, streaming or user writes.
+        // In-flight logout/revocation is still checked by the server; identity cannot change here.
+        val session = activitySession?.takeIf {
+            userId.isNotBlank() && userId == it.userId && System.currentTimeMillis() < it.expiresAt
+        } ?: return@withContext false
         try {
             val url = baseUrl.newBuilder().addPathSegments("api/v1/analytics/events").build()
             val body = JSONObject().put("version", 1).put("event", event.name)
-            val request = Request.Builder().url(url).header("Authorization", "Bearer $token")
+            val request = Request.Builder().url(url).header("Authorization", "Bearer ${session.token}")
                 .post(body.toString().toRequestBody(jsonType)).build()
             val call = client.newCall(request)
             call.timeout().timeout(5, TimeUnit.SECONDS)
@@ -224,9 +226,9 @@ internal class StoxSimApi(
                 it.path == "/api/v1/auth" && it.expiresAt > System.currentTimeMillis() && it.value.isNotBlank()
         } ?: run { clearSession(); throw SessionExpired() }
         store.write(cookie.value)
-        sessionUserId = user.id
         accessToken = access
         accessExpiresAt = System.currentTimeMillis() + json.optLong("expiresInSeconds", 900).coerceIn(1, 86400) * 1000
+        activitySession = ActivitySession(user.id, access, accessExpiresAt)
         return user
     }
 
@@ -242,5 +244,5 @@ internal class StoxSimApi(
         return response.body?.string() ?: throw IOException("The server returned an empty response.")
     }
 
-    private fun clearSession() { sessionUserId = null; accessToken = null; accessExpiresAt = 0; store.clear() }
+    private fun clearSession() { activitySession = null; accessToken = null; accessExpiresAt = 0; store.clear() }
 }
