@@ -30,6 +30,7 @@ class UpstoxInstrumentSyncServiceTest {
             [
               {
                 "segment": "NSE_EQ",
+                "instrument_type": "EQ",
                 "instrument_key": "NSE_EQ|INE002A01018",
                 "trading_symbol": "RELIANCE",
                 "name": "Reliance Industries Limited"

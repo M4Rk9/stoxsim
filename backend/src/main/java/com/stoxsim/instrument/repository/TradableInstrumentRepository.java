@@ -40,18 +40,36 @@ public interface TradableInstrumentRepository extends JpaRepository<TradableInst
         FROM TradableInstrument instrument
         WHERE instrument.marketRegion = :marketRegion
           AND instrument.active = true
+          AND instrument.exchange IN :exchanges
+          AND instrument.instrumentType IN :types
           AND (
               LOCATE(LOWER(:query), LOWER(instrument.tradingSymbol)) > 0
               OR LOCATE(LOWER(:query), LOWER(instrument.name)) > 0
               OR LOCATE(LOWER(:query), LOWER(COALESCE(instrument.isin, ''))) > 0
+              OR LOCATE(:compact, LOWER(REPLACE(REPLACE(REPLACE(instrument.name, ' ', ''), '-', ''), '&', ''))) > 0
+              OR LOCATE(:compact, LOWER(REPLACE(REPLACE(instrument.tradingSymbol, ' ', ''), '-', ''))) > 0
           )
         ORDER BY
-          CASE WHEN LOWER(instrument.tradingSymbol) = LOWER(:query) THEN 0 ELSE 1 END,
+          CASE
+            WHEN LOWER(instrument.tradingSymbol) = LOWER(:query) THEN 0
+            WHEN LOCATE(LOWER(:query), LOWER(instrument.tradingSymbol)) = 1 THEN 1
+            WHEN LOWER(instrument.name) = LOWER(:query) THEN 2
+            WHEN LOCATE(LOWER(:query), LOWER(instrument.name)) = 1 THEN 3
+            WHEN LOCATE(LOWER(CONCAT(' ', :query)), LOWER(instrument.name)) > 0 THEN 4
+            WHEN LOCATE(:compact, LOWER(REPLACE(REPLACE(instrument.tradingSymbol, ' ', ''), '-', ''))) = 1 THEN 5
+            WHEN LOCATE(:compact, LOWER(REPLACE(REPLACE(REPLACE(instrument.name, ' ', ''), '-', ''), '&', ''))) = 1 THEN 6
+            WHEN LOCATE(LOWER(:query), LOWER(instrument.tradingSymbol)) > 0 THEN 7
+            WHEN LOCATE(LOWER(:query), LOWER(instrument.name)) > 0 THEN 8
+            ELSE 9
+          END,
           instrument.tradingSymbol
         """)
     List<TradableInstrument> search(
         @Param("marketRegion") MarketRegion marketRegion,
         @Param("query") String query,
+        @Param("compact") String compact,
+        @Param("exchanges") Collection<MarketExchange> exchanges,
+        @Param("types") Collection<InstrumentType> types,
         Pageable pageable
     );
 

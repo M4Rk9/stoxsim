@@ -106,7 +106,7 @@ internal class StoxSimApi(
 
     suspend fun search(region: String, query: String): List<Instrument> = serialized {
         JSONArray(authorizedGet("api/v1/instruments/search", mapOf("marketRegion" to region, "q" to query.trim())))
-            .mapObjects { parseInstrument(it, region) }
+            .mapObjects { parseInstrument(it, region) }.filter { it.isSearchEligible(region) }.take(8)
     }
 
     suspend fun quotes(): kotlinx.coroutines.flow.Flow<JSONObject> {
@@ -184,7 +184,7 @@ internal class StoxSimApi(
         method: String? = null, idempotencyKey: String? = null): Response {
         val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.5.3")
+            .header("User-Agent", "StoxSim-Android/0.5.4")
         bearer?.let { request.header("Authorization", "Bearer $it") }
         if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
         idempotencyKey?.let { request.header("Idempotency-Key", it) }

@@ -141,7 +141,7 @@ internal fun productTab(screen: String) = when (screen) {
     search: (String) -> Unit = { navigate("Markets") }, content: @Composable ColumnScope.() -> Unit) {
     val signedIn = state.user != null
     val focus = LocalFocusManager.current
-    var query by rememberSaveable(state.region, state.user?.email) { mutableStateOf("") }
+    var query by rememberSaveable(state.region, state.user?.email, state.accountId) { mutableStateOf(state.searchQuery) }
     val stockPages = listOf("Home", "Markets", "Portfolio", "Orders", "Watchlist")
     val main = stockPages + listOf("Finwiz", "Scenario Lab", "Competitions")
     val chat = state.screen == "Finwiz chat"
@@ -156,7 +156,7 @@ internal fun productTab(screen: String) = when (screen) {
                     IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh portfolio analysis") }
                 } else if (signedIn) {
                     if (state.screen !in main) IconButton({ navigate(parentScreen(state.screen)) }, Modifier.size(32.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                    OutlinedTextField(query, { query = it.take(100) }, placeholder = { Text("Search stocks & ETFs", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    OutlinedTextField(query, { query = it.take(100); search(query) }, placeholder = { Text("Search stocks & ETFs", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         singleLine = true, enabled = !state.working, shape = RoundedCornerShape(28.dp), textStyle = MaterialTheme.typography.bodyMedium,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface),

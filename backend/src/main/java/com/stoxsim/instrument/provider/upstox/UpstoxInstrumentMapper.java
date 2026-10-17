@@ -2,6 +2,7 @@ package com.stoxsim.instrument.provider.upstox;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.Locale;
 import java.util.Set;
 
 import org.springframework.stereotype.Component;
@@ -30,6 +31,11 @@ public class UpstoxInstrumentMapper {
             return Optional.empty();
         }
 
+        // NSE_EQ is a segment, not a security classification: it also contains
+        // bonds, government securities and other non-stock series.
+        if (segment.equals("NSE_EQ") && !Set.of("EQ", "BE", "BZ", "SM", "ST", "SZ")
+            .contains(text(node, "instrument_type").toUpperCase(Locale.ROOT))) return Optional.empty();
+
         String instrumentKey = text(node, "instrument_key");
         String name = text(node, "name");
         String tradingSymbol = optionalText(node, "trading_symbol").orElse(name);
@@ -51,7 +57,7 @@ public class UpstoxInstrumentMapper {
             tradingSymbol,
             name,
             optionalText(node, "isin").orElse(null),
-            instrumentType(segment, securityType),
+            instrumentType(segment, securityType, text(node, "isin"), name),
             "INR",
             positiveInt(node, "lot_size", 1),
             decimal(node, "tick_size", new BigDecimal("0.05")),
@@ -59,11 +65,12 @@ public class UpstoxInstrumentMapper {
         ));
     }
 
-    private InstrumentType instrumentType(String segment, String securityType) {
+    private InstrumentType instrumentType(String segment, String securityType, String isin, String name) {
         if (segment.endsWith("_INDEX")) {
             return InstrumentType.INDEX;
         }
-        if (securityType != null && securityType.toUpperCase().contains("ETF")) {
+        if (isin.startsWith("INF") || name.toUpperCase(Locale.ROOT).matches(".*\\bETF\\b.*")
+            || (securityType != null && securityType.toUpperCase(Locale.ROOT).contains("ETF"))) {
             return InstrumentType.ETF;
         }
         return InstrumentType.EQUITY;

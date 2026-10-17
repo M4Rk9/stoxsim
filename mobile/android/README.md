@@ -151,3 +151,11 @@ preparation and unresolved external acceptance are documented in
 are enabled. Current website clients also record daily visits automatically.
 
 Activity and native email link validation: [contract](../../docs/ANDROID_ENGAGEMENT_FINWIZ_LINKS.md).
+
+## 0.5.4 search
+
+- Suggestions appear after 2 characters and a 300 ms pause, without pressing Search.
+- India search shows active NSE stocks and ETFs only. BSE listings, indices, debt and derivative series are excluded.
+- Exact ticker matches and symbol/company prefixes rank first; `RIL` resolves to `RELIANCE`, and spaced names such as `HDFC Bank` match.
+- Clearing or changing the query, opening a result, switching accounts, leaving the screen or signing out invalidates pending suggestions.
+- Deploy the backend migration with this release to quarantine legacy debt records and correct ETF classifications. A full instrument sync applies provider series validation to the remaining catalogue.

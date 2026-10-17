@@ -1,6 +1,8 @@
 package com.stoxsim.instrument.api;
 
 import java.util.List;
+import java.util.Locale;
+import com.stoxsim.instrument.domain.InstrumentType;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -37,7 +39,14 @@ public class InstrumentController {
                 "Search query must contain 2 to 160 characters"
             );
         }
-        return repository.search(marketRegion, query, PageRequest.of(0, 20))
+        // RIL is the common company abbreviation, not its NSE trading symbol.
+        if (marketRegion == MarketRegion.INDIA && query.equalsIgnoreCase("RIL")) query = "RELIANCE";
+        String compact = query.toLowerCase(Locale.ROOT).replaceAll("[\\s&-]+", "");
+        if (compact.isEmpty()) return List.of();
+        var exchanges = marketRegion == MarketRegion.INDIA ? List.of(MarketExchange.NSE)
+            : List.of(MarketExchange.NASDAQ, MarketExchange.NYSE, MarketExchange.NYSE_ARCA, MarketExchange.AMEX, MarketExchange.CBOE);
+        return repository.search(marketRegion, query, compact, exchanges,
+            List.of(InstrumentType.EQUITY, InstrumentType.ETF), PageRequest.of(0, 8))
             .stream()
             .map(InstrumentResponse::from)
             .toList();

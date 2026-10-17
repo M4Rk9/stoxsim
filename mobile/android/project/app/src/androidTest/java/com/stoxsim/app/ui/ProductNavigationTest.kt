@@ -37,6 +37,7 @@ class ProductNavigationTest {
         compose.runOnIdle { assertEquals("Home", parentScreen("Competitions")) }
         compose.onNodeWithContentDescription("Open Stock").performClick()
         compose.onNodeWithContentDescription("Stock and ETF search").performTextInput("AAPL")
+        compose.runOnIdle { assertEquals("AAPL", query) } // Suggestions start without submitting.
         compose.onNodeWithContentDescription("Stock and ETF search").performImeAction()
         compose.runOnIdle { assertEquals("AAPL", query) }
         compose.onNodeWithContentDescription("Account settings").performClick()

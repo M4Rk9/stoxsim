@@ -191,9 +191,9 @@ class RoutingSecurityIntegrationTest {
         instruments.deleteAll();
         instruments.saveAndFlush(new TradableInstrument(new InstrumentSnapshot("TEST", "test-key", MarketRegion.INDIA, MarketExchange.NSE,
             "EQ", "SAFE", "Safe company", null, InstrumentType.EQUITY, "INR", 1, new BigDecimal("0.05"), "EQ"), UUID.randomUUID(), Instant.now()));
-        assertThat(instruments.search(MarketRegion.INDIA, "saFe", PageRequest.of(0, 10))).hasSize(1);
+        assertThat(instruments.search(MarketRegion.INDIA, "saFe", "safe", List.of(MarketExchange.NSE), List.of(InstrumentType.EQUITY, InstrumentType.ETF), PageRequest.of(0, 10))).hasSize(1);
         for (String payload : List.of("' OR 1=1 --", "%_", "<img src=x onerror=alert(1)>", "{\"$ne\":null}"))
-            assertThat(instruments.search(MarketRegion.INDIA, payload, PageRequest.of(0, 10))).isEmpty();
+            assertThat(instruments.search(MarketRegion.INDIA, payload, payload.toLowerCase(Locale.ROOT), List.of(MarketExchange.NSE), List.of(InstrumentType.EQUITY, InstrumentType.ETF), PageRequest.of(0, 10))).isEmpty();
         assertThat(instruments.count()).isEqualTo(1);
     }
 }
