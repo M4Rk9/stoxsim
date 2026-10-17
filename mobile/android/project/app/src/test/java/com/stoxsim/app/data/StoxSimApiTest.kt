@@ -1,5 +1,12 @@
 package com.stoxsim.app.data
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import okhttp3.mockwebserver.SocketPolicy
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -295,5 +302,17 @@ class StoxSimApiTest {
             {"tradingSymbol":"SPY","name":"US ETF","exchange":"NYSE_ARCA","marketRegion":"UNITED_STATES","instrumentType":"ETF"}
         ]"""))
         assertEquals(listOf("BSE", "NIFTYBEES"), api.search("INDIA", "bse").map { it.symbol })
+    }
+    @Test fun cancelledSearchClosesSocketAndReleasesApiLockBeforeTheCallTimeout() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val searching = launch { api.search("INDIA", "old") }
+        withContext(Dispatchers.IO) { assertNotNull(server.takeRequest(2, TimeUnit.SECONDS)) }
+        withTimeout(2_000) { searching.cancelAndJoin() }
+        server.enqueue(MockResponse().setBody("[]"))
+        // The replacement query must acquire the same mutex immediately, rather
+        // than wait for the old search's 30 second blocking call timeout.
+        withTimeout(2_000) { assertTrue(api.search("INDIA", "new").isEmpty()) }
+        assertTrue(server.takeRequest(2, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("q") == "new")
     }
 }
