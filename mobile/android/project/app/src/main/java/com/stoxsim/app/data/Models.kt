@@ -11,7 +11,9 @@ internal data class Account(
 )
 internal data class User(val displayName: String, val email: String, val verified: Boolean, val accounts: List<Account>, val id: String = "")
 internal data class Instrument(val symbol: String, val name: String, val exchange: String,
-    val region: String = "INDIA", val id: String = "", val currency: String = "INR", val key: String = "") {
+    val region: String = "INDIA", val id: String = "", val currency: String = "INR", val key: String = "", val type: String = "EQUITY") {
+    fun isSearchEligible(market: String) = region == market && type in setOf("EQUITY", "ETF") &&
+        (if (market == "INDIA") exchange == "NSE" else exchange in setOf("NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE"))
     val canWatch get() = symbol.isNotBlank() && when (region) {
         "INDIA" -> exchange in setOf("NSE", "BSE")
         "UNITED_STATES" -> exchange in setOf("NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE")
@@ -54,7 +56,7 @@ internal fun parseUser(json: JSONObject) = User(json.getString("displayName"), j
     json.getBoolean("emailVerified"), json.getJSONArray("accounts").mapObjects(::parseAccount), json.text("id"))
 internal fun parseInstrument(json: JSONObject, region: String) = Instrument(json.getString("tradingSymbol"), json.getString("name"),
     json.getString("exchange"), json.optString("marketRegion", region), json.optString("id", ""),
-    json.optString("currency", if (region == "INDIA") "INR" else "USD"), json.text("instrumentKey"))
+    json.optString("currency", if (region == "INDIA") "INR" else "USD"), json.text("instrumentKey"), json.text("instrumentType"))
 internal fun parsePortfolio(json: JSONObject) = Portfolio(
     json.getString("currency"), json.money("totalAccountValue"), json.money("availableCash"), json.money("investedValue"),
     json.money("totalProfitLoss"), json.getString("dataStatus"), json.getString("valuedAt"),

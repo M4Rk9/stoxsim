@@ -206,13 +206,15 @@ import java.math.RoundingMode
 }
 @Composable internal fun MarketsScreen(state: AppState, model: AppViewModel) {
     StockResults(state, model::selectStock)
-    if (!state.searched) { Indices(state); Movers(state, model::selectStock) }
+    if (state.searchQuery.isBlank()) { Indices(state); Movers(state, model::selectStock) }
 }
 @Composable internal fun StockResults(state: AppState, select: (Instrument) -> Unit) {
-    Panel(title = if (state.searched) "Results for ${state.searchQuery}" else "Search stocks & ETFs") {
-        Muted("${regionLabel(state.region)} · ${state.currency} · Use the search bar above")
-        if (!state.searched) Muted("Search by symbol or company name.")
-        if (state.searched && state.instruments.isEmpty()) Muted("No instruments match your search.")
+    Panel(title = if (state.searchQuery.trim().length >= 2) "Matches for ${state.searchQuery.trim()}" else "Search stocks & ETFs") {
+        Muted(if (state.region == "INDIA") "NSE stocks & ETFs" else "US stocks & ETFs")
+        if (state.searchLoading) { LinearProgressIndicator(Modifier.fillMaxWidth()); Muted("Finding matches…") }
+        if (state.searchQuery.trim().length < 2) Muted("Type at least 2 characters of a symbol or company name.")
+        state.searchError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (state.searched && state.instruments.isEmpty()) Muted("No matching stocks or ETFs found.")
         state.instruments.forEach { instrument ->
             TextButton({ select(instrument) }, enabled = !state.working, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

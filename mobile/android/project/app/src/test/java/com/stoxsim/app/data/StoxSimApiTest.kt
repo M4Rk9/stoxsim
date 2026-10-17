@@ -1,5 +1,12 @@
 package com.stoxsim.app.data
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import okhttp3.mockwebserver.SocketPolicy
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -191,17 +198,17 @@ class StoxSimApiTest {
         assertEquals(0, api.objectData("campus/membership-request").length())
     }
 
-    @Test fun searchedBseStockUsesTheWatchlistServerContract() = runBlocking {
+    @Test fun searchedNseStockUsesTheWatchlistServerContract() = runBlocking {
         server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
-        server.enqueue(MockResponse().setBody("""[{"tradingSymbol":"RELIANCE","name":"Example company","exchange":"BSE","marketRegion":"INDIA","currency":"INR"}]"""))
+        server.enqueue(MockResponse().setBody("""[{"tradingSymbol":"RELIANCE","name":"Example company","exchange":"NSE","marketRegion":"INDIA","currency":"INR","instrumentType":"EQUITY"}]"""))
         val stock = api.search("INDIA", "reliance").single(); server.takeRequest()
         assertEquals("", stock.id)
-        server.enqueue(MockResponse().setResponseCode(201).setBody("""{"name":"My Watchlist","items":[{"symbol":"RELIANCE","exchange":"BSE","marketRegion":"INDIA"}]}"""))
+        server.enqueue(MockResponse().setResponseCode(201).setBody("""{"name":"My Watchlist","items":[{"symbol":"RELIANCE","exchange":"NSE","marketRegion":"INDIA"}]}"""))
         assertEquals("RELIANCE", api.addToWatchlist(stock).objects("items").single().getString("symbol"))
         val request = server.takeRequest(); val body = JSONObject(request.body.readUtf8())
         assertEquals("POST", request.method); assertEquals("/api/v1/watchlists/default/items", request.path)
         assertEquals(setOf("marketRegion", "exchange", "symbol"), body.keys().asSequence().toSet())
-        assertEquals("INDIA", body.getString("marketRegion")); assertEquals("BSE", body.getString("exchange")); assertEquals("RELIANCE", body.getString("symbol"))
+        assertEquals("INDIA", body.getString("marketRegion")); assertEquals("NSE", body.getString("exchange")); assertEquals("RELIANCE", body.getString("symbol"))
         assertEquals("Bearer access", request.getHeader("Authorization"))
     }
     @Test fun usEtfWatchlistPreservesItsActualExchange() = runBlocking {
@@ -283,5 +290,29 @@ class StoxSimApiTest {
         override fun read() = value
         override fun write(token: String) { value = token }
         override fun clear() { value = null }
+    }
+    @Test fun searchKeepsNseStocksAndEtfsButRejectsBseIndicesAndWrongMarket() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("""[
+            {"tradingSymbol":"BSE","name":"BSE LIMITED","exchange":"NSE","marketRegion":"INDIA","instrumentType":"EQUITY"},
+            {"tradingSymbol":"NIFTYBEES","name":"Nifty ETF","exchange":"NSE","marketRegion":"INDIA","instrumentType":"ETF"},
+            {"tradingSymbol":"BSEINDEX","name":"Index","exchange":"BSE","marketRegion":"INDIA","instrumentType":"INDEX"},
+            {"tradingSymbol":"STOCK","name":"BSE stock","exchange":"BSE","marketRegion":"INDIA","instrumentType":"EQUITY"},
+            {"tradingSymbol":"NIFTY","name":"Index","exchange":"NSE","marketRegion":"INDIA","instrumentType":"INDEX"},
+            {"tradingSymbol":"SPY","name":"US ETF","exchange":"NYSE_ARCA","marketRegion":"UNITED_STATES","instrumentType":"ETF"}
+        ]"""))
+        assertEquals(listOf("BSE", "NIFTYBEES"), api.search("INDIA", "bse").map { it.symbol })
+    }
+    @Test fun cancelledSearchClosesSocketAndReleasesApiLockBeforeTheCallTimeout() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val searching = launch { api.search("INDIA", "old") }
+        withContext(Dispatchers.IO) { assertNotNull(server.takeRequest(2, TimeUnit.SECONDS)) }
+        withTimeout(2_000) { searching.cancelAndJoin() }
+        server.enqueue(MockResponse().setBody("[]"))
+        // The replacement query must acquire the same mutex immediately, rather
+        // than wait for the old search's 30 second blocking call timeout.
+        withTimeout(2_000) { assertTrue(api.search("INDIA", "new").isEmpty()) }
+        assertTrue(server.takeRequest(2, TimeUnit.SECONDS)!!.requestUrl!!.queryParameter("q") == "new")
     }
 }

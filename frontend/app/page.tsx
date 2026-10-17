@@ -446,6 +446,11 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Instrument[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [searchRetry, setSearchRetry] = useState(0);
+  const searchGeneration = useRef(0);
   const [selected, setSelected] = useState<Instrument | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
@@ -849,32 +854,56 @@ export default function Home() {
     }
   }
 
-  async function searchInstruments(event: FormEvent) {
-    event.preventDefault();
-    if (!token || search.trim().length < 2) return;
-    setWorking(true);
-    setError("");
-    try {
-      const found = await authorizedRequest<Instrument[]>(
-      `/api/v1/instruments/search?marketRegion=${marketRegion}&q=${encodeURIComponent(search.trim())}`,
-      {},
-    );
-    const supportedUsExchanges = ["NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE"];
-    setResults(found.filter((item) =>
-      (item.instrumentType === "EQUITY" || item.instrumentType === "ETF")
-      && (marketRegion === "INDIA"
-        ? item.exchange === "NSE"
-        : supportedUsExchanges.includes(item.exchange))
-    ).slice(0, 8));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Search failed");
-    } finally {
-      setWorking(false);
-    }
+  function updateSearch(value: string) {
+    searchGeneration.current++;
+    setSearch(value.slice(0, 100));
+    setResults([]);
+    setSearchError("");
+    setSearchLoading(value.trim().length >= 2);
+    setSearchOpen(true);
   }
+
+  function searchInstruments(event: FormEvent) {
+    event.preventDefault();
+    searchGeneration.current++;
+    setSearchOpen(true);
+    setSearchRetry(value => value + 1);
+  }
+
+  useEffect(() => {
+    setResults([]);
+    setSearchError("");
+    const query = search.trim();
+    if (!token || !searchOpen || query.length < 2) { setSearchLoading(false); return; }
+    const generation = searchGeneration.current;
+    const controller = new AbortController();
+    let active = true;
+    setSearchLoading(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const found = await authorizedRequest<Instrument[]>(
+          `/api/v1/instruments/search?marketRegion=${marketRegion}&q=${encodeURIComponent(query)}`,
+          { signal: controller.signal },
+        );
+        if (!active || generation !== searchGeneration.current) return;
+        const exchanges = marketRegion === "INDIA" ? ["NSE"] : ["NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE"];
+        setResults(found.filter(item => item.marketRegion === marketRegion
+          && (item.instrumentType === "EQUITY" || item.instrumentType === "ETF")
+          && exchanges.includes(item.exchange)).slice(0, 8));
+      } catch (cause) {
+        if (active && generation === searchGeneration.current) setSearchError(cause instanceof Error ? cause.message : "Search unavailable. Please try again.");
+      } finally {
+        if (active && generation === searchGeneration.current) setSearchLoading(false);
+      }
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); controller.abort(); };
+  }, [search, searchOpen, searchRetry, marketRegion, token, activeAccountId]);
 
   async function chooseInstrument(instrument: Instrument) {
     if (!token) return;
+    searchGeneration.current++;
+    setSearchOpen(false);
+    setSearchLoading(false);
     selectedRef.current = instrument;
     setSelected(instrument);
     setResults([]);
@@ -1020,6 +1049,10 @@ export default function Home() {
   function selectAccount(accountId: string, source: Account[] = accounts) {
     const account = source.find((candidate) => candidate.id === accountId);
     if (!account || account.id === activeAccountId) return;
+    searchGeneration.current++;
+    setSearchOpen(false);
+    setSearchLoading(false);
+    setResults([]);
     const marketChanged = account.marketRegion !== marketRegion;
     setActiveAccountId(account.id);
     setMarketRegion(account.marketRegion);
@@ -1322,10 +1355,13 @@ export default function Home() {
       <section className="workspaceGrid">
         <div className="leftRail">
           <article className="panel searchPanel" id="stock-search">
-            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
+            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
-            <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, HDFC Bank…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
-            {results.length > 0 && <div className="searchResults" aria-live="polite">{results.map((instrument) => <button type="button" key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
+            <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => updateSearch(event.target.value)} maxLength={100} aria-controls="stock-search-results" aria-describedby="stock-search-status" placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, NIFTYBEES…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
+            <p id="stock-search-status" role="status">{searchError || (searchOpen && search.trim().length >= 2
+              ? searchLoading ? "Finding matches…" : results.length ? `${results.length} matching stocks and ETFs` : "No matching stocks or ETFs found."
+              : marketRegion === "INDIA" ? "Type 2 or more characters. NSE stocks and ETFs only." : "Type 2 or more characters to find US stocks and ETFs.")}</p>
+            {results.length > 0 && <div id="stock-search-results" className="searchResults" aria-label="Matching stocks and ETFs">{results.map((instrument) => <button type="button" key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
             {selected && quote && (
               <div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>

@@ -28,6 +28,7 @@ internal data class AppState(
     val region: String = "INDIA", val accountId: String = "", val screen: String = "Home",
     val dark: Boolean = false, val streamStatus: String = "OFFLINE", val portfolio: Portfolio? = null,
     val instruments: List<Instrument> = emptyList(), val searched: Boolean = false,
+    val searchLoading: Boolean = false, val searchError: String? = null,
     val selected: Instrument? = null, val quote: Quote? = null, val candles: List<Candle> = emptyList(),
     val chartMonths: Long = 1, val insightPeriod: String = "quarterly",
     val data: Map<String, JSONObject> = emptyMap(), val lists: Map<String, List<JSONObject>> = emptyMap(),
@@ -44,6 +45,8 @@ internal data class AppState(
 
 internal class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val api = (application as StoxSimApplication).api
+    private val stockSearch = StockSearch(viewModelScope, api::search)
+    private fun cancelSearch() { stockSearch.cancel(); mutable.update { it.copy(searchLoading = false) } }
     private val preferences = application.getSharedPreferences("appearance", 0)
     private val mutable = MutableStateFlow(AppState(dark = preferences.getBoolean("last-dark", false)))
     val state = mutable.asStateFlow()
@@ -84,6 +87,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         }
         if (pendingEmailLink === link) { pendingEmailLink = null; emailAction.value = null }
         if (link.action == EmailAction.RESET_PASSWORD) {
+            cancelSearch()
             mutable.value = AppState(restoring = false, working = true, notice = "Password reset. All existing sessions have been signed out. Sign in with your new password.")
         } else {
             if (mutable.value.user != null) {
@@ -139,6 +143,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         if (name != null) mutable.update { it.copy(notice = "Account created. Verify your email address. " + EMAIL_GUIDANCE) }
     }
     private suspend fun signedIn(user: User) {
+        cancelSearch()
         streakJob?.cancel(); streakJob = null
         streakTracker = DailyStreakTracker()
         activityJob?.cancel(); activityJob = null; activityTracker = ProductActivityTracker()
@@ -166,13 +171,19 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun openScreen(screen: String) {
         if (screen !in listOf("Home", "Markets", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
                 "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Portfolio analysis")) return
+        cancelSearch()
         mutable.update { it.copy(screen = screen, error = null, notice = null) }
         if (mutable.value.working) pagePending = true else refresh()
     }
     fun foreground(active: Boolean) {
         foreground = active
-        if (!active) { activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
-        else { startStream(); startDailyStreak(); startProductActivity(); if (mutable.value.user != null && !mutable.value.working) refresh() }
+        if (!active) { cancelSearch(); activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
+        else {
+            startStream(); startDailyStreak(); startProductActivity()
+            if (mutable.value.user != null && !mutable.value.working) refresh()
+            val current = mutable.value
+            if (current.screen == "Markets" && !current.searched && current.searchQuery.trim().length >= 2) search(current.searchQuery)
+        }
     }
     private fun startDailyStreak() {
         if (!foreground || mutable.value.user == null || streakJob?.isActive == true) return
@@ -256,7 +267,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             state.copy(quote = quote, data = if (watch == null) state.data else state.data + ("watchlist" to watch), lists = if (indices == null) state.lists else state.lists + ("indices" to indices))
         }
     }
-    override fun onCleared() { pendingEmailLink = null; activityJob?.cancel(); streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
+    override fun onCleared() { stockSearch.cancel(); pendingEmailLink = null; activityJob?.cancel(); streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
     fun refresh() = runAction { loadPage() }
     fun refreshUser() = runAction { readAccounts() }
     fun loadPortfolio() = refresh()
@@ -271,30 +282,41 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun changeRegion(region: String) {
         if (mutable.value.working || region !in listOf("INDIA", "UNITED_STATES")) return
+        cancelSearch()
         val account = mutable.value.user?.accounts?.firstOrNull { it.region == region && it.kind == "STANDARD" }
             ?: mutable.value.user?.accounts?.firstOrNull { it.region == region }
         mutable.update { it.copy(region = region, accountId = account?.id.orEmpty(), portfolio = null,
             instruments = emptyList(), selected = null, quote = null, candles = emptyList(), searched = false,
             data = emptyMap(), lists = emptyMap(), sectionErrors = emptyMap(),
-            screen = when (it.screen) { "Stock" -> "Markets"; "Finwiz chat" -> "Finwiz"; else -> it.screen }, activeChatId = null, searchQuery = "") }
+            screen = when (it.screen) { "Stock" -> "Markets"; "Finwiz chat" -> "Finwiz"; else -> it.screen }, activeChatId = null, searchQuery = "", searchError = null) }
         refresh()
     }
     fun selectAccount(id: String) {
         if (mutable.value.working) return
         val account = mutable.value.user?.accounts?.find { it.id == id } ?: return
+        cancelSearch()
         mutable.update { it.copy(accountId = id, region = account.region, portfolio = null,
             data = emptyMap(), lists = emptyMap(), sectionErrors = emptyMap(), selected = null, quote = null,
             candles = emptyList(), instruments = emptyList(), searched = false,
-            screen = when (it.screen) { "Stock" -> "Markets"; "Finwiz chat" -> "Finwiz"; else -> it.screen }, activeChatId = null, searchQuery = "") }
+            screen = when (it.screen) { "Stock" -> "Markets"; "Finwiz chat" -> "Finwiz"; else -> it.screen }, activeChatId = null, searchQuery = "", searchError = null) }
         refresh()
     }
-    fun search(query: String) = runAction {
-        mutable.update { it.copy(screen = "Markets", searchQuery = query.trim(), instruments = emptyList(), searched = false, error = null) }
-        val result = api.search(mutable.value.region, query)
-        mutable.update { it.copy(instruments = result, searched = true) }
+    fun search(query: String) {
+        if (mutable.value.user == null) return
+        val text = query.take(100)
+        mutable.update { it.copy(screen = "Markets", searchQuery = text, instruments = emptyList(),
+            searched = false, searchLoading = text.trim().length >= 2, searchError = null) }
+        stockSearch.request(mutable.value.region, text, { result ->
+            mutable.update { it.copy(instruments = result, searched = true, searchLoading = false) }
+        }, { failure ->
+            if (failure is SessionExpired) {
+                mutable.value = AppState(restoring = false, error = "Your session has expired. Please sign in again.")
+            } else mutable.update { it.copy(searchLoading = false, searchError = "Search unavailable. Please try again.") }
+        })
     }
     fun selectStock(instrument: Instrument) {
         if (mutable.value.working || instrument.region != mutable.value.region) return
+        cancelSearch()
         mutable.update { it.copy(selected = instrument, screen = "Stock", quote = null, candles = emptyList(),
             data = it.data - "stockInsights", chartMonths = 1, insightPeriod = "quarterly",
             recentStocks = (listOf(instrument) + it.recentStocks.filterNot { recent -> recent.symbol == instrument.symbol && recent.exchange == instrument.exchange && recent.region == instrument.region }).take(10)) }
@@ -582,7 +604,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "Password updated. Sign in again.")
     }
     fun revokeSession(id: String) = runAction { api.mutate("auth/sessions/$id", "DELETE"); list("sessions", "auth/sessions") }
-    fun logoutAll() = runAction { api.mutate("auth/logout-all"); api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "All sessions signed out.") }
+    fun logoutAll() = runAction { cancelSearch(); api.mutate("auth/logout-all"); api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "All sessions signed out.") }
     fun deleteAccount(password: String) = runAction {
         api.mutate("auth/me", "DELETE", JSONObject().put("password", password)); api.endLocalSession()
         mutable.value = AppState(restoring = false, working = true, notice = "Account deleted.")
@@ -601,6 +623,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun clearData(key: String) { mutable.update { it.copy(data = it.data - key) } }
     fun clearMessage() { mutable.update { it.copy(error = null, notice = null) } }
     fun logout() = runAction {
+        cancelSearch()
         streakJob?.cancel(); streakJob = null
         streakTracker = DailyStreakTracker()
         streamJob?.cancel(); streamJob = null
@@ -622,7 +645,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             try { action() }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: SessionExpired) { mutable.value = AppState(restoring = false, working = true, error = "Your session has expired. Please sign in again.") }
+            catch (_: SessionExpired) { cancelSearch(); mutable.value = AppState(restoring = false, working = true, error = "Your session has expired. Please sign in again.") }
             catch (failure: Exception) { mutable.update { it.copy(error = failureMessage(failure)) } }
             finally {
                 mutable.update { it.copy(working = false) }

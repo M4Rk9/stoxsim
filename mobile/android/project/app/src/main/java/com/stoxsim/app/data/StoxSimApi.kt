@@ -1,5 +1,12 @@
 package com.stoxsim.app.data
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import okhttp3.Call
+import okhttp3.Callback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -105,8 +112,19 @@ internal class StoxSimApi(
     }
 
     suspend fun search(region: String, query: String): List<Instrument> = serialized {
-        JSONArray(authorizedGet("api/v1/instruments/search", mapOf("marketRegion" to region, "q" to query.trim())))
-            .mapObjects { parseInstrument(it, region) }
+        if (accessToken == null) refresh()
+        var response = searchPage(region, query)
+        if (response.first == 401) {
+            currentCoroutineContext().ensureActive()
+            // Finish refresh rotation atomically under the session lock, then
+            // check cancellation before issuing another safe GET.
+            refresh()
+            currentCoroutineContext().ensureActive()
+            response = searchPage(region, query)
+            if (response.first == 401) { clearSession(); throw SessionExpired() }
+        }
+        JSONArray(response.second)
+            .mapObjects { parseInstrument(it, region) }.filter { it.isSearchEligible(region) }.take(8)
     }
 
     suspend fun quotes(): kotlinx.coroutines.flow.Flow<JSONObject> {
@@ -178,20 +196,40 @@ internal class StoxSimApi(
         }
     }
 
-    private suspend fun <T> serialized(action: () -> T): T = withContext(Dispatchers.IO) { lock.withLock { action() } }
+    private suspend fun <T> serialized(action: suspend () -> T): T = withContext(Dispatchers.IO) { lock.withLock { action() } }
 
     private fun request(path: String, body: JSONObject? = null, bearer: String? = null, params: Map<String, String> = emptyMap(),
-        method: String? = null, idempotencyKey: String? = null): Response {
+        method: String? = null, idempotencyKey: String? = null): Response =
+        client.newCall(buildRequest(path, body, bearer, params, method, idempotencyKey)).execute()
+
+    /** Cancelling optional search closes its socket and releases the session mutex promptly. */
+    private suspend fun searchPage(region: String, query: String): Pair<Int, String> = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(buildRequest("api/v1/instruments/search", bearer = accessToken,
+            params = mapOf("marketRegion" to region, "q" to query.trim())))
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, error: IOException) { continuation.resumeWithException(error) }
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val result = response.use { it.code to if (it.code == 401) "" else readSuccessful(it) }
+                    continuation.resume(result)
+                } catch (error: Exception) { continuation.resumeWithException(error) }
+            }
+        })
+    }
+
+    private fun buildRequest(path: String, body: JSONObject? = null, bearer: String? = null, params: Map<String, String> = emptyMap(),
+        method: String? = null, idempotencyKey: String? = null): Request {
         val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.5.3")
+            .header("User-Agent", "StoxSim-Android/0.5.4")
         bearer?.let { request.header("Authorization", "Bearer $it") }
         if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
         idempotencyKey?.let { request.header("Idempotency-Key", it) }
         if (method != null) request.method(method, if (method == "DELETE") body?.toString()?.toRequestBody(jsonType)
             else (body ?: JSONObject()).toString().toRequestBody(jsonType))
         else body?.let { request.post(it.toString().toRequestBody(jsonType)) }
-        return client.newCall(request.build()).execute()
+        return request.build()
     }
 
     private fun authorizedGet(path: String, params: Map<String, String> = emptyMap()): String {
