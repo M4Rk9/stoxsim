@@ -58,7 +58,7 @@ internal fun journeyStep(step: String) = when (step) {
     if (state.data["onboarding"]?.optBoolean("dismissed") == true) return
     val copy = when (state.screen) {
         "Markets" -> if (state.data["journey"]?.optBoolean("firstTradeExecuted") != true) "Type at least two characters, select a matching stock or ETF, and inspect its quote before trading." else return
-        "Stock" -> if (state.data["journey"]?.optBoolean("firstTradeExecuted") != true) "Review the quote, choose a quantity and check simulated charges. Place an order only when you are ready; an open order is still waiting to execute." else return
+        "Stock", "Orders" -> if (state.data["journey"]?.optBoolean("firstTradeExecuted") != true) "Review the quote, choose a quantity and check simulated charges. Place an order only when you are ready; an open order is still waiting to execute." else "Your first practice trade has executed. Continue with Finwiz to understand charges, risk and diversification."
         "Finwiz" -> "Choose a learning topic, read a lesson, or send a question below. After your first trade, ask how charges and diversification affect your portfolio."
         "Scenario Lab" -> "Select the portfolio holding your executed trade. Choose a scenario, review the preview and credit cost, then run it and compare the projected cash and holdings."
         "Learning path" -> "Review your completed missions and choose one to work on next. Your daily visit is recorded automatically."

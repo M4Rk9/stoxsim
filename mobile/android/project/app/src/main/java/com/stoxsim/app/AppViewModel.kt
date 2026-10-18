@@ -55,6 +55,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private var pendingScenario: Pair<String, String>? = null
     private var pendingSandbox: String? = null
     private var pagePending = false
+    private var journeyJob: Job? = null
     private var foreground = false
     private var streamJob: Job? = null
     private var streakJob: Job? = null
@@ -177,7 +178,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun foreground(active: Boolean) {
         foreground = active
-        if (!active) { cancelSearch(); activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
+        if (!active) { journeyJob?.cancel(); journeyJob = null; cancelSearch(); activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
         else {
             startStream(); startDailyStreak(); startProductActivity()
             if (mutable.value.user != null && !mutable.value.working) refresh()
@@ -410,6 +411,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(notice = "${result.text("symbol")} · ${result.text("status")}. ${result.text("rejectionReason")}") }
         portfolio()
         list("orders", "accounts/${draft.accountId}/orders")
+        read("journey", "onboarding/journey")
     }
     fun cancelOrder(id: String) = runAction {
         api.mutate("accounts/${mutable.value.accountId}/orders/$id", "DELETE")
@@ -439,8 +441,15 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         read("journey", "onboarding/journey")
     }
     fun refreshJourney() {
-        if (!foreground || mutable.value.working || mutable.value.user == null) return
-        runAction { read("journey", "onboarding/journey") }
+        if (!foreground || mutable.value.working || journeyJob?.isActive == true) return
+        val userId = mutable.value.user?.id ?: return
+        journeyJob = viewModelScope.launch {
+            try {
+                val result = api.objectData("onboarding/journey")
+                if (foreground && mutable.value.user?.id == userId) putData("journey", result)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Explicit refresh handles errors; optional polling preserves notices. */ }
+        }
     }
     fun onboarding(action: String) = runAction {
         putData("onboarding", api.mutate("onboarding/$action"))

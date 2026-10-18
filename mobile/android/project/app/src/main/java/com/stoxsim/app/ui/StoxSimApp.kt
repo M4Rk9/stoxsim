@@ -92,7 +92,7 @@ import com.stoxsim.app.R
         }
         AppFrame(state, model::openScreen, model::refresh, model::search) {
             LaunchedEffect(state.user?.id, state.screen) {
-                if (state.user != null && state.screen == "Home") {
+                if (state.user != null && state.screen in listOf("Home", "Stock", "Orders")) {
                     while (true) {
                         kotlinx.coroutines.delay(15_000)
                         model.refreshJourney()
