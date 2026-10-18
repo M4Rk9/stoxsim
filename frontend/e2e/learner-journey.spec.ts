@@ -29,7 +29,7 @@ async function registerLearner(page: Page, label: string, showsFirstTradeCoach =
   }
   await expect(page.getByRole("heading", { name: "Good day, Browser." }))
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
-  const guide = page.getByRole("dialog", { name: "Two markets. Zero real-money risk." });
+  const guide = page.getByRole("dialog", { name: "Your home for practising and learning." });
   await expect(guide).toBeVisible();
   const nextButton = guide.getByRole("button", { name: "Next" });
   await expect(nextButton).toBeFocused();

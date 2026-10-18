@@ -1,0 +1,22 @@
+.section { margin: 24px 0; min-width: 0; }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.heading h2 { margin: 6px 0; font-size: 1.35rem; }
+.heading button { background: transparent; color: var(--muted, #53665f); border: 1px solid var(--line, #ccd6cd); padding: 10px 14px; border-radius: 10px; cursor: pointer; }
+.guide { display: flex; align-items: center; gap: 24px; padding: 22px; border: 1px solid var(--line, #ccd6cd); border-radius: 16px; background: var(--surface, #fff); margin-bottom: 14px; }
+.guide > div { flex: 1; min-width: 0; }
+.guide h3, .card h3 { margin: 8px 0; }
+.guide p, .card p, .featureTip p { line-height: 1.6; margin: 8px 0 16px; }
+.progress, .tag { font-size: .75rem; font-weight: 700; letter-spacing: .04em; }
+.steps { display: flex; flex-wrap: wrap; gap: 8px 16px; list-style: none; padding: 0; font-size: .8rem; line-height: 1.5; }
+.primary, .guide button { display: inline-block; background: #096b50; color: white; padding: 13px 18px; border: 0; border-radius: 10px; text-decoration: none; font: inherit; cursor: pointer; max-width: 100%; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.card { display: flex; flex-direction: column; min-width: 0; text-decoration: none; color: inherit; padding: 22px; border: 1px solid var(--line, #ccd6cd); border-radius: 16px; background: var(--surface, #fff); overflow-wrap: anywhere; }
+.card p { flex: 1; font-size: .9rem; }
+.card strong { font-size: .85rem; }
+.card:hover { border-color: #209c75; }
+.card:focus-visible, .primary:focus-visible, .section button:focus-visible { outline: 3px solid #209c75; outline-offset: 3px; }
+.featureTip { padding: 18px; margin: 20px 0; border: 1px solid var(--line, #ccd6cd); border-radius: 12px; line-height: 1.6; }
+:global([data-theme="dark"]) .card, :global([data-theme="dark"]) .guide { background: #162b30; color: #eff7f3; border-color: #3b5156; }
+:global([data-theme="dark"]) .heading button { color: #d4e4dc; }
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } .guide { flex-direction: column; align-items: stretch; padding: 18px; } .card { padding: 18px; } }

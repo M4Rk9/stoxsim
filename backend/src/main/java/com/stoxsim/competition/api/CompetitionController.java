@@ -2,6 +2,7 @@ package com.stoxsim.competition.api;
 
 import java.util.List;
 import java.util.UUID;
+import com.stoxsim.onboarding.service.GuidedJourneyService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,13 +28,23 @@ public class CompetitionController {
 
     private final CompetitionService competitions;
 
-    public CompetitionController(CompetitionService competitions) {
+    private final GuidedJourneyService journey;
+
+    public CompetitionController(CompetitionService competitions, GuidedJourneyService journey) {
+        this.journey = journey;
         this.competitions = competitions;
     }
 
     @GetMapping("/competitions/current")
     public CompetitionBoardResponse current(@AuthenticationPrincipal Jwt jwt) {
         return competitions.currentBoard(userId(jwt));
+    }
+
+    @PostMapping("/competitions/current/visit")
+    public CompetitionBoardResponse visit(@AuthenticationPrincipal Jwt jwt) {
+        var result = competitions.currentBoard(userId(jwt));
+        journey.record(userId(jwt), GuidedJourneyService.Event.COMPETITIONS);
+        return result;
     }
 
     @PostMapping("/competitions/current/enroll")

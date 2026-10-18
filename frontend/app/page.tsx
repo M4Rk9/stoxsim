@@ -10,6 +10,7 @@ import {
   OnboardingJourney,
   type OnboardingState,
 } from "./components/OnboardingJourney";
+import FeatureJourney, { type JourneyState } from "./components/FeatureJourney";
 import FinwizTradeFeedback, { type FinwizPortfolioFeedback } from "./components/FinwizTradeFeedback";
 
 import { marketAccount } from "./lib/portfolio-selection";
@@ -1018,7 +1019,7 @@ export default function Home() {
       setNotice(placedOrder.finwizFeedback
         ? `${selected.tradingSymbol} executed. FinWiz portfolio feedback is ready below.`
         : wasFirstOrder && nextOnboarding?.firstOrderCompleted
-        ? `First paper trade complete. Your ${selected.tradingSymbol} order is now part of your learning history.`
+        ? `First paper order submitted for ${selected.tradingSymbol}. Check its status below; the learning journey advances after execution.`
         : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
       await loadDashboard(token, activeAccount);
     } catch (cause) {
@@ -1321,6 +1322,10 @@ export default function Home() {
       </section>
 
 
+      <FeatureJourney userId={session.user.id} onboarding={onboarding}
+        request={() => authorizedRequest<JourneyState>("/api/v1/onboarding/journey")}
+        dismiss={dismissOnboarding} resume={resumeOnboarding} introduce={completeOnboardingIntroduction} />
+
       {tradeFeedback && <FinwizTradeFeedback feedback={tradeFeedback} onDismiss={() => setTradeFeedback(null)} />}
 
       <section className="panel moversPanel">
@@ -1426,7 +1431,7 @@ export default function Home() {
           </form>
 
           <article className="panel">
-            <div className="panelHeading"><div><span className="kicker">PENDING</span><h2>Open orders</h2></div><span className="countPill">{openOrders.length}</span></div>
+            <div className="panelHeading"><div><span className="kicker">PENDING</span><h2 id="open-orders" tabIndex={-1}>Open orders</h2></div><span className="countPill">{openOrders.length}</span></div>
             <div className="orderList">{openOrders.map((order) => <div className="openOrder" key={order.id}><div><span className={`sidePill ${order.side.toLowerCase()}`}>{order.side}</span><strong>{order.symbol}</strong><small>{order.quantity} · {order.orderType}{order.limitPrice ? ` @ ${displayMoney(order.limitPrice)}` : ""}</small></div><button type="button" onClick={() => cancelOrder(order.id)}>Cancel</button></div>)}{!openOrders.length && <div className="emptyState compact">No cash or shares are currently blocked by open orders.</div>}</div>
           </article>
 

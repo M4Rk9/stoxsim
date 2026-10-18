@@ -1,5 +1,7 @@
 "use client";
 
+import { FeatureGuide } from "../components/FeatureJourney";
+
 import Image from "next/image";
 import { DAILY_VISIT_EVENT, recordDailyVisit } from "../lib/daily-visit";
 import { useEffect, useMemo, useState } from "react";
@@ -126,7 +128,7 @@ export default function ProgressPage() {
     let active = true;
     const updated = (event: Event) => { if (active) setProgression((event as CustomEvent<Progression>).detail); };
     window.addEventListener(DAILY_VISIT_EVENT, updated);
-    void authorized<Progression>("/api/v1/progression")
+    void authorized<Progression>("/api/v1/progression/visit", { method: "POST" })
       .then(async (value) => { const visit = await recordDailyVisit(); if (active) setProgression(visit ? { ...value, ...visit } : value); })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : "Progression could not be loaded.");
@@ -149,6 +151,7 @@ export default function ProgressPage() {
       </a>
       <a className={styles.back} href="/">Back to dashboard</a>
     </header>
+    <FeatureGuide title="Build a useful learning habit">Review your achievements and choose one unfinished mission for your next visit. Your daily visit is recorded automatically. Explore Competitions when you are ready to practise alongside others.</FeatureGuide>
 
     <section className={styles.heading}>
       <span>LEARN BY PRACTISING</span>

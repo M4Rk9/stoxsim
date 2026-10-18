@@ -34,7 +34,7 @@ for (const width of [390, 1280]) test(`stock search and header stay aligned at $
   await expect(page.getByText("STALE", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "StoxScore", exact: true })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Portfolio", exact: true })).toHaveCount(0);
-  const lab = page.getByRole("link", { name: /Scenario Lab/ });
+  const lab = page.getByRole("link", { name: "Scenario Lab ↗", exact: true });
   await expect(lab).toHaveAttribute("target", "_blank");
   const labRect = await lab.boundingBox(), menuRect = await page.getByRole("button", { name: "Open account menu for Layout User" }).boundingBox();
   const overlaps = labRect!.x < menuRect!.x + menuRect!.width && labRect!.x + labRect!.width > menuRect!.x && labRect!.y < menuRect!.y + menuRect!.height && labRect!.y + labRect!.height > menuRect!.y;

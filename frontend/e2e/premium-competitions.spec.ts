@@ -12,7 +12,10 @@ for (const eligible of [true, false]) test(`Pro competition requires explicit op
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/competitions/premium/enroll") { if (route.request().method() !== "OPTIONS") enrolled++; return reply(route, 200, { ...board, enrolled: true, participantCount: 1 }); }
     if (path === "/api/v1/competitions/premium") return reply(route, eligible ? 200 : 403, eligible ? board : { message: "Pro competitions require an active Pro subscription" });
-    if (path === "/api/v1/competitions/current") return reply(route, 200, { ...board, season: { ...season, code: "2026-Q4", title: "Standard season" } });
+    if (path === "/api/v1/competitions/current/visit") {
+      if (route.request().method() !== "OPTIONS") expect(route.request().method()).toBe("POST");
+      return reply(route, 200, { ...board, season: { ...season, code: "2026-Q4", title: "Standard season" } });
+    }
     if (path === "/api/v1/leagues") return reply(route, 200, []);
     if (path === "/api/v1/campus") return reply(route, 200, { platformAdmin: false, emailVerified: true });
     return reply(route, 204, null);
