@@ -1,4 +1,6 @@
 "use client";
+
+import { FeatureGuide } from "../components/FeatureJourney";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { authenticated } from "../campus/client";
@@ -25,6 +27,7 @@ export default function ScenarioLabPage() {
   const account = marketAccount(accounts, region);
   return <main className={styles.shell} id="main-content">
     <header className={styles.header}><a href="/" className={styles.brand}><Image src="/stoxsim-logo.png" alt="" width={36} height={36} />StoxSim <span>/ Lab</span></a><a href="/portfolio">Your portfolio ↗</a></header>
+    <FeatureGuide title="Turn a trade into a lesson">Select the portfolio holding your executed trade, choose Market sell-off and review the preview and available credits. Run the scenario, then compare projected cash and holdings. Your practice portfolio stays unchanged.</FeatureGuide>
     <section className={styles.hero}>
       <div><span className={styles.eyebrow}>A LITTLE CURIOSITY. A WORLD OF POSSIBILITIES.</span><h1>What if<span>?</span></h1><p>Your ideas. Your market. Explore what could happen.</p></div>
       <div className={styles.marketTabs} role="group" aria-label="Scenario market">

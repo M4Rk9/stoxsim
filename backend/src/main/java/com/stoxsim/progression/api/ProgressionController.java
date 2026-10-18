@@ -1,6 +1,7 @@
 package com.stoxsim.progression.api;
 
 import java.util.UUID;
+import com.stoxsim.onboarding.service.GuidedJourneyService;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -17,13 +18,18 @@ public class ProgressionController {
 
     private final ProgressionService progression;
 
-    public ProgressionController(ProgressionService progression) {
+    private final GuidedJourneyService journey;
+
+    public ProgressionController(ProgressionService progression, GuidedJourneyService journey) {
+        this.journey = journey;
         this.progression = progression;
     }
 
     @GetMapping
     public ProgressionResponse state(@AuthenticationPrincipal Jwt jwt) {
-        return progression.state(userId(jwt));
+        var result = progression.state(userId(jwt));
+        journey.record(userId(jwt), GuidedJourneyService.Event.LEARNING);
+        return result;
     }
 
     @PostMapping("/check-in")

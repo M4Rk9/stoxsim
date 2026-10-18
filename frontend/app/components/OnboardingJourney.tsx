@@ -17,8 +17,8 @@ export interface OnboardingState {
 const lessons = [
   {
     eyebrow: "WELCOME TO STOXSIM",
-    title: "Two markets. Zero real-money risk.",
-    body: "Practise with a separate ₹5 lakh India portfolio and $10,000 US portfolio. Cash and holdings never mix between them.",
+    title: "Your home for practising and learning.",
+    body: "Your home screen brings together virtual balances, market movers, stock search and your order ticket. The four feature cards open Finwiz AI, Scenario Lab, Learning Path and Competitions.",
     note: "Everything here is simulated for education.",
   },
   {
@@ -30,7 +30,7 @@ const lessons = [
   {
     eyebrow: "YOUR FIRST MISSION",
     title: "Find a stock and place one paper trade.",
-    body: "Search for a company, inspect its quote, choose a quantity and submit the paper order ticket. We will guide both steps on the dashboard.",
+    body: "Search for a stock or ETF, inspect its quote, then review quantity and charges before submitting. Once your first standard-account trade executes, continue with Finwiz AI and Scenario Lab.",
     note: "No brokerage order is ever created.",
   },
 ] as const;

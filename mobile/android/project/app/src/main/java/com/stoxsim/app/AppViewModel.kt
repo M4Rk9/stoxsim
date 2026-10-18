@@ -358,7 +358,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val id = mutable.value.accountId
         when (mutable.value.screen) {
             "Home" -> {
-                portfolio(); market(); read("watchlist", "watchlists/default"); read("onboarding", "onboarding")
+                portfolio(); market(); read("watchlist", "watchlists/default"); read("onboarding", "onboarding"); read("journey", "onboarding/journey")
                 if (id.isNotBlank()) list("trades", "accounts/$id/trades")
             }
             "Markets" -> market()
@@ -376,8 +376,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             }
             "Orders" -> if (id.isNotBlank()) { list("orders", "accounts/$id/orders"); list("trades", "accounts/$id/trades"); list("ledger", "accounts/$id/ledger"); portfolio() }
             "Scenario Lab" -> { list("scenarios", "scenarios"); read("credits", "scenarios/credits") }
-            "Learning path" -> read("progression", "progression")
-            "Competitions" -> { read("board", "competitions/current"); list("leagues", "leagues") }
+            "Learning path" -> { read("progression", "progression"); read("journey", "onboarding/journey") }
+            "Competitions" -> { read("board", "competitions/current"); list("leagues", "leagues"); read("journey", "onboarding/journey") }
             "Campus" -> { read("campus", "campus"); list("institutions", "campus/institutions"); read("membershipRequest", "campus/membership-request")
                 if (mutable.value.data["campus"]?.optBoolean("platformAdmin") == true) list("campusVerificationQueue", "campus/admin/verification-requests")
                 mutable.value.data["campus"]?.optJSONObject("membership")?.text("institutionId")?.takeIf { it.isNotBlank() }?.let { campusWorkspace(it) } }
@@ -436,8 +436,17 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         putData("scenarioResult", api.mutate("accounts/$id/scenarios", body = body.put("requestId", requestId)))
         pendingScenario = null
         read("credits", "scenarios/credits")
+        read("journey", "onboarding/journey")
     }
-    fun onboarding(action: String) = runAction { putData("onboarding", api.mutate("onboarding/$action")) }
+    fun refreshJourney() {
+        if (!foreground || mutable.value.working || mutable.value.user == null) return
+        runAction { read("journey", "onboarding/journey") }
+    }
+    fun onboarding(action: String) = runAction {
+        putData("onboarding", api.mutate("onboarding/$action"))
+        read("journey", "onboarding/journey")
+        if (action == "introduction/complete") openScreen("Markets")
+    }
     fun premiumBoard(enroll: Boolean = false) = runAction {
         if (enroll) putData("premiumBoard", api.mutate("competitions/premium/enroll")) else read("premiumBoard", "competitions/premium")
     }
@@ -582,6 +591,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             val answer = FinwizMessage(UUID.randomUUID().toString(), "assistant", result.text("answer").take(24000),
                 result.text("provider"), result.text("generatedAt"), result.text("disclaimer"), result.strings("suggestedQuestions"), result.text("finwizTier"))
             mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + answer) else item }) }
+            read("journey", "onboarding/journey")
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (expired: SessionExpired) { throw expired }
         catch (failure: Exception) {

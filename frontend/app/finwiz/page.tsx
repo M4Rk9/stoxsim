@@ -1,5 +1,7 @@
 "use client";
 
+import { FeatureGuide } from "../components/FeatureJourney";
+
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import FinwizAnswer from "./FinwizAnswer";
 import FinwizReactor, { Topic, TopicDefinition, topics } from "./FinwizReactor";
@@ -207,6 +209,7 @@ export default function FinwizPage() {
 
     <a className={styles.skipToComposer} href="#finwiz-question">Skip the learning map and ask a question</a>
     <p className={styles.guide}>Choose a topic in the map, or go straight to the question box.</p>
+    <FeatureGuide title="Learn from your first trade">Choose a topic, read a lesson or send a question. Try asking how charges and diversification affect your portfolio. After your first trade executes, continue to Scenario Lab to explore a market fall.</FeatureGuide>
 
     <section className={styles.skillViewport} aria-label="Finwiz learning modules">
       <FinwizReactor selected={topic} onSelect={selectTopic} />

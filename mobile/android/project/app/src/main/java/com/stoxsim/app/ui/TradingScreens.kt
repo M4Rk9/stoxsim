@@ -65,14 +65,8 @@ import java.math.RoundingMode
 }
 
 @Composable internal fun DashboardScreen(state: AppState, model: AppViewModel) {
+    GuidedJourney(state, model::openScreen, model::onboarding)
     StocksExplore(state, model::openScreen, model::selectStock)
-    val onboarding = state.data["onboarding"]
-    if (onboarding != null && !onboarding.optBoolean("completed") && !onboarding.optBoolean("dismissed")) Panel("START HERE", "Your first practice portfolio") {
-        Text("Choose a stock, explore its chart, and place a simulated order with virtual money.")
-        if (!onboarding.optBoolean("introductionCompleted")) Button({ model.onboarding("introduction/complete") }, enabled = !state.working) { Text("Start practising") }
-        else Button({ model.openScreen("Markets") }) { Text("Find your first stock") }
-        TextButton({ model.onboarding("dismiss") }, enabled = !state.working) { Text("Dismiss introduction") }
-    }
 }
 @Composable internal fun StocksExplore(state: AppState, navigate: (String) -> Unit, select: (Instrument) -> Unit) {
     Indices(state)
@@ -97,22 +91,8 @@ import java.math.RoundingMode
         SectionError(state, "portfolio")
         TextButton({ navigate("Portfolio") }) { Text("View holdings & analysis →") }
     }
-    Text("Go beyond the chart", style = MaterialTheme.typography.titleLarge)
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf(Triple("Finwiz", "Finwiz AI", R.drawable.ic_nav_finwiz), Triple("Scenario Lab", "Scenario Lab", R.drawable.ic_nav_scenario)).forEach { (route, label, icon) ->
-            OutlinedCard(onClick = { navigate(route) }, modifier = Modifier.weight(1f).fillMaxHeight(), shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(painterResource(icon), null, Modifier.size(28.dp))
-                    Text(label, style = MaterialTheme.typography.titleMedium)
-                    Muted(if (route == "Finwiz") "Learn. Ask. Understand." else "Explore your portfolio's what-if.")
-                    Text("Open →", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
-    }
     Text("More from StoxSim", style = MaterialTheme.typography.titleMedium)
-    listOf("Watchlist" to "Follow your favourite stocks", "Competitions" to "Practise with other learners", "Campus" to "Join your institution").chunked(2).forEach { pair ->
+    listOf("Watchlist" to "Follow your favourite stocks", "Campus" to "Join your institution").chunked(2).forEach { pair ->
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             pair.forEach { (route, description) -> OutlinedCard(onClick = { navigate(route) }, modifier = Modifier.weight(1f).fillMaxHeight(),
                 colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)) {

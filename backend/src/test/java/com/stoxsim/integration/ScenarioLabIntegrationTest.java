@@ -43,6 +43,7 @@ class ScenarioLabIntegrationTest {
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
         .withExposedPorts(6379);
     @Autowired JdbcTemplate db;
+    @Autowired com.stoxsim.onboarding.service.GuidedJourneyService journey;
     @Autowired AppUserRepository users;
     @Autowired VirtualAccountRepository accounts;
     @Autowired WebApplicationContext context;
@@ -73,6 +74,7 @@ class ScenarioLabIntegrationTest {
             .andExpect(jsonPath("$.projection.steps[3].equity").value(760)).andExpect(jsonPath("$.projection.returnPercent").value(-24))
             .andExpect(jsonPath("$.cash").value(200)).andExpect(jsonPath("$.positions[0].quantity").value(8)).andReturn().getResponse().getContentAsString();
         var second=run("{\"scenarioId\":\"selloff\",\"version\":1}").andReturn().getResponse().getContentAsString();
+        assertThat(journey.state(user).scenarioRun()).isTrue();
         assertThat(second).isEqualTo(first); assertThat(balances()).isEqualTo(before);
         for(var table:List.of("holding","paper_order","account_ledger","portfolio_history","campus_competition_entry","competition_entry"))
             assertThat(db.queryForObject("SELECT count(*) FROM "+table,Integer.class)).isZero();
@@ -97,6 +99,7 @@ class ScenarioLabIntegrationTest {
     }
     @Test void invalidScenariosSpendNoCreditsAndCustomPathsWork() throws Exception {
         run("{\"scenarioId\":\"custom\",\"version\":1,\"customShocks\":[10,101]}").andExpect(status().isBadRequest());
+        assertThat(journey.state(user).scenarioRun()).isFalse();
         assertThat(db.queryForObject("SELECT scenario_paid_used FROM user_subscription WHERE user_id=?",Integer.class,user)).isZero();
         run("{\"scenarioId\":\"custom\",\"version\":1,\"title\":\"My rally\",\"customShocks\":[10,-20,50]}")
             .andExpect(status().isOk()).andExpect(jsonPath("$.scenario.title").value("My rally"))

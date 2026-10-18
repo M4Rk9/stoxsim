@@ -91,7 +91,16 @@ import com.stoxsim.app.R
             state.user == null -> { WelcomeScreen(state, model::authenticate, model::forgot, model::clearMessage); return@StoxSimTheme }
         }
         AppFrame(state, model::openScreen, model::refresh, model::search) {
+            LaunchedEffect(state.user?.id, state.screen) {
+                if (state.user != null && state.screen == "Home") {
+                    while (true) {
+                        kotlinx.coroutines.delay(15_000)
+                        model.refreshJourney()
+                    }
+                }
+            }
             Message(state.error, state.notice)
+            FeatureWalkthrough(state, model::openScreen)
             when (state.screen) {
                 "Home" -> DashboardScreen(state, model)
                 "Markets" -> MarketsScreen(state, model)

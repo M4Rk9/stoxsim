@@ -1,5 +1,7 @@
 "use client";
 
+import { FeatureGuide } from "../components/FeatureJourney";
+
 import { safeWebsiteUrl } from "../lib/safe-url";
 
 import Image from "next/image";
@@ -340,6 +342,7 @@ export default function CompetitionsPage() {
       <a className={styles.brand} href="/" aria-label="StoxSim dashboard"><Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority /><span>Stox<span>Sim</span></span></a>
       <a className={styles.back} href="/">Back to dashboard</a>
     </header>
+    <FeatureGuide title="Explore before joining">Read the season rules and compare the standings. You can browse without enrolling. Join a season or private league only if you want to participate.</FeatureGuide>
 
     <section className={styles.heading}>
       <span>STANDARD ₹5 LAKH PORTFOLIO</span>
