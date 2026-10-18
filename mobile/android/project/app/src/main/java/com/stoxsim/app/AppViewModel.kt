@@ -377,8 +377,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             }
             "Orders" -> if (id.isNotBlank()) { list("orders", "accounts/$id/orders"); list("trades", "accounts/$id/trades"); list("ledger", "accounts/$id/ledger"); portfolio() }
             "Scenario Lab" -> { list("scenarios", "scenarios"); read("credits", "scenarios/credits") }
-            "Learning path" -> { read("progression", "progression"); read("journey", "onboarding/journey") }
-            "Competitions" -> { read("board", "competitions/current"); list("leagues", "leagues"); read("journey", "onboarding/journey") }
+            "Learning path" -> { section("progression") { putData("progression", api.mutate("progression/visit")) }; read("journey", "onboarding/journey") }
+            "Competitions" -> { section("board") { putData("board", api.mutate("competitions/current/visit")) }; list("leagues", "leagues"); read("journey", "onboarding/journey") }
             "Campus" -> { read("campus", "campus"); list("institutions", "campus/institutions"); read("membershipRequest", "campus/membership-request")
                 if (mutable.value.data["campus"]?.optBoolean("platformAdmin") == true) list("campusVerificationQueue", "campus/admin/verification-requests")
                 mutable.value.data["campus"]?.optJSONObject("membership")?.text("institutionId")?.takeIf { it.isNotBlank() }?.let { campusWorkspace(it) } }

@@ -57,7 +57,8 @@ test("a cached visit cannot overwrite more recent mission XP", async ({ page }) 
     const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" };
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers });
     if (route.request().url().endsWith("/progression/check-in")) return route.fulfill({ status: 200, headers, body: JSON.stringify({ ...progression, totalXp: 50 }) });
-    if (route.request().url().endsWith("/progression")) {
+    if (route.request().url().endsWith("/progression/visit")) {
+      expect(route.request().method()).toBe("POST");
       await page.waitForFunction(() => document.documentElement.dataset.visitRecorded === "yes");
       return route.fulfill({ status: 200, headers, body: JSON.stringify(progression) });
     }

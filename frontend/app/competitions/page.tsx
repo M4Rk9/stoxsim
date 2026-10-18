@@ -217,7 +217,7 @@ export default function CompetitionsPage() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      authorized<Board>("/api/v1/competitions/current"),
+      authorized<Board>("/api/v1/competitions/current/visit", { method: "POST" }),
       authorized<LeagueSummary[]>("/api/v1/leagues"),
       authorized<CampusProfile>("/api/v1/campus"),
     ]).then(([current, leagueMemberships, campusProfile]) => {

@@ -100,4 +100,46 @@ class GuidedJourneyIntegrationTest {
             .andExpect(status().isOk());
         assertThat(journey.state(user.getId()).finwizAsked()).isTrue();
     }
+
+    @Test void featureReadsDoNotRecordVisitsAndAuthenticatedPostsAreIdempotent() throws Exception {
+        var other = users.saveAndFlush(new AppUser(UUID.randomUUID()+"@other.test", "hash", "Other"));
+        for (String path : java.util.List.of("/api/v1/progression", "/api/v1/competitions/current")) {
+            mvc.perform(get(path).with(jwt().jwt(j -> j.subject(user.getId().toString()))))
+                .andExpect(status().isOk());
+            mvc.perform(head(path).with(jwt().jwt(j -> j.subject(user.getId().toString()))))
+                .andExpect(status().isOk());
+        }
+        assertThat(journey.state(user.getId()).learningViewed()).isFalse();
+        assertThat(journey.state(user.getId()).competitionsViewed()).isFalse();
+
+        for (String path : java.util.List.of("/api/v1/progression/visit", "/api/v1/competitions/current/visit")) {
+            mvc.perform(post(path)).andExpect(status().isUnauthorized());
+            mvc.perform(get(path).with(jwt().jwt(j -> j.subject(user.getId().toString()))))
+                .andExpect(status().isMethodNotAllowed());
+            mvc.perform(post(path).header("Origin", "https://untrusted.example")
+                    .with(jwt().jwt(j -> j.subject(user.getId().toString()))))
+                .andExpect(status().isForbidden());
+            assertThat(db.queryForObject("SELECT count(*) FROM guided_journey_event WHERE user_id=?", Integer.class, user.getId()))
+                .isEqualTo(path.contains("progression") ? 0 : 1);
+            for (int repeat = 0; repeat < 2; repeat++) {
+                mvc.perform(post(path).param("userId", other.getId().toString())
+                        .with(jwt().jwt(j -> j.subject(user.getId().toString()))))
+                    .andExpect(status().isOk());
+            }
+        }
+        assertThat(journey.state(user.getId()).learningViewed()).isTrue();
+        assertThat(journey.state(user.getId()).competitionsViewed()).isTrue();
+        assertThat(db.queryForObject("SELECT count(*) FROM guided_journey_event WHERE user_id=?", Integer.class, user.getId())).isEqualTo(2);
+        assertThat(journey.state(other.getId()).learningViewed()).isFalse();
+        assertThat(journey.state(other.getId()).competitionsViewed()).isFalse();
+    }
+
+    @Test void unsuccessfulFeatureLoadsDoNotRecordVisits() throws Exception {
+        UUID missingUser = UUID.randomUUID();
+        for (String path : java.util.List.of("/api/v1/progression/visit", "/api/v1/competitions/current/visit")) {
+            mvc.perform(post(path).with(jwt().jwt(j -> j.subject(missingUser.toString()))))
+                .andExpect(status().isUnauthorized());
+        }
+        assertThat(db.queryForObject("SELECT count(*) FROM guided_journey_event WHERE user_id=?", Integer.class, missingUser)).isZero();
+    }
 }

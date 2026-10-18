@@ -37,6 +37,11 @@ public class CompetitionController {
 
     @GetMapping("/competitions/current")
     public CompetitionBoardResponse current(@AuthenticationPrincipal Jwt jwt) {
+        return competitions.currentBoard(userId(jwt));
+    }
+
+    @PostMapping("/competitions/current/visit")
+    public CompetitionBoardResponse visit(@AuthenticationPrincipal Jwt jwt) {
         var result = competitions.currentBoard(userId(jwt));
         journey.record(userId(jwt), GuidedJourneyService.Event.COMPETITIONS);
         return result;

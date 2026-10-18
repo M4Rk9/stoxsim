@@ -27,6 +27,11 @@ public class ProgressionController {
 
     @GetMapping
     public ProgressionResponse state(@AuthenticationPrincipal Jwt jwt) {
+        return progression.state(userId(jwt));
+    }
+
+    @PostMapping("/visit")
+    public ProgressionResponse visit(@AuthenticationPrincipal Jwt jwt) {
         var result = progression.state(userId(jwt));
         journey.record(userId(jwt), GuidedJourneyService.Event.LEARNING);
         return result;
