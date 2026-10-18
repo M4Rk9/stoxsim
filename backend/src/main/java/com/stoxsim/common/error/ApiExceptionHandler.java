@@ -27,6 +27,11 @@ public class ApiExceptionHandler {
         this.meterRegistry = meterRegistry;
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> unsupportedMethod(org.springframework.web.HttpRequestMethodNotSupportedException exception) {
+        return response(HttpStatus.METHOD_NOT_ALLOWED, "This HTTP method is not supported for this endpoint.", Map.of());
+    }
+
     @ExceptionHandler(ConflictException.class)
     ResponseEntity<ApiError> handleConflict(ConflictException exception) {
         recordError(HttpStatus.CONFLICT, "conflict");

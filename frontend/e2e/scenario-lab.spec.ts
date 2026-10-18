@@ -91,3 +91,16 @@ test("hostile stored scenario titles render as text without executing markup", a
   await expect(page.locator('main img[src="x"], main script')).toHaveCount(0);
   expect(await page.evaluate(() => (window as Window & { __xss?: number }).__xss)).toBeUndefined();
 });
+
+test("first-trade guide can select standard holdings even when a paid sandbox is preferred", async ({ page }) => {
+  await setup(page);
+  let path = "";
+  await page.route("**/api/v1/accounts/*/scenarios", route => { path = route.request().url(); return respond(route, { ...result, currency: "USD" }); });
+  await page.goto("/scenario-lab");
+  await page.getByRole("button", { name: "US · USD" }).click();
+  await expect(page.getByLabel("Portfolio to explore", { exact: true })).toHaveValue(usPro.id);
+  await page.getByLabel("Portfolio to explore", { exact: true }).selectOption(us.id);
+  await page.getByRole("button", { name: /Run scenario/ }).click();
+  await expect(page.getByRole("img", { name: "Hypothetical portfolio value by scenario step" })).toBeVisible();
+  expect(path).toContain(us.id);
+});

@@ -45,6 +45,7 @@ class GuidedJourneyIntegrationTest {
     @Autowired PaperOrderRepository orders;
     @Autowired UserSubscriptionRepository subscriptions;
     @Autowired GuidedJourneyService journey;
+    @Autowired com.stoxsim.auth.service.AccountLifecycleService lifecycle;
     @Autowired WebApplicationContext context;
     @Autowired JdbcTemplate db;
     MockMvc mvc; AppUser user; TradableInstrument instrument;
@@ -84,6 +85,10 @@ class GuidedJourneyIntegrationTest {
             .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store")).andExpect(jsonPath("$.learningViewed").value(true));
         var other = users.saveAndFlush(new AppUser(UUID.randomUUID()+"@other.test", "hash", "Other"));
         assertThat(journey.state(other.getId()).learningViewed()).isFalse();
+        var exported = (java.util.List<?>) lifecycle.exportAccount(user.getId()).get("guidedJourneyEvents");
+        assertThat(exported).hasSize(1);
+        assertThat(exported.getFirst().toString()).contains("LEARNING", "completed_at");
+        assertThat((java.util.List<?>) lifecycle.exportAccount(other.getId()).get("guidedJourneyEvents")).isEmpty();
         mvc.perform(post("/api/v1/onboarding/journey").with(jwt().jwt(j -> j.subject(user.getId().toString())))).andExpect(status().isMethodNotAllowed());
     }
     @Test void successfulFinwizAnswerCountsButValidationFailureDoesNot() throws Exception {

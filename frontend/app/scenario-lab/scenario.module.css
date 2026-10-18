@@ -61,3 +61,7 @@
 @media(max-width:900px) { .workspace { grid-template-columns: 1fr; } .hero { align-items: start; flex-direction: column; } }
 @media(max-width:480px) { .shell { width: calc(100% - 24px); } .header { padding-right: 54px; }.header > a:last-child { display: none; } .builder,.results { padding: 18px; } .labHeading { align-items: start; }.credits { padding: 9px; } .hero { padding-top: 35px; } .presetGrid button { padding: 13px; }.resultStats { grid-template-columns: 1fr; } }
 @media(prefers-reduced-motion:reduce) { .presetGrid button { transition: none; } }
+
+.accountPicker { display: grid; gap: 8px; margin-bottom: 20px; font-size: .85rem; color: var(--ink); }
+.accountPicker select { width: 100%; max-width: 480px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+.accountPicker small { color: var(--muted); line-height: 1.6; }
