@@ -392,3 +392,6 @@
     transition: none;
   }
 }
+
+/* Home has an in-flow Finwiz card; keep its account control anchored to the header. */
+.profileMenuHome { position: absolute; }

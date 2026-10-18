@@ -66,6 +66,11 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
       expect(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top).toBe(true);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await journey.scrollIntoViewIfNeeded();
+    const control = await page.getByRole("button", { name: "Open account menu for Search Learner" }).boundingBox();
+    const section = await journey.boundingBox();
+    if (control && section) expect(control.y + control.height <= section.y || control.y >= section.y + section.height).toBe(true);
+    await expect(page.getByRole("link", { name: "Ask Finwiz AI", exact: true })).toHaveCount(1);
     await testInfo.attach(`journey-${width}-${dark ? "dark" : "light"}`, { body: await journey.screenshot(), contentType: "image/png" });
   });
 }
