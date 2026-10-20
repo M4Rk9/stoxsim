@@ -70,6 +70,12 @@ public class PortfolioHistoryService {
             if(previous!=null && row.benchmark!=null && previous.benchmark!=null && previous.benchmark.signum()>0) benchmarkReturns.add(row.benchmark.doubleValue()/previous.benchmark.doubleValue()-1);
             points.add(new Point(row.day,row.at,usable?row.equity:null,flow?"CASH_FLOW_BREAK":row.quality,plus?index:null,bi));previous=row;
         }
+        // A collector cannot append a row for an unknown session. Check the tail too,
+        // otherwise pre-expiry observations could keep reporting valid risk/returns forever.
+        if(previous!=null) {
+            for(var day=previous.day.plusDays(1);!day.isAfter(today);day=day.plusDays(1))
+                if(!sessions.isCalendarKnown(PortfolioHistoryCollector.exchange(account.getMarketRegion()),day)) missing++;
+        }
         valid=valid && missing==0 && flows==0;
         // Never draw a continuous normalized line across unknown values or cash adjustments.
         if(!valid) points.replaceAll(p->new Point(p.day,p.observedAt,p.equity,p.quality,null,null));

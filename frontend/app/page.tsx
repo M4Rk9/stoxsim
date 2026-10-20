@@ -431,6 +431,8 @@ const phaseLabel = (phase?: string) =>
     AFTER_HOURS: "After-hours",
     AFTER_MARKET: "Market closed",
     HOLIDAY: "Market holiday",
+    CALENDAR_UNAVAILABLE: "Schedule unavailable",
+    CLOSING_AUCTION: "Closing auction — matching paused",
   })[phase ?? ""] ?? "Checking market";
 
 export default function Home() {

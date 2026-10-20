@@ -49,6 +49,7 @@ class PortfolioHistoryIntegrationTest {
     @Autowired AppUserRepository users;
     @Autowired VirtualAccountRepository accounts;
     @Autowired PortfolioHistoryService service;
+    @Autowired com.stoxsim.subscription.repository.UserSubscriptionRepository subscriptions;
     @Autowired PortfolioHistoryCollector collector;
     @Autowired IndiaMarketSessionService calendar;
     @Autowired WebApplicationContext context;
@@ -152,6 +153,21 @@ class PortfolioHistoryIntegrationTest {
         assertThat(result.returnPercent()).isNull();assertThat(result.benchmarkReturnPercent()).isNull();
         assertThat(result.points()).allMatch(p->p.equity()==null && p.portfolioIndex()==null && p.benchmarkIndex()==null);
         assertThat(db.queryForObject("SELECT COUNT(*) FROM portfolio_history WHERE account_id=? AND equity IS NOT NULL",Integer.class,account)).isEqualTo(2);
+    }
+    @Test void unknownCalendarDatesAfterTheFinalObservationSuppressReturns() {
+        add(LocalDate.of(2026,12,30),new BigDecimal("100"),new BigDecimal("200"),new BigDecimal("100"));
+        add(LocalDate.of(2026,12,31),new BigDecimal("110"),new BigDecimal("220"),new BigDecimal("100"));
+        var beforeBoundary=new PortfolioHistoryService(db,accounts,subscriptions,calendar,
+            Clock.fixed(Instant.parse("2026-12-31T23:40:00Z"),ZoneOffset.UTC));
+        assertThat(beforeBoundary.history(user,account,30).returnPercent()).isCloseTo(10.0,within(1e-8));
+        var afterBoundary=new PortfolioHistoryService(db,accounts,subscriptions,calendar,
+            Clock.fixed(Instant.parse("2027-01-04T12:00:00Z"),ZoneOffset.UTC));
+        var result=afterBoundary.history(user,account,30);
+        assertThat(result.status()).isEqualTo("DATA_GAPS");
+        assertThat(result.missingSessions()).isEqualTo(4);
+        assertThat(result.returnPercent()).isNull();assertThat(result.benchmarkReturnPercent()).isNull();
+        assertThat(result.risk().volatilityPercent()).isNull();
+        assertThat(result.points()).allMatch(p->p.portfolioIndex()==null && p.benchmarkIndex()==null);
     }
     private void add(LocalDate day,BigDecimal equity,BigDecimal benchmark,BigDecimal cash) {
         db.update("INSERT INTO portfolio_history(account_id,observed_day,observed_at,currency,equity,cash,trade_cash,capital,quality,benchmark) VALUES (?,?,?,'INR',?,?,0,100,'OBSERVED',?)",account,day,java.sql.Timestamp.from(day.atTime(23,40).toInstant(ZoneOffset.UTC)),equity,cash,benchmark);

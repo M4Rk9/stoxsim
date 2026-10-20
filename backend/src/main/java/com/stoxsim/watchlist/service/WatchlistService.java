@@ -141,7 +141,7 @@ public class WatchlistService {
                 change,
                 changePercent(change, quote.previousClose()),
                 marketData.status(instrument, quote).name(),
-                quote.exchangeTimestamp() == null ? quote.receivedAt() : quote.exchangeTimestamp(),
+                quote.exchangeTimestamp(),
                 quote.simulated() ? "SIMULATED" : "EXTERNAL"
             );
         } catch (RuntimeException exception) {

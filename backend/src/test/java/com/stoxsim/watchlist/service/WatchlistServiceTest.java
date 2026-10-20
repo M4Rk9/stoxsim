@@ -148,6 +148,22 @@ class WatchlistServiceTest {
         verify(events, never()).publishEvent(any(Object.class));
     }
 
+    @Test
+    void fallbackGenerationTimeIsNeverAnExchangeObservation() {
+        when(items.findAllByWatchlistIdOrderByCreatedAtDesc(watchlistId)).thenReturn(List.of(item));
+        when(item.getInstrument()).thenReturn(instrument);
+        stubInstrument();
+        var quote = new Quote(new InstrumentKey("UPSTOX", "NSE_EQ|INE002A01018", MarketRegion.INDIA),
+            BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, null, null, null, null, null, null,
+            null, Instant.now(), true);
+        when(marketData.latestQuote(instrument)).thenReturn(quote);
+        when(marketData.status(instrument, quote)).thenReturn(MarketDataStatus.LIVE);
+        var response = service.getDefault(userId).items().getFirst();
+        assertThat(response.pricingSource()).isEqualTo("SIMULATED");
+        assertThat(response.exchangeTimestamp()).isNull();
+        assertThat(response.lastPrice()).isEqualByComparingTo(BigDecimal.TEN);
+    }
+
     private void stubInstrument() {
         when(instrument.getId()).thenReturn(instrumentId);
         when(instrument.getProvider()).thenReturn("UPSTOX");

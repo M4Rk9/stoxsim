@@ -76,7 +76,9 @@ preserves their raw equity and benchmark values in the database for audit. The
 history API does not expose them as observed chart values or calculate returns
 across them. Historical charts/metrics rebuild from new verified observations;
 there is no invented historical backfill. Calendar-unknown gaps and observations
-on non-trading days cannot produce continuous performance series.
+on non-trading days cannot produce continuous performance series. Unknown dates
+after the final observation are also counted, so calendar expiry suppresses old
+returns and risk metrics even when collection can no longer append new rows.
 
 ## Financial units
 

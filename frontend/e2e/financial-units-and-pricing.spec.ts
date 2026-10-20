@@ -15,7 +15,9 @@ for (const fixture of [
   { exchange: "NASDAQ", symbol: "AAPL", currency: "USD", units: undefined, value: "123.45", provider: "ALPACA", statement: "Unknown units" },
 ]) test(`stock financial table preserves ${fixture.units ?? "missing units"} without rescaling`, async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "test-token", user: { id: "learner", platformAdmin: false } })));
+  await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "test-token", expiresInSeconds: 900, user: { id: "learner", displayName: "Test Learner", email: "learner@stoxsim.test", emailVerified: true, platformAdmin: false, accounts: [] } })));
+  const pageErrors: string[] = [];
+  page.on("pageerror", error => pageErrors.push(error.message));
   let source = "SIMULATED";
   await page.route("**/api/v1/**", route => {
     const url = route.request().url();
@@ -36,4 +38,5 @@ for (const fixture of [
   await page.reload();
   await expect(page.getByRole("heading", { name: fixture.symbol, exact: true })).toBeVisible();
   await expect(page.getByText("Simulated fallback price.", { exact: true })).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
 });
