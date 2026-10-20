@@ -25,6 +25,7 @@ public record WatchlistItemResponse(
     BigDecimal changePercent,
     String dataStatus,
     Instant exchangeTimestamp,
-    Instant addedAt
+    Instant addedAt,
+    String pricingSource
 ) {
 }

@@ -15,7 +15,9 @@ public record MarketSessionSnapshot(
     LocalDate orderDate
 ) {
     public boolean allowsOrderEntry() {
-        return phase != MarketPhase.PRE_OPEN_MATCHING
+        return phase != MarketPhase.CALENDAR_UNAVAILABLE
+            && phase != MarketPhase.CLOSING_AUCTION
+            && phase != MarketPhase.PRE_OPEN_MATCHING
             && phase != MarketPhase.PRE_OPEN_BUFFER;
     }
 

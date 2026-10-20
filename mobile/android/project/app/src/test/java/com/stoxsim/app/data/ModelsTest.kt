@@ -6,6 +6,16 @@ import org.junit.Test
 import java.math.BigDecimal
 
 class ModelsTest {
+    @Test fun quoteProvenanceIsIndependentOfMarketStatusAndDefaultsToUnknown() {
+        val json = JSONObject("""{"lastPrice":123,"dataStatus":"LIVE","pricingSource":"SIMULATED"}""")
+        assertEquals("SIMULATED", parseQuote(json).pricingSource)
+        assertEquals("LIVE", parseQuote(json).status)
+        json.put("pricingSource", "EXTERNAL")
+        assertEquals("EXTERNAL", parseQuote(json).pricingSource)
+        json.remove("pricingSource")
+        assertEquals("UNKNOWN", parseQuote(json).pricingSource)
+    }
+
     @Test fun numericBackendBalancesParseWithoutStringAssumptions() {
         val user = parseUser(JSONObject("""{
             "displayName":"Learner","email":"learner@example.com","emailVerified":false,
@@ -26,6 +36,7 @@ class ModelsTest {
         }"""))
         assertEquals("UNAVAILABLE", portfolio.status)
         assertEquals("UNAVAILABLE", portfolio.positions.single().status)
+        assertEquals("UNKNOWN", portfolio.positions.single().pricingSource)
         assertEquals(BigDecimal("100001.50"), portfolio.total)
         assertEquals(10L, portfolio.positions.single().quantity)
     }

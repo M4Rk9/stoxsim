@@ -49,6 +49,7 @@ class PortfolioHistoryIntegrationTest {
     @Autowired AppUserRepository users;
     @Autowired VirtualAccountRepository accounts;
     @Autowired PortfolioHistoryService service;
+    @Autowired com.stoxsim.subscription.repository.UserSubscriptionRepository subscriptions;
     @Autowired PortfolioHistoryCollector collector;
     @Autowired IndiaMarketSessionService calendar;
     @Autowired WebApplicationContext context;
@@ -127,6 +128,46 @@ class PortfolioHistoryIntegrationTest {
         assertThat(result.points().getFirst().quality()).isEqualTo("MISSING_PRICES");
         assertThat(result.points().getFirst().equity()).isNull();
         assertThat(result.returnPercent()).isNull();
+    }
+    @Test void currentDayFallbackAndUnknownSourcesCannotBecomeObservedHistory() {
+        for (String source : List.of("SIMULATED", "UNKNOWN", "COST_BASIS", "EXTERNAL")) {
+            db.update("DELETE FROM portfolio_history WHERE account_id=?",account);
+            var position=mock(PortfolioPositionResponse.class);
+            when(position.pricingStatus()).thenReturn(PortfolioPositionResponse.PricingStatus.CLOSED);
+            when(position.pricingSource()).thenReturn(source);
+            when(position.priceTimestamp()).thenReturn(Instant.parse("2026-10-30T10:00:00Z"));
+            when(position.currency()).thenReturn("INR");
+            var base=valuation.valueForAccount(user,account);
+            when(valuation.valueForAccount(user,account)).thenReturn(new PortfolioResponse(base.marketRegion(),base.currency(),base.startingCapital(),base.availableCash(),base.blockedCash(),base.investedValue(),base.marketValue(),base.realizedProfitLoss(),base.unrealizedProfitLoss(),base.totalProfitLoss(),base.totalAccountValue(),base.totalReturnPercent(),base.dataStatus(),NOW,List.of(position)));
+            collector.capture(account);
+            var point=service.history(user,account,30).points().getFirst();
+            assertThat(point.quality()).isEqualTo(source.equals("EXTERNAL")?"OBSERVED":"MISSING_PRICES");
+            if(!source.equals("EXTERNAL")) assertThat(point.equity()).isNull();
+        }
+    }
+    @Test void legacySamplesRemainStoredButCannotAppearAsObservedValuesOrReturns() {
+        add(LocalDate.of(2026,10,28),new BigDecimal("100"),new BigDecimal("200"),new BigDecimal("100"));
+        add(LocalDate.of(2026,10,29),new BigDecimal("110"),new BigDecimal("220"),new BigDecimal("100"));
+        db.update("UPDATE portfolio_history SET quality='LEGACY_UNVERIFIED' WHERE account_id=?",account);
+        var result=service.history(user,account,30);
+        assertThat(result.returnPercent()).isNull();assertThat(result.benchmarkReturnPercent()).isNull();
+        assertThat(result.points()).allMatch(p->p.equity()==null && p.portfolioIndex()==null && p.benchmarkIndex()==null);
+        assertThat(db.queryForObject("SELECT COUNT(*) FROM portfolio_history WHERE account_id=? AND equity IS NOT NULL",Integer.class,account)).isEqualTo(2);
+    }
+    @Test void unknownCalendarDatesAfterTheFinalObservationSuppressReturns() {
+        add(LocalDate.of(2026,12,30),new BigDecimal("100"),new BigDecimal("200"),new BigDecimal("100"));
+        add(LocalDate.of(2026,12,31),new BigDecimal("110"),new BigDecimal("220"),new BigDecimal("100"));
+        var beforeBoundary=new PortfolioHistoryService(db,accounts,subscriptions,calendar,
+            Clock.fixed(Instant.parse("2026-12-31T23:40:00Z"),ZoneOffset.UTC));
+        assertThat(beforeBoundary.history(user,account,30).returnPercent()).isCloseTo(10.0,within(1e-8));
+        var afterBoundary=new PortfolioHistoryService(db,accounts,subscriptions,calendar,
+            Clock.fixed(Instant.parse("2027-01-04T12:00:00Z"),ZoneOffset.UTC));
+        var result=afterBoundary.history(user,account,30);
+        assertThat(result.status()).isEqualTo("DATA_GAPS");
+        assertThat(result.missingSessions()).isEqualTo(4);
+        assertThat(result.returnPercent()).isNull();assertThat(result.benchmarkReturnPercent()).isNull();
+        assertThat(result.risk().volatilityPercent()).isNull();
+        assertThat(result.points()).allMatch(p->p.portfolioIndex()==null && p.benchmarkIndex()==null);
     }
     private void add(LocalDate day,BigDecimal equity,BigDecimal benchmark,BigDecimal cash) {
         db.update("INSERT INTO portfolio_history(account_id,observed_day,observed_at,currency,equity,cash,trade_cash,capital,quality,benchmark) VALUES (?,?,?,'INR',?,?,0,100,'OBSERVED',?)",account,day,java.sql.Timestamp.from(day.atTime(23,40).toInstant(ZoneOffset.UTC)),equity,cash,benchmark);

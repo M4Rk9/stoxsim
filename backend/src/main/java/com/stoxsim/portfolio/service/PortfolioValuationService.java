@@ -125,6 +125,7 @@ public class PortfolioValuationService {
         BigDecimal currentPrice;
         PricingStatus status;
         Instant priceTimestamp;
+        String pricingSource;
 
         try {
             Quote quote = marketData.latestQuote(holding.getInstrument());
@@ -132,14 +133,14 @@ public class PortfolioValuationService {
                 throw new IllegalStateException("Quote has no last price");
             }
             currentPrice = quote.lastPrice();
+            pricingSource = quote.simulated() ? "SIMULATED" : "EXTERNAL";
             status = pricingStatus(marketData.status(holding.getInstrument(), quote));
-            priceTimestamp = quote.exchangeTimestamp() == null
-                ? quote.receivedAt()
-                : quote.exchangeTimestamp();
+            priceTimestamp = quote.exchangeTimestamp();
         } catch (RuntimeException exception) {
             currentPrice = holding.getAveragePrice();
             status = PricingStatus.UNAVAILABLE;
             priceTimestamp = null;
+            pricingSource = "COST_BASIS";
         }
 
         BigDecimal currentValue = currentPrice.multiply(BigDecimal.valueOf(holding.getQuantity()));
@@ -160,7 +161,8 @@ public class PortfolioValuationService {
             money(profitLoss),
             percent(profitLoss, invested),
             status,
-            priceTimestamp
+            priceTimestamp,
+            pricingSource
         );
     }
 

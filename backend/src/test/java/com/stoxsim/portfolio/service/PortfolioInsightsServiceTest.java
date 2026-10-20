@@ -205,7 +205,8 @@ class PortfolioInsightsServiceTest {
             profitLoss,
             BigDecimal.ZERO,
             status,
-            VALUED_AT
+            VALUED_AT,
+            "EXTERNAL"
         );
     }
 

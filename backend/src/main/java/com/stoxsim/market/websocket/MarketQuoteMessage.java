@@ -19,7 +19,8 @@ public record MarketQuoteMessage(
     BigDecimal previousClose,
     Long volume,
     Instant exchangeTimestamp,
-    Instant receivedAt
+    Instant receivedAt,
+    String pricingSource
 ) {
     public static MarketQuoteMessage from(Quote quote) {
         return new MarketQuoteMessage(
@@ -36,7 +37,8 @@ public record MarketQuoteMessage(
             quote.previousClose(),
             quote.volume(),
             quote.exchangeTimestamp(),
-            quote.receivedAt()
+            quote.receivedAt(),
+            quote.simulated() ? "SIMULATED" : "EXTERNAL"
         );
     }
 }

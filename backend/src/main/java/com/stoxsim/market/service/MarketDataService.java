@@ -100,8 +100,11 @@ public class MarketDataService {
         if (tick != null && tick.signum() > 0) price = price.divide(tick, 0, java.math.RoundingMode.HALF_UP).max(java.math.BigDecimal.ONE).multiply(tick);
         var now = Instant.now();
         var previous = anchor == null || anchor.previousClose() == null ? price : anchor.previousClose();
-        return new Quote(key(instrument), price, price, price, price, price, price, price, previous,
-            anchor == null ? 0L : anchor.volume(), now, now, true);
+        return new Quote(key(instrument), price, price, price,
+            anchor == null ? null : anchor.open(), anchor == null ? null : anchor.high(),
+            anchor == null ? null : anchor.low(), anchor == null ? null : anchor.close(),
+            anchor == null ? null : previous, anchor == null ? null : anchor.volume(),
+            anchor == null ? null : anchor.exchangeTimestamp(), now, true);
     }
 
     public boolean isStale(Quote quote) {

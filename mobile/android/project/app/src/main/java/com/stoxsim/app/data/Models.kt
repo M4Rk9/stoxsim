@@ -26,7 +26,7 @@ internal data class Instrument(val symbol: String, val name: String, val exchang
 }
 internal data class Position(val symbol: String, val name: String, val quantity: Long, val value: BigDecimal, val status: String,
     val exchange: String = "NSE", val average: BigDecimal? = null, val price: BigDecimal? = null,
-    val profit: BigDecimal? = null, val returnPercent: BigDecimal? = null, val blockedQuantity: Long = 0)
+    val profit: BigDecimal? = null, val returnPercent: BigDecimal? = null, val blockedQuantity: Long = 0, val pricingSource: String = "UNKNOWN")
 internal data class Portfolio(
     val currency: String, val total: BigDecimal, val cash: BigDecimal, val invested: BigDecimal,
     val profitLoss: BigDecimal, val status: String, val valuedAt: String, val positions: List<Position>,
@@ -40,7 +40,7 @@ internal data class OrderDraft(val accountId: String, val instrument: Instrument
         .put("quantity", quantity).put("limitPrice", limit ?: JSONObject.NULL)
 }
 internal data class Quote(val price: BigDecimal?, val previous: BigDecimal?, val status: String, val at: String,
-    val open: BigDecimal?, val high: BigDecimal?, val low: BigDecimal?, val volume: Long?, val key: String = "")
+    val open: BigDecimal?, val high: BigDecimal?, val low: BigDecimal?, val volume: Long?, val key: String = "", val pricingSource: String = "UNKNOWN")
 internal data class Candle(val at: String, val close: BigDecimal)
 
 internal fun JSONObject.money(name: String): BigDecimal = get(name).toString().toBigDecimal()
@@ -63,10 +63,10 @@ internal fun parsePortfolio(json: JSONObject) = Portfolio(
     json.getJSONArray("holdings").mapObjects {
         Position(it.getString("symbol"), it.getString("name"), it.getLong("quantity"), it.money("marketValue"),
             it.getString("pricingStatus"), it.optString("exchange", "NSE"), it.decimal("averagePrice"),
-            it.decimal("currentPrice"), it.decimal("unrealizedProfitLoss"), it.decimal("returnPercent"), it.optLong("blockedQuantity"))
+            it.decimal("currentPrice"), it.decimal("unrealizedProfitLoss"), it.decimal("returnPercent"), it.optLong("blockedQuantity"), it.optString("pricingSource", "UNKNOWN"))
     }, json.decimal("startingCapital") ?: BigDecimal.ZERO, json.decimal("blockedCash") ?: BigDecimal.ZERO,
     json.decimal("unrealizedProfitLoss") ?: BigDecimal.ZERO, json.decimal("totalReturnPercent") ?: BigDecimal.ZERO
 )
 internal fun parseQuote(json: JSONObject) = Quote(json.decimal("lastPrice"), json.decimal("previousClose"),
     json.getString("dataStatus"), json.text("exchangeTimestamp"), json.decimal("open"), json.decimal("high"),
-    json.decimal("low"), if (json.isNull("volume")) null else json.optLong("volume"), json.text("instrumentKey"))
+    json.decimal("low"), if (json.isNull("volume")) null else json.optLong("volume"), json.text("instrumentKey"), json.optString("pricingSource", "UNKNOWN"))

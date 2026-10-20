@@ -1,8 +1,11 @@
 "use client";
 
+import PricingNotice from "../../../components/PricingNotice";
+
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { recordProductActivity } from "../../../lib/product-activity";
+import { financialValue } from "../../../lib/financial-units";
 import styles from "./stock.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -31,6 +34,7 @@ interface Quote {
   low?: number;
   previousClose?: number;
   volume?: number;
+  pricingSource?: string;
   dataStatus: string;
   exchangeTimestamp?: string;
 }
@@ -73,6 +77,9 @@ interface FinancialMetric {
 }
 
 interface FinancialPerformance {
+  unitsIn?: string;
+  statementType?: string;
+  timePeriod?: string;
   metrics: FinancialMetric[];
 }
 
@@ -346,10 +353,11 @@ export default function StockPage() {
           {change != null && <div className={`${styles.move} ${rising ? styles.positive : styles.negative}`}>
             {rising ? "+" : ""}{money(change, currency)} ({rising ? "+" : ""}{number(changePercent)}%)
           </div>}
-          <span className={styles.status}>{quote.dataStatus === "CLOSED" ? "CLOSED" : "LIVE"}</span>
+          <span className={styles.status}>{quote.dataStatus}</span>
         </div>
       </section>
 
+      <PricingNotice source={quote.pricingSource} />
       <section className={styles.grid}>
         <div className={styles.stack}>
           <article className={styles.card}>
@@ -396,7 +404,7 @@ export default function StockPage() {
 
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Financial performance</h2><p>{marketRegion === "INDIA" ? "Consolidated figures in INR crore" : "Financial history is not available for this market yet"}</p></div>
+              <div><h2>Financial performance</h2><p>{insights?.financials?.unitsIn ? `Figures in ${insights.financials.unitsIn}` : "Financial units unavailable"}{insights?.financials?.statementType ? ` · ${insights.financials.statementType}` : ""}</p></div>
               <div className={styles.rangeTabs}>
                 <button type="button" className={period === "quarterly" ? styles.active : ""} onClick={() => setPeriod("quarterly")}>Quarterly</button>
                 <button type="button" className={period === "yearly" ? styles.active : ""} onClick={() => setPeriod("yearly")}>Yearly</button>
@@ -512,7 +520,7 @@ function FinancialTable({ financials, loading }: {
         const byPeriod = new Map(metric.history.map((point) => [point.period, point]));
         return <tr key={metric.category}>
           <td>{metric.category.replaceAll("_", " ")}</td>
-          {periods.map((value) => <td key={value}>{crore(byPeriod.get(value)?.value)}</td>)}
+          {periods.map((value) => <td key={value}>{financialValue(byPeriod.get(value)?.value, financials?.unitsIn)}</td>)}
         </tr>;
       })}</tbody>
     </table>

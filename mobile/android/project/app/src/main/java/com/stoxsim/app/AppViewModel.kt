@@ -254,7 +254,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             val existing = try { Instant.parse(json.text("exchangeTimestamp")) } catch (_: Exception) { null }
             if (existing != null && at.isBefore(existing)) return json
             return JSONObject(json.toString()).put("lastPrice", price).put("value", price).put("change", change ?: JSONObject.NULL)
-                .put("changePercent", percentage ?: JSONObject.NULL).put("dataStatus", status).put("exchangeTimestamp", at.toString())
+                .put("changePercent", percentage ?: JSONObject.NULL).put("dataStatus", status).put("exchangeTimestamp", at.toString()).put("pricingSource", tick.optString("pricingSource", "UNKNOWN"))
         }
         mutable.update { state ->
             val watch = state.data["watchlist"]?.let { source ->
@@ -262,7 +262,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             }
             val indices = state.lists["indices"]?.map { if (it.text("instrumentKey") == key) patch(it) else it }
             val quote = if ((state.selected?.key?.ifBlank { state.quote?.key.orEmpty() }) == key && state.quote != null && (state.quote.at.isBlank() || try { !at.isBefore(Instant.parse(state.quote.at)) } catch (_: Exception) { true }))
-                state.quote.copy(price = price, previous = previous ?: state.quote.previous, status = status, at = at.toString(),
+                state.quote.copy(price = price, previous = previous ?: state.quote.previous, status = status, at = at.toString(), pricingSource = tick.optString("pricingSource", "UNKNOWN"),
                     high = tick.decimal("high") ?: state.quote.high, low = tick.decimal("low") ?: state.quote.low,
                     open = tick.decimal("open") ?: state.quote.open, volume = tick.decimal("volume")?.toLong() ?: state.quote.volume) else state.quote
             state.copy(quote = quote, data = if (watch == null) state.data else state.data + ("watchlist" to watch), lists = if (indices == null) state.lists else state.lists + ("indices" to indices))

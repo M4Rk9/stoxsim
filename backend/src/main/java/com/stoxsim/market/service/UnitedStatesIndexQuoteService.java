@@ -122,6 +122,7 @@ public class UnitedStatesIndexQuoteService {
     ) {
         if (instrument == null
             || quote == null
+            || quote.simulated()
             || quote.lastPrice() == null
             || quote.lastPrice().signum() <= 0) {
             return unavailable(definition);

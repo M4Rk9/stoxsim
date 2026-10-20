@@ -153,6 +153,10 @@ public class OrderApplicationService {
         TradableInstrument instrument = findInstrument(request);
         validateTickSize(instrument, request.limitPrice());
         var session = sessions.current(instrument.getExchange());
+        if (session.phase() == com.stoxsim.calendar.domain.MarketPhase.CALENDAR_UNAVAILABLE) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "The exchange schedule is not yet verified. Please try again later; existing orders can still be cancelled.");
+        }
         ensureOrderChangesAllowed(session.allowsOrderEntry());
 
         Quote quote = marketData.latestQuote(instrument);
@@ -327,6 +331,10 @@ public class OrderApplicationService {
         ensureOwner(order, userId);
 
         var session = sessions.current(order.getInstrument().getExchange());
+        if (session.phase() == com.stoxsim.calendar.domain.MarketPhase.CALENDAR_UNAVAILABLE) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "The exchange schedule is not yet verified. Please try again later; existing orders can still be cancelled.");
+        }
         ensureOrderChangesAllowed(session.allowsOrderEntry());
         validateLimitTerms(
             order.getOrderType(),
@@ -410,11 +418,9 @@ public class OrderApplicationService {
             .orElseThrow();
         PaperOrder order = orders.findByIdForUpdate(snapshot.getId()).orElseThrow();
         ensureOwner(order, userId);
-        ensureOrderChangesAllowed(
-            sessions
-                .current(order.getInstrument().getExchange())
-                .allowsOrderEntry()
-        );
+        var phase = sessions.current(order.getInstrument().getExchange()).phase();
+        ensureOrderChangesAllowed(phase != com.stoxsim.calendar.domain.MarketPhase.PRE_OPEN_MATCHING
+            && phase != com.stoxsim.calendar.domain.MarketPhase.PRE_OPEN_BUFFER);
 
         releaseReservation(order, account);
         order.markCancelled();
@@ -432,7 +438,7 @@ public class OrderApplicationService {
             .findByIdForUpdate(snapshot.getAccount().getId())
             .orElseThrow();
         PaperOrder order = orders.findByIdForUpdate(orderId).orElseThrow();
-        if (!order.isOpen()) {
+        if (!order.isOpen() || !sessions.hasSessionEnded(order.getInstrument().getExchange(), order.getSubmittedForDate())) {
             return;
         }
         releaseReservation(order, account);

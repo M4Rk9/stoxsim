@@ -61,7 +61,7 @@ class ScenarioLabIntegrationTest {
         mockPortfolio("INR",PortfolioPositionResponse.PricingStatus.CLOSED,MARK);
     }
     void mockPortfolio(String currency,PortfolioPositionResponse.PricingStatus status,Instant time) {
-        var position=new PortfolioPositionResponse(UUID.randomUUID(),"NSE","TEST","Example",currency,8,2,6,new BigDecimal("90"),new BigDecimal("100"),new BigDecimal("720"),new BigDecimal("800"),new BigDecimal("80"),ZERO,status,time);
+        var position=new PortfolioPositionResponse(UUID.randomUUID(),"NSE","TEST","Example",currency,8,2,6,new BigDecimal("90"),new BigDecimal("100"),new BigDecimal("720"),new BigDecimal("800"),new BigDecimal("80"),ZERO,status,time,"EXTERNAL");
         when(valuation.valueForAccount(user,account)).thenReturn(new PortfolioResponse(MarketRegion.INDIA,"INR",new BigDecimal("1000"),new BigDecimal("150"),new BigDecimal("50"),new BigDecimal("720"),new BigDecimal("800"),ZERO,new BigDecimal("80"),ZERO,new BigDecimal("1000"),ZERO,status,MARK,List.of(position)));
     }
     org.springframework.test.web.servlet.ResultActions run(String body) throws Exception {
