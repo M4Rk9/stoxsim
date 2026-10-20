@@ -1,5 +1,8 @@
 "use client";
 
+import { financialValue } from "./lib/financial-units";
+import PricingNotice, { PortfolioPricingNotice, priceSourceLabel } from "./components/PricingNotice";
+
 import { EMAIL_GUIDANCE } from "./lib/email-guidance";
 
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -101,6 +104,7 @@ interface IndexQuote {
   change?: number;
   changePercent?: number;
   previousClose?: number;
+  pricingSource?: string;
   dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
 }
@@ -118,6 +122,7 @@ interface Position {
   marketValue: number;
   unrealizedProfitLoss: number;
   returnPercent: number;
+  pricingSource?: string;
   pricingStatus: MarketDataStatus;
   priceTimestamp?: string;
 }
@@ -135,6 +140,7 @@ interface Portfolio {
   totalProfitLoss: number;
   totalAccountValue: number;
   totalReturnPercent: number;
+  pricingSource?: string;
   dataStatus: MarketDataStatus;
   valuedAt: string;
   holdings: Position[];
@@ -164,6 +170,7 @@ interface Quote {
   low?: number;
   previousClose?: number;
   volume?: number;
+  pricingSource?: string;
   dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
 }
@@ -183,6 +190,7 @@ interface WatchlistItem {
   lastPrice?: number;
   change?: number;
   changePercent?: number;
+  pricingSource?: string;
   dataStatus: MarketDataStatus;
   exchangeTimestamp?: string;
   addedAt: string;
@@ -195,6 +203,7 @@ interface Watchlist {
 }
 
 interface MarketQuoteMessage {
+  pricingSource?: string;
   instrumentKey: string;
   marketRegion: MarketRegion;
   lastPrice?: number;
@@ -217,6 +226,7 @@ interface MarketMover {
   change: number;
   changePercent: number;
   volume?: number;
+  pricingSource?: string;
   dataStatus: MarketDataStatus;
   priceTimestamp?: string;
 }
@@ -224,6 +234,7 @@ interface MarketMover {
 interface MarketMovers {
   universe: string;
   generatedAt?: string;
+  pricingSource?: string;
   dataStatus: MarketDataStatus;
   gainers: MarketMover[];
   losers: MarketMover[];
@@ -766,6 +777,7 @@ export default function Home() {
       change,
       changePercent,
       dataStatus: "LIVE",
+        pricingSource: message.pricingSource ?? "UNKNOWN",
       exchangeTimestamp: message.exchangeTimestamp,
     }));
 
@@ -777,6 +789,7 @@ export default function Home() {
         change,
         changePercent,
         dataStatus: "LIVE",
+        pricingSource: message.pricingSource ?? "UNKNOWN",
         exchangeTimestamp: message.exchangeTimestamp,
       }),
     } : current);
@@ -793,6 +806,7 @@ export default function Home() {
         previousClose: message.previousClose ?? current.previousClose,
         volume: message.volume ?? current.volume,
         dataStatus: "LIVE",
+        pricingSource: message.pricingSource ?? "UNKNOWN",
         exchangeTimestamp: message.exchangeTimestamp ?? current.exchangeTimestamp,
       } : current);
     }
@@ -1305,6 +1319,7 @@ export default function Home() {
         Verify your email to secure account recovery. <a href="/settings">Open settings</a>
       </div>}
       {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`} role={error ? "alert" : "status"} aria-live="polite">{error || notice}<button type="button" aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
+      {market?.phase === "CALENDAR_UNAVAILABLE" && <p role="status">The exchange schedule is not yet verified. Order entry is temporarily unavailable; you can still cancel existing orders.</p>}
       {activeAccount && !activeAccount.active && <div className="message accountLockedMessage">
         This paid sandbox is locked. Its history remains visible, but new and modified orders are disabled until the entitlement is active.
       </div>}
@@ -1314,6 +1329,7 @@ export default function Home() {
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
+      {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
       <section className="metricGrid" aria-busy={loading}>
         <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
         <Metric label="Available cash" value={displayMoney(portfolio?.availableCash)} sub={`${displayMoney(portfolio?.blockedCash)} blocked`} />
@@ -1372,6 +1388,7 @@ export default function Home() {
               <div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>
                 <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><div className="quoteActions"><button type="button" className={watchedItem ? "watchButton watching" : "watchButton"} disabled={working || Boolean(watchedItem)} onClick={addSelectedToWatchlist}>{watchedItem ? "★ Watching" : "☆ Watch"}</button><span className={`quoteStatus ${marketDataStatus.toLowerCase()}`}>{marketDataStatus}</span></div></div>
                 <div className="quotePrice"><div><strong>{displayMoney(quote.lastPrice)}</strong><QuoteMove quote={quote} currency={activeCurrency} /></div><span>{dateTime(quote.exchangeTimestamp)}</span></div>
+                <PricingNotice source={quote.pricingSource} />
                 <div className="quoteStats"><div><span>Open</span><strong>{displayMoneyOrDash(quote.open)}</strong></div><div><span>High</span><strong>{displayMoneyOrDash(quote.high)}</strong></div><div><span>Low</span><strong>{displayMoneyOrDash(quote.low)}</strong></div><div><span>Prev. close</span><strong>{displayMoneyOrDash(quote.previousClose)}</strong></div></div>
                 <div className="chartBlock">
                   <div className="chartHeader"><div><span>Price chart</span><small>{marketRegion === "INDIA" ? "Verified Upstox daily OHLC candles" : "Alpaca daily OHLC candles"}</small></div><div className="rangeTabs">{([1, 3, 6, 12, 36, 60] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range >= 12 ? `${range / 12}Y` : `${range}M`}</button>)}</div></div>
@@ -1391,7 +1408,7 @@ export default function Home() {
           <article className="panel">
             <div className="panelHeading"><div><span className="kicker">PORTFOLIO</span><h2>Your holdings</h2></div><span className="panelMeta">{portfolio?.holdings.length ?? 0} positions</span></div>
             <div className="tableWrap"><table><thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Value</th><th>Profit/Loss</th></tr></thead><tbody>
-              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><strong>{position.symbol}</strong><small>{position.name}</small></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
+              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><strong>{position.symbol}</strong><small>{position.name}</small></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus} · {priceSourceLabel(position.pricingSource)}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
               {!portfolio?.holdings.length && <tr><td colSpan={6} className="emptyCell">Your first executed buy will appear here.</td></tr>}
             </tbody></table></div>
           </article>
@@ -1409,7 +1426,7 @@ export default function Home() {
               {visibleWatchlistItems.map((item) => {
                 const rising = (item.change ?? 0) >= 0;
                 return <div className="watchlistRow" key={item.itemId}>
-                  <button type="button" className="watchlistSelect" onClick={() => chooseWatchlistItem(item)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {marketDataStatus}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></button>
+                  <button type="button" className="watchlistSelect" onClick={() => chooseWatchlistItem(item)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {priceSourceLabel(item.pricingSource)}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></button>
                   <button type="button" className="watchlistRemove" aria-label={`Remove ${item.symbol} from watchlist`} title="Remove" disabled={working} onClick={() => removeWatchlistItem(item)}>×</button>
                 </div>;
               })}
@@ -1425,6 +1442,7 @@ export default function Home() {
             <div className="fieldGrid"><label>Order type<select aria-describedby="order-type-help" value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market order</option><option value="LIMIT">Limit order</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
             <p className="fieldHelp" id="order-type-help">{orderType === "MARKET" ? "A market order uses the next available simulated price." : "A limit order executes only at your chosen price or better."}</p>
             {orderType === "LIMIT" && <label>Limit price<input type="number" min="0.01" step={selected?.tickSize ?? 0.05} value={limitPrice} onChange={(event) => setLimitPrice(event.target.value)} /></label>}
+            {quote && <PricingNotice source={quote.pricingSource} />}
             <div className="estimateBox"><div><span>Estimated turnover</span><strong>{displayMoney(chargeEstimate?.turnover)}</strong></div><div><span>Simulated charges</span><strong>{displayMoney(chargeEstimate?.totalCharges)}</strong></div><div className="estimateTotal"><span>{side === "BUY" ? "Estimated debit" : "Estimated credit"}</span><strong>{displayMoney(chargeEstimate ? chargeEstimate.turnover + (side === "BUY" ? chargeEstimate.totalCharges : -chargeEstimate.totalCharges) : 0)}</strong></div>{chargeEstimate && <small>{chargeEstimate.scheduleVersion} · final amount uses execution price</small>}</div>
             <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working || !activeAccount?.active}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
 
@@ -1490,8 +1508,8 @@ function StockPerformance({ quote, candles, currency }: { quote: Quote; candles:
     <div className="performanceStats">
       <div><span>Open price</span><strong>{moneyOrDash(quote.open, currency)}</strong></div>
       <div><span>Previous close</span><strong>{moneyOrDash(quote.previousClose, currency)}</strong></div>
-      <div><span>Live volume</span><strong>{compactNumber(quote.volume)}</strong></div>
-      <div><span>Market</span><strong>{quote.dataStatus === "CLOSED" ? "CLOSED" : "LIVE"}</strong></div>
+      <div><span>Volume</span><strong>{compactNumber(quote.volume)}</strong></div>
+      <div><span>Market</span><strong>{quote.dataStatus}</strong></div>
     </div>
   </section>;
 }
@@ -1605,17 +1623,7 @@ function FinancialChart({
     ]),
   );
 
-  const formatted = (value?: number) => {
-    if (value == null || !Number.isFinite(value)) return "—";
-    const units = financials?.unitsIn?.toLowerCase() ?? "";
-    const formattedValue = new Intl.NumberFormat(
-      units.includes("usd") ? "en-US" : "en-IN",
-      { maximumFractionDigits: 2 },
-    ).format(value);
-    if (units.includes("usd")) return `$${formattedValue}M`;
-    if (units.includes("crore")) return `₹${formattedValue} Cr`;
-    return financials?.unitsIn ? `${formattedValue} ${financials.unitsIn}` : formattedValue;
-  };
+  const formatted = (value?: number) => financialValue(value, financials?.unitsIn);
 
   if (loading && !financials) return <div className="financialEmpty"><span className="chartLoader" />Updating financial history…</div>;
   if (!revenuePoints.length) return <div className="financialEmpty">Financial history is unavailable for this stock.</div>;

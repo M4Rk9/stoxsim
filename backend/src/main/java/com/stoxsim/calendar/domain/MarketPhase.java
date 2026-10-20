@@ -1,6 +1,8 @@
 package com.stoxsim.calendar.domain;
 
 public enum MarketPhase {
+    CALENDAR_UNAVAILABLE,
+    CLOSING_AUCTION,
     HOLIDAY,
     AFTER_MARKET,
     PRE_MARKET,

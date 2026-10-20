@@ -20,7 +20,8 @@ public record PortfolioPositionResponse(
     BigDecimal unrealizedProfitLoss,
     BigDecimal returnPercent,
     PricingStatus pricingStatus,
-    Instant priceTimestamp
+    Instant priceTimestamp,
+    String pricingSource
 ) {
     public enum PricingStatus {
         LIVE,

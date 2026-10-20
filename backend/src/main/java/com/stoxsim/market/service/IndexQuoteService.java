@@ -71,7 +71,7 @@ public class IndexQuoteService {
 
         try {
             Quote quote = marketData.latestQuote(instrument);
-            if (quote.lastPrice() == null || quote.lastPrice().signum() <= 0) {
+            if (quote.simulated() || quote.lastPrice() == null || quote.lastPrice().signum() <= 0) {
                 return unavailable(definition);
             }
             BigDecimal change = quote.previousClose() == null
@@ -92,7 +92,7 @@ public class IndexQuoteService {
                 changePercent,
                 quote.previousClose() == null ? null : money(quote.previousClose()),
                 marketData.status(instrument, quote),
-                quote.exchangeTimestamp() == null ? quote.receivedAt() : quote.exchangeTimestamp()
+                quote.exchangeTimestamp()
             );
         } catch (RuntimeException exception) {
             return unavailable(definition);

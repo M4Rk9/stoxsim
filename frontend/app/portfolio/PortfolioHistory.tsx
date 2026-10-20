@@ -67,8 +67,8 @@ export default function PortfolioHistory({ accountId }: { accountId: string }) {
         <figcaption>{normalized ? "Portfolio · Dashed: benchmark · Starting value indexed to 100." : `Portfolio value (${data.currency}).`}</figcaption>
       </figure>}
       {data.points.length > 0 && <details><summary>View daily observations</summary><div style={{ overflowX: "auto", maxHeight: 360 }}><table>
-        <thead><tr><th>Date</th><th>Value ({data.currency})</th><th>Portfolio index</th><th>Benchmark index</th></tr></thead>
-        <tbody>{data.points.map(p => <tr key={p.day}><td>{p.day}</td><td>{number(p.equity)}</td><td>{number(p.portfolioIndex)}</td><td>{number(p.benchmarkIndex)}</td></tr>)}</tbody>
+        <thead><tr><th>Date</th><th>Value ({data.currency})</th><th>Price quality</th><th>Portfolio index</th><th>Benchmark index</th></tr></thead>
+        <tbody>{data.points.map(p => <tr key={p.day}><td>{p.day}</td><td>{number(p.equity)}</td><td>{p.quality.replaceAll("_", " ")}</td><td>{number(p.portfolioIndex)}</td><td>{number(p.benchmarkIndex)}</td></tr>)}</tbody>
       </table></div></details>}
 
     </>}

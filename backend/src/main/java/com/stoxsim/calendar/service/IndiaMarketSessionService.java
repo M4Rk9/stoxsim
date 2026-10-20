@@ -1,7 +1,6 @@
 package com.stoxsim.calendar.service;
 
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -15,233 +14,96 @@ import com.stoxsim.instrument.domain.MarketExchange;
 
 @Service
 public class IndiaMarketSessionService {
-
     public static final ZoneId INDIA_ZONE = ZoneId.of("Asia/Kolkata");
     public static final ZoneId UNITED_STATES_ZONE = ZoneId.of("America/New_York");
-
-    private static final LocalTime INDIA_PRE_OPEN_START = LocalTime.of(9, 0);
-    private static final LocalTime INDIA_PRE_OPEN_MATCHING = LocalTime.of(9, 8);
-    private static final LocalTime INDIA_PRE_OPEN_BUFFER = LocalTime.of(9, 12);
-    private static final LocalTime INDIA_REGULAR_OPEN = LocalTime.of(9, 15);
-    private static final LocalTime INDIA_REGULAR_CLOSE = LocalTime.of(15, 30);
-
-    private static final LocalTime US_PRE_MARKET_OPEN = LocalTime.of(4, 0);
-    private static final LocalTime US_REGULAR_OPEN = LocalTime.of(9, 30);
-    private static final LocalTime US_REGULAR_CLOSE = LocalTime.of(16, 0);
-    private static final LocalTime US_AFTER_HOURS_CLOSE = LocalTime.of(20, 0);
-
     private final Clock clock;
     private final MarketHolidayRepository holidays;
+    private final VerifiedMarketCalendar calendar = new VerifiedMarketCalendar();
 
     public IndiaMarketSessionService(Clock clock, MarketHolidayRepository holidays) {
         this.clock = clock;
         this.holidays = holidays;
     }
 
+    private ZoneId zone(MarketExchange exchange) {
+        return isUnitedStatesExchange(exchange) ? UNITED_STATES_ZONE : INDIA_ZONE;
+    }
+
     public MarketSessionSnapshot current(MarketExchange exchange) {
-        ZoneId zone = isUnitedStatesExchange(exchange) ? UNITED_STATES_ZONE : INDIA_ZONE;
-        return at(exchange, ZonedDateTime.ofInstant(clock.instant(), zone));
+        return at(exchange, ZonedDateTime.ofInstant(clock.instant(), zone(exchange)));
     }
 
     public MarketSessionSnapshot at(MarketExchange exchange, ZonedDateTime input) {
-        return isUnitedStatesExchange(exchange)
-            ? unitedStatesAt(exchange, input)
-            : indiaAt(exchange, input);
+        var now = input.withZoneSameInstant(zone(exchange));
+        var date = now.toLocalDate();
+        var time = now.toLocalTime();
+        var day = calendar.day(exchange, date);
+        if (!day.known()) return unavailable(exchange, now);
+        if (!isTradingDay(exchange, date)) return nextSession(exchange, now, MarketPhase.HOLIDAY);
+        boolean us = isUnitedStatesExchange(exchange);
+        var preOpen = us ? LocalTime.of(4, 0) : day.preOpen();
+        if (time.isBefore(preOpen)) return snapshot(exchange, MarketPhase.AFTER_MARKET, now, date, preOpen, date);
+        if (us) {
+            if (time.isBefore(day.open())) return snapshot(exchange, MarketPhase.PRE_MARKET, now, date, day.open(), date);
+        } else {
+            if (time.isBefore(day.matching())) return snapshot(exchange, MarketPhase.PRE_OPEN_ORDER_ENTRY, now, date, day.matching(), date);
+            if (time.isBefore(day.buffer())) return snapshot(exchange, MarketPhase.PRE_OPEN_MATCHING, now, date, day.buffer(), date);
+            if (time.isBefore(day.open())) return snapshot(exchange, MarketPhase.PRE_OPEN_BUFFER, now, date, day.open(), date);
+        }
+        if (time.isBefore(day.continuousClose())) return snapshot(exchange, MarketPhase.REGULAR, now, date, day.continuousClose(), date);
+        if (time.isBefore(day.close())) return snapshot(exchange, MarketPhase.CLOSING_AUCTION, now, date, day.close(), date);
+        // DAY orders entered after the core close belong to the next session, including US after-hours.
+        var next = nextSession(exchange, now, MarketPhase.AFTER_MARKET);
+        if (us && time.isBefore(day.extendedClose()) && next.phase() != MarketPhase.CALENDAR_UNAVAILABLE)
+            return snapshot(exchange, MarketPhase.AFTER_HOURS, now, date, day.extendedClose(), next.orderDate());
+        return next;
     }
 
-    private MarketSessionSnapshot indiaAt(MarketExchange exchange, ZonedDateTime input) {
-        if (exchange != MarketExchange.NSE && exchange != MarketExchange.BSE) {
-            throw new IllegalArgumentException("India market session supports NSE and BSE");
-        }
-        ZonedDateTime now = input.withZoneSameInstant(INDIA_ZONE);
-        LocalDate date = now.toLocalDate();
-        LocalTime time = now.toLocalTime();
-
-        if (!isTradingDay(exchange, date)) {
-            LocalDate next = nextTradingDay(exchange, date.plusDays(1));
-            return snapshot(
-                exchange,
-                MarketPhase.HOLIDAY,
-                now,
-                next.atTime(INDIA_PRE_OPEN_START).atZone(INDIA_ZONE),
-                next,
-                INDIA_ZONE
-            );
-        }
-        if (time.isBefore(INDIA_PRE_OPEN_START)) {
-            return snapshot(
-                exchange,
-                MarketPhase.AFTER_MARKET,
-                now,
-                date.atTime(INDIA_PRE_OPEN_START).atZone(INDIA_ZONE),
-                date,
-                INDIA_ZONE
-            );
-        }
-        if (time.isBefore(INDIA_PRE_OPEN_MATCHING)) {
-            return snapshot(
-                exchange,
-                MarketPhase.PRE_OPEN_ORDER_ENTRY,
-                now,
-                date.atTime(INDIA_PRE_OPEN_MATCHING).atZone(INDIA_ZONE),
-                date,
-                INDIA_ZONE
-            );
-        }
-        if (time.isBefore(INDIA_PRE_OPEN_BUFFER)) {
-            return snapshot(
-                exchange,
-                MarketPhase.PRE_OPEN_MATCHING,
-                now,
-                date.atTime(INDIA_PRE_OPEN_BUFFER).atZone(INDIA_ZONE),
-                date,
-                INDIA_ZONE
-            );
-        }
-        if (time.isBefore(INDIA_REGULAR_OPEN)) {
-            return snapshot(
-                exchange,
-                MarketPhase.PRE_OPEN_BUFFER,
-                now,
-                date.atTime(INDIA_REGULAR_OPEN).atZone(INDIA_ZONE),
-                date,
-                INDIA_ZONE
-            );
-        }
-        if (time.isBefore(INDIA_REGULAR_CLOSE)) {
-            return snapshot(
-                exchange,
-                MarketPhase.REGULAR,
-                now,
-                date.atTime(INDIA_REGULAR_CLOSE).atZone(INDIA_ZONE),
-                date,
-                INDIA_ZONE
-            );
-        }
-
-        LocalDate next = nextTradingDay(exchange, date.plusDays(1));
-        return snapshot(
-            exchange,
-            MarketPhase.AFTER_MARKET,
-            now,
-            next.atTime(INDIA_PRE_OPEN_START).atZone(INDIA_ZONE),
-            next,
-            INDIA_ZONE
-        );
+    private MarketSessionSnapshot nextSession(MarketExchange exchange, ZonedDateTime now, MarketPhase phase) {
+        var next = nextTradingDay(exchange, now.toLocalDate().plusDays(1));
+        if (next == null) return unavailable(exchange, now);
+        var start = isUnitedStatesExchange(exchange) ? LocalTime.of(4, 0) : calendar.day(exchange, next).preOpen();
+        return snapshot(exchange, phase, now, next, start, next);
     }
 
-    private MarketSessionSnapshot unitedStatesAt(
-        MarketExchange exchange,
-        ZonedDateTime input
-    ) {
-        ZonedDateTime now = input.withZoneSameInstant(UNITED_STATES_ZONE);
-        LocalDate date = now.toLocalDate();
-        LocalTime time = now.toLocalTime();
-
-        if (!isTradingDay(exchange, date)) {
-            LocalDate next = nextTradingDay(exchange, date.plusDays(1));
-            return snapshot(
-                exchange,
-                MarketPhase.HOLIDAY,
-                now,
-                next.atTime(US_PRE_MARKET_OPEN).atZone(UNITED_STATES_ZONE),
-                next,
-                UNITED_STATES_ZONE
-            );
-        }
-        if (time.isBefore(US_PRE_MARKET_OPEN)) {
-            return snapshot(
-                exchange,
-                MarketPhase.AFTER_MARKET,
-                now,
-                date.atTime(US_PRE_MARKET_OPEN).atZone(UNITED_STATES_ZONE),
-                date,
-                UNITED_STATES_ZONE
-            );
-        }
-        if (time.isBefore(US_REGULAR_OPEN)) {
-            return snapshot(
-                exchange,
-                MarketPhase.PRE_MARKET,
-                now,
-                date.atTime(US_REGULAR_OPEN).atZone(UNITED_STATES_ZONE),
-                date,
-                UNITED_STATES_ZONE
-            );
-        }
-        if (time.isBefore(US_REGULAR_CLOSE)) {
-            return snapshot(
-                exchange,
-                MarketPhase.REGULAR,
-                now,
-                date.atTime(US_REGULAR_CLOSE).atZone(UNITED_STATES_ZONE),
-                date,
-                UNITED_STATES_ZONE
-            );
-        }
-        if (time.isBefore(US_AFTER_HOURS_CLOSE)) {
-            return snapshot(
-                exchange,
-                MarketPhase.AFTER_HOURS,
-                now,
-                date.atTime(US_AFTER_HOURS_CLOSE).atZone(UNITED_STATES_ZONE),
-                date,
-                UNITED_STATES_ZONE
-            );
-        }
-
-        LocalDate next = nextTradingDay(exchange, date.plusDays(1));
-        return snapshot(
-            exchange,
-            MarketPhase.AFTER_MARKET,
-            now,
-            next.atTime(US_PRE_MARKET_OPEN).atZone(UNITED_STATES_ZONE),
-            next,
-            UNITED_STATES_ZONE
-        );
+    public boolean isCalendarKnown(MarketExchange exchange, LocalDate date) {
+        return calendar.day(exchange, date).known();
     }
 
     public boolean isTradingDay(MarketExchange exchange, LocalDate date) {
-        DayOfWeek day = date.getDayOfWeek();
-        return day != DayOfWeek.SATURDAY
-            && day != DayOfWeek.SUNDAY
-            && !holidays.existsByExchangeAndHolidayDate(exchange, date);
+        return calendar.day(exchange, date).trading() && !holidays.existsByExchangeAndHolidayDate(exchange, date);
     }
 
+    /** Null means an unverified date was reached; never silently skip an unknown special session. */
     public LocalDate nextTradingDay(MarketExchange exchange, LocalDate from) {
-        LocalDate candidate = from;
-        for (int attempts = 0; attempts < 370; attempts++) {
-            if (isTradingDay(exchange, candidate)) {
-                return candidate;
-            }
-            candidate = candidate.plusDays(1);
+        for (var candidate = from; candidate.isBefore(from.plusDays(370)); candidate = candidate.plusDays(1)) {
+            if (!isCalendarKnown(exchange, candidate)) return null;
+            if (isTradingDay(exchange, candidate)) return candidate;
         }
-        throw new IllegalStateException("Could not resolve the next trading day");
+        return null;
+    }
+
+    /** Rechecked under the order lock so an expiry scan cannot expire next-session orders. */
+    public boolean hasSessionEnded(MarketExchange exchange, LocalDate orderDate) {
+        var now = clock.instant().atZone(zone(exchange));
+        if (orderDate.isBefore(now.toLocalDate())) return true;
+        if (orderDate.isAfter(now.toLocalDate())) return false;
+        var day = calendar.day(exchange, orderDate);
+        return day.known() && (!isTradingDay(exchange, orderDate) || !now.toLocalTime().isBefore(day.close()));
     }
 
     public boolean isUnitedStatesExchange(MarketExchange exchange) {
-        return exchange == MarketExchange.NASDAQ
-            || exchange == MarketExchange.NYSE
-            || exchange == MarketExchange.NYSE_ARCA
-            || exchange == MarketExchange.AMEX
-            || exchange == MarketExchange.CBOE;
+        return exchange == MarketExchange.NASDAQ || exchange == MarketExchange.NYSE
+            || exchange == MarketExchange.NYSE_ARCA || exchange == MarketExchange.AMEX || exchange == MarketExchange.CBOE;
     }
 
-    private MarketSessionSnapshot snapshot(
-        MarketExchange exchange,
-        MarketPhase phase,
-        ZonedDateTime now,
-        ZonedDateTime nextTransition,
-        LocalDate orderDate,
-        ZoneId zone
-    ) {
-        return new MarketSessionSnapshot(
-            exchange,
-            phase,
-            zone.getId(),
-            now,
-            nextTransition,
-            orderDate
-        );
+    private MarketSessionSnapshot unavailable(MarketExchange exchange, ZonedDateTime now) {
+        return new MarketSessionSnapshot(exchange, MarketPhase.CALENDAR_UNAVAILABLE, now.getZone().getId(), now, null, null);
+    }
+
+    private MarketSessionSnapshot snapshot(MarketExchange exchange, MarketPhase phase, ZonedDateTime now,
+        LocalDate transitionDate, LocalTime transitionTime, LocalDate orderDate) {
+        return new MarketSessionSnapshot(exchange, phase, now.getZone().getId(), now,
+            transitionDate.atTime(transitionTime).atZone(now.getZone()), orderDate);
     }
 }

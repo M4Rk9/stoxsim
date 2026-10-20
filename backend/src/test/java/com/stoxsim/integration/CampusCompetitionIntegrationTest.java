@@ -266,7 +266,7 @@ class CampusCompetitionIntegrationTest {
     private Competition create(AppUser manager,UUID institution,int capacity) { return service.create(manager.getId(),institution,new NewCompetition("Campus challenge",null,Instant.now().plusSeconds(86400),capacity)); }
     private void value(AppUser user,String total,PricingStatus pricing,boolean hasHolding) {
         BigDecimal z=BigDecimal.ZERO;
-        List<PortfolioPositionResponse> holdings=hasHolding?List.of(new PortfolioPositionResponse(UUID.randomUUID(),"NSE","TEST","Test","INR",1,0,1,z,z,z,z,z,z,pricing,Instant.now())):List.of();
+        List<PortfolioPositionResponse> holdings=hasHolding?List.of(new PortfolioPositionResponse(UUID.randomUUID(),"NSE","TEST","Test","INR",1,0,1,z,z,z,z,z,z,pricing,Instant.now(),"EXTERNAL")):List.of();
         when(valuations.value(user.getId(),MarketRegion.INDIA)).thenReturn(new PortfolioResponse(MarketRegion.INDIA,"INR",new BigDecimal("500000"),z,z,z,z,z,z,z,new BigDecimal(total),z,pricing,Instant.now(),holdings));
     }
     private void expectStatus(int expected,Runnable action) { assertThatThrownBy(action::run).isInstanceOfSatisfying(ResponseStatusException.class,e->assertThat(e.getStatusCode().value()).isEqualTo(expected)); }

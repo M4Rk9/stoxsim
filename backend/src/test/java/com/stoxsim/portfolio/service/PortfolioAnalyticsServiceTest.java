@@ -142,7 +142,8 @@ class PortfolioAnalyticsServiceTest {
             BigDecimal.ZERO,
             BigDecimal.ZERO,
             status,
-            Instant.parse("2026-08-26T12:00:00Z")
+            Instant.parse("2026-08-26T12:00:00Z"),
+            "EXTERNAL"
         );
     }
 }

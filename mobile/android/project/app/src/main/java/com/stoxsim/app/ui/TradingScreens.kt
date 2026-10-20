@@ -59,6 +59,7 @@ import java.math.RoundingMode
         ValueRow("Unrealized P/L", money(p?.unrealized, state.currency), p?.unrealized)
         ValueRow("Total return", percent(p?.returnPercent), p?.returnPercent)
         ValueRow("All-time P/L", money(p?.profitLoss, state.currency), p?.profitLoss)
+        PortfolioPricingNotice(p)
         p?.let { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Status(it.status); Muted("Valued ${time(it.valuedAt)}") } }
         SectionError(state, "portfolio")
     }
@@ -138,6 +139,7 @@ import java.math.RoundingMode
             Status(m?.text("phase") ?: "UNAVAILABLE")
         }
         Muted(m?.text("timezone") ?: if (state.region == "INDIA") "Asia/Kolkata" else "America/New_York")
+        if (m?.text("phase") == "CALENDAR_UNAVAILABLE") Muted("The exchange schedule is not yet verified. Order entry is temporarily unavailable; existing orders can still be cancelled.")
         ValueRow("Next transition", time(m?.text("nextTransition").orEmpty()))
         Muted("Stream: ${state.streamStatus.lowercase()} · Quote status and timestamps show price freshness.")
         SectionError(state, "market")
@@ -222,6 +224,7 @@ import java.math.RoundingMode
                 Column(Modifier.fillMaxWidth()) { Text(item.text("symbol"), fontWeight = FontWeight.Bold); Muted(item.text("name")) }
             }
             ValueRow(money(item.decimal("lastPrice"), item.text("currency")), percent(item.decimal("changePercent")), item.decimal("changePercent"))
+            Muted(priceSourceLabel(item.text("pricingSource")))
             Row(verticalAlignment = Alignment.CenterVertically) { Status(item.text("dataStatus")); Spacer(Modifier.weight(1f)); TextButton({ remove(item.text("itemId")) }, enabled = !state.working) { Text("Remove") } }
             Muted(time(item.text("exchangeTimestamp")))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -237,6 +240,7 @@ import java.math.RoundingMode
         Text(instrument.name)
         Text(money(quote?.price, instrument.currency), style = MaterialTheme.typography.headlineLarge)
         if (delta != null) Text(percent(delta), color = tone(delta))
+        PricingNotice(quote?.pricingSource ?: "UNKNOWN")
         Status(quote?.status ?: "UNAVAILABLE"); Muted("Quote ${time(quote?.at.orEmpty())}")
         SectionError(state, "quote")
         WatchStockButton(state, instrument, model::watch)
@@ -276,6 +280,7 @@ import java.math.RoundingMode
     val draft = if (valid) OrderDraft(state.accountId, instrument, side, type, qty!!, if (type == "LIMIT") price else null) else null
     var estimateFor by remember { mutableStateOf<OrderDraft?>(null) }
     Panel("PAPER ORDER", "Place a practice order") {
+        PricingNotice(state.quote?.pricingSource ?: "UNKNOWN")
         Muted("${state.account?.label ?: "No practice account"} · SIMULATED · ${instrument.currency}")
         ChoiceRow(listOf("BUY" to "Buy", "SELL" to "Sell"), side, !state.working) { side = it }
         ChoiceRow(listOf("MARKET" to "Market", "LIMIT" to "Limit"), type, !state.working) { type = it }

@@ -1,5 +1,7 @@
 "use client";
 
+import { PortfolioPricingNotice } from "../components/PricingNotice";
+
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./portfolio.module.css";
@@ -50,6 +52,7 @@ interface Holding {
   marketValue: number;
   unrealizedProfitLoss: number;
   returnPercent: number;
+  pricingSource?: string;
   pricingStatus: string;
 }
 
@@ -66,6 +69,7 @@ interface Portfolio {
   totalProfitLoss: number;
   totalAccountValue: number;
   totalReturnPercent: number;
+  pricingSource?: string;
   dataStatus: string;
   valuedAt: string;
   holdings: Holding[];
@@ -80,6 +84,7 @@ interface PortfolioAllocation {
   accountWeightPercent: number;
   unrealizedProfitLoss: number;
   returnPercent: number;
+  pricingSource?: string;
   pricingStatus: string;
 }
 
@@ -294,6 +299,7 @@ export default function PortfolioPage() {
     {loading && <div className={styles.loading} role="status" aria-live="polite">Loading current holdings…</div>}
 
     {portfolio && <>
+      <PortfolioPricingNotice holdings={portfolio.holdings} />
 
       <section className={styles.metrics}>
         <article><span>Account value</span><strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong><small>Started with {money(portfolio.startingCapital, portfolio.currency)}</small></article>

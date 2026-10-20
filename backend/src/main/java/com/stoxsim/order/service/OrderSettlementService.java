@@ -91,7 +91,7 @@ public class OrderSettlementService {
             return false;
         }
         var session = sessions.current(order.getInstrument().getExchange());
-        if (!session.executable() || order.getSubmittedForDate().isAfter(session.orderDate())) {
+        if (!session.executable() || !order.getSubmittedForDate().equals(session.orderDate())) {
             return false;
         }
 

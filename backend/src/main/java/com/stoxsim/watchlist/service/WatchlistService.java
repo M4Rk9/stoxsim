@@ -141,10 +141,11 @@ public class WatchlistService {
                 change,
                 changePercent(change, quote.previousClose()),
                 marketData.status(instrument, quote).name(),
-                quote.exchangeTimestamp() == null ? quote.receivedAt() : quote.exchangeTimestamp()
+                quote.exchangeTimestamp() == null ? quote.receivedAt() : quote.exchangeTimestamp(),
+                quote.simulated() ? "SIMULATED" : "EXTERNAL"
             );
         } catch (RuntimeException exception) {
-            return itemResponse(item, null, null, null, "UNAVAILABLE", null);
+            return itemResponse(item, null, null, null, "UNAVAILABLE", null, "UNAVAILABLE");
         }
     }
 
@@ -154,7 +155,8 @@ public class WatchlistService {
         BigDecimal change,
         BigDecimal changePercent,
         String dataStatus,
-        java.time.Instant exchangeTimestamp
+        java.time.Instant exchangeTimestamp,
+        String pricingSource
     ) {
         TradableInstrument instrument = item.getInstrument();
         return new WatchlistItemResponse(
@@ -174,7 +176,8 @@ public class WatchlistService {
             changePercent,
             dataStatus,
             exchangeTimestamp,
-            item.getCreatedAt()
+            item.getCreatedAt(),
+            pricingSource
         );
     }
 

@@ -25,6 +25,7 @@ class MarketDataServiceTest {
         var providers=mock(MarketDataProviderRegistry.class); when(providers.forRegion(any())).thenThrow(new IllegalStateException("offline"));
         var service=new MarketDataService(mock(TradableInstrumentRepository.class),providers,cache,new UpstoxMarketDataProperties(),mock(IndiaMarketSessionService.class));
         var i=instrument(); var first=service.latestQuote(i); var second=service.latestQuote(i);
+        assertThat(first.exchangeTimestamp()).isNull(); assertThat(first.open()).isNull(); assertThat(first.volume()).isNull();
         assertThat(first.simulated()).isTrue(); assertThat(first.lastPrice()).isPositive();
         assertThat(first.bid()).isEqualByComparingTo(first.lastPrice()); assertThat(first.ask()).isEqualByComparingTo(first.lastPrice());
         assertThat(second.lastPrice()).isEqualByComparingTo(first.lastPrice()); assertThat(service.isStale(first)).isFalse();
@@ -33,6 +34,7 @@ class MarketDataServiceTest {
         var service=new MarketDataService(null,null,null,new UpstoxMarketDataProperties(),null);
         var anchor=new Quote(new InstrumentKey("TEST","TEST:AAPL",MarketRegion.UNITED_STATES),new BigDecimal("123.45"),new BigDecimal("1"),new BigDecimal("999"),null,null,null,null,new BigDecimal("120"),10L,Instant.EPOCH,Instant.EPOCH);
         var quote=service.simulatedQuote(instrument(),anchor);
+        assertThat(quote.exchangeTimestamp()).isEqualTo(Instant.EPOCH);
         assertThat(quote.simulated()).isTrue(); assertThat(quote.lastPrice()).isEqualByComparingTo("123.45");
         assertThat(quote.bid()).isEqualByComparingTo("123.45"); assertThat(quote.ask()).isEqualByComparingTo("123.45");
         assertThat(quote.previousClose()).isEqualByComparingTo("120"); assertThat(service.isStale(quote)).isFalse();

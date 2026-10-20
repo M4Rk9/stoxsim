@@ -48,7 +48,7 @@ public class PortfolioHistoryCollector {
         if(db.queryForObject("SELECT count(*) FROM portfolio_history WHERE account_id=? AND observed_day=?",Integer.class,id,day)>0) return;
         var value=valuation.valueForAccount(account.getUserId(),id);
         boolean valid=value.holdings().stream().allMatch(p->
-            (p.pricingStatus().name().equals("LIVE")||p.pricingStatus().name().equals("CLOSED"))
+            "EXTERNAL".equals(p.pricingSource()) && (p.pricingStatus().name().equals("LIVE")||p.pricingStatus().name().equals("CLOSED"))
             && p.priceTimestamp()!=null && !p.priceTimestamp().isAfter(now)
             && p.priceTimestamp().atZone(zone(region)).toLocalDate().equals(day)
             && p.currency().equals(account.getCurrency()));
@@ -61,7 +61,7 @@ public class PortfolioHistoryCollector {
             } else {
                 var quote=market.getQuote(region,MarketExchange.NYSE_ARCA,"SPY");
                 var timestamp=quote.exchangeTimestamp();
-                if(timestamp!=null && timestamp.atZone(zone(region)).toLocalDate().equals(day) && !timestamp.isAfter(now)
+                if("EXTERNAL".equals(quote.pricingSource()) && timestamp!=null && timestamp.atZone(zone(region)).toLocalDate().equals(day) && !timestamp.isAfter(now)
                     && (quote.dataStatus().name().equals("LIVE")||quote.dataStatus().name().equals("CLOSED"))) benchmark=quote.lastPrice();
             }
         } } catch(RuntimeException unavailable) { /* Missing benchmark must not hide portfolio history. */ }

@@ -58,6 +58,7 @@ import com.stoxsim.app.data.*
     }
 }
 @Composable private fun AnalysisSummary(state: AppState) {
+    PortfolioPricingNotice(state.portfolio)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge) }
         Column(Modifier.weight(1f)) { Muted("Starting capital"); Text(money(state.portfolio?.capital, state.currency), style = MaterialTheme.typography.titleLarge) }

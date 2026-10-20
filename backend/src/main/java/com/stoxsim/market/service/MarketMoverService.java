@@ -266,6 +266,7 @@ public class MarketMoverService {
         Quote quote
     ) {
         if (instrument == null
+            || quote.simulated()
             || quote.lastPrice() == null
             || quote.previousClose() == null
             || quote.previousClose().signum() <= 0) {

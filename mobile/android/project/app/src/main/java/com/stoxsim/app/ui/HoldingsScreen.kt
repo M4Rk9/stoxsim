@@ -50,6 +50,7 @@ import java.math.RoundingMode
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         ValueRow("Unrealized return", "${money(p?.unrealized, state.currency)}${returns?.let { " (${percent(it)})" }.orEmpty()}", p?.unrealized)
         ValueRow("Invested", money(p?.invested, state.currency))
+        PortfolioPricingNotice(p)
         p?.let { SnapshotLabel(it.status, it.valuedAt) }
         SectionError(state, "portfolio")
     }
@@ -146,6 +147,7 @@ import java.math.RoundingMode
                     Muted("LTP ${money(position.price, state.currency)}")
                 }
             }
+            Muted(priceSourceLabel(position.pricingSource))
             if (position.status !in listOf("LIVE", "CLOSED")) Status(position.status)
         }
     }
