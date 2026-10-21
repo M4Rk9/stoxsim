@@ -55,6 +55,14 @@ jobs:
       - run: npm run typecheck
       - name: Verify Android website association validation
         run: node --test ../mobile/android/asset-links.test.mjs
+      - name: Prepare Android store review assets
+        run: node ../mobile/android/render-store-assets.mjs
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-store-review-assets-${{ github.event.pull_request.head.sha || github.sha }}
+          path: mobile/android/generated/store-assets/
+          retention-days: 14
+          if-no-files-found: error
       - name: Build and verify browser secret isolation
         run: node ../scripts/verify-frontend-secrets.mjs
 

@@ -38,7 +38,7 @@ existing account entitlements. Purchases are unavailable in this build.
 | --- | --- | --- |
 | App icon | `project/store_icon.png`; native launcher assets | Preview actual exported icon and confirm Console requirements |
 | Screenshots | Native CI captures under `native-review/` in the device report artifact | Capture/review the signed candidate with test data, no email tokens or private balances; choose representative home/search/Finwiz/scenario screens |
-| Feature graphic | Not supplied | Prepare and review against current Console specifications |
+| Feature graphic | `store/feature-graphic.svg`, rendered to opaque 1024×500 PNG | Review rendered copy against the candidate and current Console requirements |
 | Privacy notice | https://stoxsim.com/privacy | Check live URL and actual data practices |
 | Account deletion | https://stoxsim.com/delete-account | Verify live instructions and native deletion flow |
 | Support | support.stoxsim@gmail.com | Confirm monitored mailbox |
@@ -47,3 +47,17 @@ existing account entitlements. Purchases are unavailable in this build.
 No paid-plan pricing, purchase links, guaranteed returns, cash prizes or claim of
 real brokerage trading belongs in this non-payment listing. Any later billing
 release needs its own product terms, purchase verification and store review.
+
+## Prepare the review assets
+
+After `npm ci` in `frontend`, run from the repository root:
+
+```bash
+node mobile/android/render-store-assets.mjs
+```
+
+The output is in `mobile/android/generated/store-assets/`: feature graphic PNG,
+512×512 icon PNG and this listing draft. CI publishes the same files in the
+`android-store-review-assets-<candidate SHA>` artifact. Artwork is promotional
+copy, not a screenshot of the app. Screenshot selection and final Console review
+remain manual; no signing credential or upload permission is used by this script.

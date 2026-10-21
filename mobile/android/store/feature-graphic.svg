@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <rect width="1024" height="500" fill="#102a23"/>
+  <circle cx="1000" cy="40" r="260" fill="#16382e"/>
+  <circle cx="975" cy="500" r="210" fill="#1c4436"/>
+  <g font-family="DejaVu Sans, sans-serif">
+    <text x="64" y="88" fill="#f4f6f1" font-size="34" font-weight="bold">Stox<tspan fill="#a9e6b0">Sim</tspan></text>
+    <rect x="64" y="123" width="250" height="30" rx="15" fill="#244d3e"/>
+    <text x="189" y="144" fill="#c3edc5" text-anchor="middle" font-size="13" letter-spacing="1">LEARN THROUGH PRACTICE</text>
+    <text x="64" y="232" fill="#f4f6f1" font-size="46" font-weight="bold">Your first trade.</text>
+    <text x="64" y="291" fill="#a9e6b0" font-size="46" font-weight="bold">Your next lesson.</text>
+    <text x="64" y="343" fill="#c8d7ca" font-size="19">Explore the stock market with virtual money.</text>
+    <text x="64" y="429" fill="#9db7a7" font-size="15">PAPER TRADING · EDUCATION · DISCOVERY</text>
+    <g transform="translate(660 127)">
+      <rect width="300" height="76" rx="18" fill="#f4f6f1"/>
+      <circle cx="38" cy="38" r="18" fill="#deeadf"/>
+      <text x="38" y="44" text-anchor="middle" fill="#19523a" font-size="18" font-weight="bold">1</text>
+      <text x="72" y="34" fill="#163b2b" font-size="20" font-weight="bold">Practise</text>
+      <text x="72" y="57" fill="#53675a" font-size="14">Stocks and ETFs</text>
+    </g>
+    <g transform="translate(660 221)">
+      <rect width="300" height="76" rx="18" fill="#f4f6f1"/>
+      <circle cx="38" cy="38" r="18" fill="#deeadf"/>
+      <text x="38" y="44" text-anchor="middle" fill="#19523a" font-size="18" font-weight="bold">2</text>
+      <text x="72" y="34" fill="#163b2b" font-size="20" font-weight="bold">Learn</text>
+      <text x="72" y="57" fill="#53675a" font-size="14">Finwiz AI and Learning Path</text>
+    </g>
+    <g transform="translate(660 315)">
+      <rect width="300" height="76" rx="18" fill="#f4f6f1"/>
+      <circle cx="38" cy="38" r="18" fill="#deeadf"/>
+      <text x="38" y="44" text-anchor="middle" fill="#19523a" font-size="18" font-weight="bold">3</text>
+      <text x="72" y="34" fill="#163b2b" font-size="20" font-weight="bold">Explore</text>
+      <text x="72" y="57" fill="#53675a" font-size="14">Scenario Lab and Competitions</text>
+    </g>
+  </g>
+</svg>
