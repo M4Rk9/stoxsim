@@ -83,3 +83,29 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     await testInfo.attach("stock-search-suggestions", { body: await results.locator("..").screenshot(), contentType: "image/png" });
   });
 }
+
+test("home research counts a loaded quote, never a failed quote or a suggestion", async ({ page }) => {
+  const input = await setup(page, route => reply(route, [stock("RELIANCE")]));
+  const events: string[] = [];
+  await page.route("**/api/v1/analytics/events", async route => {
+    if (route.request().method() === "POST") events.push(route.request().postDataJSON().event);
+    await reply(route, {});
+  });
+  let fail = true;
+  await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/quote", route => reply(route,
+    fail ? { message: "Quote unavailable" } : { lastPrice: 200, previousClose: 199, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }, fail ? 503 : 200));
+  await input.fill("reli");
+  await expect(page.locator("#stock-search-results")).toContainText("RELIANCE");
+  expect(events).not.toContain("STOCK_OPENED");
+  await page.locator("#stock-search-results button").click();
+  await expect(page.getByText("Quote unavailable", { exact: true })).toBeVisible();
+  expect(events).not.toContain("STOCK_OPENED");
+  fail = false;
+  await input.fill("reli");
+  await page.locator("#stock-search-results button").click();
+  await expect.poll(() => events.filter(e => e === "STOCK_OPENED").length).toBe(1);
+  await input.fill("reli");
+  await page.locator("#stock-search-results button").click();
+  await expect(page.getByText("Quote unavailable", { exact: true })).toHaveCount(0);
+  expect(events.filter(e => e === "STOCK_OPENED")).toHaveLength(1);
+});

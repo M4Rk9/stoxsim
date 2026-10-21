@@ -1,5 +1,9 @@
 # Post-release delivery milestones
 
+**Current status:** see [non-payment closure — 21 October 2026](NON_PAYMENT_RELEASE_CLOSURE.md).
+The dated rows below preserve historical delivery evidence; payments and VPS-equivalent
+load testing are deferred. No additional VPS purchase is required to finish the code.
+
 This sequence starts after the released v1.0.0 platform, beginner UI completion
 and SEO work. These identifiers apply to this post-release sequence; they do
 not replace the historical launch milestones or feature batches.
@@ -19,11 +23,10 @@ candidate, and a successful production acceptance are separate states.
 
 ## Maintenance alongside the milestones
 
-At the 2026-09-21 review, dependency PRs #118–#121 were open with passing
-reported checks. Review each update and its compatibility before merging;
-especially review major GitHub Actions updates. Keep dependency changes in
-their existing PRs so the M1 feature review remains focused. Passing checks
-alone are not approval to merge or deploy.
+The old #118–#121 dependency list is historical. As of this review, #165 is the
+open dependency PR; its four frontend updates are incorporated in the closure
+candidate and must pass that candidate's full CI. It becomes redundant only after
+merge. No other PR is closed or merged by this work.
 
 ## M1 scope and completion evidence
 

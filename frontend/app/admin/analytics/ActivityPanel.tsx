@@ -11,9 +11,13 @@ interface Activity {
   activation: { eligible: number; immature: number; excluded: number; researched: number;
     watchlisted: number; activated: number; executed: number; percent: number | null; medianHours: number | null };
   retention: { day: number; eligible: number; returned: number; immature: number; excluded: number; percent: number | null }[];
+  featureUsage?: { trackingStartedAt: string; availableFrom: string; fullWindowObserved: boolean;
+    features: { feature: string; learners: number | null }[] };
 }
 const count = (value: number | null) => value == null ? "—" : value.toLocaleString("en-IN");
 const percent = (value: number | null) => value == null ? "—" : `${value.toFixed(1)}%`;
+const featureNames: Record<string, string> = { FINWIZ_USED: "Finwiz answers", SCENARIO_RUN: "Completed scenarios",
+  LEARNING_VIEWED: "Learning Path visits", COMPETITIONS_VIEWED: "Competitions visits" };
 
 export default function ActivityPanel({ from, to, revision }: { from: string; to: string; revision: string }) {
   const [data, setData] = useState<Activity | null>(null);
@@ -69,6 +73,21 @@ export default function ActivityPanel({ from, to, revision }: { from: string; to
       <p>Activation rate: <strong>{percent(funnel.percent)}</strong> · Median time to activation: <strong>
         {funnel.medianHours == null ? "—" : `${funnel.medianHours.toFixed(1)} hours`}</strong></p>
       {funnel.eligible === 0 && <p>No fully observed, mature activation cohort yet.</p>}
+    </div>
+    <div className={styles.panel}>
+      <h3>Feature engagement</h3>
+      {data.featureUsage ? <>
+        <p>Distinct learners using each feature from {from} through {to} (UTC), across web and Android.
+          Repeat use counts once per learner in this range. Answers and scenarios count only after success;
+          visits do not imply lesson completion or competition enrollment.</p>
+        <p>Feature tracking started {data.featureUsage.trackingStartedAt}. Retained coverage begins {data.featureUsage.availableFrom}.</p>
+        {!data.featureUsage.fullWindowObserved && <p>Full feature window not observed. Choose dates within coverage; — does not mean zero usage.</p>}
+        <div className={styles.tableWrap}><table><caption>Distinct learners by feature</caption>
+          <thead><tr><th scope="col">Feature</th><th scope="col">Learners</th></tr></thead>
+          <tbody>{data.featureUsage.features.map(row => <tr key={row.feature}><th scope="row">{featureNames[row.feature] ?? row.feature}</th><td>{count(row.learners)}</td></tr>)}</tbody>
+        </table></div>
+        <p>Administrators, controlled test accounts and deleted learners are excluded. These separate feature counts do not change the activation or retention definitions.</p>
+      </> : <p>Feature engagement is unavailable on this server version.</p>}
     </div>
     <div className={styles.panel}>
       <h3>Return-day retention</h3>

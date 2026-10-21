@@ -22,11 +22,27 @@ public class ActivityRepository {
         return jdbc.queryForObject("SELECT started_at FROM analytics_coverage WHERE singleton", Timestamp.class).toInstant();
     }
 
+    public Instant featureUsageStartedAt() {
+        return jdbc.queryForObject("SELECT feature_usage_started_at FROM analytics_coverage WHERE singleton", Timestamp.class).toInstant();
+    }
+
+    public List<FeatureCount> featureUsage(Instant start, Instant end) {
+        return jdbc.query("""
+            SELECT a.event_name, COUNT(DISTINCT a.user_id) AS learners FROM product_activity a
+            JOIN app_user u ON u.id = a.user_id
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account
+                AND a.event_name IN ('FINWIZ_USED','SCENARIO_RUN','LEARNING_VIEWED','COMPETITIONS_VIEWED')
+                AND a.event_day >= ? AND a.event_day <= ? AND a.first_at >= ? AND a.first_at < ?
+            GROUP BY a.event_name
+            """, (rs, row) -> new FeatureCount(rs.getString("event_name"), rs.getLong("learners")),
+            utcDate(start), utcDate(end), Timestamp.from(start), Timestamp.from(end));
+    }
+
     public long active(Instant start, Instant end) {
         return jdbc.queryForObject("""
             SELECT COUNT(DISTINCT a.user_id) FROM product_activity a
             JOIN app_user u ON u.id = a.user_id
-            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.event_name <> 'ORDER_EXECUTED'
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.event_name IN ('ACTIVE','STOCK_OPENED','WATCHLIST_ADDED','ORDER_SUBMITTED')
                 AND a.event_day >= ? AND a.event_day <= ?
                 AND a.first_at >= ? AND a.first_at < ?
             """, Long.class, utcDate(start), utcDate(end), Timestamp.from(start), Timestamp.from(end));
@@ -36,7 +52,7 @@ public class ActivityRepository {
         return jdbc.query("""
             SELECT event_day, COUNT(DISTINCT a.user_id) AS total FROM product_activity a
             JOIN app_user u ON u.id = a.user_id
-            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.event_name <> 'ORDER_EXECUTED'
+            WHERE u.platform_role = 'USER' AND NOT u.is_test_account AND a.event_name IN ('ACTIVE','STOCK_OPENED','WATCHLIST_ADDED','ORDER_SUBMITTED')
                 AND a.event_day >= ? AND a.event_day <= ?
                 AND a.first_at >= ? AND a.first_at < ?
             GROUP BY event_day ORDER BY event_day
@@ -92,7 +108,7 @@ public class ActivityRepository {
                 COUNT(*) FILTER (WHERE created_at < ?) AS excluded,
                 COUNT(*) FILTER (WHERE created_at >= ? AND return_day < ? AND EXISTS (
                     SELECT 1 FROM product_activity a WHERE a.user_id = cohort.id
-                    AND a.event_day = cohort.return_day AND a.event_name <> 'ORDER_EXECUTED'
+                    AND a.event_day = cohort.return_day AND a.event_name IN ('ACTIVE','STOCK_OPENED','WATCHLIST_ADDED','ORDER_SUBMITTED')
                 )) AS returned
             FROM cohort
             """, (rs, row) -> {

@@ -13,7 +13,8 @@ inbox delivery. Email verification is still required.
 
 Android 0.5.3 sends only version-1 ACTIVE and STOCK_OPENED to the existing
 `POST /api/v1/analytics/events`. A stock open means opening the native stock detail
-screen, not typing a search or receiving a background quote. Foreground signed-in
+screen with a successfully loaded quote (enforced since 0.5.7), not typing a
+search, selecting a result alone, a failed quote request or receiving a background quote. Foreground signed-in
 visits count; no device ID, symbol, email, screen history or background service is
 sent. The existing backend excludes administrators/controlled test accounts and
 uniquely records user/event/UTC-day markers across both web and Android. Metrics

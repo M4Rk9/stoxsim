@@ -6,6 +6,9 @@ rights; provider-dependent work remains gated by `MARKET_DATA_PERMISSION.md`.
 
 ## Current progression
 
+Current implementation and evidence boundaries: [non-payment release closure](NON_PAYMENT_RELEASE_CLOSURE.md).
+The batch records below are historical, not a new outstanding-task list.
+
 The next post-release delivery sequence and its acceptance criteria live in
 [POST_RELEASE_MILESTONES.md](POST_RELEASE_MILESTONES.md). M1 adds the private
 owner overview; it does not mark the remaining premium/campus batches complete.

@@ -103,7 +103,7 @@ public class ProgressionService {
             "THREE_DAY_STREAK",
             "CONSISTENCY",
             "Build a three-day streak",
-            "Record a learning visit on three consecutive local dates. Where visits are not recorded automatically, use the daily check-in button.",
+            "Open StoxSim on three consecutive local dates. Your daily visit is recorded automatically.",
             100,
             3,
             metrics -> metrics.effectiveStreak() >= 3

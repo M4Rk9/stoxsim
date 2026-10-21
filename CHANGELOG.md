@@ -11,6 +11,15 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+### Non-payment closure (Android 0.5.7)
+
+- Record successful home stock research; prevent premature Android stock-open analytics.
+- Add server-only, daily-deduplicated feature engagement and owner dashboard coverage semantics (V124).
+- Reject unverified/fallback Scenario Lab marks without spending credits or marking completion.
+- Update frontend dependencies from #165 and reconcile Android/setup/release documentation.
+- Payments and VPS-equivalent capacity tests remain deferred; deployment/device evidence is separate.
+
+
 ### Medium/low completion
 
 - Android 0.5.2: reviewed pending limit-order edits, complete campus member/moderation

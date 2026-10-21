@@ -35,8 +35,9 @@ public class ScenarioService {
     private final Clock clock;
     private final org.springframework.jdbc.core.JdbcTemplate db;
     private final tools.jackson.databind.ObjectMapper json;
-    public ScenarioService(VirtualAccountRepository accounts, UserSubscriptionRepository subscriptions, PortfolioValuationService valuation, Clock clock, org.springframework.jdbc.core.JdbcTemplate db, tools.jackson.databind.ObjectMapper json) {
-        this.accounts=accounts; this.subscriptions=subscriptions; this.valuation=valuation; this.clock=clock; this.db=db; this.json=json;
+    private final com.stoxsim.analytics.service.ProductActivityService activity;
+    public ScenarioService(VirtualAccountRepository accounts, UserSubscriptionRepository subscriptions, PortfolioValuationService valuation, Clock clock, org.springframework.jdbc.core.JdbcTemplate db, tools.jackson.databind.ObjectMapper json, com.stoxsim.analytics.service.ProductActivityService activity) {
+        this.accounts=accounts; this.subscriptions=subscriptions; this.valuation=valuation; this.clock=clock; this.db=db; this.json=json; this.activity=activity;
     }
     @Transactional
     public Result run(UUID user, UUID accountId, Request request) {
@@ -73,7 +74,8 @@ public class ScenarioService {
         var portfolio = valuation.valueForAccount(user, accountId);
         var now = clock.instant();
         boolean unpriced = portfolio.holdings().stream().anyMatch(p ->
-            (p.pricingStatus() != PricingStatus.LIVE && p.pricingStatus() != PricingStatus.CLOSED)
+            !"EXTERNAL".equals(p.pricingSource())
+            || (p.pricingStatus() != PricingStatus.LIVE && p.pricingStatus() != PricingStatus.CLOSED)
             || p.priceTimestamp() == null || p.priceTimestamp().isAfter(now)
             || !portfolio.currency().equals(p.currency()) || p.currentPrice() == null || p.currentPrice().signum() <= 0);
         if (unpriced) throw new ResponseStatusException(HttpStatus.CONFLICT, "Reliable prices are unavailable for one or more holdings. Refresh prices before running a scenario.");
@@ -94,6 +96,7 @@ public class ScenarioService {
             "Scenarios change no balance, holding, order, portfolio history or competition score."
         ));
         db.update("INSERT INTO scenario_run(user_id,request_id,account_id,request_payload,result_payload) VALUES (?,?,?,?,?)", user, requestId, accountId, payload, json.writeValueAsString(result));
+        activity.record(user, com.stoxsim.analytics.service.ProductActivityEvent.Kind.SCENARIO_RUN);
         return result;
     }
     public record Credits(String plan, int allowance, int remaining, Instant renewsAt) {}

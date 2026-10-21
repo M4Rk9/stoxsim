@@ -1,6 +1,6 @@
 # StoxSim native Android
 
-The Android Studio project is in `project/`. Version 0.5.0 replaces the previous
+The Android Studio project is in `project/`. Current version: **0.5.7 (versionCode 13)**. The app replaces the previous
 Trusted Web Activity launcher with Kotlin and Jetpack Compose. The app's main
 screens run natively and call `https://api.stoxsim.com` directly. Chrome is not
 needed for the main trading, portfolio and learning screens.
@@ -31,19 +31,18 @@ the desktop columns.
 - Eight Finwiz lesson modules and session chat history with question bubbles,
   bounded follow-up context and explicit Send. Local read markers do not award XP.
 - Scenario Lab presets/custom paths and server credit balances; Finwiz questions;
-  learning path/check-ins/achievements; global and private-league competitions.
+  learning path/automatic daily streaks/achievements; global and private-league competitions.
 - Campus discovery, membership/verification requests, competition enrollment and
   standings, organizer competition creation and membership-request review.
 - Profile/email/password controls, verification resend, active-session revocation,
   logout-all, native account deletion, user-selected account export, weekly reports
   and email preferences, and existing plan/sandbox benefits.
 
-This is a native trading/learning implementation, not a paid Play release. Android
-checkout/Play Billing, scoped email verification/reset app links, and the remaining
-campus moderation/platform-administration controls are separate work. No checkout
-buttons are exposed. Legal documents and email reset/verification links still open
-the system browser. See [the parity map](../../docs/ANDROID_WEB_PARITY.md) for
-feature mapping and owner device verification.
+This native build includes scoped email verification/reset links with safe browser
+fallback and campus moderation controls. Payments/Play Billing are deferred and
+purchase buttons are unavailable. Platform analytics and billing administration
+remain web-only. See [the parity map](../../docs/ANDROID_WEB_PARITY.md) and
+[the current closure register](../../docs/NON_PAYMENT_RELEASE_CLOSURE.md).
 
 ## Open and test in Android Studio
 
@@ -51,7 +50,7 @@ From your repository terminal:
 
 ```bash
 git fetch origin
-git switch fix/android-bottom-navigation
+git switch main
 git pull --ff-only
 ```
 
@@ -85,7 +84,7 @@ checks on an emulator. It uses no production account or signing credentials.
 1. Confirm launch shows the native welcome screen without Chrome navigation.
 2. Log in with your existing account; check Home balances against the website.
 3. Close the app completely and reopen; confirm the session restores.
-4. Search an Indian stock and a US stock; unsupported market availability must
+4. Search an NSE stock and ETF (and a US stock in US mode); unsupported market availability must
    show the API's error rather than fabricated results.
 5. Open Portfolio, change markets, refresh and compare holdings/valuation.
 6. Test airplane mode on startup and while signed in; retry after reconnecting.
@@ -94,7 +93,8 @@ checks on an emulator. It uses no production account or signing credentials.
    must refresh/reject and return to sign-in.
 9. Check dark mode, rotation, larger font settings, keyboard visibility and Back.
 10. Test registration only if public registration is enabled. Follow password
-    reset/email verification links in the email browser, then refresh/re-sign in.
+    reset/email verification links in the native app and browser fallback; confirm
+    reset signs out existing sessions. Check Inbox and Spam/Junk after sending mail.
 
 ## Session boundary
 
@@ -120,8 +120,9 @@ No provider, backend, Play service-account or signing secrets belong in this app
 Release signing stays in Android Studio/protected CI secrets. Existing asset-link
 utilities and `twa-manifest.json` are retained as historical website-association
 configuration; regenerating the old Bubblewrap shell would overwrite native work.
-Digital Asset Links are not needed for these native screens. Future verified app
-links require explicitly scoped handlers and the actual Play signing certificate.
+Digital Asset Links are required for verified email-link routing. Scoped handlers
+exist; publish the actual Play app-signing certificate (not the upload certificate)
+using `configure-asset-links.mjs`, then test the signed installation.
 
 Read [the paid launch plan](../../docs/ANDROID_PLAYSTORE_LAUNCH.md) before release.
 
@@ -159,3 +160,12 @@ Activity and native email link validation: [contract](../../docs/ANDROID_ENGAGEM
 - Exact ticker matches and symbol/company prefixes rank first; `RIL` resolves to `RELIANCE`, and spaced names such as `HDFC Bank` match.
 - Clearing or changing the query, opening a result, switching accounts, leaving the screen or signing out invalidates pending suggestions.
 - Deploy the backend migration with this release to quarantine legacy debt records and correct ETF classifications. A full instrument sync applies provider series validation to the remaining catalogue.
+
+## Current release preparation
+
+Use the [non-payment closure checklist](../../docs/NON_PAYMENT_RELEASE_CLOSURE.md)
+and [store listing draft](STORE_LISTING_DRAFT.md). The main branch contains merged
+code; to test a pending PR, check out its branch instead before opening Android Studio.
+Android 0.5.7 records stock research only after a successful quote load. Selecting a
+suggestion or failing to load a quote does not complete the analytics research step.
+Backend V124 adds daily server-recorded feature engagement for both web and Android.

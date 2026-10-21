@@ -1,4 +1,5 @@
 "use client";
+import { recordProductActivity } from "./lib/product-activity";
 
 import { financialValue } from "./lib/financial-units";
 import PricingNotice, { PortfolioPricingNotice, priceSourceLabel } from "./components/PricingNotice";
@@ -941,6 +942,7 @@ export default function Home() {
       );
       setQuote(nextQuote);
       setLimitPrice(String(nextQuote.lastPrice));
+      recordProductActivity("STOCK_OPENED");
     } catch (cause) {
       setQuote(null);
       setError(cause instanceof Error ? cause.message : "Quote unavailable");
