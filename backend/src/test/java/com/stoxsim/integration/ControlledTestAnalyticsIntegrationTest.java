@@ -60,6 +60,7 @@ class ControlledTestAnalyticsIntegrationTest {
         for (var id : additionalLegacy) assertThat(marked(id)).isFalse();
         assertThat(audit(false)).contains("5|1|4|0|4");
         migrate("V120__classify_browser_and_recovery_test_accounts.sql");
+        migrate("V124__feature_usage_analytics.sql");
     }
 
     private void migrate(String name) throws Exception {
@@ -205,4 +206,31 @@ class ControlledTestAnalyticsIntegrationTest {
         assertThat(db.queryForObject("SELECT COUNT(*) FROM product_activity WHERE user_id=? AND event_day=?::date",
             Long.class, real, "2026-10-11")).isEqualTo(1);
     }
+    @Test void featureUsageDeduplicatesAcrossDaysExcludesTestAndAdminAndKeepsV1ActivityStable() {
+        var learner = insert("feature-learner@example.test", "Learner", "USER");
+        var second = insert("feature-second@example.test", "Second", "USER");
+        var admin = insert("feature-admin@example.test", "Admin", "ADMIN");
+        var today = new ProductActivityService(db, Clock.fixed(NOW, ZoneOffset.UTC));
+        var yesterday = new ProductActivityService(db, Clock.fixed(NOW.minusSeconds(86400), ZoneOffset.UTC));
+        for (var kind : new ProductActivityEvent.Kind[]{ProductActivityEvent.Kind.FINWIZ_USED,
+                ProductActivityEvent.Kind.SCENARIO_RUN, ProductActivityEvent.Kind.LEARNING_VIEWED,
+                ProductActivityEvent.Kind.COMPETITIONS_VIEWED}) {
+            for (var id : new UUID[]{learner, admin, legacy}) {
+                today.record(id, kind); today.record(id, kind); yesterday.record(id, kind);
+            }
+        }
+        today.record(second, ProductActivityEvent.Kind.FINWIZ_USED);
+        var repository = new ActivityRepository(db);
+        var counts = repository.featureUsage(NOW.minusSeconds(2 * 86400), NOW.plusSeconds(1));
+        assertThat(counts).hasSize(4);
+        assertThat(counts.stream().filter(c -> c.feature().equals("FINWIZ_USED")).findFirst().orElseThrow().learners()).isEqualTo(2);
+        assertThat(counts.stream().filter(c -> !c.feature().equals("FINWIZ_USED")).map(c -> c.learners())).containsOnly(1L);
+        assertThat(repository.active(NOW.minusSeconds(2 * 86400), NOW.plusSeconds(1))).isZero();
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity", Integer.class)).isEqualTo(9);
+        db.update("UPDATE app_user SET is_test_account=true WHERE id=?", second);
+        assertThat(repository.featureUsage(NOW, NOW.plusSeconds(1)).stream().map(c -> c.learners())).containsOnly(1L);
+        db.update("DELETE FROM app_user WHERE id=?", learner);
+        assertThat(repository.featureUsage(NOW.minusSeconds(2 * 86400), NOW.plusSeconds(1))).isEmpty();
+    }
+
 }

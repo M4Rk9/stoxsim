@@ -95,10 +95,12 @@ class GuidedJourneyIntegrationTest {
         mvc.perform(post("/api/v1/finwiz/ask").with(jwt().jwt(j -> j.subject(user.getId().toString()))).contentType("application/json").content("{}"))
             .andExpect(status().isBadRequest());
         assertThat(journey.state(user.getId()).finwizAsked()).isFalse();
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=? AND event_name='FINWIZ_USED'", Integer.class, user.getId())).isZero();
         mvc.perform(post("/api/v1/finwiz/ask").with(jwt().jwt(j -> j.subject(user.getId().toString()))).contentType("application/json")
             .content("{\"question\":\"Explain diversification\",\"topic\":\"LEARN\"}"))
             .andExpect(status().isOk());
         assertThat(journey.state(user.getId()).finwizAsked()).isTrue();
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=? AND event_name='FINWIZ_USED'", Integer.class, user.getId())).isEqualTo(1);
     }
 
     @Test void featureReadsDoNotRecordVisitsAndAuthenticatedPostsAreIdempotent() throws Exception {
@@ -132,6 +134,7 @@ class GuidedJourneyIntegrationTest {
         assertThat(db.queryForObject("SELECT count(*) FROM guided_journey_event WHERE user_id=?", Integer.class, user.getId())).isEqualTo(2);
         assertThat(journey.state(other.getId()).learningViewed()).isFalse();
         assertThat(journey.state(other.getId()).competitionsViewed()).isFalse();
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=? AND event_name IN ('LEARNING_VIEWED','COMPETITIONS_VIEWED')", Integer.class, user.getId())).isEqualTo(2);
     }
 
     @Test void unsuccessfulFeatureLoadsDoNotRecordVisits() throws Exception {
@@ -142,4 +145,13 @@ class GuidedJourneyIntegrationTest {
         }
         assertThat(db.queryForObject("SELECT count(*) FROM guided_journey_event WHERE user_id=?", Integer.class, missingUser)).isZero();
     }
+    @Test void featureEventsCannotBeSubmittedByClients() throws Exception {
+        for (String kind : java.util.List.of("FINWIZ_USED", "SCENARIO_RUN", "LEARNING_VIEWED", "COMPETITIONS_VIEWED")) {
+            mvc.perform(post("/api/v1/analytics/events").with(jwt().jwt(j -> j.subject(user.getId().toString())))
+                    .contentType("application/json").content("{\"version\":1,\"event\":\"" + kind + "\"}"))
+                .andExpect(status().isBadRequest());
+        }
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=?", Integer.class, user.getId())).isZero();
+    }
+
 }

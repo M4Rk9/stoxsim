@@ -61,7 +61,10 @@ class ScenarioLabIntegrationTest {
         mockPortfolio("INR",PortfolioPositionResponse.PricingStatus.CLOSED,MARK);
     }
     void mockPortfolio(String currency,PortfolioPositionResponse.PricingStatus status,Instant time) {
-        var position=new PortfolioPositionResponse(UUID.randomUUID(),"NSE","TEST","Example",currency,8,2,6,new BigDecimal("90"),new BigDecimal("100"),new BigDecimal("720"),new BigDecimal("800"),new BigDecimal("80"),ZERO,status,time,"EXTERNAL");
+        mockPortfolio(currency, status, time, "EXTERNAL");
+    }
+    void mockPortfolio(String currency,PortfolioPositionResponse.PricingStatus status,Instant time,String source) {
+        var position=new PortfolioPositionResponse(UUID.randomUUID(),"NSE","TEST","Example",currency,8,2,6,new BigDecimal("90"),new BigDecimal("100"),new BigDecimal("720"),new BigDecimal("800"),new BigDecimal("80"),ZERO,status,time,source);
         when(valuation.valueForAccount(user,account)).thenReturn(new PortfolioResponse(MarketRegion.INDIA,"INR",new BigDecimal("1000"),new BigDecimal("150"),new BigDecimal("50"),new BigDecimal("720"),new BigDecimal("800"),ZERO,new BigDecimal("80"),ZERO,new BigDecimal("1000"),ZERO,status,MARK,List.of(position)));
     }
     org.springframework.test.web.servlet.ResultActions run(String body) throws Exception {
@@ -75,6 +78,7 @@ class ScenarioLabIntegrationTest {
             .andExpect(jsonPath("$.cash").value(200)).andExpect(jsonPath("$.positions[0].quantity").value(8)).andReturn().getResponse().getContentAsString();
         var second=run("{\"scenarioId\":\"selloff\",\"version\":1}").andReturn().getResponse().getContentAsString();
         assertThat(journey.state(user).scenarioRun()).isTrue();
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=? AND event_name='SCENARIO_RUN'", Integer.class,user)).isEqualTo(1);
         assertThat(second).isEqualTo(first); assertThat(balances()).isEqualTo(before);
         for(var table:List.of("holding","paper_order","account_ledger","portfolio_history","campus_competition_entry","competition_entry"))
             assertThat(db.queryForObject("SELECT count(*) FROM "+table,Integer.class)).isZero();
@@ -118,4 +122,14 @@ class ScenarioLabIntegrationTest {
         mockPortfolio("INR",PortfolioPositionResponse.PricingStatus.CLOSED,null);run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isConflict());
         mockPortfolio("INR",PortfolioPositionResponse.PricingStatus.LIVE,Instant.now().plusSeconds(3600));run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isConflict());
     }
+    @Test void fallbackPricesDoNotSpendCreditsRecordUsageOrCompleteTheJourney() throws Exception {
+        for (String source : new String[]{"SIMULATED", "COST_BASIS", "UNKNOWN", null}) {
+            mockPortfolio("INR", PortfolioPositionResponse.PricingStatus.CLOSED, MARK, source);
+            run("{\"scenarioId\":\"selloff\",\"version\":1}").andExpect(status().isConflict());
+        }
+        assertThat(db.queryForObject("SELECT scenario_paid_used FROM user_subscription WHERE user_id=?", Integer.class,user)).isZero();
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=?", Integer.class,user)).isZero();
+        assertThat(journey.state(user).scenarioRun()).isFalse();
+    }
+
 }

@@ -114,3 +114,18 @@ test("anonymous visitors and owners emit no product activity", async ({ page }) 
   await page.keyboard.press("Tab");
   expect(events).toHaveLength(0);
 });
+
+for (const observed of [true, false]) test(`feature usage distinguishes ${observed ? "observed counts" : "unobserved history"}`, async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.route("**/api/v1/admin/analytics/activity?**", route => respond(route, 200, { ...activity,
+    featureUsage: { trackingStartedAt: "2026-10-21T10:00:00Z", availableFrom: "2026-10-21T10:00:00Z", fullWindowObserved: observed,
+      features: ["FINWIZ_USED", "SCENARIO_RUN", "LEARNING_VIEWED", "COMPETITIONS_VIEWED"].map((feature, i) => ({ feature, learners: observed ? i : null })) } }));
+  await page.goto("/admin/analytics");
+  const table = page.getByRole("table", { name: "Distinct learners by feature" });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("row").filter({ hasText: "Finwiz answers" })).toContainText(observed ? "0" : "—");
+  await expect(table.getByRole("row").filter({ hasText: "Completed scenarios" })).toContainText(observed ? "1" : "—");
+  await expect(page.getByText(/Full feature window not observed/)).toHaveCount(observed ? 0 : 1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

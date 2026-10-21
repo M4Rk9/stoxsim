@@ -1,8 +1,9 @@
-# StoxSim Android and paid Google Play launch
+# StoxSim Android release and deferred billing
 
 Owner decision: Android first with native app screens. Personal Play Console
-signup has started; the owner reports the $25 registration payment is still
-pending. Plus/Pro purchases must be available at launch. This is a new release track;
+setup was previously reported as started; current Console status is unverified.
+**Current owner decision: payments are deferred.** Prepare the non-payment candidate
+with purchasing disabled; the paid-launch plan below is future work. This is a release track;
 the existing web-release milestones do not prove Android release readiness.
 
 ## Milestones
@@ -13,7 +14,7 @@ the existing web-release milestones do not prove Android release readiness.
 | A2 — Native trading experience | Stock detail/charts, watchlists, orders, sandbox selection and account controls | Implemented, including pending-order edits and campus controls; see ANDROID_WEB_PARITY.md. Real-device acceptance remains required. |
 | A3 — Verified paid subscriptions | Play catalog/client, server verification, acknowledgement, renewals, cancellation/refund and restore | Pending. Existing Razorpay functionality is test-only; public checkout is disabled. |
 | A4 — Installable release and review readiness | Real-device QA, signing/AAB/internal Play installation, store listing, Data safety/deletion, app access and declarations | AAB compilation and protected manual signing workflow prepared; real signed/internal-track installation, device and Console acceptance remain open. |
-| A5 — Testing and publication | License purchases, lifecycle/security QA, required closed testing, production-access application and review | Pending A2–A4. Publication is subject to Google's review. |
+| A5 — Testing and publication | License purchases, lifecycle/security QA, required closed testing, production-access application and review | Non-payment testing/publication depends on A2/A4; purchase testing remains deferred with A3. Publication is subject to Google's review. |
 
 ## Architecture and security boundary
 
@@ -144,3 +145,6 @@ Recheck policies, supported billing libraries and Console requirements at submis
 Signing workflow and exact external acceptance: [MEDIUM_LOW_COMPLETION.md](MEDIUM_LOW_COMPLETION.md).
 Payment work is intentionally deferred to the next batch. Owner-reported Console
 setup in this document is historical; verify current status at submission.
+
+Current implementation/evidence: [non-payment closure](NON_PAYMENT_RELEASE_CLOSURE.md).
+Draft listing and asset inventory: [store copy](../mobile/android/STORE_LISTING_DRAFT.md).

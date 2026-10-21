@@ -107,7 +107,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         activityJob = viewModelScope.launch {
             while (isActive && foreground && mutable.value.user?.id == userId && tracker === activityTracker) {
                 if (!mutable.value.working && emailAction.value == null) {
-                    val events = if (mutable.value.screen == "Stock" && mutable.value.selected != null)
+                    val events = if (mutable.value.hasLoadedStockResearch())
                         listOf(ProductActivity.ACTIVE, ProductActivity.STOCK_OPENED) else listOf(ProductActivity.ACTIVE)
                     for (event in events) {
                         if (!foreground || mutable.value.user?.id != userId || tracker !== activityTracker) break
@@ -321,7 +321,6 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(selected = instrument, screen = "Stock", quote = null, candles = emptyList(),
             data = it.data - "stockInsights", chartMonths = 1, insightPeriod = "quarterly",
             recentStocks = (listOf(instrument) + it.recentStocks.filterNot { recent -> recent.symbol == instrument.symbol && recent.exchange == instrument.exchange && recent.region == instrument.region }).take(10)) }
-        restartProductActivity()
         refresh()
     }
     fun chartRange(months: Long) = runAction {

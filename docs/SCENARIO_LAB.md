@@ -46,6 +46,13 @@ The browser reuses an ID after a transport failure and generates a fresh one aft
 success or edited inputs. Legacy clients without request IDs consume one credit per
 successful request.
 
+Starting holding marks must have EXTERNAL provenance as well as LIVE/CLOSED status,
+a usable non-future timestamp, positive price and matching account currency.
+Simulated anchors, cost-basis fallbacks and unknown sources cannot produce a new
+run. Rejection rolls back the credit debit and records no journey/feature success.
+A successful new run records one daily server-only SCENARIO_RUN marker; idempotent
+replays never spend credits or manufacture later-day engagement.
+
 Scenario runs do not mutate cash, holdings, pending orders, history or rankings.
 Cash and quantities stay fixed. Sector-specific shocks, actual event replays,
 probabilities, fees, FX and rebalancing are outside this model. Calculation details

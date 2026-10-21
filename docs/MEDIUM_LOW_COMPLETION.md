@@ -1,5 +1,9 @@
 # Medium/low backlog completion — 16 October 2026
 
+> Historical batch record. For current implementation and remaining acceptance see
+> [non-payment release closure](NON_PAYMENT_RELEASE_CLOSURE.md). Android analytics,
+> Finwiz tiers and native email links were implemented after this batch.
+
 This change completes the repository implementation work below. Payment systems,
 Android activity analytics, email delivery and Finwiz paid-tier behavior are outside
 this batch. Live purchases remain disabled. No production data or permissions are

@@ -152,3 +152,32 @@ warehouse or read replica only after capacity evidence warrants it.
 ## Android collection
 
 Native Android 0.5.3 contributes foreground ACTIVE and stock-detail STOCK_OPENED markers through the same API and daily uniqueness constraints as the website. No client identifier is added; web/app totals deduplicate. See [collection and failure behavior](ANDROID_ENGAGEMENT_FINWIZ_LINKS.md#android-activity-m2).
+
+## Daily feature engagement — V124
+
+The activity response adds `featureUsage` with its own `trackingStartedAt`,
+`availableFrom`, `fullWindowObserved` and `features` (feature/learners pairs).
+The owner dashboard shows distinct learners per feature over the selected UTC
+range, deduplicated across days and web/Android. It measures use, not session
+frequency or time spent. Existing activation and retention definitions remain
+unchanged; their queries explicitly retain the original four active-day categories.
+
+Server-only categories: `FINWIZ_USED` after a successful answer (including labelled
+educational fallback), `SCENARIO_RUN` after a new successful run, `LEARNING_VIEWED`
+and `COMPETITIONS_VIEWED` after successful visit endpoints. Replaying a scenario's
+request ID returns the existing result without recording a new day's use. Daily
+check-ins do not count as Learning Path visits. Generic client ingestion continues
+to accept ACTIVE/STOCK_OPENED only. Invalid/failed actions do not record success.
+
+Each user/category/day has one row: the expanded maximum is nine rows per learner
+per day. Existing 180-day retention, export, deletion cascade, administrator/test
+exclusion and bounded cleanup apply. No question, stock symbol, prompt, device ID
+or new personal field is collected. Feature markers and their journey/scenario
+writes commit together; a failed transaction cannot leave a successful marker.
+
+V124 establishes new coverage; lifetime journey events are never backfilled into
+daily activity. If the requested range begins before retained feature coverage,
+all four counts are null/— and `fullWindowObserved=false`, rather than partial
+counts masquerading as a full window. This includes the migration's partial UTC
+day. Within a fully observed window, absent events are real zeroes. Today remains
+partial through response time, as with existing activity. Deploy backend before web.

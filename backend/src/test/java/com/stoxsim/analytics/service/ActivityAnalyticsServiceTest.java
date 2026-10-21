@@ -40,8 +40,12 @@ class ActivityAnalyticsServiceTest {
     }
     @Test void incompleteWindowsAndPretrackingDatesAreUnknownNotZero() {
         when(users.findById(id)).thenReturn(Optional.of(owner));
+        when(activity.featureUsageStartedAt()).thenReturn(now.minusSeconds(3600));
         when(activity.startedAt()).thenReturn(Instant.parse("2026-09-20T12:00:00Z"));
         var result = service.overview(id, LocalDate.of(2026,9,19), LocalDate.of(2026,9,21));
+        assertThat(result.featureUsage().fullWindowObserved()).isFalse();
+        assertThat(result.featureUsage().features()).hasSize(4).allMatch(f -> f.learners() == null);
+        verify(activity, never()).featureUsage(any(), any());
         assertThat(result.activeUsers().dau()).isZero();
         assertThat(result.activeUsers().wau()).isNull();
         assertThat(result.activeUsers().mau()).isNull();
@@ -53,6 +57,7 @@ class ActivityAnalyticsServiceTest {
     }
     @Test void retentionExpiryMovesCoverageForwardAndHistoricWindowsStayUnknown() {
         when(users.findById(id)).thenReturn(Optional.of(owner));
+        when(activity.featureUsageStartedAt()).thenReturn(now.minusSeconds(3600));
         when(activity.startedAt()).thenReturn(Instant.parse("2020-01-01T00:00:00Z"));
         var result = service.overview(id, LocalDate.of(2020,1,1), LocalDate.of(2020,1,2));
         assertThat(result.availableFrom()).isEqualTo(LocalDate.of(2026,9,21).minusDays(179).atStartOfDay(ZoneOffset.UTC).toInstant());
@@ -65,4 +70,16 @@ class ActivityAnalyticsServiceTest {
         assertThatThrownBy(() -> service.overview(id, LocalDate.of(2026,1,1), null)).hasMessageContaining("400");
         verifyNoInteractions(activity);
     }
+    @Test void fullyObservedFeatureWindowShowsDistinctCountsAndRealZeroes() {
+        when(users.findById(id)).thenReturn(Optional.of(owner));
+        when(activity.startedAt()).thenReturn(now.minusSeconds(10 * 86400));
+        when(activity.featureUsageStartedAt()).thenReturn(now.minusSeconds(2 * 86400));
+        when(activity.featureUsage(any(), any())).thenReturn(List.of(
+            new com.stoxsim.analytics.api.ActivityOverview.FeatureCount("FINWIZ_USED", 3L)));
+        var result = service.overview(id, LocalDate.of(2026,9,21), LocalDate.of(2026,9,21));
+        assertThat(result.featureUsage().fullWindowObserved()).isTrue();
+        assertThat(result.featureUsage().features().getFirst().learners()).isEqualTo(3);
+        assertThat(result.featureUsage().features().get(1).learners()).isZero();
+    }
+
 }

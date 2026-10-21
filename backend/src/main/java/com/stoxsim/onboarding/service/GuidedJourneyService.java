@@ -16,11 +16,20 @@ public class GuidedJourneyService {
         String nextStep, int completedSteps, int totalSteps, boolean completed) {}
     private final JdbcTemplate db;
     private final AppUserRepository users;
-    public GuidedJourneyService(JdbcTemplate db, AppUserRepository users) { this.db = db; this.users = users; }
+    private final com.stoxsim.analytics.service.ProductActivityService activity;
+    public GuidedJourneyService(JdbcTemplate db, AppUserRepository users,
+            com.stoxsim.analytics.service.ProductActivityService activity) {
+        this.db = db; this.users = users; this.activity = activity;
+    }
 
     @Transactional
     public void record(UUID user, Event event) {
         db.update("INSERT INTO guided_journey_event(user_id, step) VALUES (?, ?) ON CONFLICT DO NOTHING", user, event.name());
+        activity.record(user, switch (event) {
+            case FINWIZ -> com.stoxsim.analytics.service.ProductActivityEvent.Kind.FINWIZ_USED;
+            case LEARNING -> com.stoxsim.analytics.service.ProductActivityEvent.Kind.LEARNING_VIEWED;
+            case COMPETITIONS -> com.stoxsim.analytics.service.ProductActivityEvent.Kind.COMPETITIONS_VIEWED;
+        });
     }
 
     @Transactional(readOnly = true)

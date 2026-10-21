@@ -44,7 +44,18 @@ public class ActivityAnalyticsService {
         return new ActivityOverview("product-activity-v1", range.from(), range.to(), "UTC", now, started, coverage,
             new ActiveUsers(active(1, range, coverage), active(7, range, coverage), active(30, range, coverage)), trend,
             activity.activation(range.start(), range.end(), coverage, now),
-            List.of(1, 7, 30).stream().map(day -> activity.retention(day, range.start(), range.end(), coverage, today)).toList());
+            List.of(1, 7, 30).stream().map(day -> activity.retention(day, range.start(), range.end(), coverage, today)).toList(), features(range, retainedFrom));
+    }
+
+    private FeatureUsage features(AnalyticsPeriod range, Instant retainedFrom) {
+        var started = activity.featureUsageStartedAt();
+        var coverage = started.isAfter(retainedFrom) ? started : retainedFrom;
+        boolean observed = !range.start().isBefore(coverage);
+        var counts = observed ? activity.featureUsage(range.start(), range.end()).stream()
+            .collect(Collectors.toMap(FeatureCount::feature, FeatureCount::learners)) : java.util.Map.<String, Long>of();
+        var features = List.of("FINWIZ_USED", "SCENARIO_RUN", "LEARNING_VIEWED", "COMPETITIONS_VIEWED").stream()
+            .map(name -> new FeatureCount(name, observed ? counts.getOrDefault(name, 0L) : null)).toList();
+        return new FeatureUsage(started, coverage, observed, features);
     }
 
     private Long active(int days, AnalyticsPeriod range, Instant coverage) {
