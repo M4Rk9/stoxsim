@@ -488,6 +488,7 @@ export default function Home() {
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [tradeFeedback, setTradeFeedback] = useState<FinwizPortfolioFeedback | null>(null);
   const selectedRef = useRef<Instrument | null>(null);
+  const quoteRequestRef = useRef<AbortController | null>(null);
 
   const token = session?.accessToken;
   const primaryExchange = marketRegion === "INDIA" ? "NSE" : "NASDAQ";
@@ -659,6 +660,12 @@ export default function Home() {
   }, [token, quote, quantity, limitPrice, orderType, side, selected?.exchange, primaryExchange]);
 
   function persistSession(next: AuthResponse | null) {
+    if (sessionRef.current?.user.id !== next?.user.id) {
+      cancelQuoteRequest();
+      selectedRef.current = null;
+      setSelected(null);
+      setQuote(null);
+    }
     sessionRef.current = next;
     setSession(next);
     if (next) {
@@ -917,8 +924,21 @@ export default function Home() {
     return () => { active = false; window.clearTimeout(timer); controller.abort(); };
   }, [search, searchOpen, searchRetry, marketRegion, token, activeAccountId]);
 
+  function cancelQuoteRequest() {
+    if (!quoteRequestRef.current) return;
+    quoteRequestRef.current.abort();
+    quoteRequestRef.current = null;
+    setWorking(false);
+  }
+
   async function chooseInstrument(instrument: Instrument) {
     if (!token) return;
+    cancelQuoteRequest();
+    const controller = new AbortController();
+    quoteRequestRef.current = controller;
+    const userId = sessionRef.current?.user.id;
+    const isCurrent = () => quoteRequestRef.current === controller && !controller.signal.aborted
+      && selectedRef.current === instrument && sessionRef.current?.user.id === userId;
     searchGeneration.current++;
     setSearchOpen(false);
     setSearchLoading(false);
@@ -938,16 +958,21 @@ export default function Home() {
     try {
       const nextQuote = await authorizedRequest<Quote>(
         `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${instrument.tradingSymbol}/quote`,
-        {},
+        { signal: controller.signal },
       );
+      if (!isCurrent()) return;
       setQuote(nextQuote);
       setLimitPrice(String(nextQuote.lastPrice));
       recordProductActivity("STOCK_OPENED");
     } catch (cause) {
+      if (!isCurrent()) return;
       setQuote(null);
       setError(cause instanceof Error ? cause.message : "Quote unavailable");
     } finally {
-      setWorking(false);
+      if (quoteRequestRef.current === controller) {
+        quoteRequestRef.current = null;
+        setWorking(false);
+      }
     }
   }
 
@@ -1083,6 +1108,7 @@ export default function Home() {
     setError("");
     setNotice("");
     if (!marketChanged) return;
+    cancelQuoteRequest();
     setSelected(null);
     selectedRef.current = null;
     setQuote(null);
