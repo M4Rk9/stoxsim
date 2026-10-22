@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -199,7 +200,7 @@ class FinwizServiceTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1beta/models/gemini-3.6-flash:generateContent", exchange -> {
             body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            byte[] payload = ("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"" + "word ".repeat(1600) + "\"}]}}]}").getBytes(StandardCharsets.UTF_8);
+            byte[] payload = ("{\"candidates\":[{\"finishReason\":\"STOP\",\"content\":{\"parts\":[{\"text\":\"" + "word ".repeat(1600) + "\"}]}}]}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, payload.length); exchange.getResponseBody().write(payload); exchange.close();
         });
@@ -215,6 +216,105 @@ class FinwizServiceTest {
         properties.setMaxOutputTokens(100);
         new FinwizService(properties, contexts, new SimpleMeterRegistry(), access).ask(USER, request);
         assertThat(body.get()).contains("\"maxOutputTokens\":100");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(FinwizDepth.class)
+    void cutOffAnswerUsesTransparentFallbackWithoutRetryOrTierUpgrade(FinwizDepth depth) throws IOException {
+        when(access.depth(USER)).thenReturn(depth);
+        var calls = new AtomicInteger();
+        var properties = providerReturning("""
+            {"candidates":[{"finishReason":"MAX_TOKENS","content":{"parts":[
+              {"text":"Charges affect your results.\\n\\nPractice question\\nIf you make 20 trades"}
+            ]}}]}
+            """, calls);
+        var request = new FinwizRequest("Explain charges and diversification.", Topic.LEARN,
+            ExperienceLevel.BEGINNER, null, null, null);
+        when(contexts.build(request)).thenReturn(new ContextSnapshot(true, "TEST", Instant.now(), "verified metric ".repeat(1000)));
+        var metrics = new SimpleMeterRegistry();
+
+        var response = new FinwizService(properties, contexts, metrics, access).ask(USER, request);
+
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        assertThat(response.answer()).startsWith("Finwiz could not complete this answer.")
+            .contains("general lesson on the selected topic", "Missing values remain unknown")
+            .doesNotContain("If you make 20 trades");
+        assertThat(response.finwizTier()).isEqualTo(depth.name());
+        assertThat(response.answer().length()).isLessThanOrEqualTo(depth.characters);
+        assertThat(response.suggestedQuestions()).hasSize(depth.suggestions);
+        if (depth != FinwizDepth.BASIC) assertThat(response.answer()).contains("Worked example");
+        if (depth == FinwizDepth.FULL) assertThat(response.answer()).contains("Compare assumptions and practise");
+        assertThat(metrics.get("stoxsim.finwiz.responses").tags("provider", "fallback", "result", "provider_incomplete").counter().count()).isEqualTo(1);
+        assertThat(metrics.find("stoxsim.finwiz.responses").tag("result", "success").counter()).isNull();
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"SAFETY", "RECITATION", "OTHER", "FINISH_REASON_UNSPECIFIED", "FUTURE_REASON", ""})
+    void nonCompleteCandidatesCannotLeakPartialText(String finishReason) throws IOException {
+        String reasonField = finishReason.isEmpty() ? "" : "\"finishReason\":\"" + finishReason + "\",";
+        var properties = providerReturning("{\"candidates\":[{" + reasonField
+            + "\"content\":{\"parts\":[{\"text\":\"Partial provider content must not be displayed.\"}]}}]}", new AtomicInteger());
+        var request = new FinwizRequest("Explain cash flow.", Topic.CASH_FLOW, ExperienceLevel.BEGINNER, null, null, null);
+        when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
+
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access).ask(USER, request);
+
+        assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        assertThat(response.answer()).contains("Operating cash flow").doesNotContain("Partial provider content");
+    }
+
+    @Test
+    void selectsOneCompleteCandidateAndOmitsThoughtParts() throws IOException {
+        var properties = providerReturning("""
+            {"candidates":[
+              {"finishReason":"MAX_TOKENS","content":{"parts":[{"text":"Cut off"}]}},
+              {"finishReason":"STOP","content":{"parts":[
+                {"thought":true,"text":"Private reasoning"},
+                {"text":"Cash flow describes cash movements."},
+                {"text":"It differs from profit."}]}},
+              {"finishReason":"STOP","content":{"parts":[{"text":"Alternative answer"}]}}
+            ]}
+            """, new AtomicInteger());
+        var request = new FinwizRequest("Explain cash flow.", Topic.CASH_FLOW, ExperienceLevel.BEGINNER, null, null, null);
+        when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
+
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access).ask(USER, request);
+
+        assertThat(response.provider()).isEqualTo("GEMINI");
+        assertThat(response.answer()).isEqualTo("Cash flow describes cash movements.\nIt differs from profit.");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "{}", "{\"candidates\":[]}",
+        "{\"candidates\":[{\"finishReason\":\"STOP\",\"content\":{\"parts\":[{\"thought\":true,\"text\":\"Private reasoning\"}]}}]}"
+    })
+    void emptyOrThoughtOnlyResponseUsesFallback(String payload) throws IOException {
+        var properties = providerReturning(payload, new AtomicInteger());
+        var request = new FinwizRequest("Explain cash flow.", Topic.CASH_FLOW, ExperienceLevel.BEGINNER, null, null, null);
+        when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access).ask(USER, request);
+        assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        assertThat(response.answer()).doesNotContain("Private reasoning");
+    }
+
+    private FinwizProperties providerReturning(String payload, AtomicInteger calls) throws IOException {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1beta/models/gemini-3.6-flash:generateContent", exchange -> {
+            calls.incrementAndGet();
+            exchange.getRequestBody().readAllBytes();
+            byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        var properties = new FinwizProperties();
+        properties.setApiKey("synthetic-test-key");
+        properties.setBaseUrl("http://127.0.0.1:" + server.getAddress().getPort());
+        return properties;
     }
 
     @Test
