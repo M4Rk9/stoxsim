@@ -111,6 +111,12 @@ public class FinwizService {
                 meterRegistry.counter(
                     "stoxsim.finwiz.responses", "provider", "fallback", "result", "provider_incomplete"
                 ).increment();
+                JsonNode candidates = root == null ? null : root.get("candidates");
+                JsonNode first = candidates != null && candidates.isArray() && !candidates.isEmpty()
+                    ? candidates.get(0) : null;
+                LOGGER.warn("Finwiz provider returned no complete answer; finishReason={}, blockReason={}; using educational fallback",
+                    diagnosticReason(first == null ? null : first.get("finishReason")),
+                    diagnosticReason(root == null ? null : root.path("promptFeedback").get("blockReason")));
                 // Do not expose partial text (including safety-stopped candidates),
                 // retry at extra cost, or pretend a cut-off answer is complete.
                 return fallback(request, context, question, depth,
@@ -224,6 +230,18 @@ public class FinwizService {
             if (!answer.isEmpty()) return answer.toString();
         }
         return null;
+    }
+
+    private String diagnosticReason(JsonNode reason) {
+        if (reason == null || reason.isNull()) return "MISSING";
+        // Provider fields are untrusted. Log only known enums, never free text,
+        // response bodies, learner prompts, or exception messages.
+        return switch (reason.asText()) {
+            case "STOP", "MAX_TOKENS", "SAFETY", "RECITATION", "LANGUAGE", "OTHER",
+                 "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "MALFORMED_FUNCTION_CALL",
+                 "IMAGE_SAFETY", "FINISH_REASON_UNSPECIFIED", "BLOCK_REASON_UNSPECIFIED" -> reason.asText();
+            default -> "UNKNOWN";
+        };
     }
 
     private FinwizResponse fallback(

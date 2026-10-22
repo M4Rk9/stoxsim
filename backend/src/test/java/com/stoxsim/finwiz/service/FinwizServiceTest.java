@@ -317,6 +317,40 @@ class FinwizServiceTest {
         return properties;
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"MAX_TOKENS", "UNKNOWN"})
+    void incompleteResponseLogsOnlyAllowlistedDiagnostics(String expectedReason) throws IOException {
+        String secret = java.util.UUID.randomUUID().toString();
+        String finishReason = expectedReason.equals("UNKNOWN") ? secret : expectedReason;
+        String blockReason = expectedReason.equals("UNKNOWN") ? secret : "SAFETY";
+        var properties = providerReturning("{\"promptFeedback\":{\"blockReason\":\"" + blockReason
+            + "\"},\"candidates\":[{\"finishReason\":\"" + finishReason
+            + "\",\"content\":{\"parts\":[{\"text\":\"" + secret + "\"}]}}]}", new AtomicInteger());
+        properties.setApiKey(secret);
+        var request = new FinwizRequest("Explain cash flow: " + secret, Topic.CASH_FLOW,
+            ExperienceLevel.BEGINNER, null, null, null);
+        when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(FinwizService.class);
+        var logs = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        logs.start();
+        logger.addAppender(logs);
+        try {
+            var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access).ask(USER, request);
+            assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+            assertThat(response.toString()).doesNotContain(secret);
+            assertThat(logs.list).hasSize(1);
+            assertThat(logs.list.getFirst().getFormattedMessage()).contains("finishReason=" + expectedReason,
+                "blockReason=" + (expectedReason.equals("UNKNOWN") ? "UNKNOWN" : "SAFETY"));
+            assertThat(logs.list).allSatisfy(event -> {
+                assertThat(event.getFormattedMessage()).doesNotContain(secret);
+                assertThat(event.getThrowableProxy()).isNull();
+            });
+        } finally {
+            logger.detachAppender(logs);
+            logs.stop();
+        }
+    }
+
     @Test
     void rejectsQuestionsAboveTheConfiguredLimit() {
         FinwizProperties properties = new FinwizProperties();
