@@ -80,7 +80,7 @@ The staging workflow performs two provider checks:
 1. A direct Gemini preflight validates `GEMINI_API_KEY`, `GEMINI_MODEL` and the configured thinking level before deployment.
 2. The authenticated StoxSim smoke test calls `/api/v1/finwiz/ask` and requires `provider: GEMINI`.
 
-When Gemini returns an HTTP error, the backend logs its status code and a bounded provider error message without logging the API key. When Gemini returns no visible text, the backend logs the candidate finish reason and prompt block reason. The smoke step prints the returned provider and model and points to the backend diagnostics step.
+When Gemini returns an HTTP error, the backend logs only its status code, never the provider error message or API key. When no completed visible answer is available, the backend logs the first candidate's finish reason and the prompt block reason using an allowlist of known enum values (`MISSING` or `UNKNOWN` otherwise). It records the `provider_incomplete` fallback result without logging response bodies or learner prompts. The smoke step prints the returned provider and model and points to the backend diagnostics step.
 
 ## Grounding
 

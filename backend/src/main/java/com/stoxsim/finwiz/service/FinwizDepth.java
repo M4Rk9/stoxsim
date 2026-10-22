@@ -4,9 +4,9 @@ import com.stoxsim.subscription.domain.SubscriptionPlan;
 
 /** Server-owned educational depth; no request field can select a paid tier. */
 public enum FinwizDepth {
-    BASIC(350, 1800, 2, "Explain the core concept concisely, one simple example and the key limitation."),
-    EXPANDED(650, 3600, 3, "Explain the concept, include a worked numerical example and explain common interpretation mistakes."),
-    FULL(900, 6000, 4, "Include a worked example, compare interpretations or assumptions, explain sensitivity and limitations, and end with a practice exercise.");
+    BASIC(350, 1800, 2, "Aim for at most 100 words. Explain the core concept concisely, one simple example and the key limitation."),
+    EXPANDED(650, 3600, 3, "Aim for at most 200 words. Explain the concept, include a worked numerical example and explain common interpretation mistakes."),
+    FULL(900, 6000, 4, "Aim for at most 280 words. Include a worked example, compare interpretations or assumptions, explain sensitivity and limitations, and end with a practice exercise.");
 
     final int tokens;
     final int characters;
