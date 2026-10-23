@@ -79,6 +79,7 @@ jobs:
           bash scripts/test-production-uptime-workflow.sh
           bash scripts/test-production-deploy-contract.sh
           python3 scripts/test-production-smoke.py
+          PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-calendar-readiness.py
           bash scripts/test-edge-security.sh
           python3 scripts/test-security-merge-gate.py
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/operations -p 'test_*.py'
@@ -240,6 +241,14 @@ jobs:
             frontend/playwright-report
             frontend/test-results
             docker-compose.log
+          if-no-files-found: ignore
+      - name: Upload Home launcher review screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: home-launcher-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/test-results/**/home-launcher.png
+          retention-days: 14
           if-no-files-found: ignore
       - name: Stop application stack
         if: always()

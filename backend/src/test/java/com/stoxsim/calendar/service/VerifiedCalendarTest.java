@@ -68,4 +68,31 @@ class VerifiedCalendarTest {
         assertThat(snapshot.orderDate()).isNull();
         assertThat(service("2026-12-31T11:00:00Z").current(MarketExchange.NSE).allowsOrderEntry()).isFalse();
     }
+
+    @Test void published2027UsClosuresApplyWithoutExtendingIndiaCoverage() {
+        var sessions = service("2027-01-04T15:00:00Z");
+        for (var exchange : new MarketExchange[]{MarketExchange.NASDAQ, MarketExchange.NYSE, MarketExchange.NYSE_ARCA, MarketExchange.AMEX, MarketExchange.CBOE}) {
+            for (var date : new String[]{"2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26", "2027-05-31",
+                    "2027-06-18", "2027-07-05", "2027-09-06", "2027-11-25", "2027-12-24"})
+                assertThat(sessions.isTradingDay(exchange, LocalDate.parse(date))).as("%s %s", exchange, date).isFalse();
+            assertThat(sessions.current(exchange).executable()).isTrue();
+            // No Christmas Eve half-day or Friday New Year's observance in 2027.
+            assertThat(service("2027-12-23T20:00:00Z").current(exchange).executable()).isTrue();
+            assertThat(service("2027-12-31T20:00:00Z").current(exchange).executable()).isTrue();
+            assertThat(service("2028-01-03T15:00:00Z").current(exchange).phase()).isEqualTo(MarketPhase.CALENDAR_UNAVAILABLE);
+        }
+        assertThat(sessions.current(MarketExchange.NSE).phase()).isEqualTo(MarketPhase.CALENDAR_UNAVAILABLE);
+        assertThat(service("2026-12-31T22:00:00Z").current(MarketExchange.NYSE).orderDate()).isEqualTo(LocalDate.of(2027, 1, 4));
+    }
+
+    @Test void published2027EarlyCloseExpiresDayOrdersAndDstStillApplies() {
+        var day = LocalDate.of(2027, 11, 26);
+        assertThat(service("2027-11-26T17:59:59Z").current(MarketExchange.NYSE).executable()).isTrue();
+        var afterClose = service("2027-11-26T18:00:00Z");
+        assertThat(afterClose.current(MarketExchange.NYSE).executable()).isFalse();
+        assertThat(afterClose.hasSessionEnded(MarketExchange.NYSE, day)).isTrue();
+        assertThat(afterClose.current(MarketExchange.NYSE).orderDate()).isEqualTo(LocalDate.of(2027, 11, 29));
+        assertThat(service("2027-03-12T14:30:00Z").current(MarketExchange.NYSE).executable()).isTrue();
+        assertThat(service("2027-03-15T13:30:00Z").current(MarketExchange.NYSE).executable()).isTrue();
+    }
 }
