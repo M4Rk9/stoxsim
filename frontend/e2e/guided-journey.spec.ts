@@ -58,6 +58,15 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     const journey = await setup(page, { nextStep: "FINWIZ", firstTradeExecuted: true }, dark);
     await expect(journey.getByRole("heading", { name: "First trade executed. Understand what happened." })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", dark ? "dark" : "light");
+    const launcher = page.getByRole("link", { name: "Launch Finwiz AI", exact: true });
+    await expect(launcher).toBeInViewport();
+    await expect(launcher).toHaveAttribute("href", "/finwiz");
+    const launcherBox = await launcher.boundingBox();
+    expect(launcherBox!.width).toBeGreaterThanOrEqual(48);
+    expect(launcherBox!.width).toBe(launcherBox!.height);
+    await testInfo.attach(`home-launcher-${width}-${dark ? "dark" : "light"}`, {
+      body: await page.screenshot({ path: testInfo.outputPath("home-launcher.png") }), contentType: "image/png",
+    });
     const cards = journey.locator('a').filter({ has: page.locator('h3') });
     await expect(cards).toHaveCount(4);
     const boxes = await cards.evaluateAll(nodes => nodes.map(n => { const b = n.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }; }));
@@ -67,6 +76,7 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await journey.scrollIntoViewIfNeeded();
+    await expect(launcher).toBeInViewport();
     const control = await page.getByRole("button", { name: "Open account menu for Search Learner" }).boundingBox();
     const section = await journey.boundingBox();
     if (control && section) expect(control.y + control.height <= section.y || control.y >= section.y + section.height).toBe(true);
@@ -74,3 +84,26 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     await testInfo.attach(`journey-${width}-${dark ? "dark" : "light"}`, { body: await journey.screenshot(), contentType: "image/png" });
   });
 }
+
+test("Home circle opens Finwiz with the keyboard without sending an AI question", async ({ page }) => {
+  await setup(page, { nextStep: "COMPLETE", firstTradeExecuted: true });
+  let questions = 0;
+  page.on("request", request => {
+    if (request.method() === "POST" && request.url().includes("/finwiz")) questions++;
+  });
+  const launcher = page.getByRole("link", { name: "Launch Finwiz AI", exact: true });
+  await launcher.focus();
+  await expect(launcher).toBeFocused();
+  await expect(launcher).toHaveCSS("outline-style", "solid");
+  await launcher.press("Enter");
+  await expect(page).toHaveURL(/\/finwiz$/);
+  await expect(launcher).toHaveCount(0);
+  expect(questions).toBe(0);
+});
+
+test("signed-out Home does not show the Finwiz circle", async ({ page }) => {
+  await page.route("**/api/v1/**", route => reply(route, {}, 401));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Launch Finwiz AI", exact: true })).toHaveCount(0);
+});

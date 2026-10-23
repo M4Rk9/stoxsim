@@ -1,0 +1,30 @@
+name: Market calendar coverage
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
+  pull_request:
+    paths:
+      - 'backend/src/main/resources/market-calendar.properties'
+      - 'scripts/*calendar-readiness.py'
+      - '.github/workflows/market-calendar.yml'
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check reviewed coverage has at least 60 days remaining
+        run: python3 scripts/calendar-readiness.py > calendar-readiness.json
+      - name: Record calendar review status
+        if: always()
+        run: |
+          echo '## Reviewed market calendar coverage' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Review official trading schedules and amendments before extending coverage. See docs/market-calendar.md.' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat calendar-readiness.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

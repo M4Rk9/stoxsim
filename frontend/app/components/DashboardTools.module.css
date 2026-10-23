@@ -238,11 +238,16 @@
   color: var(--red);
 }
 
+.quickActionsSpace {
+  /* Allow the last page controls to scroll clear of both floating links. */
+  height: calc(160px + env(safe-area-inset-bottom, 0px));
+}
+
 .quickActions {
   position: fixed;
   z-index: 70;
-  right: max(24px, calc((100vw - 1440px) / 2 + 24px));
-  bottom: 24px;
+  right: max(24px, env(safe-area-inset-right, 0px), calc((100vw - 1440px) / 2 + 24px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -292,7 +297,11 @@
   border-color: var(--ink);
   background: var(--ink);
   color: var(--panel);
-  outline: none;
+}
+
+.finwizLauncher:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 4px;
 }
 
 .finwizCore {
@@ -356,8 +365,8 @@
   }
 
   .quickActions {
-    right: 14px;
-    bottom: 14px;
+    right: max(14px, env(safe-area-inset-right, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   }
 
   .finwizLauncher {
@@ -393,5 +402,5 @@
   }
 }
 
-/* Home has an in-flow Finwiz card; keep its account control anchored to the header. */
+/* Keep Home's account control anchored to the header, clear of the feature cards. */
 .profileMenuHome { position: absolute; }

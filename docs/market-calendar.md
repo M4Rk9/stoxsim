@@ -3,7 +3,8 @@
 ## Calendar coverage and maintenance
 
 `backend/src/main/resources/market-calendar.properties` is the reviewed, versioned
-calendar. Coverage is **1 January–31 December 2026** for India and US cash equities.
+calendar. India coverage is **1 January–31 December 2026**; the US core-session
+model covers **1 January 2026–31 December 2027**.
 It is deliberately not an annual recurrence rule: exchange amendments, exceptional
 closures and weekend trading sessions can differ from a public-holiday calendar.
 
@@ -16,6 +17,16 @@ Sources reviewed on 20 October 2026:
 - [BSE 2026 cash-equity holiday notice 20251212-8](https://www.bseindia.com/markets/MarketInfo/DispNewNoticesCirculars.aspx?page=20251212-8).
 - [NYSE holidays and early closes](https://www.nyse.com/trade/hours-calendars).
 - [Nasdaq 2026 trading calendar](https://www.nasdaqtrader.com/Trader.aspx?id=Calendar).
+
+2027 US extension reviewed on 23 October 2026 against the
+[NYSE cash-equity holidays and early closes](https://www.nyse.com/trade/hours-calendars)
+and its [2027 schedule announcement](https://ir.theice.com/press/news-details/2024/NYSE-Group-Announces-2025-2026-and-2027-Holiday-and-Early-Closings-Calendar/default.aspx).
+The ten closures include observed Juneteenth (18 June), Independence Day (5 July)
+and Christmas (24 December). The sole early close is 26 November at 13:00 ET, with
+the late session ending at 17:00. 23 and 31 December retain normal hours. These
+reviewed dates extend StoxSim's shared US cash-session model, not futures/options
+or overnight trading. India 2027 remains unverified; no festival-date guesses or
+automatic weekday extension have been added.
 
 India instruments use Asia/Kolkata; US instruments use America/New_York, including
 DST. NSE/BSE share the India cash-session model; NASDAQ, NYSE, NYSE_ARCA, AMEX and
@@ -45,6 +56,16 @@ orderDate. Entry/modification and matching fail closed; cancellation is still
 available. The next-session search stops at an unknown date instead of silently
 skipping a possible special session. No external calendar feed or runtime network
 request is needed for order placement.
+
+Run `python3 scripts/calendar-readiness.py` to review the remaining coverage for
+each region. The **Market calendar coverage** workflow runs weekly on main, on
+calendar/tool changes and by manual dispatch. It reports `REVIEW_DUE` below 90
+days and fails below 60 days, on expired/future-only coverage, or on malformed
+coverage. An explicit `UNKNOWN` date also shortens the horizon. The result is in
+the Actions summary; enable GitHub workflow-failure notifications for maintainers.
+This checks the checked-out calendar, not what is deployed or whether an exchange
+has issued a new amendment. Review sources and deploy updates separately. The
+workflow never extends coverage, edits dates, or places orders.
 
 The expiry job runs every minute, including weekends. The exchange-local date and
 closing time are rechecked under the order lock. Matching requires the order's

@@ -1,6 +1,6 @@
 # Native Android / website parity
 
-The website is the product reference. Version 0.5.3 implements its consumer
+The website is the product reference. Version 0.5.7 implements its consumer
 trading/learning flows as native Compose screens using the same Spring APIs,
 accounts and entitlements. It does not embed a WebView or launch a TWA.
 
@@ -82,8 +82,13 @@ account-specific plan eligibility, actual email delivery or production billing.
 
 Owner device checklist:
 
+The owner reported Android testing passed on 23 October 2026. Retain this checklist
+for future changed builds; the report does not identify a Play app-signing
+certificate or prove distribution/email-client acceptance. See
+`LIVE_ACCEPTANCE_2026_10.md` for the evidence boundary.
+
 1. Update the branch, sync Gradle and run with the same debug key; verify version
-   0.5.3, native navigation and that no Chrome chrome appears in core screens.
+   0.5.7 (or the reviewed newer version), native navigation and that no Chrome chrome appears in core screens.
 2. Compare one India and one US account against the website. Select each sandbox;
    verify its account label, currency, balances/holdings and locked state.
 3. Check light/dark appearance, rotation, Back, keyboard, narrow screens and large
@@ -104,8 +109,8 @@ Owner device checklist:
 9. Change profile/appearance/report preference, request verification, view reports,
    and save an account export to a chosen location. Test password/email change,
    session revocation/logout-all and account deletion only on a disposable account.
-10. Do not mark this Play-release ready until A3–A5 and the outstanding parity items
-    are complete and reviewed.
+10. Complete the A4/A5 non-payment distribution checks before declaring Play-release
+    readiness. A3 payments remain deferred and purchasing must stay disabled.
 
 Pro competitions: a separate opt-in board is available in both clients. Active Pro
 access and a future period end are required; test benefits are excluded.

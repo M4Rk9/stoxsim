@@ -1,9 +1,12 @@
-# Non-payment release closure — 21 October 2026
+# Non-payment release closure — updated 23 October 2026
 
 Scope: the web and native Android learner experience, analytics, account flows,
 price/history correctness, release preparation and repository documentation.
-Payments/merchant activation and VPS-equivalent capacity testing are deferred by
-owner decision. This register separates implementation from operational evidence;
+Live payments/merchant activation remain excluded by owner decision. The owner
+requested the remaining non-payment work on 23 October and reported Android
+testing successful. Capacity testing is still awaiting an isolated suitable target;
+the earlier lack of another VPS/machine has not been resolved by that request.
+This register separates implementation from operational evidence;
 it does not assert that merging a PR deploys it or completes Play review.
 
 ## Review and verification map
@@ -15,9 +18,9 @@ it does not assert that merging a PR deploys it or completes Play review.
 | Feature engagement | V124 adds four server-only daily categories and independent observation coverage. Owner dashboard reports distinct learners per feature in the selected UTC range. Tests cover successful actions, failed requests, direct-ingestion denial, duplicates, test/admin exclusion, deletion and unknown windows. | Counts begin at migration, not historical journey completion. First partial date and earlier ranges show unavailable. |
 | Finwiz tiers | Basic/Expanded/Full selected from database entitlement, bounded provider output and deterministic fallback. `FinwizAccessTest`, `FinwizServiceTest`, `FinwizTierIntegrationTest`, browser/native answer tests. | Real provider response quality can vary; synthetic tests do not certify every generated answer. No billing is enabled. |
 | Email / account lifecycle | Contextual spam guidance; scoped native verification/reset with explicit confirmation and browser fallback; encrypted native refresh storage; backend one-time token/session revocation rules. `EmailActionLinkTest`, `EmailLinkLifecycleTest`, `StoxSimApiTest`, auth integration tests, email guidance/layout browser tests. | Actual mail-client routing, delivery and distribution-signing association require the real signed app/email. Inbox placement cannot be guaranteed by source changes. |
-| Calendar / prices / history | PR #166 is on main. Verified 2026 sessions, early-close/DAY expiry safeguards, fallback notices and legacy/gap suppression; USD millions formatting. Scenario Lab now additionally rejects SIMULATED/COST_BASIS/unknown marks without spending credits or recording completion. Calendar/history/scenario integration tests and pricing browser/native tests. | Observe new snapshots after deployment; benchmark retention remains off until permission is confirmed. Calendar coverage ends 31 December 2026. |
+| Calendar / prices / history | PR #166 is on main. Verified 2026 sessions, early-close/DAY expiry safeguards, fallback notices and legacy/gap suppression; USD millions formatting. Scenario Lab now additionally rejects SIMULATED/COST_BASIS/unknown marks without spending credits or recording completion. Calendar/history/scenario integration tests and pricing browser/native tests. | Observe new snapshots after deployment; benchmark retention remains off until permission is confirmed. India calendar coverage ends 31 December 2026; US coverage now ends 31 December 2027. |
 | Competitions / Learning Path | Scoped campus roles, optional enrollment, last-organizer protection, automatic daily visits and persistent progress. `CampusCompetitionIntegrationTest`, `CompetitionServiceTest`, `ProgressionServiceTest`, browser competitions/daily-visit tests and native completion tests. Removed stale manual-check-in mission copy. | Actual organizer/member acceptance remains a deployment check. |
-| Android release | 0.5.7 / versionCode 13; normal CI builds APK/AAB, unit/lint and emulator tests. Protected manual signing workflow and website certificate utility exist. Updated Android Studio instructions, store listing draft and deterministic icon/feature-graphic review artifact. | Upload-key setup, signed internal-track installation, actual Play signing certificate, screenshots and Console declarations/review. |
+| Android release | 0.5.7 / versionCode 13; normal CI builds APK/AAB, unit/lint and emulator tests. Protected manual signing workflow and website certificate utility exist. Updated Android Studio instructions, store listing draft and deterministic icon/feature-graphic review artifact. | Owner reports Android testing passed (23 October). Upload-key setup, signed internal-track installation, actual Play signing certificate, screenshots and Console declarations/review remain external. |
 | Dependencies | Incorporates the four package/lock updates proposed in #165: STOMP 7.5, Next 16.4.2, React/React DOM 19.3.1. Existing scanner API alias remains unchanged. | #165 becomes redundant only after this candidate merges; it is not merged/closed by this work. |
 
 ## Deployment order and rollback
@@ -59,14 +62,49 @@ unmark QA accounts just to make the owner dashboard increase.
   and verify app links from an actual email. Review the listing draft against the
   build and fill Console declarations from actual behavior.
 
+## 23 October completion update
+
+- Restored the circular **Launch Finwiz AI** Home link on the web. It stays visible
+  while scrolling, works with keyboard navigation, respects device safe areas and
+  reduced-motion preferences, and keeps the feature cards. Additional bottom space
+  lets the last page controls scroll clear of the floating links. Opening Finwiz
+  does not automatically ask a question or spend AI quota.
+- Android already has a persistent **Finwiz AI** bottom-navigation button on Home.
+  The owner reports successful Android testing on 23 October. No native code or
+  version changes are required for the web launcher fix. Device model, OS, exact
+  build SHA and distribution-signing details were not supplied; this report is not
+  evidence of a Play-installed signed build or specific email-client routing.
+- Extended the US core-session calendar through 2027 from the published NYSE
+  schedule, including observed holidays and the Thanksgiving early close. India
+  still ends in 2026 pending a reviewed official schedule. A weekly coverage check
+  reports approaching expiry before the existing fail-closed behavior takes effect.
+- Repository scan found no additional explicit unimplemented consumer feature
+  marker outside Play subscriptions. The remaining rows below are concrete source,
+  configuration, production acceptance or distribution dependencies; this does not
+  assert that searching TODO markers proves the entire product defect-free.
+
 ## What stays explicitly open
 
 - Live payments and Play Billing: deferred; purchase buttons remain disabled.
-- VPS-equivalent maximum-capacity evidence: deferred; CI is not production capacity.
-- Real backup restore, current deployment acceptance and signed-device/Play review:
-  require operational inputs/access and were not performed by this code PR.
-- Benchmark activation requires provider retention/display permission.
-- 2027 market calendars require reviewed exchange schedules before year-end.
+- VPS-equivalent capacity evidence: existing guarded workflow needs an isolated
+  CPU/RAM-matched target. CI measurements are not production capacity evidence.
+- Real production-backup restore: existing workflow needs the isolated runner,
+  exact offsite backup and read-only backup credentials. Synthetic CI restore
+  remains a useful check, not proof that the production backup can be recovered.
+- Deployment/provider acceptance: fresh learner journey, eligible Scenario Lab run,
+  owner feature counts, real Finwiz tier responses and actual email-link delivery/
+  routing still need evidence not supplied by the general Android pass. D7/D30
+  retention also requires elapsed observation time.
+- Signed distribution/Play review: supply upload-key secrets in the protected
+  environment, use the actual Play app-signing certificate with
+  `mobile/android/configure-asset-links.mjs`, install through an internal track,
+  complete current Console declarations/screenshots and submit for review. Never
+  substitute the upload/debug certificate for the distribution certificate.
+- Benchmark activation: provider retention/display permission must be confirmed
+  before enabling the existing default-off deployment flag. Do not fabricate
+  historical observations.
+- India 2027 calendar: obtain and review the official cash-equity trading schedule,
+  update exceptions/coverage and deploy before year-end. US 2027 is implemented.
 
 A second VPS is not a prerequisite for code completion. Existing recovery/load
 scripts enforce isolated-target safeguards; do not point them at production or

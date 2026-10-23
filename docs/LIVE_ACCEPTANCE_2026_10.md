@@ -40,7 +40,14 @@ Regression tests cover MAX_TOKENS at every tier, unknown/missing and blocked
 finish reasons, empty/thought-only output, candidate isolation, no retries and
 fallback observability. Live acceptance of this fix must follow its deployment.
 
-## Android evidence and remaining device acceptance
+## Android evidence and remaining distribution acceptance
+
+On 23 October the owner reported: Android testing completed successfully. Record
+this as an owner-reported device pass. Device/OS/build SHA and whether installation
+used Play app signing were not provided. Do not infer actual email-client routing,
+owner analytics or a specific credit-consuming Scenario Lab run from that general
+confirmation. The checklist below is retained as the test scope/reference, not a
+request to repeat all already-passed Android tests.
 
 Main Android CI: https://github.com/M4Rk9/stoxsim/actions/runs/39598928861.
 The emulator job completed 54 tests on Android 15. This is automated evidence;
@@ -62,6 +69,6 @@ SDK. Use Android 0.5.7/versionCode 13 (or the subsequent reviewed build), follow
    warm), browser fallback and used/expired links. The user must enter any new
    password. No real email-link completion has yet been observed in this session.
 
-Payments and VPS-equivalent load testing remain explicitly deferred. This record
+Live payments remain excluded. VPS-equivalent load evidence awaits a suitable isolated target. This record
 does not close backup recovery, Play signing/review, or other operational gates in
 `NON_PAYMENT_RELEASE_CLOSURE.md`.
