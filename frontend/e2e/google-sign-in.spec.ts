@@ -69,7 +69,7 @@ test("linking requires a local password and sends it only to StoxSim", async ({ 
       await respond(route, { status: 204 });
     } else await respond(route, { json: { linked: false } });
   });
-  await page.goto("/google-sign-in?manage=1");
+  await page.goto("/google-sign-in/manage");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("button", { name: "Test Google account" })).toHaveCount(0);
   await page.getByLabel("Current StoxSim password").fill("local-password");

@@ -24,10 +24,9 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export default function GoogleSignIn({ scriptNonce }: { scriptNonce?: string }) {
+export default function GoogleSignIn({ scriptNonce, manage = false }: { scriptNonce?: string; manage?: boolean }) {
   const [config, setConfig] = useState<{ clientId: string } | null>(null);
   const [ready, setReady] = useState(false);
-  const [manage, setManage] = useState(false);
   const [linked, setLinked] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,15 +38,13 @@ export default function GoogleSignIn({ scriptNonce }: { scriptNonce?: string }) 
 
   useEffect(() => {
     let active = true;
-    const managing = new URLSearchParams(window.location.search).get("manage") === "1";
-    setManage(managing);
     void post<{ clientId: string }>("config").then(value => { if (active) setConfig(value); })
       .catch(cause => { if (active) setError(cause.message); });
-    if (managing) void authenticated<{ linked: boolean }>("auth/google/link")
+    if (manage) void authenticated<{ linked: boolean }>("auth/google/link")
       .then(value => { if (active) setLinked(value.linked); })
       .catch(() => { if (active) setError("Sign in with your StoxSim password before managing Google sign-in."); });
     return () => { active = false; window.google?.accounts.id.cancel(); };
-  }, []);
+  }, [manage]);
 
   async function prepare(event: FormEvent) {
     event.preventDefault();

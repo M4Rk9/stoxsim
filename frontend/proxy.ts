@@ -7,7 +7,8 @@ export function proxy(request: NextRequest) {
   const socket = `${api.protocol === "https:" ? "wss:" : "ws:"}//${api.host}`;
   const billing = request.nextUrl.pathname === "/admin/billing"
     || request.nextUrl.pathname.startsWith("/admin/billing/");
-  const google = request.nextUrl.pathname === "/google-sign-in";
+  const google = request.nextUrl.pathname === "/google-sign-in"
+    || request.nextUrl.pathname === "/google-sign-in/manage";
   const development = process.env.NODE_ENV === "development";
   const csp = [
     "default-src 'self'", "base-uri 'self'", "form-action 'self'",
