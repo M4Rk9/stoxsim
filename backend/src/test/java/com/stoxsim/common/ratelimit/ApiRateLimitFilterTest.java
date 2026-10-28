@@ -82,7 +82,7 @@ class ApiRateLimitFilterTest {
         var filter = new ApiRateLimitFilter(null, new RateLimitProperties(), new SimpleMeterRegistry()) {
             @Override long increment(String key) { throw new IllegalStateException("Redis offline"); }
         };
-        for (String path : new String[]{"/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/finwiz/ask", "/api/v1/orders"}) {
+        for (String path : new String[]{"/api/v1/auth/google/challenge", "/api/v1/auth/google/login", "/api/v1/auth/google/link", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/finwiz/ask", "/api/v1/orders"}) {
             var response = new MockHttpServletResponse();
             var chain = new MockFilterChain();
             filter.doFilter(new MockHttpServletRequest("POST", path), response, chain);

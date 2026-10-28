@@ -36,6 +36,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FRONTEND_URL: http://localhost:3000
+      GOOGLE_SIGN_IN_ENABLED: ${GOOGLE_SIGN_IN_ENABLED:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       MAIL_HOST: ${MAIL_HOST:-}

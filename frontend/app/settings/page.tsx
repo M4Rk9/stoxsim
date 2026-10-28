@@ -1,5 +1,7 @@
 "use client";
 
+import { GoogleSignInLink } from "../components/GoogleSignInLink";
+
 import { EMAIL_GUIDANCE } from "../lib/email-guidance";
 
 import { FormEvent, useEffect, useState } from "react";
@@ -602,6 +604,7 @@ export default function SettingsPage() {
 
         <form className={styles.card} onSubmit={savePassword}>
           <h2>Change password</h2>
+          <GoogleSignInLink manage />
           <p>Changing your password immediately signs out every device.</p>
           <label>
             Current password

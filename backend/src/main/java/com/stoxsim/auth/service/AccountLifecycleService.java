@@ -382,6 +382,8 @@ public class AccountLifecycleService {
             WHERE user_id = ? AND event_day >= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date - 179
             ORDER BY event_day, event_name
             """, userId));
+        export.put("googleIdentities", jdbcTemplate.queryForList(
+            "SELECT subject, created_at FROM google_identity WHERE user_id = ?", userId));
         export.put("securityEvents", events(userId));
         audit(userId, "ACCOUNT_DATA_EXPORTED", null);
         return export;
