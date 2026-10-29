@@ -128,12 +128,12 @@ export default function GoogleSignIn({ scriptNonce, manage = false, register = f
       {!finished && <form onSubmit={manage && linked && passwordEnabled ? unlink : prepare}>
         {register && <>
           <label>Display name<input required minLength={2} maxLength={100} value={displayName} disabled={busy} onChange={event => setDisplayName(event.target.value)} /></label>
-          <label><input type="checkbox" required checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)} />
-            I accept the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Notice</a>.</label>
+          <label className="legalConsent"><input type="checkbox" required checked={accepted} disabled={busy} onChange={event => setAccepted(event.target.checked)} />
+            <span>I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms of Use</a> and consent to the processing described in the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Notice</a>.</span></label>
         </>}
         {manage && !passwordEnabled && <>
-          <label><input type="checkbox" checked={deleting} disabled={busy} onChange={event => { setDeleting(event.target.checked); button.current?.replaceChildren(); setMessage(""); setConfirmed(false); }} />Permanently delete my account instead</label>
-          {deleting ? <label><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I understand that my account and simulation data will be permanently deleted.</label>
+          <label className="legalConsent"><input type="checkbox" checked={deleting} disabled={busy} onChange={event => { setDeleting(event.target.checked); button.current?.replaceChildren(); setMessage(""); setConfirmed(false); }} /><span>Permanently delete my account instead</span></label>
+          {deleting ? <label className="legalConsent"><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /><span>I understand that my account and simulation data will be permanently deleted.</span></label>
             : <><label>New password<input type="password" autoComplete="new-password" required minLength={8} maxLength={72} value={newPassword} onChange={event => setNewPassword(event.target.value)} /></label>
               <label>Confirm new password<input type="password" autoComplete="new-password" required minLength={8} maxLength={72} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} /></label></>}
         </>}
