@@ -124,6 +124,11 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     }
 
     RateLimitPolicy policyFor(String method, String path) {
+        // Public capability discovery is a read, even though these endpoints use POST.
+        // Page loads must not consume the shared login/registration attempt budget.
+        if (path.equals("/api/v1/auth/google/config") || path.equals("/api/v1/auth/google/native/config")) {
+            return new RateLimitPolicy("general", properties.getGeneralPerMinute());
+        }
         if (path.equals("/api/v1/auth/register")
             || path.equals("/api/v1/auth/login")
             || path.startsWith("/api/v1/auth/google/")
