@@ -30,7 +30,7 @@ import java.util.Locale
 
 @Composable internal fun AuthScreen(
     state: AppState, authenticate: (String, String, String?) -> Unit,
-    forgot: (String) -> Unit, clearMessage: () -> Unit
+    forgot: (String) -> Unit, clearMessage: () -> Unit, google: ((String?, Boolean) -> Unit)? = null
 ) {
     var mode by rememberSaveable { mutableStateOf("login") }
     var email by rememberSaveable { mutableStateOf("") }
@@ -75,6 +75,13 @@ import java.util.Locale
         if (recovering) forgot(email) else { authenticate(email, password, if (register) name else null); password = "" }
     }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
         Text(if (state.working) "Please wait…" else when (mode) { "register" -> "Create account"; "forgot" -> "Send reset link"; else -> "Sign in" })
+    }
+    if (!recovering && google != null) {
+        OutlinedButton(onClick = { password = ""; google(if (register) name else null, accepted) },
+            enabled = !state.working && (!register || (accepted && name.trim().length in 2..100)),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(if (register) "Sign up with Google" else "Sign in with Google") }
+        if (register) Text("Google signup does not require the email or password fields above.", style = MaterialTheme.typography.bodySmall)
+        else Text("For an existing password account, link Google in website Settings first.", style = MaterialTheme.typography.bodySmall)
     }
     if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
     TextButton(onClick = { mode = if (mode == "login") "register" else "login"; password = ""; accepted = false; clearMessage() }, enabled = !state.working) {

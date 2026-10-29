@@ -12,6 +12,6 @@ export function GoogleSignInLink({ manage = false }: { manage?: boolean }) {
     return () => controller.abort();
   }, []);
   return enabled ? <a className="authHelpLink" href={manage ? "/google-sign-in/manage" : "/google-sign-in"}>
-    {manage ? "Manage Google sign-in" : "Sign in with your linked Google account"}
+    {manage ? "Manage Google sign-in" : "Continue with Google"}
   </a> : null;
 }

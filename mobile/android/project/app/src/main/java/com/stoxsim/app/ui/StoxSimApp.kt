@@ -88,7 +88,8 @@ import com.stoxsim.app.R
         }
         when {
             state.restoring || state.restoreFailed -> { LaunchScreen(state, model::restore); return@StoxSimTheme }
-            state.user == null -> { WelcomeScreen(state, model::authenticate, model::forgot, model::clearMessage); return@StoxSimTheme }
+            state.user == null -> { WelcomeScreen(state, model::authenticate, model::forgot, model::clearMessage,
+                google = { name, accepted -> model.googleAuthenticate(context, name, accepted) }); return@StoxSimTheme }
         }
         AppFrame(state, model::openScreen, model::refresh, model::search) {
             LaunchedEffect(state.user?.id, state.screen) {

@@ -25,10 +25,13 @@ public class GoogleAccountService {
     private final AccountLifecycleService lifecycle;
     private final TokenService tokens;
     private final AccountService accounts;
+    private final com.stoxsim.subscription.service.SubscriptionService subscriptions;
+    private final com.stoxsim.release.PublicReleaseGuard release;
     public GoogleAccountService(JdbcTemplate db, AppUserRepository users, PasswordEncoder passwords,
-            AccountLifecycleService lifecycle, TokenService tokens, AccountService accounts) {
+            AccountLifecycleService lifecycle, TokenService tokens, AccountService accounts,
+            com.stoxsim.subscription.service.SubscriptionService subscriptions, com.stoxsim.release.PublicReleaseGuard release) {
         this.db = db; this.users = users; this.passwords = passwords;
-        this.lifecycle = lifecycle; this.tokens = tokens; this.accounts = accounts;
+        this.lifecycle = lifecycle; this.tokens = tokens; this.accounts = accounts; this.subscriptions = subscriptions; this.release = release;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +59,7 @@ public class GoogleAccountService {
     @Transactional
     public AuthResponse login(String subject, String userAgent) {
         var ids = db.query("SELECT user_id FROM google_identity WHERE subject = ?", (rs, row) -> rs.getObject(1, UUID.class), subject);
-        if (ids.isEmpty()) throw new UnauthorizedException("Link Google from your StoxSim settings before using Google sign-in.");
+        if (ids.isEmpty()) throw new UnauthorizedException("No account is linked to this Google account. Create an account with Google, or sign in with your password and link it in Settings.");
         AppUser user = users.findByIdForUpdate(ids.getFirst()).orElseThrow(() -> new UnauthorizedException("Account is unavailable"));
         // Re-check under the same user lock used by unlink, password reset and session creation.
         if (!Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS (SELECT 1 FROM google_identity WHERE subject = ? AND user_id = ?)", Boolean.class, subject, user.getId()))) {
@@ -68,8 +71,64 @@ public class GoogleAccountService {
             UserResponse.from(user, accounts.findByUserId(user.getId())));
     }
 
+    @Transactional
+    public AuthResponse register(GoogleIdentityVerifier.Identity identity, String displayName, boolean termsAccepted, String userAgent) {
+        release.requirePublicRegistration();
+        if (!termsAccepted) throw new IllegalArgumentException("You must accept the Terms and Privacy Notice");
+        if (displayName == null || displayName.trim().length() < 2 || displayName.trim().length() > 100) {
+            throw new IllegalArgumentException("Display name must contain 2–100 characters");
+        }
+        // Google does not establish current ownership of third-party email addresses.
+        if (!identity.authoritativeEmail() || identity.email() == null || identity.email().length() > 320
+                || !identity.email().matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+")) {
+            throw new ConflictException("Use email registration for this Google account, then link Google in Settings.");
+        }
+        String email = identity.email().trim().toLowerCase(java.util.Locale.ROOT);
+        if (users.existsByEmailIgnoreCase(email) || Boolean.TRUE.equals(db.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM google_identity WHERE subject = ?)", Boolean.class, identity.subject()))) {
+            throw new ConflictException("An account already exists. Sign in, or use password recovery and link Google in Settings.");
+        }
+        AppUser user = new AppUser(email, null, displayName.trim());
+        user.acceptLegalDocuments(com.stoxsim.auth.domain.LegalDocumentVersions.TERMS, com.stoxsim.auth.domain.LegalDocumentVersions.PRIVACY);
+        user.markEmailVerified();
+        try {
+        user = users.saveAndFlush(user);
+        accounts.createDefaultAccounts(user);
+        subscriptions.initializeFree(user);
+        db.update("INSERT INTO google_identity(subject, user_id) VALUES (?, ?)", identity.subject(), user.getId());
+        lifecycle.audit(user.getId(), "ACCOUNT_REGISTERED", "google;terms=" + user.getTermsVersion() + ";privacy=" + user.getPrivacyVersion());
+        return login(identity.subject(), userAgent);
+        } catch (org.springframework.dao.DataIntegrityViolationException conflict) {
+            throw new ConflictException("An account already exists. Sign in or recover your existing account.");
+        }
+    }
+
+    @Transactional
+    public void setInitialPassword(UUID userId, String subject, String newPassword) {
+        AppUser user = requireIdentity(userId, subject);
+        if (user.hasPassword()) throw new ConflictException("Use Change password or password recovery to replace an existing password.");
+        user.changePassword(passwords.encode(newPassword));
+        lifecycle.invalidateAccountLinks(userId);
+        lifecycle.revokeAllSessions(userId);
+        lifecycle.audit(userId, "PASSWORD_ADDED", null);
+    }
+
+    @Transactional
+    public void deleteWithGoogle(UUID userId, String subject) {
+        requireIdentity(userId, subject);
+        lifecycle.deleteVerifiedAccount(userId);
+    }
+
+    private AppUser requireIdentity(UUID userId, String subject) {
+        AppUser user = users.findByIdForUpdate(userId).orElseThrow(() -> new UnauthorizedException("Account is unavailable"));
+        if (!Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS (SELECT 1 FROM google_identity WHERE user_id = ? AND subject = ?)",
+                Boolean.class, userId, subject))) throw new UnauthorizedException("Choose the Google account linked to this StoxSim account.");
+        return user;
+    }
+
     private AppUser requirePassword(UUID userId, String password) {
         AppUser user = users.findByIdForUpdate(userId).orElseThrow(() -> new UnauthorizedException("Account is unavailable"));
+        if (!user.hasPassword()) throw new ConflictException("Set a StoxSim password before disconnecting Google.");
         if (password == null || !passwords.matches(password, user.getPasswordHash())) throw new UnauthorizedException("Current password is incorrect");
         return user;
     }

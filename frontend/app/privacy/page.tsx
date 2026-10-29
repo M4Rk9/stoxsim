@@ -25,8 +25,8 @@ export default function PrivacyPage() {
       <section>
         <h2>2. Data we collect</h2>
         <ul>
-          <li>Account data: display name, email address, password hash and email-verification status.</li>
-          <li>Optional Google sign-in: when you link Google, we store its account identifier and the time it was linked. We do not store your Google password or request access to Gmail or Drive. Google processes your sign-in under its own privacy policy.</li>
+          <li>Account data: display name, email address, password hash (if you set a password) and email-verification status.</li>
+          <li>Optional Google sign-in: when you register with or link Google, we store its account identifier and the time it was linked. For new accounts, we use your verified Google email address; you choose a display name and accept our Terms and Privacy Notice. This applies to web and native Android sign-in. We do not store your Google password or request access to Gmail or Drive. Google processes your sign-in under its own privacy policy.</li>
           <li>Security data: session identifiers, user-agent details and account-security events.</li>
           <li>Simulator data: virtual accounts, watchlists, simulated orders, trades, holdings, ledger entries, saved scenarios and results, Scenario Lab credit usage, and saved weekly report snapshots.</li>
           <li>Learning data: XP, levels, check-in streaks, completed missions and unlocked achievements.</li>

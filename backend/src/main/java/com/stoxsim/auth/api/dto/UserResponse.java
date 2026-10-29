@@ -13,6 +13,7 @@ public record UserResponse(
     String displayName,
     boolean emailVerified,
     boolean platformAdmin,
+    boolean passwordLoginEnabled,
     Instant createdAt,
     List<AccountResponse> accounts
 ) {
@@ -23,6 +24,7 @@ public record UserResponse(
             user.getDisplayName(),
             user.isEmailVerified(),
             user.isPlatformAdmin(),
+            user.hasPassword(),
             user.getCreatedAt(),
             accounts.stream().map(AccountResponse::from).toList()
         );

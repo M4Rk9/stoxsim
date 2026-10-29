@@ -40,6 +40,34 @@ class StoxSimApiTest {
         assertNull(request.getHeader("Cookie"))
     }
 
+    @Test fun googleSignupUsesNativeChallengeAndPreservesSecureSessionStorage() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"clientId":"web.apps.googleusercontent.com"}"""))
+        server.enqueue(MockResponse().setBody("""{"binding":"challenge-binding","nonce":"server-nonce"}"""))
+        val challenge = api.googleChallenge()
+        assertEquals("server-nonce", challenge.nonce)
+        assertEquals("/api/v1/auth/google/native/config", server.takeRequest().path)
+        val request = server.takeRequest()
+        assertEquals("/api/v1/auth/google/native/challenge", request.path)
+        assertNull(request.getHeader("Origin"))
+        server.enqueue(session("google-refresh"))
+        api.googleAuthenticate("google-id-token", challenge.binding, " Learner ", true)
+        val signup = server.takeRequest()
+        assertEquals("/api/v1/auth/google/native/register", signup.path)
+        val json = JSONObject(signup.body.readUtf8())
+        assertTrue(json.getBoolean("termsAccepted"))
+        assertEquals("Learner", json.getString("displayName"))
+        assertEquals("challenge-binding", json.getString("binding"))
+        assertFalse(json.has("password"))
+        assertEquals("google-refresh", store.value)
+    }
+
+    @Test fun rejectedGoogleLoginDoesNotCreateASession() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401))
+        try { api.googleAuthenticate("invalid", "binding", null, false); fail("must reject") } catch (_: ApiFailure) { }
+        assertNull(store.value)
+        assertEquals("/api/v1/auth/google/native/login", server.takeRequest().path)
+    }
+
     @Test fun registrationSendsLegalConsent() = runBlocking {
         server.enqueue(session("registered"))
         api.authenticate("learner@example.com", "password1", "Learner")

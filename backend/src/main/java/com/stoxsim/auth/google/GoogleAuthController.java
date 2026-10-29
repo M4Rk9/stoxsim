@@ -61,6 +61,36 @@ public class GoogleAuthController {
             .body(response);
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody Registration request,
+            @CookieValue(name = GoogleLoginChallenge.COOKIE, required = false) String binding,
+            @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin,
+            @RequestHeader(name = HttpHeaders.USER_AGENT, required = false) String userAgent) {
+        requireOrigin(origin);
+        var identity = verifier.identity(request.credential(), challenges.consume(binding), false);
+        var response = accounts.register(identity, request.displayName(), request.termsAccepted(), userAgent);
+        return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString(), refreshCookies.issue(response.refreshToken()).toString()).body(response);
+    }
+
+    @PostMapping("/password")
+    public ResponseEntity<Void> initialPassword(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody InitialPassword request,
+            @CookieValue(name = GoogleLoginChallenge.COOKIE, required = false) String binding,
+            @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin) {
+        requireOrigin(origin);
+        accounts.setInitialPassword(userId(jwt), verifier.verify(request.credential(), challenges.consume(binding)), request.newPassword());
+        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, refreshCookies.clear().toString(), cookie("", Duration.ZERO).toString()).build();
+    }
+
+    @PostMapping("/delete")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Deletion request,
+            @CookieValue(name = GoogleLoginChallenge.COOKIE, required = false) String binding,
+            @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin) {
+        requireOrigin(origin);
+        accounts.deleteWithGoogle(userId(jwt), verifier.verify(request.credential(), challenges.consume(binding)));
+        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, refreshCookies.clear().toString(), cookie("", Duration.ZERO).toString()).build();
+    }
+
     @GetMapping("/link")
     public Map<String, Boolean> linked(@AuthenticationPrincipal Jwt jwt) { return Map.of("linked", accounts.linked(userId(jwt))); }
 
@@ -89,6 +119,13 @@ public class GoogleAuthController {
         return ResponseCookie.from(GoogleLoginChallenge.COOKIE, value).httpOnly(true).secure(properties.isCookieSecure())
             .sameSite("Strict").path("/api/v1/auth/google").maxAge(age).build();
     }
+    public record Registration(@NotBlank @Size(max = 16384) String credential,
+        @NotBlank @Size(min = 2, max = 100) String displayName,
+        @jakarta.validation.constraints.AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted) {}
+    public record InitialPassword(@NotBlank @Size(max = 16384) String credential,
+        @NotBlank @Size(min = 8, max = 72) @com.stoxsim.auth.validation.Utf8Password String newPassword) {}
+    public record Deletion(@NotBlank @Size(max = 16384) String credential,
+        @jakarta.validation.constraints.AssertTrue(message = "Confirm permanent account deletion") boolean confirmed) {}
     public record Credential(@NotBlank @Size(max = 16384) String credential) {}
     public record Link(@NotBlank @Size(max = 16384) String credential, @NotBlank @Size(max = 1000) String password) {}
     public record Password(@NotBlank @Size(max = 1000) String password) {}

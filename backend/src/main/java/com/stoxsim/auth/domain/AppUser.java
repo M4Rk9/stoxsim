@@ -23,7 +23,7 @@ public class AppUser {
     @Column(nullable = false, length = 320)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "display_name", nullable = false, length = 100)
@@ -79,6 +79,8 @@ public class AppUser {
     public String getEmail() {
         return email;
     }
+
+    public boolean hasPassword() { return passwordHash != null; }
 
     public String getPasswordHash() {
         return passwordHash;

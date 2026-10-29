@@ -391,10 +391,17 @@ public class AccountLifecycleService {
 
     @Transactional
     public void deleteAccount(UUID userId, String password) {
-        AppUser user = requireUser(userId);
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+        AppUser user = requireUserForUpdate(userId);
+        if (!user.hasPassword() || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new UnauthorizedException("Password is incorrect");
         }
+        deleteVerifiedAccount(userId);
+    }
+
+    /** Call only after fresh credential verification, within the caller's transaction. */
+    @Transactional
+    public void deleteVerifiedAccount(UUID userId) {
+        AppUser user = requireUserForUpdate(userId);
         audit(userId, "ACCOUNT_DELETED", "User requested permanent deletion");
         jdbcTemplate.update(
             "UPDATE account_event SET detail = NULL WHERE user_id = ?",

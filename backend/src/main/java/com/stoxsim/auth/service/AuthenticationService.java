@@ -102,7 +102,7 @@ public class AuthenticationService {
         var user = userRepository.findByEmailIgnoreCaseForUpdate(normalizeEmail(request.email()))
             .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (!user.hasPassword() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }
 
@@ -167,7 +167,7 @@ public class AuthenticationService {
             .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
         String email = normalizeEmail(request.email());
         boolean changingEmail = !user.getEmail().equalsIgnoreCase(email);
-        if (changingEmail && (request.currentPassword() == null
+        if (changingEmail && (!user.hasPassword() || request.currentPassword() == null
             || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash()))) {
             throw new UnauthorizedException("Current password is required to change your email");
         }
@@ -194,7 +194,7 @@ public class AuthenticationService {
     public void updatePassword(UUID userId, PasswordUpdateRequest request) {
         AppUser user = userRepository.findByIdForUpdate(userId)
             .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+        if (!user.hasPassword() || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw new UnauthorizedException("Current password is incorrect");
         }
         user.changePassword(passwordEncoder.encode(request.newPassword()));

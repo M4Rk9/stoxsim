@@ -61,6 +61,24 @@ class GoogleIdentityVerifierTest {
         assertThrows(UnauthorizedException.class, () -> verifier.verify(missing, "challenge"));
         assertThrows(UnauthorizedException.class, () -> verifier.verify("not-a-jwt", "challenge"));
     }
+    @Test void nativeClientsKeepWebAudienceAndCannotUseBrowserFlow() throws Exception {
+        String android = "android.apps.googleusercontent.com";
+        var nativeVerifier = new GoogleIdentityVerifier(CLIENT, List.of(android), NimbusJwtDecoder.withPublicKey(key.toRSAPublicKey()).build());
+        String token = sign(claims().claim("azp", android), key);
+        assertEquals("google-subject", nativeVerifier.identity(token, "challenge", true).subject());
+        assertThrows(UnauthorizedException.class, () -> nativeVerifier.verify(token, "challenge"));
+        assertThrows(UnauthorizedException.class, () -> verifier.identity(token, "challenge", true));
+        String wrongAudience = sign(claims().audience(android).claim("azp", android), key);
+        assertThrows(UnauthorizedException.class, () -> nativeVerifier.identity(wrongAudience, "challenge", true));
+        String wrongParty = sign(claims().claim("azp", "other.apps.googleusercontent.com"), key);
+        assertThrows(UnauthorizedException.class, () -> nativeVerifier.identity(wrongParty, "challenge", true));
+    }
+    @Test void onlyAuthoritativeVerifiedGoogleEmailCanProvisionPasswordlessAccount() throws Exception {
+        assertTrue(verifier.identity(sign(claims().claim("email", "learner@gmail.com").claim("email_verified", true), key), "challenge", false).authoritativeEmail());
+        assertTrue(verifier.identity(sign(claims().claim("email", "learner@school.test").claim("email_verified", true).claim("hd", "school.test"), key), "challenge", false).authoritativeEmail());
+        assertFalse(verifier.identity(sign(claims().claim("email", "learner@thirdparty.test").claim("email_verified", true), key), "challenge", false).authoritativeEmail());
+        assertFalse(verifier.identity(sign(claims().claim("email", "learner@gmail.com").claim("email_verified", false), key), "challenge", false).authoritativeEmail());
+    }
     @Test void requiresConfiguredWebClientId() {
         assertThrows(IllegalStateException.class, () -> new GoogleIdentityVerifier(""));
     }

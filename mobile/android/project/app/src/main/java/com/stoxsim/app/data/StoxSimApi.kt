@@ -72,6 +72,24 @@ internal class StoxSimApi(
         }
     }
 
+    suspend fun googleChallenge(): GoogleChallenge = serialized {
+        val config = request("api/v1/auth/google/native/config", JSONObject()).use {
+            if (it.code == 404) throw ApiFailure(404, "Google sign-in is not enabled for this Android app yet. Use email and password.")
+            JSONObject(readSuccessful(it))
+        }
+        val challenge = request("api/v1/auth/google/native/challenge", JSONObject()).use { JSONObject(readSuccessful(it)) }
+        GoogleChallenge(config.getString("clientId"), challenge.getString("binding"), challenge.getString("nonce"))
+    }
+
+    suspend fun googleAuthenticate(credential: String, binding: String, name: String?, accepted: Boolean): User = serialized {
+        val body = JSONObject().put("credential", credential).put("binding", binding)
+        if (name != null) body.put("displayName", name.trim()).put("termsAccepted", accepted)
+        request("api/v1/auth/google/native/" + if (name == null) "login" else "register", body).use {
+            if (!it.isSuccessful) throw failure(it)
+            acceptSession(it)
+        }
+    }
+
     suspend fun forgotPassword(email: String) = serialized {
         request("api/v1/auth/password/forgot", JSONObject().put("email", email.trim())).use {
             if (!it.isSuccessful) throw failure(it)
@@ -222,7 +240,7 @@ internal class StoxSimApi(
         method: String? = null, idempotencyKey: String? = null): Request {
         val url = baseUrl.newBuilder().addEncodedPathSegments(path).apply { params.forEach { (key, value) -> addQueryParameter(key, value) } }.build()
         val request = Request.Builder().url(url).header("Accept", "application/json")
-            .header("User-Agent", "StoxSim-Android/0.5.7")
+            .header("User-Agent", "StoxSim-Android/0.6.0")
         bearer?.let { request.header("Authorization", "Bearer $it") }
         if (path == "api/v1/auth/sessions") store.read()?.let { request.header("Cookie", "stoxsim_refresh=$it") }
         idempotencyKey?.let { request.header("Idempotency-Key", it) }

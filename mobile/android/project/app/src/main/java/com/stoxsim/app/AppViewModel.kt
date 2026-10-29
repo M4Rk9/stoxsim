@@ -143,6 +143,27 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         signedIn(api.authenticate(email, password, name))
         if (name != null) mutable.update { it.copy(notice = "Account created. Verify your email address. " + EMAIL_GUIDANCE) }
     }
+    fun googleAuthenticate(context: android.content.Context, name: String?, accepted: Boolean) = runAction {
+        if (name != null && (!accepted || name.trim().length !in 2..100)) {
+            throw GoogleSignInFailure("Enter a display name and accept the Terms and Privacy Notice.")
+        }
+        val challenge = api.googleChallenge()
+        val credential = GoogleCredentials.request(context, challenge)
+        signedIn(api.googleAuthenticate(credential, challenge.binding, name, accepted))
+    }
+    fun googleAccountAction(context: android.content.Context, newPassword: String?, confirmed: Boolean) = runAction {
+        if (newPassword == null && !confirmed) throw GoogleSignInFailure("Confirm permanent account deletion first.")
+        val challenge = api.googleChallenge()
+        val credential = GoogleCredentials.request(context, challenge)
+        val body = JSONObject().put("credential", credential).put("binding", challenge.binding)
+        if (newPassword != null) body.put("newPassword", newPassword) else body.put("confirmed", confirmed)
+        api.mutate("auth/google/native/" + if (newPassword == null) "delete" else "password", body = body)
+        api.endLocalSession()
+        GoogleCredentials.clear(getApplication())
+        cancelSearch()
+        mutable.value = AppState(restoring = false, working = true, notice = if (newPassword == null) "Your account has been deleted."
+            else "Password added. All sessions signed out. Sign in with Google or your new password.")
+    }
     private suspend fun signedIn(user: User) {
         cancelSearch()
         streakJob?.cancel(); streakJob = null
@@ -619,10 +640,10 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun resendVerification() = runAction { api.mutate("auth/email-verification/resend"); mutable.update { it.copy(notice = "Verification email requested. " + EMAIL_GUIDANCE) } }
     fun password(current: String, replacement: String) = runAction {
         api.mutate("auth/me/password", "PATCH", JSONObject().put("currentPassword", current).put("newPassword", replacement))
-        api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "Password updated. Sign in again.")
+        api.endLocalSession(); GoogleCredentials.clear(getApplication()); mutable.value = AppState(restoring = false, working = true, notice = "Password updated. Sign in again.")
     }
     fun revokeSession(id: String) = runAction { api.mutate("auth/sessions/$id", "DELETE"); list("sessions", "auth/sessions") }
-    fun logoutAll() = runAction { cancelSearch(); api.mutate("auth/logout-all"); api.endLocalSession(); mutable.value = AppState(restoring = false, working = true, notice = "All sessions signed out.") }
+    fun logoutAll() = runAction { cancelSearch(); api.mutate("auth/logout-all"); api.endLocalSession(); GoogleCredentials.clear(getApplication()); mutable.value = AppState(restoring = false, working = true, notice = "All sessions signed out.") }
     fun deleteAccount(password: String) = runAction {
         api.mutate("auth/me", "DELETE", JSONObject().put("password", password)); api.endLocalSession()
         mutable.value = AppState(restoring = false, working = true, notice = "Account deleted.")
@@ -646,12 +667,14 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         streakTracker = DailyStreakTracker()
         streamJob?.cancel(); streamJob = null
         val revoked = api.logout()
+        GoogleCredentials.clear(getApplication())
         preferences.edit().putBoolean("last-dark", false).apply()
         pendingOrder = null; pendingScenario = null; pendingSandbox = null
         mutable.value = AppState(restoring = false, working = true,
             notice = if (revoked) "Signed out." else "Signed out on this device. Server sign-out could not be confirmed. Revoke this session from another signed-in device.")
     }
     private fun failureMessage(failure: Exception): String = when (failure) {
+        is GoogleSignInFailure -> failure.message.orEmpty()
         is ApiFailure -> failure.message.orEmpty()
         is IOException -> if (failure.message in listOf("Email or password is incorrect.", "Session reconnected. Review the action and try again.")) failure.message!!
             else "Connection interrupted. Refresh to check the result before retrying."

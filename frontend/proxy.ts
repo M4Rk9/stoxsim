@@ -8,7 +8,8 @@ export function proxy(request: NextRequest) {
   const billing = request.nextUrl.pathname === "/admin/billing"
     || request.nextUrl.pathname.startsWith("/admin/billing/");
   const google = request.nextUrl.pathname === "/google-sign-in"
-    || request.nextUrl.pathname === "/google-sign-in/manage";
+    || request.nextUrl.pathname === "/google-sign-in/manage"
+    || request.nextUrl.pathname === "/google-sign-in/register";
   const development = process.env.NODE_ENV === "development";
   const csp = [
     "default-src 'self'", "base-uri 'self'", "form-action 'self'",
