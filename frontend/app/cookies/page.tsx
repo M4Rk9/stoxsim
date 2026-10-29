@@ -24,6 +24,7 @@ export default function CookiesPage() {
       </section>
       <section>
         <h2>2. Browser storage</h2>
+        <p>Optional Google sign-in uses an HttpOnly <strong>stoxsim_google_challenge</strong> cookie for up to five minutes to bind the sign-in request to your browser. Google Identity Services loads only on the Google sign-in page when the feature is enabled.</p>
         <ul>
           <li>
             <strong>Session storage:</strong> holds the short-lived signed-in browser session and is

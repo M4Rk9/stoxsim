@@ -62,6 +62,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       FRONTEND_URL: https://${STAGING_WEB_DOMAIN:?Set STAGING_WEB_DOMAIN}
+      GOOGLE_SIGN_IN_ENABLED: ${GOOGLE_SIGN_IN_ENABLED:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       AUTH_COOKIE_SECURE: "true" # HTTPS deployments must never issue insecure refresh cookies
       STOXSIM_BILLING_TEST_ENABLED: ${STOXSIM_BILLING_TEST_ENABLED:-false}
