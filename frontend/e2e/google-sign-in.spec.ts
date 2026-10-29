@@ -164,3 +164,27 @@ test("Google-only deletion needs explicit destructive confirmation and a fresh G
   await expect(page.getByRole("status")).toContainText("Your account has been deleted");
   expect(await page.evaluate(() => sessionStorage.getItem("stoxsim-session"))).toBeNull();
 });
+
+test("failed Google reauthentication does not replay a consumed challenge", async ({ page }) => {
+  await passwordlessManagement(page);
+  let attempts = 0;
+  await mock(page, `${API}/api/v1/auth/google/password`, async route => {
+    attempts++;
+    await respond(route, { status: 401, json: { message: "Choose the Google account linked to this StoxSim account." } });
+  });
+  await mock(page, `${API}/api/v1/auth/refresh`, route => respond(route, { json: { accessToken: "refreshed", expiresInSeconds: 900, user } }));
+  await page.getByLabel("New password", { exact: true }).fill("new-local-password");
+  await page.getByLabel("Confirm new password").fill("new-local-password");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Test Google account" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Choose the Google account linked");
+  expect(attempts).toBe(1);
+});
+
+test("home registration offers Google signup directly", async ({ page }) => {
+  await enabledGoogle(page);
+  await page.goto("/");
+  const link = page.getByRole("link", { name: "Sign up with Google" });
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("href", "/google-sign-in/register");
+});

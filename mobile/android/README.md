@@ -169,3 +169,9 @@ code; to test a pending PR, check out its branch instead before opening Android 
 Android 0.5.7 records stock research only after a successful quote load. Selecting a
 suggestion or failing to load a quote does not complete the analytics research step.
 Backend V124 adds daily server-recorded feature engagement for both web and Android.
+
+## Google sign-in (0.6.0)
+
+Native Google login and registration use Credential Manager. Configure the Android OAuth client for `com.stoxsim.app` and the installed signing certificate, then set backend `GOOGLE_ANDROID_CLIENT_IDS`. The existing Web OAuth client remains the server audience. See [Google setup and validation](../../docs/google-sign-in.md#android-configuration). Never add a client secret to Android resources.
+
+Existing password users first link Google in website Settings. Google-only users can set a password or delete their account through fresh Google confirmation in native Profile & security. Test the signed release build as well as debug; Play app signing uses its own certificate. Automated emulator tests mock the provider interaction and do not replace this device check.

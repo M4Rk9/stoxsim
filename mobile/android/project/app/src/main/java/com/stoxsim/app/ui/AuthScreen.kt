@@ -79,7 +79,11 @@ import java.util.Locale
     if (!recovering && google != null) {
         OutlinedButton(onClick = { password = ""; google(if (register) name else null, accepted) },
             enabled = !state.working && (!register || (accepted && name.trim().length in 2..100)),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(if (register) "Sign up with Google" else "Sign in with Google") }
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.google_g), null, Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(if (register) "Sign up with Google" else "Sign in with Google")
+        }
         if (register) Text("Google signup does not require the email or password fields above.", style = MaterialTheme.typography.bodySmall)
         else Text("For an existing password account, link Google in website Settings first.", style = MaterialTheme.typography.bodySmall)
     }

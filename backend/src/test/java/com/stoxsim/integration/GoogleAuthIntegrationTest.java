@@ -51,6 +51,7 @@ class GoogleAuthIntegrationTest {
     @Autowired com.stoxsim.release.PublicReleaseProperties release;
     @Autowired com.stoxsim.auth.service.AuthenticationService authentication;
     @Autowired com.stoxsim.auth.service.AccountLifecycleService lifecycle;
+    @Autowired com.stoxsim.auth.service.AccountTokenService accountTokens;
     @MockitoBean GoogleIdentityVerifier verifier;
     @MockitoBean GoogleLoginChallenge challenges;
     MockMvc mvc;
@@ -135,6 +136,29 @@ class GoogleAuthIntegrationTest {
         assertThat(users.existsById(id)).isFalse();
         assertThat(db.queryForObject("SELECT count(*) FROM google_identity WHERE subject = 'new-subject'", Long.class)).isZero();
         assertThrows(JwtException.class, () -> decoder.decode(response.accessToken()));
+    }
+    @Test void emailRecoveryAddsPasswordToGoogleOnlyAccountAndRevokesSessions() {
+        var response = google.register(new GoogleIdentityVerifier.Identity("recover-subject", "recover@gmail.com", true), "Learner", true, "test");
+        String reset = accountTokens.issue(response.user().id(), com.stoxsim.auth.service.AccountTokenService.PASSWORD_RESET, java.time.Duration.ofMinutes(5));
+        lifecycle.resetPassword(reset, "recovered-password");
+        assertThrows(JwtException.class, () -> decoder.decode(response.accessToken()));
+        assertThat(authentication.login(new com.stoxsim.auth.api.dto.LoginRequest("recover@gmail.com", "recovered-password")).user().passwordLoginEnabled()).isTrue();
+        assertThrows(ConflictException.class, () -> google.setInitialPassword(response.user().id(), "recover-subject", "overwrite-password"));
+    }
+    @Test void simultaneousGoogleRegistrationCannotDuplicateAnIdentity() throws Exception {
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var start = new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.Callable<Boolean> attempt = () -> {
+                start.await();
+                try { google.register(new GoogleIdentityVerifier.Identity("racing-subject", "race@gmail.com", true), "Learner", true, "test"); return true; }
+                catch (ConflictException conflict) { return false; }
+            };
+            var first = executor.submit(attempt); var second = executor.submit(attempt); start.countDown();
+            assertThat(java.util.List.of(first.get(20, java.util.concurrent.TimeUnit.SECONDS), second.get(20, java.util.concurrent.TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder(true, false);
+        }
+        assertThat(db.queryForObject("SELECT count(*) FROM app_user WHERE email = 'race@gmail.com'", Long.class)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT count(*) FROM google_identity WHERE subject = 'racing-subject'", Long.class)).isEqualTo(1);
     }
     @Test void browserRegistrationRequiresConsentAndOrigin() throws Exception {
         String payload = "{\"credential\":\"credential\",\"displayName\":\"Learner\",\"termsAccepted\":true}";

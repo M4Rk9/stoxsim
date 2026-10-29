@@ -92,12 +92,12 @@ public class GoogleAccountService {
         user.acceptLegalDocuments(com.stoxsim.auth.domain.LegalDocumentVersions.TERMS, com.stoxsim.auth.domain.LegalDocumentVersions.PRIVACY);
         user.markEmailVerified();
         try {
-        user = users.saveAndFlush(user);
-        accounts.createDefaultAccounts(user);
-        subscriptions.initializeFree(user);
-        db.update("INSERT INTO google_identity(subject, user_id) VALUES (?, ?)", identity.subject(), user.getId());
-        lifecycle.audit(user.getId(), "ACCOUNT_REGISTERED", "google;terms=" + user.getTermsVersion() + ";privacy=" + user.getPrivacyVersion());
-        return login(identity.subject(), userAgent);
+            user = users.saveAndFlush(user);
+            accounts.createDefaultAccounts(user);
+            subscriptions.initializeFree(user);
+            db.update("INSERT INTO google_identity(subject, user_id) VALUES (?, ?)", identity.subject(), user.getId());
+            lifecycle.audit(user.getId(), "ACCOUNT_REGISTERED", "google;terms=" + user.getTermsVersion() + ";privacy=" + user.getPrivacyVersion());
+            return login(identity.subject(), userAgent);
         } catch (org.springframework.dao.DataIntegrityViolationException conflict) {
             throw new ConflictException("An account already exists. Sign in or recover your existing account.");
         }

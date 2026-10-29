@@ -30,6 +30,9 @@ export async function authenticated<T>(path: string, body?: unknown): Promise<T>
   try { return await request<T>(path, options, current.accessToken); }
   catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
-    return request<T>(path, options, (await refresh()).accessToken);
+    const refreshed = await refresh();
+    // Google writes consume a single-use challenge. The user must begin a new attempt.
+    if (body !== undefined && path.startsWith("auth/google/")) throw error;
+    return request<T>(path, options, refreshed.accessToken);
   }
 }

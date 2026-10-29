@@ -1241,7 +1241,7 @@ export default function Home() {
               </label>
             )}
             {authMode === "login" && <a className="authHelpLink" href="/forgot-password">Forgot password?</a>}
-            {authMode === "login" && <GoogleSignInLink />}
+            <GoogleSignInLink register={authMode === "register"} />
             {error && <div className="message errorMessage">{error}</div>}
             <button className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start Now!" : "Open dashboard"}</button>
             <small>StoxSim is an educational simulator. No real orders or investment advice.</small>
