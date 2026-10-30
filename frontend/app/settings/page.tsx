@@ -24,6 +24,7 @@ interface User {
   displayName: string;
   emailVerified: boolean;
   platformAdmin?: boolean;
+  passwordLoginEnabled?: boolean;
   createdAt?: string;
   accounts: Account[];
 }
@@ -577,6 +578,7 @@ export default function SettingsPage() {
               required
               type="email"
               maxLength={320}
+              disabled={session.user.passwordLoginEnabled === false}
               value={profile.email}
               onChange={(event) => setProfile({ ...profile, email: event.target.value })}
             />
@@ -602,7 +604,11 @@ export default function SettingsPage() {
           </button>
         </form>
 
-        <form className={styles.card} onSubmit={savePassword}>
+        {session.user.passwordLoginEnabled === false && <section className={styles.card}>
+          <h2>Google account security</h2><p>You do not have a StoxSim password yet. Add one to change your email or disconnect Google. You can also permanently delete your account after confirming Google.</p>
+          <GoogleSignInLink manage /><p><a href="/forgot-password">Recover access through email</a></p>
+        </section>}
+        {session.user.passwordLoginEnabled !== false && <form className={styles.card} onSubmit={savePassword}>
           <h2>Change password</h2>
           <GoogleSignInLink manage />
           <p>Changing your password immediately signs out every device.</p>
@@ -642,7 +648,7 @@ export default function SettingsPage() {
           <button className={styles.submit} disabled={passwordWorking}>
             {passwordWorking ? "Updating…" : "Change password"}
           </button>
-        </form>
+        </form>}
 
         {subscription && <section className={`${styles.card} ${styles.fullWidth}`} id="plan" aria-labelledby="plan-title">
           <div className={styles.planHeading}>
@@ -849,7 +855,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <form className={`${styles.card} ${styles.danger} ${styles.fullWidth}`} onSubmit={deleteAccount}>
+        {session.user.passwordLoginEnabled !== false && <form className={`${styles.card} ${styles.danger} ${styles.fullWidth}`} onSubmit={deleteAccount}>
           <h2>Delete account permanently</h2>
           <p>
             This permanently removes your profile, virtual accounts, holdings, orders,
@@ -867,7 +873,7 @@ export default function SettingsPage() {
           <button className={styles.delete} disabled={dangerWorking}>
             {dangerWorking ? "Deleting…" : "Delete my account"}
           </button>
-        </form>
+        </form>}
       </div>
 
       {securityMessage && <div className={`${styles.message} ${styles.success}`} role="status">{securityMessage}</div>}

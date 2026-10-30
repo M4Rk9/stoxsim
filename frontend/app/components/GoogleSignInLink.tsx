@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export function GoogleSignInLink({ manage = false }: { manage?: boolean }) {
+export function GoogleSignInLink({ manage = false, register = false }: { manage?: boolean; register?: boolean }) {
   const [enabled, setEnabled] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
@@ -11,7 +11,7 @@ export function GoogleSignInLink({ manage = false }: { manage?: boolean }) {
     }).then(response => { if (response.ok) setEnabled(true); }).catch(() => undefined);
     return () => controller.abort();
   }, []);
-  return enabled ? <a className="authHelpLink" href={manage ? "/google-sign-in/manage" : "/google-sign-in"}>
-    {manage ? "Manage Google sign-in" : "Sign in with your linked Google account"}
+  return enabled ? <a className="authHelpLink" href={manage ? "/google-sign-in/manage" : register ? "/google-sign-in/register" : "/google-sign-in"}>
+    {manage ? "Manage Google sign-in" : register ? "Sign up with Google" : "Continue with Google"}
   </a> : null;
 }

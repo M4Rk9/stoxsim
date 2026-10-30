@@ -32,6 +32,11 @@ public class ApiExceptionHandler {
         return response(HttpStatus.METHOD_NOT_ALLOWED, "This HTTP method is not supported for this endpoint.", Map.of());
     }
 
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ApiError> unsupportedMediaType(org.springframework.web.HttpMediaTypeNotSupportedException exception) {
+        return response(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Use the supported request content type.", Map.of());
+    }
+
     @ExceptionHandler(ConflictException.class)
     ResponseEntity<ApiError> handleConflict(ConflictException exception) {
         recordError(HttpStatus.CONFLICT, "conflict");

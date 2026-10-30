@@ -41,6 +41,22 @@ class AuthScreenTest {
         compose.onNodeWithText("Welcome back.").assertIsDisplayed()
     }
 
+    @Test fun googleSignupNeedsConsentAndNameButNoLocalPassword() {
+        var submitted = false
+        compose.setContent {
+            StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) {
+                AuthScreen(AppState(restoring = false), { _, _, _ -> }, {}, {},
+                    google = { name, accepted -> submitted = name == "Learner" && accepted })
+            } }
+        }
+        compose.onNodeWithText("Create a StoxSim account").performScrollTo().performClick()
+        compose.onNodeWithText("Sign up with Google").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Display name").performScrollTo().performTextInput("Learner")
+        compose.onNode(isToggleable()).performScrollTo().performClick()
+        compose.onNodeWithText("Sign up with Google").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertTrue(submitted) }
+    }
+
     @Test fun registrationRequiresExplicitLegalConsent() {
         var submitted = false
         compose.setContent {

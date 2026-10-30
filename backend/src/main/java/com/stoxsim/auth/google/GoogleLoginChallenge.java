@@ -17,22 +17,26 @@ public class GoogleLoginChallenge {
     private final StringRedisTemplate redis;
     public GoogleLoginChallenge(StringRedisTemplate redis) { this.redis = redis; }
 
-    public Challenge create() {
+    public Challenge create() { return create("web"); }
+    public Challenge createNative() { return create("native"); }
+    private Challenge create(String channel) {
         String binding = randomValue();
         String nonce = randomValue();
-        redis.opsForValue().set(key(binding), nonce, TTL);
+        redis.opsForValue().set(key(channel, binding), nonce, TTL);
         return new Challenge(binding, nonce);
     }
 
-    public String consume(String binding) {
+    public String consume(String binding) { return consume("web", binding); }
+    public String consumeNative(String binding) { return consume("native", binding); }
+    private String consume(String channel, String binding) {
         if (binding == null || !binding.matches("[A-Za-z0-9_-]{43}")) throw expired();
         // GETDEL is atomic: a credential cannot be replayed by concurrent requests.
-        String nonce = redis.opsForValue().getAndDelete(key(binding));
+        String nonce = redis.opsForValue().getAndDelete(key(channel, binding));
         if (nonce == null) throw expired();
         return nonce;
     }
 
-    private String key(String binding) { return "stoxsim:google-challenge:" + binding; }
+    private String key(String channel, String binding) { return "stoxsim:google-challenge:" + channel + ":" + binding; }
     private UnauthorizedException expired() { return new UnauthorizedException("Google sign-in expired. Please try again."); }
     private String randomValue() {
         byte[] bytes = new byte[32];

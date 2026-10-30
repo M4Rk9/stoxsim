@@ -39,7 +39,7 @@ import com.stoxsim.app.R
 }
 
 @Composable internal fun WelcomeScreen(state: AppState, authenticate: (String, String, String?) -> Unit,
-    forgot: (String) -> Unit, clearMessage: () -> Unit) {
+    forgot: (String) -> Unit, clearMessage: () -> Unit, google: ((String?, Boolean) -> Unit)? = null) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 520.dp).fillMaxWidth().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -52,7 +52,7 @@ import com.stoxsim.app.R
                 Text("Your edge starts\nwith practice.", style = MaterialTheme.typography.headlineLarge)
                 Text("Stocks. Finwiz AI. Scenario Lab.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Panel { AuthScreen(state, authenticate, forgot, clearMessage) }
+            Panel { AuthScreen(state, authenticate, forgot, clearMessage, google) }
         }
         }
     }

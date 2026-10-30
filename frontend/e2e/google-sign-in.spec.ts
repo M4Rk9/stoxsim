@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
   // Specific Google mocks registered in each test take precedence.
   await mock(page, `${API}/api/v1/**`, route => {
     const path = new URL(route.request().url()).pathname;
-    return path === "/api/v1/accounts" ? respond(route, { json: [] })
+    return path === "/api/v1/auth/me" ? respond(route, { json: user }) : path === "/api/v1/accounts" ? respond(route, { json: [] })
       : path.startsWith("/api/v1/analytics/") ? respond(route, { status: 204 })
         : respond(route, { status: 404, json: {} });
   });
@@ -50,7 +50,7 @@ test("disabled Google sign-in loads no provider script and preserves password lo
   await mock(page, `${API}/api/v1/auth/google/config`, route => respond(route, { status: 404, json: {} }));
   await page.goto("/google-sign-in");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("unavailable");
-  await expect(page.getByRole("link", { name: "Use email and password" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Return to StoxSim" })).toBeVisible();
   expect(loaded).toBe(false);
 });
 
@@ -98,4 +98,93 @@ test("linking requires a local password and sends it only to StoxSim", async ({ 
   await page.getByRole("button", { name: "Test Google account" }).click();
   await expect(page.getByRole("status")).toContainText("Google is linked");
   expect(linked).toBe(true);
+});
+
+async function enabledGoogle(page: Page) {
+  await mock(page, "https://accounts.google.com/gsi/client", route => respond(route, { contentType: "application/javascript", body: googleScript }));
+  await mock(page, `${API}/api/v1/auth/google/config`, route => respond(route, { json: { clientId: "test.apps.googleusercontent.com" } }));
+  await mock(page, `${API}/api/v1/auth/google/challenge`, route => respond(route, { json: { nonce: "test-nonce" } }));
+}
+
+test("Google signup requires explicit consent without requesting a password", async ({ page }) => {
+  await enabledGoogle(page);
+  let registered = false;
+  await mock(page, `${API}/api/v1/auth/google/register`, async route => {
+    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", displayName: "New Learner", termsAccepted: true });
+    registered = true;
+    await respond(route, { status: 201, json: { accessToken: "new-access", expiresInSeconds: 900, user: { ...user, passwordLoginEnabled: false } } });
+  });
+  const response = await page.goto("/google-sign-in/register");
+  expect(response!.headers()["content-security-policy"]).toContain("https://accounts.google.com/gsi/");
+  await page.getByLabel("Display name").fill("New Learner");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Test Google account" })).toHaveCount(0);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Test Google account" }).click();
+  await page.waitForURL("/");
+  expect(registered).toBe(true);
+});
+
+async function passwordlessManagement(page: Page) {
+  await page.addInitScript(user => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "existing-token", expiresInSeconds: 900, user })), { ...user, passwordLoginEnabled: false });
+  await enabledGoogle(page);
+  await mock(page, `${API}/api/v1/auth/me`, route => respond(route, { json: { ...user, passwordLoginEnabled: false } }));
+  await mock(page, `${API}/api/v1/auth/google/link`, route => respond(route, { json: { linked: true } }));
+  await page.goto("/google-sign-in/manage");
+}
+
+test("Google-only account adds a password after Google confirmation and clears its session", async ({ page }) => {
+  await passwordlessManagement(page);
+  await mock(page, `${API}/api/v1/auth/google/password`, async route => {
+    expect(route.request().headers().authorization).toBe("Bearer existing-token");
+    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", newPassword: "new-local-password" });
+    await respond(route, { status: 204 });
+  });
+  await page.getByLabel("New password", { exact: true }).fill("new-local-password");
+  await page.getByLabel("Confirm new password").fill("new-local-password");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Test Google account" }).click();
+  await expect(page.getByRole("status")).toContainText("Password added");
+  expect(await page.evaluate(() => sessionStorage.getItem("stoxsim-session"))).toBeNull();
+});
+
+test("Google-only deletion needs explicit destructive confirmation and a fresh Google credential", async ({ page }) => {
+  await passwordlessManagement(page);
+  await mock(page, `${API}/api/v1/auth/google/delete`, async route => {
+    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", confirmed: true });
+    await respond(route, { status: 204 });
+  });
+  await page.getByLabel("Permanently delete my account instead").check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Test Google account" })).toHaveCount(0);
+  await page.getByLabel("I understand that my account and simulation data will be permanently deleted.").check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Test Google account" }).click();
+  await expect(page.getByRole("status")).toContainText("Your account has been deleted");
+  expect(await page.evaluate(() => sessionStorage.getItem("stoxsim-session"))).toBeNull();
+});
+
+test("failed Google reauthentication does not replay a consumed challenge", async ({ page }) => {
+  await passwordlessManagement(page);
+  let attempts = 0;
+  await mock(page, `${API}/api/v1/auth/google/password`, async route => {
+    attempts++;
+    await respond(route, { status: 401, json: { message: "Choose the Google account linked to this StoxSim account." } });
+  });
+  await mock(page, `${API}/api/v1/auth/refresh`, route => respond(route, { json: { accessToken: "refreshed", expiresInSeconds: 900, user } }));
+  await page.getByLabel("New password", { exact: true }).fill("new-local-password");
+  await page.getByLabel("Confirm new password").fill("new-local-password");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Test Google account" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Choose the Google account linked");
+  expect(attempts).toBe(1);
+});
+
+test("home registration offers Google signup directly", async ({ page }) => {
+  await enabledGoogle(page);
+  await page.goto("/");
+  const link = page.getByRole("link", { name: "Sign up with Google" });
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("href", "/google-sign-in/register");
 });

@@ -82,7 +82,7 @@ class ApiRateLimitFilterTest {
         var filter = new ApiRateLimitFilter(null, new RateLimitProperties(), new SimpleMeterRegistry()) {
             @Override long increment(String key) { throw new IllegalStateException("Redis offline"); }
         };
-        for (String path : new String[]{"/api/v1/auth/google/challenge", "/api/v1/auth/google/login", "/api/v1/auth/google/link", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/finwiz/ask", "/api/v1/orders"}) {
+        for (String path : new String[]{"/api/v1/auth/google/native/challenge", "/api/v1/auth/google/native/register", "/api/v1/auth/google/native/password", "/api/v1/auth/google/native/delete", "/api/v1/auth/google/challenge", "/api/v1/auth/google/login", "/api/v1/auth/google/link", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/finwiz/ask", "/api/v1/orders"}) {
             var response = new MockHttpServletResponse();
             var chain = new MockFilterChain();
             filter.doFilter(new MockHttpServletRequest("POST", path), response, chain);
@@ -92,6 +92,33 @@ class ApiRateLimitFilterTest {
         var chain = new MockFilterChain();
         filter.doFilter(new MockHttpServletRequest("GET", "/api/v1/instruments/search"), new MockHttpServletResponse(), chain);
         org.junit.jupiter.api.Assertions.assertNotNull(chain.getRequest());
+    }
+
+    @Test
+    void googleCapabilityDiscoveryDoesNotExhaustAuthenticationAttempts() throws Exception {
+        var properties = new RateLimitProperties();
+        properties.setAuthPerMinute(2);
+        properties.setGeneralPerMinute(20);
+        var counts = new java.util.HashMap<String, Long>();
+        var filter = new ApiRateLimitFilter(null, properties, new SimpleMeterRegistry()) {
+            @Override long increment(String key) { return counts.merge(key, 1L, Long::sum); }
+        };
+        for (int i = 0; i < 5; i++) {
+            for (String path : new String[]{"/api/v1/auth/google/config", "/api/v1/auth/google/native/config"}) {
+                var response = new MockHttpServletResponse();
+                filter.doFilter(new MockHttpServletRequest("POST", path), response, new MockFilterChain());
+                assertEquals(200, response.getStatus());
+                assertEquals("20", response.getHeader("X-RateLimit-Limit"));
+            }
+        }
+        for (int i = 0; i < 3; i++) {
+            var response = new MockHttpServletResponse();
+            filter.doFilter(new MockHttpServletRequest("POST", "/api/v1/auth/google/register"), response, new MockFilterChain());
+            assertEquals(i < 2 ? 200 : 429, response.getStatus());
+        }
+        for (String action : new String[]{"challenge", "login", "register", "password", "delete"}) {
+            assertEquals("auth", filter.policyFor("POST", "/api/v1/auth/google/native/" + action).name());
+        }
     }
 
     private ApiRateLimitFilter filterReturning(

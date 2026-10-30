@@ -32,7 +32,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers
 @SpringBootTest(properties = {
-    "stoxsim.auth.google.enabled=true", "stoxsim.auth.google.client-id=test.apps.googleusercontent.com",
+    "stoxsim.auth.google.enabled=true", "stoxsim.release.public-registration-enabled=true",
+    "stoxsim.market-data.upstox.public-serving-enabled=true", "stoxsim.market-data.alpaca.public-serving-enabled=true", "stoxsim.auth.google.client-id=test.apps.googleusercontent.com",
     "stoxsim.frontend-url=https://stoxsim.test", "stoxsim.auth.cookie-secure=true",
     "stoxsim.market-data.upstox.stream-enabled=false", "stoxsim.market-data.upstox.instrument-sync-on-startup=false",
     "stoxsim.market-data.alpaca.instrument-sync-on-startup=false", "stoxsim.market-data.alpaca.polling-enabled=false",
@@ -47,6 +48,10 @@ class GoogleAuthIntegrationTest {
     @Autowired TokenService tokens;
     @Autowired JwtDecoder decoder;
     @Autowired JdbcTemplate db;
+    @Autowired com.stoxsim.release.PublicReleaseProperties release;
+    @Autowired com.stoxsim.auth.service.AuthenticationService authentication;
+    @Autowired com.stoxsim.auth.service.AccountLifecycleService lifecycle;
+    @Autowired com.stoxsim.auth.service.AccountTokenService accountTokens;
     @MockitoBean GoogleIdentityVerifier verifier;
     @MockitoBean GoogleLoginChallenge challenges;
     MockMvc mvc;
@@ -91,6 +96,107 @@ class GoogleAuthIntegrationTest {
     @Test void anonymousLinkAndUnlinkAreNeverPermitted() throws Exception {
         for (String action : new String[] {"link", "unlink"}) {
             mvc.perform(post("/api/v1/auth/google/" + action).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
+        }
+    }
+    @Test void registrationProvisionsConsentAccountsAndSubscriptionWithoutAPassword() {
+        var response = google.register(new GoogleIdentityVerifier.Identity("new-subject", "new@gmail.com", true), "New Learner", true, "test");
+        var registered = users.findById(response.user().id()).orElseThrow();
+        assertThat(registered.getPasswordHash()).isNull();
+        assertThat(response.user().passwordLoginEnabled()).isFalse();
+        assertThat(response.user().emailVerified()).isTrue();
+        assertThat(response.user().accounts()).isNotEmpty();
+        assertThat(registered.getTermsVersion()).isEqualTo(com.stoxsim.auth.domain.LegalDocumentVersions.TERMS);
+        assertThat(db.queryForObject("SELECT plan FROM user_subscription WHERE user_id = ?", String.class, registered.getId())).isEqualTo("FREE");
+        assertThrows(ConflictException.class, () -> google.unlink(registered.getId(), "anything"));
+        assertThrows(UnauthorizedException.class, () -> authentication.login(new com.stoxsim.auth.api.dto.LoginRequest("new@gmail.com", "anything")));
+        google.setInitialPassword(registered.getId(), "new-subject", "new-local-password");
+        assertThrows(JwtException.class, () -> decoder.decode(response.accessToken()));
+        assertThat(authentication.login(new com.stoxsim.auth.api.dto.LoginRequest("new@gmail.com", "new-local-password")).user().passwordLoginEnabled()).isTrue();
+        google.unlink(registered.getId(), "new-local-password");
+        assertThrows(UnauthorizedException.class, () -> google.login("new-subject", "test"));
+    }
+    @Test void registrationNeverSilentlyLinksExistingEmailsOrBypassesReleaseGate() {
+        assertThrows(ConflictException.class, () -> google.register(new GoogleIdentityVerifier.Identity("collision", user.getEmail(), true), "Learner", true, "test"));
+        assertThat(google.linked(user.getId())).isFalse();
+        var identity = new GoogleIdentityVerifier.Identity("new-subject", "new@gmail.com", true);
+        assertThrows(IllegalArgumentException.class, () -> google.register(identity, "Learner", false, "test"));
+        assertThrows(ConflictException.class, () -> google.register(new GoogleIdentityVerifier.Identity("untrusted", "thirdparty@example.test", false), "Learner", true, "test"));
+        release.setPublicRegistrationEnabled(false);
+        try { assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> google.register(identity, "Learner", true, "test")); }
+        finally { release.setPublicRegistrationEnabled(true); }
+        assertThat(users.count()).isEqualTo(1);
+    }
+    @Test void freshGoogleProofMustBelongToTheAuthenticatedAccount() {
+        var response = google.register(new GoogleIdentityVerifier.Identity("new-subject", "new@gmail.com", true), "Learner", true, "test");
+        var id = response.user().id();
+        assertThrows(UnauthorizedException.class, () -> google.setInitialPassword(id, "wrong-subject", "new-password"));
+        assertThrows(UnauthorizedException.class, () -> google.deleteWithGoogle(id, "wrong-subject"));
+        google.deleteWithGoogle(id, "new-subject");
+        assertThat(users.existsById(id)).isFalse();
+        assertThat(db.queryForObject("SELECT count(*) FROM google_identity WHERE subject = 'new-subject'", Long.class)).isZero();
+        assertThrows(JwtException.class, () -> decoder.decode(response.accessToken()));
+    }
+    @Test void emailRecoveryAddsPasswordToGoogleOnlyAccountAndRevokesSessions() {
+        var response = google.register(new GoogleIdentityVerifier.Identity("recover-subject", "recover@gmail.com", true), "Learner", true, "test");
+        String reset = accountTokens.issue(response.user().id(), com.stoxsim.auth.service.AccountTokenService.PASSWORD_RESET, java.time.Duration.ofMinutes(5));
+        lifecycle.resetPassword(reset, "recovered-password");
+        assertThrows(JwtException.class, () -> decoder.decode(response.accessToken()));
+        assertThat(authentication.login(new com.stoxsim.auth.api.dto.LoginRequest("recover@gmail.com", "recovered-password")).user().passwordLoginEnabled()).isTrue();
+        assertThrows(ConflictException.class, () -> google.setInitialPassword(response.user().id(), "recover-subject", "overwrite-password"));
+    }
+    @Test void simultaneousGoogleRegistrationCannotDuplicateAnIdentity() throws Exception {
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var start = new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.Callable<Boolean> attempt = () -> {
+                start.await();
+                try { google.register(new GoogleIdentityVerifier.Identity("racing-subject", "race@gmail.com", true), "Learner", true, "test"); return true; }
+                catch (ConflictException conflict) { return false; }
+            };
+            var first = executor.submit(attempt); var second = executor.submit(attempt); start.countDown();
+            assertThat(java.util.List.of(first.get(20, java.util.concurrent.TimeUnit.SECONDS), second.get(20, java.util.concurrent.TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder(true, false);
+        }
+        assertThat(db.queryForObject("SELECT count(*) FROM app_user WHERE email = 'race@gmail.com'", Long.class)).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT count(*) FROM google_identity WHERE subject = 'racing-subject'", Long.class)).isEqualTo(1);
+    }
+    @Test void browserRegistrationRequiresConsentAndOrigin() throws Exception {
+        String payload = "{\"credential\":\"credential\",\"displayName\":\"Learner\",\"termsAccepted\":true}";
+        mvc.perform(post("/api/v1/auth/google/register").contentType(MediaType.APPLICATION_JSON).content(payload)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/auth/google/register").header("Origin", "https://stoxsim.test").contentType(MediaType.APPLICATION_JSON)
+            .content(payload.replace("true", "false"))).andExpect(status().isBadRequest());
+        when(challenges.consume("binding")).thenReturn("nonce");
+        when(verifier.identity("credential", "nonce", false)).thenReturn(new GoogleIdentityVerifier.Identity("registered", "register@gmail.com", true));
+        mvc.perform(post("/api/v1/auth/google/register").header("Origin", "https://stoxsim.test")
+            .cookie(new jakarta.servlet.http.Cookie(GoogleLoginChallenge.COOKIE, "binding")).contentType(MediaType.APPLICATION_JSON).content(payload))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.user.passwordLoginEnabled").value(false))
+            .andExpect(jsonPath("$.refreshToken").doesNotExist()).andExpect(cookie().httpOnly("stoxsim_refresh", true));
+    }
+    @Test void nativeEndpointsRejectBrowserRequestsAndRequireExplicitConfiguration() throws Exception {
+        mvc.perform(post("/api/v1/auth/google/native/challenge").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isNotFound());
+        when(verifier.nativeEnabled()).thenReturn(true);
+        mvc.perform(post("/api/v1/auth/google/native/challenge").header("Origin", "https://stoxsim.test").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/auth/google/native/challenge").contentType(MediaType.APPLICATION_FORM_URLENCODED)).andExpect(status().isUnsupportedMediaType());
+        when(challenges.createNative()).thenReturn(new GoogleLoginChallenge.Challenge("binding", "nonce"));
+        mvc.perform(post("/api/v1/auth/google/native/challenge").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.binding").value("binding")).andExpect(cookie().doesNotExist(GoogleLoginChallenge.COOKIE));
+    }
+    @Test void nativeLoginUsesItsOwnSingleUseChallengeAndExistingSessionCookie() throws Exception {
+        google.link(user.getId(), "correct-password", "native-subject");
+        when(verifier.nativeEnabled()).thenReturn(true);
+        String binding = "a".repeat(43);
+        when(challenges.consumeNative(binding)).thenReturn("nonce");
+        when(verifier.identity("credential", "nonce", true)).thenReturn(new GoogleIdentityVerifier.Identity("native-subject", null, false));
+        mvc.perform(post("/api/v1/auth/google/native/login").contentType(MediaType.APPLICATION_JSON)
+            .content("{\"credential\":\"credential\",\"binding\":\"" + binding + "\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.user.id").value(user.getId().toString()))
+            .andExpect(jsonPath("$.refreshToken").doesNotExist()).andExpect(cookie().secure("stoxsim_refresh", true));
+        verify(challenges).consumeNative(binding);
+        verify(challenges, never()).consume(any());
+        for (String action : new String[]{"password", "delete"}) {
+            mvc.perform(post("/api/v1/auth/google/native/" + action).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isUnauthorized());
         }
     }

@@ -18,6 +18,7 @@ import org.json.JSONObject
 @Composable internal fun SettingsScreen(state: AppState, model: AppViewModel) {
     val user = state.user ?: return
     val uri = LocalUriHandler.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     var name by rememberSaveable(user.displayName) { mutableStateOf(user.displayName) }
     var email by rememberSaveable(user.email) { mutableStateOf(user.email) }
     // Passwords never enter saved instance state or persistent storage.
@@ -35,11 +36,20 @@ import org.json.JSONObject
             OutlinedButton(model::resendVerification, enabled = !state.working) { Text("Resend verification email") }
         }
         OutlinedTextField(name, { name = it.take(100) }, label = { Text("Display name") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(email, { email = it.take(320) }, label = { Text("Email address") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(email, { email = it.take(320) }, label = { Text("Email address") }, enabled = user.passwordLoginEnabled, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
         if (email.trim() != user.email) PasswordField(profilePassword, { profilePassword = it }, "Current password to change email", !state.working)
         Button({ model.profile(name, email, profilePassword); profilePassword = "" }, enabled = !state.working && name.trim().length in 2..100 && email.trim().contains('@') && (email.trim() == user.email || profilePassword.isNotEmpty())) { Text("Save profile") }
     }
-    Panel("ACCOUNT SECURITY", "Change password") {
+    if (!user.passwordLoginEnabled) {
+        Panel("ACCOUNT SECURITY", "Add a password") {
+            Text("Confirm Google to add a StoxSim password. You can then change your email or disconnect Google on the website. Email recovery is also available from the sign-in screen.")
+            PasswordField(replacement, { replacement = it }, "New password", !state.working)
+            PasswordField(confirmation, { confirmation = it }, "Confirm new password", !state.working)
+            OutlinedButton({ model.googleAccountAction(context, replacement, false); replacement = ""; confirmation = "" },
+                enabled = !state.working && validNewPassword(replacement) && replacement == confirmation) { Text("Confirm with Google") }
+        }
+    }
+    if (user.passwordLoginEnabled) Panel("ACCOUNT SECURITY", "Change password") {
         PasswordField(current, { current = it }, "Current password", !state.working)
         PasswordField(replacement, { replacement = it }, "New password", !state.working)
         PasswordField(confirmation, { confirmation = it }, "Confirm new password", !state.working)
@@ -69,14 +79,14 @@ import org.json.JSONObject
     }
     Panel(title = "Delete account") {
         Text("Permanently remove your account and simulation data. This cannot be undone.")
-        PasswordField(deletingPassword, { deletingPassword = it }, "Password to confirm deletion", !state.working)
-        OutlinedButton({ confirm = "delete" }, enabled = !state.working && deletingPassword.isNotBlank()) { Text("Delete my account") }
+        if (user.passwordLoginEnabled) PasswordField(deletingPassword, { deletingPassword = it }, "Password to confirm deletion", !state.working)
+        OutlinedButton({ confirm = "delete" }, enabled = !state.working && (!user.passwordLoginEnabled || deletingPassword.isNotBlank())) { Text("Delete my account") }
     }
     Button(model::logout, enabled = !state.working, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
     if (confirm.isNotEmpty()) AlertDialog(onDismissRequest = { confirm = "" }, title = { Text(when (confirm) { "delete" -> "Permanently delete your account?"; "password" -> "Update password?"; else -> "Sign out all devices?" }) },
         text = { Text(if (confirm == "delete") "Your account and simulation data will be removed permanently." else "You will need to sign in again on every device.") },
         confirmButton = { TextButton({
-            when (confirm) { "delete" -> { model.deleteAccount(deletingPassword); deletingPassword = "" }; "password" -> { model.password(current, replacement); current = ""; replacement = ""; confirmation = "" }; else -> model.logoutAll() }; confirm = ""
+            when (confirm) { "delete" -> { if (user.passwordLoginEnabled) model.deleteAccount(deletingPassword) else model.googleAccountAction(context, null, true); deletingPassword = "" }; "password" -> { model.password(current, replacement); current = ""; replacement = ""; confirmation = "" }; else -> model.logoutAll() }; confirm = ""
         }) { Text("Confirm") } }, dismissButton = { TextButton({ confirm = "" }) { Text("Back") } })
 }
 internal fun validNewPassword(value: String) = value.length in 8..72 && value.toByteArray(Charsets.UTF_8).size <= 72 && value.isNotBlank()

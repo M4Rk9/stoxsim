@@ -9,7 +9,7 @@ internal data class Account(
     val cash: BigDecimal, val blocked: BigDecimal, val active: Boolean,
     val id: String = "", val capital: BigDecimal = BigDecimal.ZERO
 )
-internal data class User(val displayName: String, val email: String, val verified: Boolean, val accounts: List<Account>, val id: String = "")
+internal data class User(val displayName: String, val email: String, val verified: Boolean, val accounts: List<Account>, val id: String = "", val passwordLoginEnabled: Boolean = true)
 internal data class Instrument(val symbol: String, val name: String, val exchange: String,
     val region: String = "INDIA", val id: String = "", val currency: String = "INR", val key: String = "", val type: String = "EQUITY") {
     fun isSearchEligible(market: String) = region == market && type in setOf("EQUITY", "ETF") &&
@@ -53,7 +53,7 @@ internal fun parseAccount(json: JSONObject) = Account(json.getString("marketRegi
     json.getString("accountKind"), json.getString("currency"), json.money("availableCash"), json.money("blockedCash"),
     json.getBoolean("active"), json.optString("id", ""), json.decimal("startingCapital") ?: BigDecimal.ZERO)
 internal fun parseUser(json: JSONObject) = User(json.getString("displayName"), json.getString("email"),
-    json.getBoolean("emailVerified"), json.getJSONArray("accounts").mapObjects(::parseAccount), json.text("id"))
+    json.getBoolean("emailVerified"), json.getJSONArray("accounts").mapObjects(::parseAccount), json.text("id"), json.optBoolean("passwordLoginEnabled", true))
 internal fun parseInstrument(json: JSONObject, region: String) = Instrument(json.getString("tradingSymbol"), json.getString("name"),
     json.getString("exchange"), json.optString("marketRegion", region), json.optString("id", ""),
     json.optString("currency", if (region == "INDIA") "INR" else "USD"), json.text("instrumentKey"), json.text("instrumentType"))
