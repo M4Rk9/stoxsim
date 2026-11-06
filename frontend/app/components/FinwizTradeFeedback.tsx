@@ -62,7 +62,7 @@ export default function FinwizTradeFeedback({ feedback, onDismiss }: Props) {
         </div>
         <div className={styles.actions}>
           <a href="/finwiz">Explore portfolio risk with FinWiz</a>
-
+          <a href={`/learn?orderId=${encodeURIComponent(feedback.orderId)}#reflections`}>Reflect on this practice trade</a>
         </div>
       </div>
     </div>

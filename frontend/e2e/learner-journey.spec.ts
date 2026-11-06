@@ -479,6 +479,7 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
     });
   });
 
+  await page.getByText("Explore all learning tools", { exact: true }).click();
   await page.getByRole("link", { name: "Ask Finwiz AI" }).click();
   await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
@@ -516,8 +517,7 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await expect(page.getByText("Email verification pending")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your free plan" })).toBeVisible();
   await expect(page.getByText("2 Scenario Lab credits", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Current plan" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Billing not available yet" })).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Compare plans and manage billing" })).toHaveAttribute("href", "/billing");
   await expect(page.getByRole("heading", { name: "Portfolio reports" })).toBeVisible();
   await expect(page.getByText("Verify your email address before enabling delivery.")).toBeVisible();
   await page.getByRole("button", { name: "Preview current report" }).click();

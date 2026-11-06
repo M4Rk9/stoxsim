@@ -1,6 +1,8 @@
 "use client";
 
 import { GoogleSignInLink } from "./components/GoogleSignInLink";
+import HomeRecommendation from "./components/HomeRecommendation";
+import Notifications from "./components/Notifications";
 import { recordProductActivity } from "./lib/product-activity";
 
 import { financialValue } from "./lib/financial-units";
@@ -1371,6 +1373,8 @@ export default function Home() {
       </section>
 
 
+      <HomeRecommendation userId={session.user.id} />
+      <Notifications compact />
       <FeatureJourney userId={session.user.id} onboarding={onboarding}
         request={() => authorizedRequest<JourneyState>("/api/v1/onboarding/journey")}
         dismiss={dismissOnboarding} resume={resumeOnboarding} introduce={completeOnboardingIntroduction} />
