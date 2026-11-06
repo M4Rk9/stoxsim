@@ -194,6 +194,7 @@ public class AccountLifecycleService {
     public void revokeAllSessions(UUID userId) {
         userRepository.findByIdForUpdate(userId).orElseThrow(() -> new UnauthorizedException("User no longer exists"));
         refreshTokenRepository.revokeAllActive(userId, Instant.now());
+        jdbcTemplate.update("DELETE FROM notification_device WHERE user_id=?", userId);
     }
 
     @Transactional
@@ -207,6 +208,10 @@ public class AccountLifecycleService {
             "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
         export.put("finwizUsage", jdbcTemplate.queryForList(
             "SELECT usage_day,provider_attempts FROM finwiz_usage_daily WHERE user_id=? ORDER BY usage_day", userId));
+        export.put("notificationPreferences", jdbcTemplate.queryForList("SELECT learning,competitions,portfolio_education,product_announcements,promotional_messages,push_enabled,email_digest,updated_at FROM notification_settings WHERE user_id=?", userId));
+        export.put("notifications", jdbcTemplate.queryForList("SELECT id,category,title,body,href,created_at,read_at,promotional FROM user_notification WHERE user_id=? ORDER BY created_at,id", userId));
+        export.put("notificationDevices", jdbcTemplate.queryForList("SELECT platform,updated_at FROM notification_device WHERE user_id=?", userId));
+        export.put("notificationSuppression", jdbcTemplate.queryForList("SELECT reason,created_at FROM notification_suppression WHERE user_id=?", userId));
         export.put("guidedJourneyEvents", jdbcTemplate.queryForList("SELECT step,completed_at FROM guided_journey_event WHERE user_id=? ORDER BY completed_at,step", userId));
         export.put("scenarioRuns", jdbcTemplate.queryForList("SELECT request_id,account_id,request_payload,result_payload,created_at FROM scenario_run WHERE user_id=? ORDER BY created_at",userId));
         export.put("scenarioCredits", jdbcTemplate.queryForList("SELECT scenario_free_used,scenario_paid_used,scenario_credit_period_end FROM user_subscription WHERE user_id=?",userId));
@@ -438,6 +443,11 @@ public class AccountLifecycleService {
     }
 
     public void audit(UUID userId, String type, String detail) {
+        // Tokens are not tied to refresh-session IDs. Conservatively unregister
+        // this account's devices on logout or a single-session revocation.
+        if ("SIGNED_OUT".equals(type) || "SESSION_REVOKED".equals(type)) {
+            jdbcTemplate.update("DELETE FROM notification_device WHERE user_id=?", userId);
+        }
         String safeDetail = StringUtils.hasText(detail)
             ? detail.substring(0, Math.min(detail.length(), 200))
             : null;

@@ -67,6 +67,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/v1/billing/test/webhook",
+                    "/api/v1/notifications/unsubscribe",
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
                     "/api/v1/auth/google/config",
