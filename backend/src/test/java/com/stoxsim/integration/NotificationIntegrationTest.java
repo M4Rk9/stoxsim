@@ -1,6 +1,8 @@
 package com.stoxsim.integration;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -40,6 +42,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 class NotificationIntegrationTest {
  @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
  @Autowired NotificationService service;
+ @Autowired FcmNotificationTransport fcm;
+ @MockitoBean FcmClient fcmClient;
  @Autowired NotificationTransactions transactions;
  @Autowired NotificationOutbox configuredOutbox;
  @Autowired BillingNotificationMaterializer billingMaterializer;
@@ -55,6 +59,33 @@ class NotificationIntegrationTest {
   a=new AppUser("a-"+UUID.randomUUID()+"@stoxsim.test","hash","Learner A");a.markEmailVerified();users.saveAndFlush(a);
   b=users.saveAndFlush(new AppUser("b-"+UUID.randomUUID()+"@stoxsim.test","hash","Learner B"));
   mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+ }
+
+ @Test void pushSkipsReassignedInstallationsAndPreservesTheirNewBinding(){
+  service.updatePreferences(a.getId(),optedIn());service.registerDevice(a.getId(),new Device("installation-token","ANDROID"));
+  var id=publish("push-owner");
+  b.markEmailVerified();users.saveAndFlush(b);service.updatePreferences(b.getId(),optedIn());
+  when(fcmClient.configured()).thenReturn(true);
+  when(fcmClient.send("installation-token",a.getId(),id)).thenAnswer(call->{
+   service.registerDevice(b.getId(),new Device("installation-token","ANDROID"));
+   return new FcmClient.Outcome(NotificationTransport.Result.PERMANENT_REJECTION,true);
+  });
+  var message=new NotificationTransport.Message(id,a.getId(),a.getEmail(),"Private title","Private body","/progress",null);
+  assertThat(fcm.deliver(message)).isEqualTo(NotificationTransport.Result.PERMANENT_REJECTION);
+  assertThat(db.queryForObject("SELECT user_id FROM notification_device WHERE token='installation-token'",UUID.class)).isEqualTo(b.getId());
+  clearInvocations(fcmClient);assertThat(fcm.deliver(message)).isEqualTo(NotificationTransport.Result.PERMANENT_REJECTION);
+  verify(fcmClient,never()).send(anyString(),any(),any());
+ }
+ @Test void pushRechecksOptOutAndDoesNotRetryMixedAcceptedBatch(){
+  service.updatePreferences(a.getId(),optedIn());service.registerDevice(a.getId(),new Device("one-token","ANDROID"));service.registerDevice(a.getId(),new Device("two-token","ANDROID"));
+  var id=publish("push-batch");when(fcmClient.configured()).thenReturn(true);
+  when(fcmClient.send(eq("one-token"),any(),any())).thenReturn(new FcmClient.Outcome(NotificationTransport.Result.ACCEPTED,false));
+  when(fcmClient.send(eq("two-token"),any(),any())).thenReturn(new FcmClient.Outcome(NotificationTransport.Result.RETRYABLE_REJECTION,false));
+  var message=new NotificationTransport.Message(id,a.getId(),a.getEmail(),"Private title","Private body","/progress",null);
+  assertThat(fcm.deliver(message)).isEqualTo(NotificationTransport.Result.UNKNOWN);
+  db.update("UPDATE notification_settings SET push_enabled=false WHERE user_id=?",a.getId());
+  clearInvocations(fcmClient);assertThat(fcm.deliver(message)).isEqualTo(NotificationTransport.Result.PERMANENT_REJECTION);
+  verify(fcmClient,never()).send(anyString(),any(),any());
  }
  Preferences optedIn(){return new Preferences(true,true,true,false,false,true,true);}
  UUID publish(String key){return service.publish(new NotificationRequested(a.getId(),NotificationCategory.LEARNING,key,"Achievement","A learning achievement is ready.","/progress"));}
