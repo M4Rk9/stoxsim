@@ -1,6 +1,7 @@
 package com.stoxsim.integration;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,9 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.stoxsim.billing.LiveBillingService;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.stoxsim.auth.domain.AppUser;
@@ -28,6 +32,7 @@ class CommercialAccountLifecycleIntegrationTest {
     @Autowired AppUserRepository users;
     @Autowired AccountLifecycleService lifecycle;
     @Autowired JdbcTemplate db;
+    @MockitoBean LiveBillingService billing;
 
     private AppUser user() { return users.saveAndFlush(new AppUser(UUID.randomUUID()+"@lifecycle.test","hash","Learner")); }
     private void device(UUID user, String token) {
@@ -58,12 +63,20 @@ class CommercialAccountLifecycleIntegrationTest {
     }
     @Test void confirmedCancellationAllowsDeletionAndCascadesPrivateRecords() {
         var user=user(); var purchase=purchase(user.getId());
-        db.update("UPDATE billing_purchase SET cancellation_status='CONFIRMED' WHERE id=?",purchase);
+        db.update("UPDATE billing_purchase SET cancellation_status='CONFIRMED',renewal_stopped=true WHERE id=?",purchase);
         db.update("INSERT INTO decision_reflection(id,user_id,reason,created_at,updated_at) VALUES (?,?,'Private reflection',now(),now())",UUID.randomUUID(),user.getId());
         lifecycle.deleteVerifiedAccount(user.getId());
         assertThat(users.existsById(user.getId())).isFalse();
         assertThat(db.queryForObject("SELECT count(*) FROM billing_purchase WHERE user_id=?",Integer.class,user.getId())).isZero();
         assertThat(db.queryForObject("SELECT count(*) FROM decision_reflection WHERE user_id=?",Integer.class,user.getId())).isZero();
+    }
+    @Test void deletionRechecksRestartableCancellationAndFailsClosedDuringProviderOutage() {
+        var user=user(); var purchase=purchase(user.getId());
+        db.update("UPDATE billing_purchase SET cancellation_status='CONFIRMED',renewal_stopped=true,paid_through=now()+interval '1 day' WHERE id=?",purchase);
+        when(billing.refresh(user.getId(),purchase)).thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Provider unavailable"));
+        assertThatThrownBy(()->lifecycle.deleteVerifiedAccount(user.getId())).isInstanceOf(ResponseStatusException.class);
+        verify(billing).refresh(user.getId(),purchase);
+        assertThat(users.existsById(user.getId())).isTrue();
     }
     @Test void exportContainsOwnedReflectionsAndBillingButNeverTransportCredentials() {
         var user=user(); var other=user(); purchase(user.getId());

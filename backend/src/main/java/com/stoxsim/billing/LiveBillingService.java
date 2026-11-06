@@ -89,7 +89,9 @@ public class LiveBillingService {
         if(item.revoked||voided){status="REVOKED";access=null;}
         Instant paid=state.equals("SUBSCRIPTION_STATE_IN_GRACE_PERIOD")?item.paidThrough:(acknowledged?end:item.paidThrough);
         boolean stopped=Set.of("SUBSCRIPTION_STATE_CANCELED","SUBSCRIPTION_STATE_EXPIRED","SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED").contains(state);
-        db.update("UPDATE billing_purchase SET status=?,paid_through=?,access_until=?,cancellation_status=?,renewal_stopped=?,updated_at=now() WHERE id=?",status,ts(paid),ts(access),state.equals("SUBSCRIPTION_STATE_CANCELED")?"CONFIRMED":item.cancellation,stopped,item.id);
+        // Play can restart a canceled subscription before expiry. A previous cancellation
+        // acknowledgment must never survive authoritative resumed renewal.
+        db.update("UPDATE billing_purchase SET status=?,paid_through=?,access_until=?,cancellation_status=?,renewal_stopped=?,updated_at=now() WHERE id=?",status,ts(paid),ts(access),state.equals("SUBSCRIPTION_STATE_CANCELED")?"CONFIRMED":"NONE",stopped,item.id);
         project(item.id);return view(row(item.id));}
     private void validateRazorpayIdentity(Row item,JsonNode remote){String reference=remote.path("id").asText();
         if(!reference.matches("sub_[A-Za-z0-9]+")||(item.reference!=null&&!item.reference.equals(reference))||!remote.path("plan_id").asText().equals(item.product)||remote.path("quantity").asInt()!=1||!remote.path("notes").path("stoxsim_billing_reference").asText().equals(item.id.toString()))throw error(HttpStatus.BAD_GATEWAY,"Provider subscription does not match checkout");}

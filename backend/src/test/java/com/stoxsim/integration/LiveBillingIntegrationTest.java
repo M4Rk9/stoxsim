@@ -80,6 +80,20 @@ class LiveBillingIntegrationTest {
   billing.refresh(actor,entry.id());
   assertThat(accounts.findSandboxesByUserId(actor)).allSatisfy(a->{assertThat(a.isActive()).isTrue();assertThat(a.getTestTradingUntil()).isNull();});
  }
+ @Test void restartedPlayRenewalClearsCancellationAndBlocksDeletion(){
+  var remote=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");
+  when(play.fetch("restart-token")).thenAnswer(c->remote);
+  var entry=billing.verifyPlay(actor,"restart-token","plus");
+  remote.put("subscriptionState","SUBSCRIPTION_STATE_CANCELED");
+  assertThat(billing.refresh(actor,entry.id()).cancellationStatus()).isEqualTo("CONFIRMED");
+  guard.requireDeletionAllowed(actor);
+  remote.put("subscriptionState","SUBSCRIPTION_STATE_ACTIVE");
+  // Deletion must detect a provider restart even before any RTDN or manual refresh.
+  expectStatus(409,()->guard.requireDeletionAllowed(actor));
+  assertThat(billing.overview(actor).entries().getFirst().cancellationStatus()).isEqualTo("NONE");
+  db.update("UPDATE billing_purchase SET cancellation_status='CONFIRMED' WHERE id=?",entry.id());
+  expectStatus(409,()->guard.requireDeletionAllowed(actor));
+ }
  @Test void refundForAnUnobservedOlderInvoiceResolvesItsOwnerAndRevokesAccess()throws Exception{
   historicalChargeNotice("refund.processed",true);
  }
