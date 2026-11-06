@@ -75,7 +75,7 @@ class VisualSmokeTest {
                     compose.onNode(hasText("Watchlist") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertIsDisplayed()
                     compose.onNodeWithText("Example Company").assertIsDisplayed()
                     val priceBottom = compose.onNodeWithText("₹825.00", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.bottom
-                    val navigationTop = compose.onNodeWithContentDescription("Open Stock").fetchSemanticsNode().boundsInRoot.top
+                    val navigationTop = compose.onNodeWithContentDescription("Open Home").fetchSemanticsNode().boundsInRoot.top
                     assertTrue("First mover price must fit above navigation", priceBottom <= navigationTop)
                 }
                 if (route == "Finwiz") compose.onNodeWithContentDescription("Select module Stock fundamentals").assertIsDisplayed()
@@ -110,7 +110,7 @@ class VisualSmokeTest {
         compose.waitForIdle(); capture("finwiz-compact-large-text.png")
     }
     private fun capture(name: String, navigation: Boolean = true) {
-        if (navigation) listOf("Stock", "Finwiz AI", "Scenario Lab", "Competition").forEach { label ->
+        if (navigation) listOf("Home", "Markets", "Learn", "Compete", "Account").forEach { label ->
             compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
         }
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()

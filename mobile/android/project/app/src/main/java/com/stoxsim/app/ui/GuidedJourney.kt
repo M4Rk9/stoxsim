@@ -10,7 +10,7 @@ import com.stoxsim.app.data.*
 
 internal data class JourneyStep(val title: String, val body: String, val action: String, val route: String)
 internal fun journeyStep(step: String) = when (step) {
-    "INTRODUCTION" -> JourneyStep("Get to know your home screen", "Your balance is virtual cash. Market movers help you explore, search finds stocks and ETFs, and the four feature cards below open your learning tools.", "Start practising", "Markets")
+    "INTRODUCTION" -> JourneyStep("Get to know your home screen", "Your balance is virtual cash. Market movers help you explore, search finds stocks and ETFs, and Learn opens your learning tools.", "Start practising", "Markets")
     "FIRST_TRADE" -> JourneyStep("Make your first practice trade", "Search for a stock or ETF, inspect its quote, then review quantity and charges before placing an order in a standard account.", "Find a stock or ETF", "Markets")
     "WAITING" -> JourneyStep("Your order is waiting to execute", "Submission is not execution. Closed markets or limit prices can keep orders open. Review the status; your guide advances after execution. Explore Finwiz while you wait.", "Check open orders", "Orders")
     "FINWIZ" -> JourneyStep("First trade executed. Understand what happened.", "Open Finwiz, choose a topic and send a question. Try: How do charges and diversification affect my first trade?", "Learn with Finwiz AI", "Finwiz")
@@ -20,7 +20,7 @@ internal fun journeyStep(step: String) = when (step) {
     else -> JourneyStep("Your next visit, made useful", "Review your portfolio, ask Finwiz about something you noticed, or continue a learning mission. Check credits before running another scenario.", "Continue learning", "Learning path")
 }
 
-@Composable internal fun GuidedJourney(state: AppState, navigate: (String) -> Unit, onboardingAction: (String) -> Unit) {
+@Composable internal fun GuidedJourney(state: AppState, navigate: (String) -> Unit, onboardingAction: (String) -> Unit, showLinks: Boolean = true) {
     val progress = state.data["journey"]
     val dismissed = state.data["onboarding"]?.optBoolean("dismissed") == true
     if (dismissed) TextButton({ onboardingAction("resume") }, enabled = !state.working) { Text("Resume guide") }
@@ -34,6 +34,7 @@ internal fun journeyStep(step: String) = when (step) {
         }
     }
     SectionError(state, "journey")
+    if (!showLinks) return
     Text("Explore StoxSim", style = MaterialTheme.typography.titleLarge)
     // One column leaves enough room for descriptions and large system font sizes.
     listOf(

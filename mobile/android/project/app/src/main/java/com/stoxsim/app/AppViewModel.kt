@@ -36,6 +36,7 @@ internal data class AppState(
     val searchQuery: String = "", val recentStocks: List<Instrument> = emptyList(),
     val chats: List<FinwizConversation> = emptyList(), val activeChatId: String? = null,
     val learningModule: String = "LEARN", val readModules: Set<String> = emptySet(),
+    val billing: PlayBillingState = PlayBillingState(),
     val error: String? = null, val notice: String? = null
 ) {
     val account: Account? get() = user?.accounts?.find { it.id == accountId }
@@ -54,6 +55,9 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private var pendingOrder: Pair<OrderDraft, String>? = null
     private var pendingScenario: Pair<String, String>? = null
     private var pendingSandbox: String? = null
+    private var playBilling: PlayBilling? = null
+    private val billingVerifications = mutableSetOf<Job>()
+    private fun closeBilling() { playBilling?.close(); playBilling = null; billingVerifications.toList().forEach { it.cancel() }; billingVerifications.clear() }
     private var pagePending = false
     private var journeyJob: Job? = null
     private var foreground = false
@@ -165,6 +169,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             else "Password added. All sessions signed out. Sign in with Google or your new password.")
     }
     private suspend fun signedIn(user: User) {
+        closeBilling()
         cancelSearch()
         streakJob?.cancel(); streakJob = null
         streakTracker = DailyStreakTracker()
@@ -191,7 +196,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(dark = dark) }
     }
     fun openScreen(screen: String) {
-        if (screen !in listOf("Home", "Markets", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
+        if (screen !in listOf("Home", "Learn", "Learner profile", "Notifications", "Reflections", "Markets", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
                 "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Portfolio analysis")) return
         cancelSearch()
         mutable.update { it.copy(screen = screen, error = null, notice = null) }
@@ -202,6 +207,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         if (!active) { journeyJob?.cancel(); journeyJob = null; cancelSearch(); activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
         else {
             startStream(); startDailyStreak(); startProductActivity()
+            if (mutable.value.user == null) closeBilling() else playBilling?.restore()
             if (mutable.value.user != null && !mutable.value.working) refresh()
             val current = mutable.value
             if (current.screen == "Markets" && !current.searched && current.searchQuery.trim().length >= 2) search(current.searchQuery)
@@ -289,7 +295,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             state.copy(quote = quote, data = if (watch == null) state.data else state.data + ("watchlist" to watch), lists = if (indices == null) state.lists else state.lists + ("indices" to indices))
         }
     }
-    override fun onCleared() { stockSearch.cancel(); pendingEmailLink = null; activityJob?.cancel(); streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
+    override fun onCleared() { closeBilling(); stockSearch.cancel(); pendingEmailLink = null; activityJob?.cancel(); streakJob?.cancel(); streamJob?.cancel(); super.onCleared() }
     fun refresh() = runAction { loadPage() }
     fun refreshUser() = runAction { readAccounts() }
     fun loadPortfolio() = refresh()
@@ -379,10 +385,14 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val id = mutable.value.accountId
         when (mutable.value.screen) {
             "Home" -> {
-                portfolio(); market(); read("watchlist", "watchlists/default"); read("onboarding", "onboarding"); read("journey", "onboarding/journey")
+                portfolio(); read("onboarding", "onboarding"); read("journey", "onboarding/journey"); read("learnerHome", "learner/home"); read("notifications", "notifications")
                 if (id.isNotBlank()) list("trades", "accounts/$id/trades")
             }
-            "Markets" -> market()
+            "Markets" -> { market(); portfolio(); read("watchlist", "watchlists/default") }
+            "Learn" -> { read("progression", "progression"); read("journey", "onboarding/journey"); read("onboarding", "onboarding") }
+            "Learner profile" -> read("learnerProfile", "learner/profile")
+            "Notifications" -> { read("notifications", "notifications"); read("notificationPreferences", "notifications/preferences") }
+            "Reflections" -> list("reflections", "reflections")
             "Watchlist" -> { read("watchlist", "watchlists/default"); read("market", "market/status", mapOf("exchange" to if (mutable.value.region == "INDIA") "NSE" else "NASDAQ")) }
             "Stock" -> mutable.value.selected?.let { instrument ->
                 read("market", "market/status", mapOf("exchange" to instrument.exchange))
@@ -404,7 +414,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
                 mutable.value.data["campus"]?.optJSONObject("membership")?.text("institutionId")?.takeIf { it.isNotBlank() }?.let { campusWorkspace(it) } }
             "Account" -> { readAccounts(); read("subscription", "subscription") }
             "Profile & security" -> { readAccounts(); list("sessions", "auth/sessions"); list("events", "auth/events") }
-            "Subscriptions" -> { readAccounts(); read("subscription", "subscription") }
+            "Subscriptions" -> { readAccounts(); read("subscription", "subscription"); read("billingHistory", "billing"); connectBilling() }
             "Wallet" -> { readAccounts(); portfolio(); mutable.value.accountId.takeIf { it.isNotBlank() }?.let { account -> list("ledger", "accounts/$account/ledger") } }
             "Weekly reports" -> { read("reportPreference", "reports/weekly/preferences"); list("reports", "reports/weekly") }
         }
@@ -628,6 +638,44 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + error) else item }) }
         }
     }
+    fun saveLearnerProfile(level: String, objective: String, market: String) = runAction {
+        putData("learnerProfile", api.mutate("learner/profile", "PUT", learnerProfilePayload(level, objective, market)))
+        mutable.update { it.copy(notice = "Learning preferences saved across your devices.") }
+    }
+    fun useRecommendation() {
+        val recommendation = mutable.value.data["learnerHome"]?.optJSONObject("recommendation") ?: return
+        val route = learnerDestination(recommendation.text("href")) ?: return
+        val id = recommendation.text("id"); val owner = mutable.value.user?.id ?: return
+        openScreen(route)
+        if (id.matches(Regex("[A-Za-z0-9_-]{1,100}"))) viewModelScope.launch {
+            try { api.mutate("learner/recommendations/$id/used", expectedUserId = owner) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Optional analytics never blocks navigation. */ }
+        }
+    }
+    fun notificationRead(id: String, href: String?) = runAction {
+        java.util.UUID.fromString(id); api.mutate("notifications/$id/read"); read("notifications", "notifications")
+        href?.let(::learnerDestination)?.let(::openScreen)
+    }
+    fun notificationsReadAll() = runAction { api.mutate("notifications/read-all"); read("notifications", "notifications") }
+    fun notificationPreference(name: String, enabled: Boolean) = runAction {
+        require(name in notificationPreferenceKeys)
+        val existing = mutable.value.data["notificationPreferences"] ?: return@runAction
+        val body = JSONObject(); notificationPreferenceKeys.forEach { body.put(it, if (it == name) enabled else existing.optBoolean(it)) }
+        putData("notificationPreferences", api.mutate("notifications/preferences", "PUT", body))
+    }
+    fun saveReflection(id: String?, body: JSONObject) = runAction {
+        id?.let { java.util.UUID.fromString(it) }
+        api.mutate(if (id == null) "reflections" else "reflections/$id", if (id == null) "POST" else "PUT", body)
+        list("reflections", "reflections"); mutable.update { it.copy(notice = "Reflection saved privately to your StoxSim account.") }
+    }
+    fun deleteReflection(id: String) = runAction {
+        java.util.UUID.fromString(id); api.mutate("reflections/$id", "DELETE"); list("reflections", "reflections"); clearData("reflectionAssistance")
+    }
+    fun reflectionAssistance(id: String, consent: Boolean) = runAction {
+        require(consent); java.util.UUID.fromString(id)
+        putData("reflectionAssistance", api.mutate("reflections/$id/assistance", body = JSONObject().put("consent", true)))
+    }
     fun profile(name: String, email: String, password: String) = runAction {
         val body = JSONObject().put("displayName", name.trim()).put("email", email.trim())
         if (password.isNotEmpty()) body.put("currentPassword", password)
@@ -650,6 +698,49 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun exportAccount() = runAction { val result = api.mutate("auth/me/export").toString(2); mutable.update { it.copy(export = result) } }
     fun exportSaved() { mutable.update { it.copy(export = null, notice = "Account export saved.") } }
+    private suspend fun connectBilling() {
+        val userId = mutable.value.user?.id ?: return
+        closeBilling()
+        mutable.update { it.copy(billing = PlayBillingState(loading = true)) }
+        section("playBilling") {
+            val config = parsePlayConfiguration(api.objectData("billing/play/config"), getApplication<Application>().packageName)
+            if (mutable.value.user?.id != userId) return@section
+            if (!config.enabled) {
+                mutable.update { it.copy(billing = PlayBillingState(message = "Subscriptions are not available for purchase yet.")) }
+                return@section
+            }
+            val billing = PlayBilling(getApplication(), userId, config,
+                update = { owner, value -> if (mutable.value.user?.id == owner) mutable.update { it.copy(billing = value) } },
+                verify = { owner, product, token -> verifyPlayPurchase(owner, product, token) })
+            playBilling = billing
+            billing.connect()
+        }
+    }
+    fun purchase(activity: android.app.Activity, productId: String) {
+        if (mutable.value.user != null && !mutable.value.working) playBilling?.purchase(activity, productId)
+    }
+    fun restorePurchases() { if (mutable.value.user != null) playBilling?.restore() }
+    private fun verifyPlayPurchase(owner: String, product: String, token: String) {
+        val billing = playBilling ?: return
+        if (mutable.value.user?.id != owner) return
+        val job = viewModelScope.launch {
+            try {
+                api.mutate("billing/play/verify", body = JSONObject().put("productId", product).put("purchaseToken", token), expectedUserId = owner)
+                if (mutable.value.user?.id == owner && playBilling === billing) {
+                    val user = api.currentUser()
+                    val subscription = api.objectData("subscription")
+                    val history = api.objectData("billing")
+                    if (mutable.value.user?.id == owner && user.id == owner && playBilling === billing) {
+                        mutable.update { it.copy(user = user, data = it.data + ("subscription" to subscription) + ("billingHistory" to history)) }
+                        billing.verificationFinished(token, true)
+                    }
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (mutable.value.user?.id == owner && playBilling === billing) billing.verificationFinished(token, false) }
+        }
+        billingVerifications.add(job)
+        job.invokeOnCompletion { billingVerifications.remove(job) }
+    }
     fun createSandbox() = runAction {
         val key = pendingSandbox ?: UUID.randomUUID().toString().also { pendingSandbox = it }
         api.mutate("accounts/sandboxes", idempotencyKey = key); pendingSandbox = null
@@ -662,6 +753,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun clearData(key: String) { mutable.update { it.copy(data = it.data - key) } }
     fun clearMessage() { mutable.update { it.copy(error = null, notice = null) } }
     fun logout() = runAction {
+        closeBilling()
         cancelSearch()
         streakJob?.cancel(); streakJob = null
         streakTracker = DailyStreakTracker()
@@ -690,7 +782,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             catch (failure: Exception) { mutable.update { it.copy(error = failureMessage(failure)) } }
             finally {
                 mutable.update { it.copy(working = false) }
-                if (mutable.value.user == null) { activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null } else { startStream(); startDailyStreak(); restartProductActivity() }
+                if (mutable.value.user == null) { closeBilling(); activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null } else { startStream(); startDailyStreak(); restartProductActivity() }
                 if (pagePending && mutable.value.user != null) { pagePending = false; refresh() }
             }
         }

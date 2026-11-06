@@ -2,8 +2,7 @@
 
 Owner decision: Android first with native app screens. Personal Play Console
 setup was previously reported as started; current Console status is unverified.
-**Current owner decision: payments are deferred.** Prepare the non-payment candidate
-with purchasing disabled; the paid-launch plan below is future work. This is a release track;
+**Current owner decision: payment development is authorized; activation and publication require explicit owner approval.** The commercial execution branch adds [native Play Billing](ANDROID_PLAY_BILLING.md), disabled until backend and Play catalog configuration. This is a release track;
 the existing web-release milestones do not prove Android release readiness.
 
 ## Milestones
@@ -143,7 +142,7 @@ login and paid features; do not bypass account security globally for review.
 Recheck policies, supported billing libraries and Console requirements at submission.
 
 Signing workflow and exact external acceptance: [MEDIUM_LOW_COMPLETION.md](MEDIUM_LOW_COMPLETION.md).
-Payment work is intentionally deferred to the next batch. Owner-reported Console
+Payment activation and signed Play acceptance remain owner-controlled. Owner-reported Console
 setup in this document is historical; verify current status at submission.
 
 Current implementation/evidence: [non-payment closure](NON_PAYMENT_RELEASE_CLOSURE.md).
