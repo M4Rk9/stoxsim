@@ -23,6 +23,7 @@ import com.stoxsim.auth.domain.AppUser;
 import com.stoxsim.auth.repository.AppUserRepository;
 import com.stoxsim.auth.repository.RefreshTokenRepository;
 import com.stoxsim.common.error.UnauthorizedException;
+import com.stoxsim.billing.BillingAccountGuard;
 
 @Service
 public class AccountLifecycleService {
@@ -40,6 +41,7 @@ public class AccountLifecycleService {
     private final AuthProperties properties;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final BillingAccountGuard billing;
 
     public AccountLifecycleService(
         AppUserRepository userRepository,
@@ -50,7 +52,8 @@ public class AccountLifecycleService {
         AccountMailService mailService,
         AuthProperties properties,
         JdbcTemplate jdbcTemplate,
-        TransactionTemplate transactionTemplate
+        TransactionTemplate transactionTemplate,
+        BillingAccountGuard billing
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -61,6 +64,7 @@ public class AccountLifecycleService {
         this.properties = properties;
         this.jdbcTemplate = jdbcTemplate;
         this.transactionTemplate = transactionTemplate;
+        this.billing = billing;
     }
 
     @Transactional
@@ -208,6 +212,7 @@ public class AccountLifecycleService {
             "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
         export.put("finwizUsage", jdbcTemplate.queryForList(
             "SELECT usage_day,provider_attempts FROM finwiz_usage_daily WHERE user_id=? ORDER BY usage_day", userId));
+        export.put("billingPurchases", billing.export(userId));
         export.put("notificationPreferences", jdbcTemplate.queryForList("SELECT learning,competitions,portfolio_education,product_announcements,promotional_messages,push_enabled,email_digest,updated_at FROM notification_settings WHERE user_id=?", userId));
         export.put("notifications", jdbcTemplate.queryForList("SELECT id,category,title,body,href,created_at,read_at,promotional FROM user_notification WHERE user_id=? ORDER BY created_at,id", userId));
         export.put("notificationDevices", jdbcTemplate.queryForList("SELECT platform,updated_at FROM notification_device WHERE user_id=?", userId));
@@ -413,6 +418,7 @@ public class AccountLifecycleService {
     @Transactional
     public void deleteVerifiedAccount(UUID userId) {
         AppUser user = requireUserForUpdate(userId);
+        billing.requireDeletionAllowed(userId);
         audit(userId, "ACCOUNT_DELETED", "User requested permanent deletion");
         jdbcTemplate.update(
             "UPDATE account_event SET detail = NULL WHERE user_id = ?",

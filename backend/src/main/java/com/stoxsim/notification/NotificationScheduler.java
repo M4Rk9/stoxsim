@@ -16,9 +16,10 @@ public class NotificationScheduler {
  private final NotificationTransactions transactions;
  private final NotificationOutbox outbox;
  private final Clock clock;
- public NotificationScheduler(JdbcTemplate db,NotificationTransactions transactions,NotificationOutbox outbox,Clock clock){this.db=db;this.transactions=transactions;this.outbox=outbox;this.clock=clock;}
+ private final BillingNotificationMaterializer billing;
+ public NotificationScheduler(JdbcTemplate db,NotificationTransactions transactions,NotificationOutbox outbox,Clock clock,BillingNotificationMaterializer billing){this.db=db;this.transactions=transactions;this.outbox=outbox;this.clock=clock;this.billing=billing;}
  @Scheduled(initialDelayString="${stoxsim.notifications.initial-delay-ms:60000}",fixedDelayString="${stoxsim.notifications.poll-delay-ms:60000}")
- public void poll(){try{materialize();outbox.dispatch();}catch(RuntimeException e){LoggerFactory.getLogger(getClass()).warn("Optional notification job failed ({})",e.getClass().getSimpleName());}}
+ public void poll(){try{materialize();billing.materialize();outbox.dispatch();}catch(RuntimeException e){LoggerFactory.getLogger(getClass()).warn("Optional notification job failed ({})",e.getClass().getSimpleName());}}
  public void materialize(){
   var since=db.queryForObject("SELECT greatest(started_at,?) FROM notification_observation",Timestamp.class,Timestamp.from(clock.instant().minus(Duration.ofDays(90))));
   var events=db.query("""

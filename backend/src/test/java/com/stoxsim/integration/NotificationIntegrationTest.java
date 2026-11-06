@@ -9,6 +9,9 @@ import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.junit.jupiter.*;
@@ -32,12 +36,13 @@ import io.micrometer.core.instrument.MeterRegistry;
 @SpringBootTest(properties={"stoxsim.notifications.scheduler-enabled=false","stoxsim.notifications.delivery-enabled=false",
  "stoxsim.market-data.upstox.stream-enabled=false","stoxsim.market-data.upstox.instrument-sync-on-startup=false",
  "stoxsim.market-data.alpaca.instrument-sync-on-startup=false","stoxsim.market-data.alpaca.polling-enabled=false",
- "stoxsim.security.rate-limit.enabled=false","stoxsim.portfolio.history.enabled=false"})
+ "stoxsim.security.rate-limit.enabled=false","stoxsim.portfolio.history.enabled=false","stoxsim.billing.reconciliation-enabled=false"})
 class NotificationIntegrationTest {
  @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
  @Autowired NotificationService service;
  @Autowired NotificationTransactions transactions;
  @Autowired NotificationOutbox configuredOutbox;
+ @Autowired BillingNotificationMaterializer billingMaterializer;
  @Autowired AppUserRepository users;
  @Autowired JdbcTemplate db;
  @Autowired Clock clock;
@@ -115,7 +120,7 @@ class NotificationIntegrationTest {
   AtomicInteger calls=new AtomicInteger();worker(calls,NotificationTransport.Result.ACCEPTED).dispatch();assertThat(calls.get()).isZero();
  }
  @Test void pollingDoesNotInventHistoricalActivityAndDeduplicatesAchievements(){
-  var scanner=new NotificationScheduler(db,transactions,configuredOutbox,clock);
+  var scanner=new NotificationScheduler(db,transactions,configuredOutbox,clock,billingMaterializer);
   db.update("INSERT INTO achievement_unlock(user_id,achievement_code,unlocked_at) VALUES(?,'BEFORE',now()-interval '1 day')",a.getId());
   db.update("INSERT INTO achievement_unlock(user_id,achievement_code,unlocked_at) VALUES(?,'AFTER',now())",a.getId());scanner.materialize();scanner.materialize();
   assertThat(service.inbox(a.getId()).items()).hasSize(1);assertThat(service.inbox(a.getId()).items().getFirst().category()).isEqualTo(NotificationCategory.LEARNING);
@@ -123,6 +128,55 @@ class NotificationIntegrationTest {
  @Test void deletingAccountCascadesPrivateNotificationData(){
   service.updatePreferences(a.getId(),optedIn());publish("delete");service.unsubscribeToken(a.getId());service.registerDevice(a.getId(),new Device("private-token","ANDROID"));users.deleteById(a.getId());users.flush();
   for(String table:List.of("notification_settings","user_notification","notification_device","notification_outbox","notification_unsubscribe","notification_source_seen"))assertThat(db.queryForObject("SELECT count(*) FROM "+table,Long.class)).isZero();
+ }
+ @Test void dispatcherSkipsAnOwnerLockedByUnsubscribeWithoutLockInversion() throws Exception {
+  service.updatePreferences(a.getId(),optedIn());publish("locked-owner");String token=service.unsubscribeToken(a.getId());
+  CountDownLatch ownerLocked=new CountDownLatch(1),releaseOwner=new CountDownLatch(1);
+  AtomicInteger calls=new AtomicInteger();
+  try(var executor=Executors.newFixedThreadPool(2)) {
+   var unsubscribe=executor.submit(()->new TransactionTemplate(manager).executeWithoutResult(s->{
+    db.queryForObject("SELECT id FROM app_user WHERE id=? FOR UPDATE",UUID.class,a.getId());ownerLocked.countDown();
+    try { if(!releaseOwner.await(5,TimeUnit.SECONDS))throw new IllegalStateException("Test owner lock timed out"); }
+    catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}
+    service.unsubscribe(token);
+   }));
+   try {
+    assertThat(ownerLocked.await(5,TimeUnit.SECONDS)).isTrue();
+    executor.submit(()->worker(calls,NotificationTransport.Result.ACCEPTED).dispatch()).get(2,TimeUnit.SECONDS);
+   } finally { releaseOwner.countDown(); }
+   unsubscribe.get(5,TimeUnit.SECONDS);worker(calls,NotificationTransport.Result.ACCEPTED).dispatch();
+   assertThat(calls.get()).isZero();assertThat(service.preferences(a.getId()).emailDigest()).isFalse();
+  }
+ }
+ @Test void billingTransitionsAreObservedOnceAndDoNotOptInToDelivery() {
+  UUID purchase=purchase(a,"ACTIVE",false);billingMaterializer.materialize();billingMaterializer.materialize();
+  assertThat(service.inbox(a.getId()).items()).hasSize(1);assertThat(service.inbox(b.getId()).items()).isEmpty();
+  db.update("UPDATE billing_purchase SET updated_at=now() WHERE id=?",purchase);billingMaterializer.materialize();
+  assertThat(service.inbox(a.getId()).items()).hasSize(1);
+  db.update("UPDATE billing_purchase SET paid_through=paid_through+interval '30 days',updated_at=now() WHERE id=?",purchase);billingMaterializer.materialize();
+  db.update("UPDATE billing_purchase SET status='PAST_DUE',updated_at=now() WHERE id=?",purchase);billingMaterializer.materialize();
+  db.update("UPDATE billing_purchase SET cancellation_status='REQUESTED',updated_at=now() WHERE id=?",purchase);billingMaterializer.materialize();
+  db.update("UPDATE billing_purchase SET status='ENDING',cancellation_status='CONFIRMED',updated_at=now() WHERE id=?",purchase);billingMaterializer.materialize();
+  db.update("INSERT INTO billing_charge(provider,charge_id,purchase_id,amount_minor,refunded_minor,currency,status,paid_at) VALUES('RAZORPAY','refund-test',?,9900,9900,'INR','refunded',now())",purchase);
+  db.update("UPDATE billing_purchase SET revoked=true,status='REVOKED',updated_at=now() WHERE id=?",purchase);billingMaterializer.materialize();billingMaterializer.materialize();
+  var inbox=service.inbox(a.getId());assertThat(inbox.items()).hasSize(6);
+  assertThat(inbox.items()).allMatch(i->i.category()==NotificationCategory.BILLING&&i.href().equals("/settings"));
+  assertThat(inbox.items().stream().map(Item::title)).contains("Subscription payment needs attention","Subscription cancellation requested","Subscription cancellation updated","Subscription refund recorded");
+  assertThat(db.queryForObject("SELECT count(*) FROM notification_outbox",Long.class)).isZero();
+ }
+ @Test void historicalBillingGetsSilentBaselineButFutureChangesAreNotLost() {
+  UUID old=purchase(a,"ACTIVE",true);billingMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).isEmpty();
+  db.update("UPDATE billing_purchase SET updated_at=now() WHERE id=?",old);billingMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).isEmpty();
+  db.update("UPDATE billing_purchase SET status='GRACE',updated_at=now() WHERE id=?",old);billingMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).hasSize(1);
+  UUID pending=purchase(b,"PENDING",false);billingMaterializer.materialize();assertThat(service.inbox(b.getId()).items()).isEmpty();
+  db.update("UPDATE billing_purchase SET status='ACTIVE',updated_at=now() WHERE id=?",pending);billingMaterializer.materialize();assertThat(service.inbox(b.getId()).items()).hasSize(1);
+ }
+ UUID purchase(AppUser user,String status,boolean historical) {
+  UUID id=UUID.randomUUID();
+  db.update("""
+   INSERT INTO billing_purchase(id,user_id,provider,plan,request_key,provider_product,status,paid_through,created_at)
+   VALUES(?,?,'RAZORPAY','PLUS',?,'local-test-plan',?,now()+interval '30 days',CASE WHEN ? THEN now()-interval '1 day' ELSE now() END)
+   """,id,user.getId(),UUID.randomUUID(),status,historical);return id;
  }
  NotificationOutbox worker(AtomicInteger calls,NotificationTransport.Result result){
   NotificationTransport transport=new NotificationTransport(){public String channel(){return "EMAIL";}public boolean configured(){return true;}public Result deliver(Message m){calls.incrementAndGet();return result;}};

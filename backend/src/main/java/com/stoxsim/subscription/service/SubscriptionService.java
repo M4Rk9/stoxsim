@@ -28,6 +28,9 @@ public class SubscriptionService {
     private final UserSubscriptionRepository subscriptions;
     private final VirtualAccountRepository accounts;
     private final Clock clock;
+    private boolean billingEnabled;
+    @org.springframework.beans.factory.annotation.Autowired
+    void configureBillingAvailability(com.stoxsim.billing.BillingConfig config) { billingEnabled = config.razorpayEnabled || config.playEnabled; }
 
     public SubscriptionService(
         UserSubscriptionRepository subscriptions,
@@ -55,7 +58,7 @@ public class SubscriptionService {
             .stream()
             .map(AccountResponse::from)
             .toList();
-        return SubscriptionResponse.from(subscription, sandboxes);
+        return SubscriptionResponse.from(subscription, sandboxes, billingEnabled);
     }
 
     /**
@@ -114,6 +117,7 @@ public class SubscriptionService {
                 subscription.getPlan().sandboxCapitalInr()
             );
             if (subscription.isTestBilling()) primary.setTestTradingUntil(subscription.getTestAccessUntil());
+        if (subscription.isLiveBilling()) primary.setBillingAccessUntil(subscription.getBillingAccessUntil());
             accounts.save(primary);
         }
 
@@ -134,6 +138,7 @@ public class SubscriptionService {
             normalizedKey
         );
         if (subscription.isTestBilling()) sandbox.setTestTradingUntil(subscription.getTestAccessUntil());
+        if (subscription.isLiveBilling()) sandbox.setBillingAccessUntil(subscription.getBillingAccessUntil());
         sandbox = accounts.save(sandbox);
         return AccountResponse.from(sandbox);
     }
@@ -172,6 +177,7 @@ public class SubscriptionService {
             var account = accounts.findByUserIdAndMarketRegionAndSandboxPlanAndSandboxSlot(userId, region, plan, 1)
                 .orElseGet(() -> accounts.save(VirtualAccount.sandbox(subscription.getUser(), plan, 1, plan.sandboxCapital(region), null, region)));
             if (subscription.isTestBilling()) account.setTestTradingUntil(subscription.getTestAccessUntil());
+        if (subscription.isLiveBilling()) account.setBillingAccessUntil(subscription.getBillingAccessUntil());
             account.activate();
         }
     }

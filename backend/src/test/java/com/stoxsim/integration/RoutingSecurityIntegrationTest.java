@@ -83,7 +83,26 @@ class RoutingSecurityIntegrationTest {
 
     private static final Set<String> PUBLIC_POST = Set.of(
         "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
-        "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset", "/api/v1/auth/email-verification/confirm", "/api/v1/billing/test/webhook", "/api/v1/notifications/unsubscribe");
+        "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset", "/api/v1/auth/email-verification/confirm", "/api/v1/billing/test/webhook",
+        "/api/v1/billing/razorpay/webhook", "/api/v1/billing/play/notifications", "/api/v1/notifications/unsubscribe");
+
+    @Test void publicCallbacksAreExactAndDisabledBillingCannotGrantAccess() throws Exception {
+        for (String route : List.of("/api/v1/billing/razorpay/webhook", "/api/v1/billing/play/notifications")) {
+            mvc.perform(post(route).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isServiceUnavailable());
+            mvc.perform(get(route)).andExpect(status().isUnauthorized());
+        }
+        // Pub/Sub's token belongs to Google; application JWT parsing must not intercept it.
+        mvc.perform(post("/api/v1/billing/play/notifications").header("Authorization", "Bearer invalid-provider-token")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isServiceUnavailable());
+        mvc.perform(post("/api/v1/notifications/unsubscribe").param("token", "invalid"))
+            .andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/notifications/unsubscribe")).andExpect(status().isUnauthorized());
+        for (String route : List.of("/api/v1/billing/play/verify", "/api/v1/notifications/admin/suppressions"))
+            mvc.perform(post(route).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
+    }
 
     @Test void everyProtectedControllerRouteRejectsAnonymousMalformedAndRevokedTokensBeforeBinding() throws Exception {
         authentication.logout(session.refreshToken());
