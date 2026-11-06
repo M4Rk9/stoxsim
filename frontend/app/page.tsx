@@ -1097,11 +1097,15 @@ export default function Home() {
   function selectAccount(accountId: string, source: Account[] = accounts) {
     const account = source.find((candidate) => candidate.id === accountId);
     if (!account || account.id === activeAccountId) return;
-    searchGeneration.current++;
-    setSearchOpen(false);
-    setSearchLoading(false);
-    setResults([]);
     const marketChanged = account.marketRegion !== marketRegion;
+    // The first account response can arrive after the learner has begun searching.
+    // Keep that search when initializing the same market; actual switches invalidate it.
+    if (activeAccountId || marketChanged) {
+      searchGeneration.current++;
+      setSearchOpen(false);
+      setSearchLoading(false);
+      setResults([]);
+    }
     setActiveAccountId(account.id);
     setMarketRegion(account.marketRegion);
     window.sessionStorage.setItem("stoxsim-active-account", account.id);
