@@ -27,6 +27,11 @@ public class ApiExceptionHandler {
         this.meterRegistry = meterRegistry;
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiError> notFound(org.springframework.web.servlet.resource.NoResourceFoundException exception) {
+        return response(HttpStatus.NOT_FOUND, "Endpoint not found.", Map.of());
+    }
+
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiError> unsupportedMethod(org.springframework.web.HttpRequestMethodNotSupportedException exception) {
         return response(HttpStatus.METHOD_NOT_ALLOWED, "This HTTP method is not supported for this endpoint.", Map.of());

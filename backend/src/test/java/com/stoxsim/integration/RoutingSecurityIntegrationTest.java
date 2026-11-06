@@ -63,6 +63,12 @@ class RoutingSecurityIntegrationTest {
         session = tokens.issueTokenPair(owner);
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
+    @Test void disabledGoogleConfigurationIsUnavailableWithoutBecomingAServerError() throws Exception {
+        mvc.perform(post("/api/v1/auth/google/config"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("Endpoint not found."));
+        mvc.perform(get("/api/v1/auth/google/config")).andExpect(status().isUnauthorized());
+    }
     @Test void emailChangeRequiresPasswordAndInvalidatesOldLinksAndSession() throws Exception {
         db.update("UPDATE app_user SET password_hash=? WHERE id=?", passwordEncoder.encode("correct-password"), owner.getId());
         String reset = accountTokens.issue(owner.getId(), AccountTokenService.PASSWORD_RESET, java.time.Duration.ofMinutes(30));
