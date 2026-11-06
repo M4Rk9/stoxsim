@@ -201,6 +201,12 @@ public class AccountLifecycleService {
         requireUser(userId);
         Map<String, Object> export = new LinkedHashMap<>();
         export.put("exportedAt", Instant.now());
+        export.put("learnerProfile", jdbcTemplate.queryForList(
+            "SELECT experience_level,learning_objective,preferred_market,updated_at FROM learner_profile WHERE user_id=?", userId));
+        export.put("decisionReflections", jdbcTemplate.queryForList(
+            "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
+        export.put("finwizUsage", jdbcTemplate.queryForList(
+            "SELECT usage_day,provider_attempts FROM finwiz_usage_daily WHERE user_id=? ORDER BY usage_day", userId));
         export.put("guidedJourneyEvents", jdbcTemplate.queryForList("SELECT step,completed_at FROM guided_journey_event WHERE user_id=? ORDER BY completed_at,step", userId));
         export.put("scenarioRuns", jdbcTemplate.queryForList("SELECT request_id,account_id,request_payload,result_payload,created_at FROM scenario_run WHERE user_id=? ORDER BY created_at",userId));
         export.put("scenarioCredits", jdbcTemplate.queryForList("SELECT scenario_free_used,scenario_paid_used,scenario_credit_period_end FROM user_subscription WHERE user_id=?",userId));

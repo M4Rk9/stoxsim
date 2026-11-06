@@ -70,6 +70,13 @@ class ApiRateLimitFilterTest {
     }
 
     @Test
+    void privateReflectionAssistanceSharesTheFinwizPolicy() {
+        var filter = filterReturning(1, new RateLimitProperties());
+        assertEquals("finwiz", filter.policyFor("POST", "/api/v1/reflections/" + java.util.UUID.randomUUID() + "/assistance").name());
+        assertEquals("write", filter.policyFor("POST", "/api/v1/reflections").name());
+    }
+
+    @Test
     void activityIngestionHasASeparateBoundedPolicy() {
         var filter = filterReturning(1, new RateLimitProperties());
         assertEquals("analytics", filter.policyFor("POST", "/api/v1/analytics/events").name());

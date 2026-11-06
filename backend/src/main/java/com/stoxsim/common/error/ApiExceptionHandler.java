@@ -49,6 +49,13 @@ public class ApiExceptionHandler {
         return response(HttpStatus.UNAUTHORIZED, exception.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ResponseEntity<ApiError> handleUnreadableBody(org.springframework.http.converter.HttpMessageNotReadableException exception) {
+        // Parser messages can contain submitted private content; never echo or log them.
+        recordError(HttpStatus.BAD_REQUEST, "invalid_json");
+        return response(HttpStatus.BAD_REQUEST, "Request body is invalid or contains an unsupported value", Map.of());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
         Map<String, String> fields = new LinkedHashMap<>();

@@ -14,6 +14,19 @@ public class FinwizProperties {
     private int maxQuestionCharacters = 2000;
     private int maxOutputTokens = 900;
     private String thinkingLevel = "minimal";
+    private int basicDailyProviderRequests = 10;
+    private int expandedDailyProviderRequests = 30;
+    private int fullDailyProviderRequests = 60;
+    private int globalDailyProviderRequests = 500;
+
+    public int getBasicDailyProviderRequests() { return basicDailyProviderRequests; }
+    public void setBasicDailyProviderRequests(int value) { basicDailyProviderRequests = value; }
+    public int getExpandedDailyProviderRequests() { return expandedDailyProviderRequests; }
+    public void setExpandedDailyProviderRequests(int value) { expandedDailyProviderRequests = value; }
+    public int getFullDailyProviderRequests() { return fullDailyProviderRequests; }
+    public void setFullDailyProviderRequests(int value) { fullDailyProviderRequests = value; }
+    public int getGlobalDailyProviderRequests() { return globalDailyProviderRequests; }
+    public void setGlobalDailyProviderRequests(int value) { globalDailyProviderRequests = value; }
 
     public boolean isEnabled() {
         return enabled;

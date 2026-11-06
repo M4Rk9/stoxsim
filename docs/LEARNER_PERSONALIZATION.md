@@ -1,0 +1,11 @@
+# Learner preferences and recommended learning
+
+The optional profile stores three nullable choices: `experienceLevel` (BEGINNER, INTERMEDIATE, ADVANCED), `learningObjective` (BASICS, FUNDAMENTALS, DIVERSIFICATION, DISCIPLINE), and `preferredMarket` (INDIA, UNITED_STATES). GET/PUT `/api/v1/learner/profile` requires the current user's bearer session. PUT accepts all three fields; null clears a choice. Reads return `updatedAt`, null until saved. No profile is inferred or required for registration.
+
+GET `/api/v1/learner/home` returns `{profile,recommendation:{id,title,description,href,actionLabel}}`. One deterministic recommendation uses existing persisted facts, in priority order: open/first standard order, purchase-cost concentration, active competition participation, selected learning objective, unfinished learning visit, then Scenario Lab. The concentration cue explicitly describes recorded purchase costs, not a current valuation or an investment recommendation. No provider call or financial-state update occurs while loading Home.
+
+POST `/api/v1/learner/recommendations/{id}/used` records one `RECOMMENDATION_USED` event per real learner/UTC day in existing first-party analytics. The ID must still match the currently eligible recommendation or returns 409; a stale card can refresh Home. A recorded click never completes a mission or changes an account. GET requests do not record use. Tracking coverage starts at V127; no historical activity is backfilled.
+
+V127 adds the preference row with account-deletion cascading and extends the existing activity event allowlist. Deploy this additive migration with the backend before web/Android clients. Existing authentication, onboarding and simulator APIs remain compatible. Roll back application code while retaining the additive table; do not edit or undo an applied Flyway migration. Profile export is integrated into the existing account export by the combined release.
+
+Validation: `mvn -B -ntp -C test -Dtest=LearnerPersonalizationIntegrationTest` exercises optional/clearable profiles, account isolation, invalid enum rejection, authentication, fact-driven recommendations, unchanged cash, actual idempotent usage and deletion cascading with PostgreSQL Testcontainers. This does not establish production acceptance or a measured retention improvement. No incremental paid infrastructure is required.
