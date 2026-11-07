@@ -127,5 +127,6 @@ stoxsim:
       polling-enabled: ${ALPACA_POLLING_ENABLED:true}
       polling-interval-millis: ${ALPACA_POLLING_INTERVAL_MILLIS:5000}
   trading:
+    index-derivatives-enabled: ${STOXSIM_INDEX_DERIVATIVES_ENABLED:false}
     bse-equities-enabled: ${STOXSIM_BSE_EQUITIES_ENABLED:false}
     slippage-basis-points: ${SIMULATED_SLIPPAGE_BASIS_POINTS:5}

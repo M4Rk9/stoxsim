@@ -206,6 +206,18 @@ public class AccountLifecycleService {
         requireUser(userId);
         Map<String, Object> export = new LinkedHashMap<>();
         export.put("exportedAt", Instant.now());
+        export.put("derivativesWallet", jdbcTemplate.queryForList(
+            "SELECT cash, realized_pnl FROM derivative_wallet WHERE user_id=?", userId));
+        export.put("derivativesPositions", jdbcTemplate.queryForList("""
+            SELECT c.symbol,c.provider_key,c.expiry,c.kind,c.lot_size,p.direction,p.lots,p.average_entry,p.reserved_margin
+            FROM derivative_position p JOIN derivative_contract c ON c.id=p.contract_id
+            WHERE p.user_id=? ORDER BY c.expiry,c.symbol
+            """, userId));
+        export.put("derivativesFills", jdbcTemplate.queryForList("""
+            SELECT c.symbol,c.provider_key,c.expiry,c.kind,c.lot_size,f.action,f.lots,f.price,f.cash_change,f.realized_pnl,f.filled_at
+            FROM derivative_fill f JOIN derivative_contract c ON c.id=f.contract_id
+            WHERE f.user_id=? ORDER BY f.filled_at,f.id
+            """, userId));
         export.put("learnerProfile", jdbcTemplate.queryForList(
             "SELECT experience_level,learning_objective,preferred_market,updated_at FROM learner_profile WHERE user_id=?", userId));
         export.put("decisionReflections", jdbcTemplate.queryForList(

@@ -58,7 +58,8 @@ class UpstoxInstrumentSyncServiceTest {
             client,
             new UpstoxInstrumentMapper(),
             batches,
-            new ObjectMapper()
+            new ObjectMapper(),
+            new com.stoxsim.derivative.DerivativeCatalog(null, false)
         );
 
         var result = service.synchronize();

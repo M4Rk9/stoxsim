@@ -15,6 +15,7 @@ import tools.jackson.core.JsonToken;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 
+import com.stoxsim.derivative.DerivativeCatalog;
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMapper;
 import com.stoxsim.instrument.provider.upstox.UpstoxInstrumentMasterClient;
 
@@ -28,17 +29,20 @@ public class UpstoxInstrumentSyncService {
     private final UpstoxInstrumentMapper mapper;
     private final InstrumentBatchService batchService;
     private final ObjectMapper objectMapper;
+    private final DerivativeCatalog derivatives;
 
     public UpstoxInstrumentSyncService(
         UpstoxInstrumentMasterClient client,
         UpstoxInstrumentMapper mapper,
         InstrumentBatchService batchService,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        DerivativeCatalog derivatives
     ) {
         this.client = client;
         this.mapper = mapper;
         this.batchService = batchService;
         this.objectMapper = objectMapper;
+        this.derivatives = derivatives;
     }
 
     public InstrumentSyncResult synchronize() throws IOException, InterruptedException {
@@ -46,6 +50,8 @@ public class UpstoxInstrumentSyncService {
         Instant startedAt = Instant.now();
         int accepted = 0;
         int ignored = 0;
+        int derivativeCount = 0;
+        List<DerivativeCatalog.Contract> derivativeBatch = new ArrayList<>(BATCH_SIZE);
         List<InstrumentSnapshot> batch = new ArrayList<>(BATCH_SIZE);
         var elementReader = objectMapper.reader()
             .without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
@@ -67,6 +73,15 @@ public class UpstoxInstrumentSyncService {
 
                 while (parser.nextToken() != JsonToken.END_ARRAY) {
                     var node = elementReader.readTree(parser);
+                    var derivative = derivatives.parse(node);
+                    if (derivative.isPresent()) {
+                        derivativeBatch.add(derivative.get());
+                        derivativeCount++;
+                        if (derivativeBatch.size() == BATCH_SIZE) {
+                            derivatives.upsert(derivativeBatch, syncId);
+                            derivativeBatch.clear();
+                        }
+                    }
                     var snapshot = mapper.map(node);
                     if (snapshot.isEmpty()) {
                         ignored++;
@@ -94,6 +109,10 @@ public class UpstoxInstrumentSyncService {
             );
         }
 
+        if (derivativeCount > 0) {
+            derivatives.upsert(derivativeBatch, syncId);
+            derivatives.deactivateMissing(syncId);
+        }
         int deactivated = batchService.deactivateMissing(UpstoxInstrumentMapper.PROVIDER, syncId);
         return new InstrumentSyncResult(
             syncId,
