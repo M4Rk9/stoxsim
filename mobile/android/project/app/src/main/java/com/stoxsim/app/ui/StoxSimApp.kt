@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -162,7 +161,6 @@ internal fun productTab(screen: String) = when (screen) {
     val stockPages = listOf("Markets", "Portfolio", "Orders", "Watchlist")
     val main = stockPages + listOf("Home", "Learn", "Competitions", "Account")
     val chat = state.screen == "Finwiz chat"
-    val largeText = LocalDensity.current.fontScale > 1.3f
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         Column(Modifier.statusBarsPadding().fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -212,7 +210,7 @@ internal fun productTab(screen: String) = when (screen) {
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onSurface,
                     selectedTextColor = MaterialTheme.colorScheme.onSurface, indicatorColor = MaterialTheme.colorScheme.surfaceContainerHighest),
                 label = { Text(label,
-                    style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = if (largeText) 1 else Int.MAX_VALUE) }) }
+                    style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center) }) }
             }
         }
     }) { padding ->

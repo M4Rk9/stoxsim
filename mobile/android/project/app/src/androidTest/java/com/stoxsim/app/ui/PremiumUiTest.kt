@@ -134,9 +134,14 @@ class PremiumUiTest {
                 }
             }
         } }
-        listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read", "Stock", "Finwiz", "Lab", "Contest").forEach { label ->
+        val contentLabels = listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read")
+        val navigationLabels = listOf("Home", "Markets", "Learn", "Compete", "Account")
+        (contentLabels + navigationLabels).forEach { label ->
             val results = mutableListOf<TextLayoutResult>()
-            compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
+            val node = compose.onNodeWithText(label, useUnmergedTree = true)
+            if (label in contentLabels) node.performScrollTo()
+            else compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
+            node.assertIsDisplayed()
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
             // Semantics can expose a paragraph's wrapping width, larger than the
             // painted text. Check glyph-line widths and truncation, allowing 1 px rounding.
