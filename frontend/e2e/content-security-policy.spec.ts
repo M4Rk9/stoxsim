@@ -46,12 +46,12 @@ test("the browser blocks injected inline scripts and event handlers", async ({ p
 });
 
 test("checkout origins are permitted only on the billing route", async ({ request }) => {
-  for (const path of ["/", "/settings", "/admin/billing"]) {
+  for (const path of ["/", "/settings", "/admin/billing", "/billing"]) {
     const response = await request.get(path);
     const policy = response.headers()["content-security-policy"];
     nonce(policy);
     const scripts = policy.match(/script-src[^;]*/)?.[0] ?? "";
     const scriptSources = scripts.trim().split(/\s+/);
-    expect(scriptSources.some(source => source === "https://checkout.razorpay.com")).toBe(path === "/admin/billing");
+    expect(scriptSources.some(source => source === "https://checkout.razorpay.com")).toBe(path === "/admin/billing" || path === "/billing");
   }
 });

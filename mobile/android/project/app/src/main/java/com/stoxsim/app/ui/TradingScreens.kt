@@ -188,7 +188,7 @@ import java.math.RoundingMode
 }
 @Composable internal fun MarketsScreen(state: AppState, model: AppViewModel) {
     StockResults(state, model::selectStock)
-    if (state.searchQuery.isBlank()) { Indices(state); Movers(state, model::selectStock) }
+    if (state.searchQuery.isBlank()) StocksExplore(state, model::openScreen, model::selectStock)
 }
 @Composable internal fun StockResults(state: AppState, select: (Instrument) -> Unit) {
     Panel(title = if (state.searchQuery.trim().length >= 2) "Matches for ${state.searchQuery.trim()}" else "Search stocks & ETFs") {

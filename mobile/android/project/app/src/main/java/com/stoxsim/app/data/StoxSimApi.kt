@@ -179,9 +179,11 @@ internal class StoxSimApi(
     suspend fun addToWatchlist(instrument: Instrument): JSONObject =
         mutate("watchlists/default/items", body = instrument.watchlistPayload())
     suspend fun mutate(path: String, method: String = "POST", body: JSONObject = JSONObject(),
-        idempotencyKey: String? = null): JSONObject = serialized {
+        idempotencyKey: String? = null, expectedUserId: String? = null): JSONObject = serialized {
+        if (expectedUserId != null && activitySession?.userId != expectedUserId) throw SessionExpired()
         // Rotate before writes when the advertised token lifetime is almost over. Never replay a write.
         if (accessToken == null || System.currentTimeMillis() >= accessExpiresAt - 30_000) refresh()
+        if (expectedUserId != null && activitySession?.userId != expectedUserId) throw SessionExpired()
         request("api/v1/$path", body, accessToken, method = method, idempotencyKey = idempotencyKey).use {
             if (it.code == 401) {
                 // Reconnect for the user's next explicit attempt without resubmitting this action.

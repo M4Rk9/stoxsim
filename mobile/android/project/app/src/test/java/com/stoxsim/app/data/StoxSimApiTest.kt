@@ -30,6 +30,28 @@ class StoxSimApiTest {
     }
     @After fun teardown() { server.shutdown() }
 
+    @Test fun delayedPurchaseCannotBeSubmittedUnderAnotherAccountSession() = runBlocking {
+        server.enqueue(session("first")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        try {
+            api.mutate("billing/play/verify", body = JSONObject().put("purchaseToken", "test-token"), expectedUserId = "another-user")
+            fail("Cross-account purchase must fail before network transmission")
+        } catch (_: SessionExpired) { }
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test fun delayedPushRegistrationCannotCrossAccountsOrSignedOutSessions() = runBlocking {
+        server.enqueue(session("first")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        try {
+            api.mutate("notifications/devices", body=JSONObject().put("token","private-token").put("platform","ANDROID"),expectedUserId="another-user")
+            fail("Cross-account installation must fail before transmission")
+        } catch(_: SessionExpired) { }
+        api.endLocalSession()
+        try {
+            api.mutate("notifications/devices", body=JSONObject().put("token","private-token"),expectedUserId="learner-id")
+            fail("Signed-out installation must fail before transmission")
+        } catch(_: SessionExpired) { }
+        assertEquals(1,server.requestCount)
+    }
     @Test fun loginReadsRefreshFromSecureCookieNotJson() = runBlocking {
         server.enqueue(session("first"))
         assertEquals("Learner", api.authenticate(" learner@example.com ", "password1").displayName)

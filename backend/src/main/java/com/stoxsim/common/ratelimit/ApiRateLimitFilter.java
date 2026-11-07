@@ -143,7 +143,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/analytics/events")) {
             return new RateLimitPolicy("analytics", 12);
         }
-        if (path.equals("/api/v1/finwiz/ask")) {
+        if (path.equals("/api/v1/finwiz/ask") || path.matches("/api/v1/reflections/[0-9a-fA-F-]{36}/assistance")) {
             return new RateLimitPolicy("finwiz", properties.getFinwizPerMinute());
         }
         if (path.equals("/api/v1/reports/weekly/preview")) {

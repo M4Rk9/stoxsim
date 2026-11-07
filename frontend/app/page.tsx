@@ -1,6 +1,8 @@
 "use client";
 
 import { GoogleSignInLink } from "./components/GoogleSignInLink";
+import HomeRecommendation from "./components/HomeRecommendation";
+import Notifications from "./components/Notifications";
 import { recordProductActivity } from "./lib/product-activity";
 
 import { financialValue } from "./lib/financial-units";
@@ -1095,11 +1097,15 @@ export default function Home() {
   function selectAccount(accountId: string, source: Account[] = accounts) {
     const account = source.find((candidate) => candidate.id === accountId);
     if (!account || account.id === activeAccountId) return;
-    searchGeneration.current++;
-    setSearchOpen(false);
-    setSearchLoading(false);
-    setResults([]);
     const marketChanged = account.marketRegion !== marketRegion;
+    // The first account response can arrive after the learner has begun searching.
+    // Keep that search when initializing the same market; actual switches invalidate it.
+    if (activeAccountId || marketChanged) {
+      searchGeneration.current++;
+      setSearchOpen(false);
+      setSearchLoading(false);
+      setResults([]);
+    }
     setActiveAccountId(account.id);
     setMarketRegion(account.marketRegion);
     window.sessionStorage.setItem("stoxsim-active-account", account.id);
@@ -1371,6 +1377,8 @@ export default function Home() {
       </section>
 
 
+      <HomeRecommendation userId={session.user.id} />
+      <Notifications compact />
       <FeatureJourney userId={session.user.id} onboarding={onboarding}
         request={() => authorizedRequest<JourneyState>("/api/v1/onboarding/journey")}
         dismiss={dismissOnboarding} resume={resumeOnboarding} introduce={completeOnboardingIntroduction} />

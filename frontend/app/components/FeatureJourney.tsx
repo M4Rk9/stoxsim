@@ -71,10 +71,13 @@ export default function FeatureJourney({ userId, onboarding, request, dismiss, r
         : <a className={styles.primary} href={step.href}>{step.action} →</a>}
     </div>}
     {error && <p role="status">Progress is temporarily unavailable. You can still explore every feature below.</p>}
+    <details className={styles.explore}>
+    <summary>Explore all learning tools</summary>
     <div className={styles.grid}>{features.map(feature => <a className={styles.card} key={feature.key} href={feature.href} aria-label={feature.key === "FINWIZ" ? "Ask Finwiz AI" : undefined}>
       <span className={styles.tag}>{state?.[feature.done] ? "Explored" : state?.nextStep === feature.key && !onboarding?.dismissed ? "Suggested next" : "Discover"}</span>
       <h3>{feature.title}</h3><p>{feature.description}</p><strong>{feature.action} →</strong>
     </a>)}</div>
+    </details>
   </section>;
 }
 

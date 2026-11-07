@@ -184,7 +184,7 @@ class CompetitionServiceTest {
     void premiumEnrollmentUsesIndependentSeasonAndStandardCapital() {
         var subscription = mock(com.stoxsim.subscription.domain.UserSubscription.class);
         when(subscription.hasActiveEntitlement(com.stoxsim.subscription.domain.SubscriptionFeature.PREMIUM_COMPETITIONS)).thenReturn(true);
-        when(subscription.getCurrentPeriodEnd()).thenReturn(NOW.plusSeconds(86400));
+        when(subscription.hasCurrentAccess(NOW)).thenReturn(true);
         when(subscriptions.findByUserIdForUpdate(USER_ID)).thenReturn(Optional.of(subscription));
         when(seasons.findByCode("2026-Q3-PRO")).thenReturn(Optional.of(season));
         var entry = new CompetitionEntry(season, user, new BigDecimal("485000.00"), PricingStatus.CLOSED, NOW);

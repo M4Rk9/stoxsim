@@ -20,6 +20,10 @@ async function registerLearner(page: Page, label: string, showsFirstTradeCoach =
     response.request().method() === "POST"
     && response.url().endsWith("/api/v1/auth/register")
   );
+  const onboardingResponsePromise = page.waitForResponse(response =>
+    response.request().method() === "GET" && response.url().endsWith("/api/v1/onboarding"),
+    { timeout: PORTFOLIO_TIMEOUT },
+  );
   await page.getByRole("button", { name: "Start Now!", exact: true }).click();
   const registrationResponse = await registrationResponsePromise;
   if (!registrationResponse.ok()) {
@@ -29,6 +33,9 @@ async function registerLearner(page: Page, label: string, showsFirstTradeCoach =
   }
   await expect(page.getByRole("heading", { name: "Good day, Browser." }))
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
+  const onboardingResponse = await onboardingResponsePromise;
+  expect(onboardingResponse.status(), "A new learner must load authoritative onboarding state").toBe(200);
+  expect((await onboardingResponse.json()).nextStep).toBe("INTRODUCTION");
   const guide = page.getByRole("dialog", { name: "Your home for practising and learning." });
   await expect(guide).toBeVisible();
   const nextButton = guide.getByRole("button", { name: "Next" });
@@ -344,8 +351,8 @@ test("learning progression awards authoritative missions and daily check-ins onc
   test.setTimeout(150_000);
   await registerLearner(page, "progression");
 
-  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-  await page.getByRole("menuitem", { name: /Learning path/ }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Learn", exact: true }).click();
+  await page.getByRole("link", { name: /Your learning path/ }).click();
 
   await expect(page.getByRole("heading", { name: "Learning path" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Level progress" })).toBeVisible();
@@ -366,8 +373,7 @@ test("a learner can opt into the standard season and create a private league", a
   test.setTimeout(150_000);
   await registerLearner(page, "competitions");
 
-  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-  await page.getByRole("menuitem", { name: /Competitions/ }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Compete", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: "Learning competitions" })).toBeVisible();
   await expect(page.getByText("standard-india-entry-return-v1", { exact: true })).toBeVisible();
@@ -443,8 +449,7 @@ test("a verified learner can request campus institution verification", async ({ 
     });
   });
 
-  await page.getByRole("button", { name: "Open account menu for Browser Learner" }).click();
-  await page.getByRole("menuitem", { name: /Competitions/ }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Compete", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Campus verification" })).toBeVisible();
   await page.getByLabel("Institution name").fill("Birla Institute of Technology, Mesra");
   await page.getByLabel("Official email domain").fill("bitmesra.ac.in");
@@ -479,6 +484,7 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
     });
   });
 
+  await page.getByText("Explore all learning tools", { exact: true }).click();
   await page.getByRole("link", { name: "Ask Finwiz AI" }).click();
   await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
@@ -515,9 +521,10 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await expect(page.getByRole("heading", { name: "Profile & security" })).toBeVisible();
   await expect(page.getByText("Email verification pending")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your free plan" })).toBeVisible();
-  await expect(page.getByText("2 Scenario Lab credits", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Current plan" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Billing not available yet" })).toHaveCount(2);
+  await expect(page.getByRole("link", { name: "Compare plans and manage billing" })).toHaveAttribute("href", "/billing");
+  await page.getByRole("link", { name: "Compare plans and manage billing" }).click();
+  await expect(page.getByRole("region", { name: "Compare plans" }).getByText("2 Scenario Lab credits", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Account settings", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Portfolio reports" })).toBeVisible();
   await expect(page.getByText("Verify your email address before enabling delivery.")).toBeVisible();
   await page.getByRole("button", { name: "Preview current report" }).click();

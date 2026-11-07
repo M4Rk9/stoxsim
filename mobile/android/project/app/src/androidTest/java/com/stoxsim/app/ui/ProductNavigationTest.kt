@@ -20,10 +20,10 @@ class ProductNavigationTest {
     private val account = Account("INDIA", "Standard India", "STANDARD", "INR", BigDecimal("500000"), BigDecimal.ZERO, true, "practice")
     private fun state() = AppState(restoring = false, user = User("Learner", "learner@example.com", true, listOf(account)), accountId = account.id)
 
-    @Test fun fourProductTabsAndTopSearchAreFunctional() {
+    @Test fun fiveProductTabsAndTopSearchAreFunctional() {
         var route = ""; var query = ""
         val screen = mutableStateOf("Home")
-        val tabs = listOf("Stock" to "Home", "Finwiz AI" to "Finwiz", "Scenario Lab" to "Scenario Lab", "Competition" to "Competitions")
+        val tabs = listOf("Home" to "Home", "Markets" to "Markets", "Learn" to "Learn", "Compete" to "Competitions", "Account" to "Account")
         compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = screen.value), { route = it; screen.value = it }, {}, { query = it }) { androidx.compose.material3.Text("Product content") } } }
         tabs.forEach { (label, destination) ->
             compose.onNodeWithContentDescription("Open $label").assertIsDisplayed().performClick()
@@ -35,7 +35,7 @@ class ProductNavigationTest {
             compose.onNodeWithContentDescription("Back").assertDoesNotExist()
         }
         compose.runOnIdle { assertEquals("Home", parentScreen("Competitions")) }
-        compose.onNodeWithContentDescription("Open Stock").performClick()
+        compose.onNodeWithContentDescription("Open Home").performClick()
         compose.onNodeWithContentDescription("Stock and ETF search").performTextInput("AAPL")
         compose.runOnIdle { assertEquals("AAPL", query) } // Suggestions start without submitting.
         compose.onNodeWithContentDescription("Stock and ETF search").performImeAction()
@@ -45,12 +45,12 @@ class ProductNavigationTest {
     }
     @Test fun finwizLessonsKeepTheFinwizTabSelected() {
         compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = "Finwiz lesson"), {}, {}) {} } }
-        compose.onNodeWithContentDescription("Open Finwiz AI").assertIsSelected()
-        compose.onNodeWithContentDescription("Open Competition").assertIsNotSelected()
+        compose.onNodeWithContentDescription("Open Learn").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Compete").assertIsNotSelected()
     }
     @Test fun signedOutUsersDoNotSeeProductNavigation() {
         compose.setContent { StoxSimTheme { AppFrame(AppState(restoring = false), {}, {}) {} } }
-        listOf("Stock", "Finwiz AI", "Scenario Lab", "Competition").forEach { label ->
+        listOf("Home", "Markets", "Learn", "Compete", "Account").forEach { label ->
             compose.onNodeWithContentDescription("Open $label").assertDoesNotExist()
         }
     }

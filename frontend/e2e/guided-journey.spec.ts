@@ -44,6 +44,7 @@ test("pending execution advances to Finwiz when server observes a fill", async (
 });
 test("hide and resume retain all feature cards", async ({ page }) => {
   const journey = await setup(page, { nextStep: "SCENARIO", firstTradeExecuted: true, finwizAsked: true });
+  await journey.getByText("Explore all learning tools", { exact: true }).click();
   await expect(journey).toContainText("Put your learning to the test");
   await journey.getByRole("button", { name: "Hide guide" }).click();
   await expect(journey.getByRole("heading", { name: "Put your learning to the test" })).toHaveCount(0);
@@ -67,6 +68,7 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     await testInfo.attach(`home-launcher-${width}-${dark ? "dark" : "light"}`, {
       body: await page.screenshot({ path: testInfo.outputPath("home-launcher.png") }), contentType: "image/png",
     });
+    await journey.getByText("Explore all learning tools", { exact: true }).click();
     const cards = journey.locator('a').filter({ has: page.locator('h3') });
     await expect(cards).toHaveCount(4);
     const boxes = await cards.evaluateAll(nodes => nodes.map(n => { const b = n.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }; }));

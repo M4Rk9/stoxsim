@@ -73,6 +73,24 @@ jobs:
           disable-animations: true
           working-directory: mobile/android/project
           script: bash ../../../.github/scripts/android-device-check.sh
+      - name: Summarize device test failures
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          def escape(value):
+              return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+          root = Path('mobile/android/project/app/build/outputs/androidTest-results/connected')
+          for report in sorted(root.rglob('*.xml')):
+              for case in ET.parse(report).iter('testcase'):
+                  for failure in list(case.findall('failure')) + list(case.findall('error')):
+                      name = case.get('classname', '') + '.' + case.get('name', '')
+                      detail = failure.get('message', '') + '\n' + (failure.text or '')
+                      print('::error title=Android device test failure::' + escape(name + '\n' + detail[:6000]))
+          PY
       - name: Upload device test reports
         if: always()
         uses: actions/upload-artifact@v7

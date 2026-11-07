@@ -7,3 +7,20 @@ useDefault = true
 description = "Documented HTTP idempotency UUID, not an authentication credential"
 regexTarget = "match"
 regexes = ['''Idempotency-Key: 04eb8ec9-69bb-4ab1-a1b8-227a41686a7f''']
+
+# Historical false positives verified for PR177. Current tests generate a fresh
+# key and the documentation wording has changed; full-history scanning stays on.
+# Review these exact-content/path exceptions by 2026-12-07.
+[[allowlists]]
+description = "Historical deterministic AES fixture used only with mocked billing providers"
+condition = "AND"
+paths = ['''^backend/src/test/java/com/stoxsim/integration/LiveBillingIntegrationTest\.java$''']
+regexTarget = "match"
+regexes = ['''^stoxsim\.billing\.play\.token-encryption-key=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"$''']
+
+[[allowlists]]
+description = "Historical documentation prose, not an authentication token"
+condition = "AND"
+paths = ['''^docs/ANDROID_PUSH_NOTIFICATIONS\.md$''']
+regexTarget = "match"
+regexes = ['''^invalid-token handling, partial/ambiguous $''']

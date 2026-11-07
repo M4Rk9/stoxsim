@@ -1,6 +1,6 @@
 # StoxSim native Android
 
-The Android Studio project is in `project/`. Current version: **0.5.7 (versionCode 13)**. The app replaces the previous
+The Android Studio project is in `project/`. Current version: **0.6.0 (versionCode 14)**. The app replaces the previous
 Trusted Web Activity launcher with Kotlin and Jetpack Compose. The app's main
 screens run natively and call `https://api.stoxsim.com` directly. Chrome is not
 needed for the main trading, portfolio and learning screens.
@@ -11,8 +11,8 @@ The application ID remains `com.stoxsim.app`; launcher artwork is retained.
 The UI follows the colours in `frontend/app/globals.css` / `theme.css`, uses the
 same brand artwork and section names, and defaults to light appearance like the
 website. Dark appearance is an explicit per-user device preference. Native bottom
-navigation provides Stock, Finwiz AI, Scenario Lab and Competition, with stock-chart,
-brain, lab-flask and trophy icons. Stock has Explore,
+navigation provides Home, Markets, Learn, Compete and Account. Learn groups Finwiz,
+Learning Path, Scenario Lab and optional decision reflections. Markets has Explore,
 Holdings, Orders and Watchlist tabs. Global stock/ETF search sits at the top; the
 account avatar opens market, appearance, wallet, subscription and security controls. Cards, charts and forms adapt to a phone rather than copying
 the desktop columns.
@@ -39,8 +39,7 @@ the desktop columns.
   and email preferences, and existing plan/sandbox benefits.
 
 This native build includes scoped email verification/reset links with safe browser
-fallback and campus moderation controls. Payments/Play Billing are deferred and
-purchase buttons are unavailable. Platform analytics and billing administration
+fallback and campus moderation controls. Play Billing is available only when the backend enables approved Play products; clients never grant entitlement from callbacks. See [billing implementation and acceptance](../../docs/ANDROID_PLAY_BILLING.md). Platform analytics and billing administration
 remain web-only. See [the parity map](../../docs/ANDROID_WEB_PARITY.md) and
 [the current closure register](../../docs/NON_PAYMENT_RELEASE_CLOSURE.md).
 
@@ -175,3 +174,7 @@ Backend V124 adds daily server-recorded feature engagement for both web and Andr
 Native Google login and registration use Credential Manager. Configure the Android OAuth client for `com.stoxsim.app` and the installed signing certificate, then set backend `GOOGLE_ANDROID_CLIENT_IDS`. The existing Web OAuth client remains the server audience. See [Google setup and validation](../../docs/google-sign-in.md#android-configuration). Never add a client secret to Android resources.
 
 Existing password users first link Google in website Settings. Google-only users can set a password or delete their account through fresh Google confirmation in native Profile & security. Test the signed release build as well as debug; Play app signing uses its own certificate. Automated emulator tests mock the provider interaction and do not replace this device check.
+
+## Commercial execution experience
+
+Home uses server recommendations and portfolio facts, with optional three-choice learner preferences synced across devices. Account provides an in-app notification center and category/email/promotional preferences. Learn provides private reflections with explicit consent before each Finwiz assistance request. Draft reflection text stays in memory and is retained after failed saves. Existing simulation, learning and competition routes remain accessible. Optional Firebase push integration is implemented with account binding and explicit Android permission; it is disabled without private app/server configuration. Real device delivery and signed Play installation remain external acceptance gates. See [push setup](../../docs/ANDROID_PUSH_NOTIFICATIONS.md) and [native experience validation](../../docs/ANDROID_COMMERCIAL_EXPERIENCE.md).
