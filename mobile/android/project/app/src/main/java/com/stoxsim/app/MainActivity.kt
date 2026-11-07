@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.stoxsim.app.ui.StoxSimApp
+import com.stoxsim.app.data.PushNotifications
 
 class MainActivity : ComponentActivity() {
     private val model by viewModels<AppViewModel>()
@@ -28,6 +29,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun receiveLink(incoming: Intent) {
+        if(incoming.action == PushNotifications.ACTION) {
+            val owner=incoming.getStringExtra(PushNotifications.OWNER)
+            incoming.removeExtra(PushNotifications.OWNER);incoming.action=Intent.ACTION_MAIN
+            model.receivePush(owner);return
+        }
         if (incoming.action != Intent.ACTION_VIEW) return
         val raw = incoming.dataString
         // Do not leave the secret URL on the activity's reusable launch intent.

@@ -3,6 +3,7 @@ package com.stoxsim.app.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -54,11 +55,21 @@ class WebParityScreenTest {
     }
     @Test fun phoneNavigationExposesCoreWebsiteDestinations() {
         var destination = ""
-        compose.setContent { StoxSimTheme { AppFrame(state(), { destination = it }, {}) { PortfolioMetrics(state()) } } }
-        compose.onNodeWithText("Orders").performClick()
+        val screen = mutableStateOf("Home")
+        compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = screen.value), {
+            destination = it
+            screen.value = it
+        }, {}) { PortfolioMetrics(state()) } } }
+        compose.onNodeWithText("Orders").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Open Markets").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals("Markets", destination) }
+        compose.onNodeWithText("Orders").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals("Orders", destination) }
+        compose.onNodeWithText("Orders").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Markets").assertIsSelected()
         compose.onNodeWithContentDescription("Account settings").performClick()
         compose.runOnIdle { assertEquals("Account", destination) }
+        compose.onNodeWithContentDescription("Open Account").assertIsSelected()
     }
     @Test fun darkThemeUsesWebsiteColours() {
         var background = 0L; var primary = 0L; var selected = 0L

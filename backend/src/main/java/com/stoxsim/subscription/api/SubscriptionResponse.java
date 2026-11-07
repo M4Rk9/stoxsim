@@ -26,11 +26,14 @@ public record SubscriptionResponse(
         UserSubscription subscription,
         List<AccountResponse> sandboxAccounts
     ) {
+        return from(subscription, sandboxAccounts, false);
+    }
+    public static SubscriptionResponse from(UserSubscription subscription, List<AccountResponse> sandboxAccounts, boolean billingEnabled) {
         return new SubscriptionResponse(
             "subscription-entitlements-v2",
             subscription.getPlan(),
             subscription.getStatus(),
-            false,
+            billingEnabled,
             subscription.getCurrentPeriodEnd(),
             EntitlementResponse.from(subscription),
             SandboxProvisioningResponse.from(subscription, sandboxAccounts),
@@ -38,8 +41,10 @@ public record SubscriptionResponse(
             java.util.Arrays.stream(SubscriptionPlan.values()).map(PlanResponse::from).toList(),
             subscription.isTestBilling()
                 ? "TEST benefits only: simulated payments, separate sandboxes, no premium competition access."
+                : subscription.isLiveBilling() ? "Provider-verified subscription. Standard competition capital remains separate."
+                : billingEnabled ? "Subscription checkout is available from Account."
                 : "Paid billing is not enabled. Standard competition capital always remains separate.",
-            subscription.isTestBilling() ? "TEST" : "DISABLED",
+            subscription.isTestBilling() ? "TEST" : subscription.isLiveBilling() ? "LIVE" : billingEnabled ? "AVAILABLE" : "DISABLED",
             subscription.getTestAccessUntil()
         );
     }

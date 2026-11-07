@@ -7,7 +7,7 @@ async function reply(route: Route, body: unknown, status = 200) {
   const options = route.request().method() === "OPTIONS";
   await route.fulfill({ status: options ? 204 : status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization,content-type", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" }, body: options ? undefined : JSON.stringify(body) });
 }
-async function setup(page: Page, search: (route: Route, query: string) => Promise<void>, dark = false) {
+async function setup(page: Page, search: (route: Route, query: string) => Promise<void>, dark = false, accountsReady?: Promise<void>) {
   const user = { id: "search-learner", email: "search@example.test", displayName: "Search Learner", emailVerified: true, platformAdmin: false, accounts: [account, usAccount] };
   await page.addInitScript(({ user, dark }) => {
     sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "fixture", user }));
@@ -15,6 +15,7 @@ async function setup(page: Page, search: (route: Route, query: string) => Promis
   }, { user, dark });
   await page.route("**/api/v1/**", async route => {
     const url = new URL(route.request().url()), path = url.pathname;
+    if (path.endsWith("/accounts") && route.request().method() !== "OPTIONS") await accountsReady;
     if (route.request().method() !== "OPTIONS" && path.endsWith("/instruments/search")) return search(route, url.searchParams.get("q")!);
     const body = path.endsWith("/accounts") ? [account, usAccount]
       : path.endsWith("/portfolio") ? { ...account, investedValue: 0, marketValue: 0, unrealizedProfitLoss: 0, totalProfitLoss: 0, totalAccountValue: 500000, totalReturnPercent: 0, dataStatus: "STALE", holdings: [] }
@@ -30,6 +31,18 @@ async function setup(page: Page, search: (route: Route, query: string) => Promis
   await page.goto("/");
   return page.getByRole("textbox", { name: "Search stocks", exact: true });
 }
+
+test("initial account loading preserves a search already typed in the same market", async ({ page }) => {
+  let releaseAccounts!: () => void;
+  const accountsReady = new Promise<void>(resolve => { releaseAccounts = resolve; });
+  const input = await setup(page, route => reply(route, [stock("RELIANCE")]), false, accountsReady);
+  await input.fill("reli");
+  await expect(page.locator("#stock-search-results")).toContainText("RELIANCE");
+  releaseAccounts();
+  await expect(page.locator(".metric").filter({ hasText: "Account value" })).toContainText("₹5,00,000.00");
+  await expect(input).toHaveValue("reli");
+  await expect(page.locator("#stock-search-results")).toContainText("RELIANCE");
+});
 
 test("typing automatically debounces suggestions and clearing removes them", async ({ page }) => {
   const calls: string[] = [];

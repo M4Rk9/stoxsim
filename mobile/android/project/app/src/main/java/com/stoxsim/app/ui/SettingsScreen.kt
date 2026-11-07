@@ -84,7 +84,7 @@ import org.json.JSONObject
     }
     Button(model::logout, enabled = !state.working, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
     if (confirm.isNotEmpty()) AlertDialog(onDismissRequest = { confirm = "" }, title = { Text(when (confirm) { "delete" -> "Permanently delete your account?"; "password" -> "Update password?"; else -> "Sign out all devices?" }) },
-        text = { Text(if (confirm == "delete") "Your account and simulation data will be removed permanently." else "You will need to sign in again on every device.") },
+        text = { Text(if (confirm == "delete") "Your account and simulation data will be removed permanently. This does not cancel Google Play subscriptions. Cancel recurring billing in Google Play before deleting your account." else "You will need to sign in again on every device.") },
         confirmButton = { TextButton({
             when (confirm) { "delete" -> { if (user.passwordLoginEnabled) model.deleteAccount(deletingPassword) else model.googleAccountAction(context, null, true); deletingPassword = "" }; "password" -> { model.password(current, replacement); current = ""; replacement = ""; confirmation = "" }; else -> model.logoutAll() }; confirm = ""
         }) { Text("Confirm") } }, dismissButton = { TextButton({ confirm = "" }) { Text("Back") } })
@@ -123,11 +123,16 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
     data.strings("learningNotes").forEach { Text(it) }; Muted(data.text("disclaimer"))
 }
 
-@Composable internal fun SubscriptionScreen(state: AppState, createSandbox: () -> Unit) {
+@Composable internal fun SubscriptionScreen(state: AppState, createSandbox: () -> Unit,
+    purchase: (android.app.Activity, String) -> Unit = { _, _ -> }, restore: () -> Unit = {}) {
     val user = state.user ?: return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val subscription = state.data["subscription"]
+    val hasPaidAccess = subscription?.text("plan").orEmpty() !in setOf("", "FREE") &&
+        subscription?.text("status") !in setOf("EXPIRED", "REVOKED")
     Panel("PLAN & PRACTICE ACCOUNTS", "Your benefits") {
         SectionError(state, "subscription")
-        state.data["subscription"]?.let { data ->
+        subscription?.let { data ->
             Text("${data.text("plan")} · ${data.text("status")}", style = MaterialTheme.typography.titleLarge)
             if (data.text("currentPeriodEnd").isNotBlank()) ValueRow("Current period ends", time(data.text("currentPeriodEnd")))
             data.optJSONObject("entitlements")?.let { entitlements ->
@@ -136,19 +141,39 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
                 Muted(entitlements.text("finwizDescription"))
             }
             Text(data.text("notice"))
-            Muted("Existing plan benefits work in the app. Android subscription purchases are not available in this build.")
             if (data.optJSONObject("sandboxProvisioning")?.optBoolean("canCreateAdditional") == true) OutlinedButton(createSandbox, enabled = !state.working) { Text("Create additional sandbox") }
         }
         user.accounts.forEach { account -> ValueRow(account.label, money(account.cash, account.currency)); Muted("${regionLabel(account.region)} · ${account.kind} · ${if (account.active) "Active" else "Locked"}") }
     }
-    state.data["subscription"]?.objects("plans")?.forEach { plan -> Panel(title = plan.text("displayName")) {
-        ValueRow("Monthly price", money(plan.decimal("monthlyPriceInr"), "INR"))
+    SectionError(state, "playBilling")
+    state.billing.message?.let { Muted(it) }
+    if (state.billing.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    subscription?.objects("plans")?.forEach { plan -> Panel(title = plan.text("displayName")) {
+        val offer = state.billing.offers.singleOrNull { it.plan == plan.text("plan") }
         plan.optJSONObject("entitlements")?.let { benefits ->
-            ValueRow("Scenario credits", benefits.text("scenarioCredits"))
-            ValueRow("Practice sandboxes", benefits.text("maximumSandboxPortfolios"))
-            ValueRow("Analytics", benefits.text("analyticsTier"))
-            Muted(benefits.text("finwizDescription"))
+            ValueRow("Scenario credits", benefits.text("scenarioCredits")); ValueRow("Practice sandboxes", benefits.text("maximumSandboxPortfolios"))
+            ValueRow("Analytics", benefits.text("analyticsTier")); Muted(benefits.text("finwizDescription"))
         }
-        Muted("Purchases are not available in this app yet.")
+        if (plan.text("plan") == "FREE") Muted("Free — no subscription required.")
+        else if (offer != null) {
+            Text(offer.price, style = MaterialTheme.typography.titleLarge); Muted(offer.renewal)
+            Button({ (context as? android.app.Activity)?.let { purchase(it, offer.productId) } },
+                enabled = state.billing.available && !state.working && !hasPaidAccess) { Text("Subscribe with Google Play") }
+        } else Muted("Google Play pricing is currently unavailable. No purchase can be made.")
     } }
+    if (hasPaidAccess) Muted("You already have paid benefits. Manage the existing subscription before purchasing another plan.")
+    Panel(title = "Manage purchases") {
+        OutlinedButton(restore, enabled = state.billing.available && !state.working) { Text("Restore purchases") }
+        TextButton({
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://play.google.com/store/account/subscriptions?package=com.stoxsim.app"))
+            runCatching { context.startActivity(intent) }
+        }) { Text("Manage or cancel in Google Play") }
+        Muted("Restore using the same Google Play and StoxSim accounts used for the purchase. Pending payments do not grant paid benefits.")
+        Muted("Deleting your StoxSim account does not cancel Google Play billing. Manage cancellation in Google Play first. Refund requests follow Google Play's refund policy.")
+    }
+    val entries = state.data["billingHistory"]?.objects("entries").orEmpty()
+    if (entries.isNotEmpty()) Panel(title = "Billing history") {
+        entries.forEach { entry -> ValueRow(entry.text("plan"), entry.text("status")); Muted("${entry.text("provider")} · ${time(entry.text("currentPeriodEnd"))}") }
+    }
 }

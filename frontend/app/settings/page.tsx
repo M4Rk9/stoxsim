@@ -1,4 +1,6 @@
 "use client";
+import LearnerProfileSettings from "../components/LearnerProfileSettings";
+import Notifications from "../components/Notifications";
 
 import { GoogleSignInLink } from "../components/GoogleSignInLink";
 
@@ -553,12 +555,15 @@ export default function SettingsPage() {
 
       <nav className={styles.quickLinks} aria-label="Account settings sections">
         <a href="#profile">Profile</a><a href="#plan">Plan</a>
+        <a href="#learning-preferences">Learning preferences</a><a href="#notifications">Notifications</a>
         <a href="#reports">Reports</a><a href="#security">Security</a>
         {session.user.platformAdmin && <a href="/admin/analytics">Owner analytics</a>}
         {session.user.platformAdmin && <a href="/admin/billing">Test subscriptions</a>}
       </nav>
 
       <div className={styles.grid}>
+        <LearnerProfileSettings />
+        <Notifications />
         <form className={styles.card} id="profile" onSubmit={saveProfile}>
           <h2>Profile details</h2>
           <p>Update the name shown throughout StoxSim and the email used to sign in.</p>
@@ -661,28 +666,7 @@ export default function SettingsPage() {
             </div>
             <span className={styles.currentPlan}>{eventLabel(subscription.status)}</span>
           </div>
-          <div className={styles.planGrid}>
-            {subscription.plans.map((item) => <article
-              className={item.plan === subscription.plan ? styles.planCardCurrent : styles.planCard}
-              key={item.plan}
-            >
-              <span>{item.plan}</span>
-              <h3>{item.displayName}</h3>
-              <strong>{item.monthlyPriceInr === 0
-                ? "Free"
-                : `₹${item.monthlyPriceInr.toFixed(0)}/month`}</strong>
-              <ul>
-                <li>{item.plan === "FREE" ? "₹5 lakh" : item.plan === "PLUS" ? "₹25 lakh" : "₹1 crore"} · India</li>
-                <li>{reportMoney(item.entitlements.sandboxCapitalUsd ?? 10000, "USD")} · US</li>
-                <li>{item.entitlements.finwizDescription ?? `${eventLabel(item.entitlements.finwizTier)} FinWiz`}</li>
-                <li>{eventLabel(item.entitlements.analyticsTier)} analytics</li>
-                <li>{item.entitlements.scenarioCredits} Scenario Lab credits{item.plan !== "FREE" ? " / renewal" : ""}</li>
-              </ul>
-              <button type="button" disabled>
-                {item.plan === subscription.plan ? "Current plan" : "Billing not available yet"}
-              </button>
-            </article>)}
-          </div>
+          <p><a href="/billing">Compare plans and manage billing →</a></p>
           {subscription.sandboxAccounts.length > 0 && <div className={styles.sandboxList}>
             <h3>Your portfolios</h3>
             {subscription.sandboxAccounts.map((account) => <div key={account.id}>

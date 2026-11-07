@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -103,24 +102,28 @@ import com.stoxsim.app.R
             Message(state.error, state.notice)
             FeatureWalkthrough(state, model::openScreen)
             when (state.screen) {
-                "Home" -> DashboardScreen(state, model)
+                "Home" -> LearnerHome(state, model)
+                "Learn" -> { GuidedJourney(state, model::openScreen, model::onboarding, showLinks = false); LearnHub(state, model::openScreen) }
+                "Learner profile" -> LearnerProfileScreen(state, model::saveLearnerProfile)
+                "Notifications" -> NotificationsScreen(state, model::notificationRead, model::notificationsReadAll, model::notificationPreference)
+                "Reflections" -> ReflectionsScreen(state, model::saveReflection, model::deleteReflection, model::reflectionAssistance, { model.clearData("reflectionAssistance") })
                 "Markets" -> MarketsScreen(state, model)
                 "Stock" -> StockScreen(state, model)
                 "Watchlist" -> WatchlistScreen(state, model)
                 "Portfolio" -> PortfolioScreen(state, model)
                 "Portfolio analysis" -> PortfolioAnalysisScreen(state, model::history)
-                "Orders" -> OrdersScreen(state, model)
+                "Orders" -> { OrdersScreen(state, model); TextButton({ model.openScreen("Reflections") }) { Text("Reflect on a simulated decision") } }
                 "Explore" -> ExploreScreen(model::openScreen)
                 "Scenario Lab" -> ScenarioScreen(state, model)
                 "Learning path" -> LearningScreen(state, model)
-                "Competitions" -> CompetitionScreen(state, model)
+                "Competitions" -> { CompetitionScreen(state, model); TextButton({ model.openScreen("Campus") }) { Text("Campus competitions") } }
                 "Campus" -> CampusScreen(state, model)
                 "Finwiz" -> FinwizHub(state, model::openLesson, model::newChat, model::openChat, model::deleteChat, model::openScreen, model::startChatWithQuestion)
                 "Finwiz lesson" -> FinwizLesson(state, model::markLessonRead, { model.newChat(it) })
                 "Finwiz chat" -> FinwizChatScreen(state, model::askChat, { model.newChat() })
                 "Account" -> AccountHub(state, model::openScreen, model::changeRegion, model::selectAccount, model::setDark, model::logout)
                 "Profile & security" -> SettingsScreen(state, model)
-                "Subscriptions" -> SubscriptionScreen(state, model::createSandbox)
+                "Subscriptions" -> SubscriptionScreen(state, model::createSandbox, model::purchase, model::restorePurchases)
                 "Wallet" -> WalletScreen(state, model::selectAccount, model::openScreen)
                 "Weekly reports" -> ReportsScreen(state, model)
             }
@@ -135,15 +138,18 @@ import com.stoxsim.app.R
 
 internal fun parentScreen(screen: String) = when (screen) {
     "Portfolio analysis" -> "Portfolio"
-    "Finwiz lesson", "Finwiz chat", "Learning path" -> "Finwiz"
-    "Stock" -> "Markets"
-    "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Campus" -> "Account"
+    "Finwiz lesson", "Finwiz chat" -> "Finwiz"
+    "Finwiz", "Learning path", "Scenario Lab", "Reflections" -> "Learn"
+    "Stock", "Portfolio", "Orders", "Watchlist" -> "Markets"
+    "Campus" -> "Competitions"
+    "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 internal fun productTab(screen: String) = when (screen) {
-    "Finwiz", "Finwiz lesson", "Finwiz chat", "Learning path" -> "Finwiz"
-    "Scenario Lab" -> "Scenario Lab"
-    "Competitions" -> "Competitions"
+    "Markets", "Stock", "Portfolio", "Orders", "Watchlist", "Portfolio analysis" -> "Markets"
+    "Learn", "Finwiz", "Finwiz lesson", "Finwiz chat", "Learning path", "Scenario Lab", "Reflections" -> "Learn"
+    "Competitions", "Campus" -> "Competitions"
+    "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 
@@ -152,10 +158,9 @@ internal fun productTab(screen: String) = when (screen) {
     val signedIn = state.user != null
     val focus = LocalFocusManager.current
     var query by rememberSaveable(state.region, state.user?.email, state.accountId) { mutableStateOf(state.searchQuery) }
-    val stockPages = listOf("Home", "Markets", "Portfolio", "Orders", "Watchlist")
-    val main = stockPages + listOf("Finwiz", "Scenario Lab", "Competitions")
+    val stockPages = listOf("Markets", "Portfolio", "Orders", "Watchlist")
+    val main = stockPages + listOf("Home", "Learn", "Competitions", "Account")
     val chat = state.screen == "Finwiz chat"
-    val largeText = LocalDensity.current.fontScale > 1.3f
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         Column(Modifier.statusBarsPadding().fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -193,18 +198,19 @@ internal fun productTab(screen: String) = when (screen) {
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
             val items = listOf(
-                Triple("Home", "Stock", R.drawable.ic_nav_stock),
-                Triple("Finwiz", "Finwiz AI", R.drawable.ic_nav_finwiz),
-                Triple("Scenario Lab", "Scenario Lab", R.drawable.ic_nav_scenario),
-                Triple("Competitions", "Competition", R.drawable.ic_nav_competition)
+                Triple("Home", "Home", Icons.Default.Home),
+                Triple("Markets", "Markets", Icons.Default.Search),
+                Triple("Learn", "Learn", Icons.AutoMirrored.Filled.List),
+                Triple("Competitions", "Compete", Icons.Default.Star),
+                Triple("Account", "Account", Icons.Default.Person)
             )
             items.forEach { (route, label, icon) -> NavigationBarItem(selected = productTab(state.screen) == route,
                 onClick = { focus.clearFocus(); navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" },
-                icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
+                icon = { Icon(icon, null, Modifier.size(24.dp)) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onSurface,
                     selectedTextColor = MaterialTheme.colorScheme.onSurface, indicatorColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-                label = { Text(if (largeText) when (route) { "Finwiz" -> "Finwiz"; "Scenario Lab" -> "Lab"; "Competitions" -> "Contest"; else -> "Stock" } else label,
-                    style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = if (largeText) 1 else Int.MAX_VALUE) }) }
+                label = { Text(label,
+                    style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center) }) }
             }
         }
     }) { padding ->
@@ -225,7 +231,7 @@ internal fun productTab(screen: String) = when (screen) {
     }
 }
 @Composable internal fun StocksTabs(screen: String, navigate: (String) -> Unit) {
-    val items = listOf("Home" to "Explore", "Portfolio" to "Holdings", "Orders" to "Orders", "Watchlist" to "Watchlist")
+    val items = listOf("Markets" to "Explore", "Portfolio" to "Holdings", "Orders" to "Orders", "Watchlist" to "Watchlist")
     val index = items.indexOfFirst { it.first == screen }.coerceAtLeast(0)
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         items.forEach { (route, label) ->
