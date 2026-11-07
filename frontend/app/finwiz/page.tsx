@@ -310,7 +310,7 @@ export default function FinwizPage() {
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={handleQuestionKeyDown}
             maxLength={2000}
-            rows={1}
+            rows={3}
             placeholder="Ask Finwiz about markets, statements, valuation or risk"
           />
           <button
