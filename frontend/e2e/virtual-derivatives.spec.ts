@@ -65,7 +65,7 @@ test("virtual options show lots, stale futures, and reuse a request key on retry
   await page.getByRole("spinbutton", { name: "Lots" }).fill("2");
   const submit = page.getByRole("button", { name: "Place virtual order" });
   await submit.click();
-  await expect(page.getByRole("alert")).toHaveText("The quote changed. Try again.");
+  await expect(page.locator("#derivative-order").getByRole("alert")).toHaveText("The quote changed. Try again.");
   await submit.click();
   await expect(page.getByText("Buy to open filled for 2 lot(s) of NIFTY 27000 CE", { exact: false })).toBeVisible();
   expect(orderKeys).toHaveLength(2);
