@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./portfolio.module.css";
 import PortfolioHistory from "./PortfolioHistory";
+import { stockHref } from "../lib/stock-links";
 import { marketAccount } from "../lib/portfolio-selection";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -43,6 +44,7 @@ interface StoredSession {
 
 interface Holding {
   holdingId: string;
+  exchange: string;
   symbol: string;
   name: string;
   quantity: number;
@@ -387,7 +389,7 @@ export default function PortfolioPage() {
             <thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Market value</th><th>Unrealized P/L</th></tr></thead>
             <tbody>
               {portfolio.holdings.map((holding) => <tr key={holding.holdingId}>
-                <td><strong>{holding.symbol}</strong><small>{holding.name}</small></td>
+                <td>{holding.exchange ? <a className="stockListingLink" href={stockHref(holding.exchange, holding.symbol)}><strong>{holding.symbol}</strong><small>{holding.name} · {holding.exchange}</small></a> : <><strong>{holding.symbol}</strong><small>{holding.name}</small></>}</td>
                 <td>{holding.quantity}<small>{holding.blockedQuantity ? `${holding.blockedQuantity} blocked` : "Available"}</small></td>
                 <td>{money(holding.averagePrice, portfolio.currency)}</td>
                 <td>{money(holding.currentPrice, portfolio.currency)}</td>

@@ -418,3 +418,9 @@
   .stats div:nth-child(odd),
   .stats div:nth-child(even) { padding-inline: 0; border-left: 0; }
 }
+
+.tradeActions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 20px; }
+.tradeActions a { padding: 10px 20px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--panel); font-weight: 750; text-decoration: none; }
+.tradeActions a:first-child { background: var(--green); color: var(--panel); border-color: var(--green); }
+.tradeActions a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.tradeActions span { color: var(--muted); font-size: .85rem; }

@@ -1,5 +1,7 @@
 "use client";
 
+import { stockHref } from "../lib/stock-links";
+
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import styles from "./DashboardTools.module.css";
@@ -279,7 +281,7 @@ export default function DashboardTools() {
     <div className={styles.quickActions}>
       {selectedStock && <a
         className={styles.stockLink}
-        href={`/stocks/${encodeURIComponent(selectedStock.exchange)}/${encodeURIComponent(selectedStock.symbol)}`}
+        href={stockHref(selectedStock.exchange, selectedStock.symbol)}
         target="_blank"
         rel="noopener noreferrer"
       >

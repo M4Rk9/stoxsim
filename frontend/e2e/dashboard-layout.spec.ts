@@ -29,7 +29,7 @@ for (const width of [390, 1280]) test(`stock search and header stay aligned at $
   expect(inputRect!.x + inputRect!.width).toBeLessThanOrEqual(buttonRect!.x);
   await expect(input).toHaveCSS("outline-style", "none");
   await button.click();
-  await expect(page.getByRole("button", { name: /RELIANCE.*Reliance Industries/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /RELIANCE.*Reliance Industries/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByText("STALE", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "StoxScore", exact: true })).toHaveCount(0);

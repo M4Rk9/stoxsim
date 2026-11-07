@@ -175,3 +175,41 @@ for (const replacement of ["market", "stock"] as const) test(`superseded quote c
   }
   expect(pageErrors).toEqual([]);
 });
+
+test("movers and watchlists open the exact listing, and details prefill the existing order ticket", async ({ page }, testInfo) => {
+  await setup(page, route => reply(route, []));
+  const quote = { lastPrice: 200, previousClose: 199, dataStatus: "CLOSED", pricingSource: "EXTERNAL" };
+  await page.route("**/api/v1/market/movers?*", route => reply(route, {
+    universe: "NIFTY", dataStatus: "CLOSED",
+    gainers: [{ ...quote, instrumentKey: "NSE_EQ|FIXTURE", symbol: "M&M", exchange: "NSE", name: "Mahindra fixture", change: 1, changePercent: .5 }],
+    losers: [],
+  }));
+  await page.route("**/api/v1/watchlists/default", route => reply(route, {
+    id: "watchlist", name: "Watchlist",
+    items: [{ ...quote, ...stock("M&M", "BSE"), itemId: "bse-watch", instrumentId: "bse-instrument", symbol: "M&M", lastPrice: 210 }],
+  }));
+  await page.route(/\/api\/v1\/instruments\/INDIA\/(NSE|BSE)\/M(?:%26|&)M(?:\/quote)?$/, route => {
+    const exchange = new URL(route.request().url()).pathname.includes("/BSE/") ? "BSE" : "NSE";
+    return reply(route, route.request().url().endsWith("/quote") ? quote : stock("M&M", exchange));
+  });
+  await page.reload();
+  const mover = page.getByRole("link", { name: /Mahindra fixture/ });
+  await expect(mover).toHaveAttribute("href", "/stocks/NSE/M%26M");
+  await mover.focus();
+  await mover.press("Enter");
+  await expect(page.getByRole("heading", { name: "M&M", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "M&M", exact: true })).toBeVisible();
+  await testInfo.attach("stock-detail-actions", { body: await page.locator('[aria-label="Virtual trading"]').screenshot(), contentType: "image/png" });
+  await page.getByRole("link", { name: "Buy", exact: true }).click();
+  const ticket = page.locator("#paper-order-ticket");
+  await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("M&M");
+  await expect(ticket.getByRole("button", { name: "Buy", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(ticket.getByRole("button", { name: "Place buy order" })).toBeEnabled();
+  await page.getByRole("link", { name: /M&M BSE/ }).click();
+  await expect(page).toHaveURL(/\/stocks\/BSE\/M%26M$/);
+  await page.getByRole("link", { name: "Sell", exact: true }).click();
+  await expect(ticket).toContainText("BSE");
+  await expect(ticket.getByRole("button", { name: "Sell", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
+});

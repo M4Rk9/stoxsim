@@ -22,6 +22,7 @@ import FeatureJourney, { type JourneyState } from "./components/FeatureJourney";
 import FinwizTradeFeedback, { type FinwizPortfolioFeedback } from "./components/FinwizTradeFeedback";
 
 import { marketAccount } from "./lib/portfolio-selection";
+import { readStockOrder, stockHref } from "./lib/stock-links";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
@@ -557,8 +558,10 @@ export default function Home() {
         if (!active) return;
         setAccounts(ownedAccounts);
         const savedId = window.sessionStorage.getItem("stoxsim-active-account");
-        const preferred = marketAccount(ownedAccounts, ownedAccounts.find(a => a.id === savedId)?.marketRegion ?? "INDIA")
-          ?? ownedAccounts[0];
+        const intent = readStockOrder(window.location.search);
+        const saved = ownedAccounts.find(a => a.id === savedId);
+        const preferred = intent && saved?.active && saved.marketRegion === intent.marketRegion ? saved
+          : marketAccount(ownedAccounts, intent?.marketRegion ?? saved?.marketRegion ?? "INDIA") ?? ownedAccounts[0];
         if (preferred) selectAccount(preferred.id, ownedAccounts);
       })
       .catch((cause) => {
@@ -566,6 +569,42 @@ export default function Home() {
       });
     return () => { active = false; };
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !activeAccount) return;
+    const intent = readStockOrder(window.location.search);
+    if (!intent) return;
+    if (!activeAccount.active || activeAccount.marketRegion !== intent.marketRegion) {
+      setError("A virtual account for this listing's market is unavailable.");
+      return;
+    }
+    const controller = new AbortController();
+    const clearIntent = () => {
+      const url = new URL(window.location.href);
+      for (const key of ["exchange", "symbol", "side"]) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, "", url);
+    };
+    void authorizedRequest<Instrument>(
+      `/api/v1/instruments/${intent.marketRegion}/${intent.exchange}/${encodeURIComponent(intent.symbol)}`,
+      { signal: controller.signal },
+    ).then(instrument => {
+      if (controller.signal.aborted || selectedRef.current) return;
+      if (instrument.marketRegion !== intent.marketRegion || instrument.exchange !== intent.exchange
+          || instrument.tradingSymbol !== intent.symbol || !["EQUITY", "ETF"].includes(instrument.instrumentType)) {
+        throw new Error("This listing is unavailable for virtual orders.");
+      }
+      clearIntent();
+      setSide(intent.side);
+      void chooseInstrument(instrument).then(() => {
+        document.getElementById("paper-order-ticket")?.focus();
+      });
+    }).catch(cause => {
+      if (controller.signal.aborted) return;
+      clearIntent();
+      setError(cause instanceof Error ? cause.message : "Could not open the practice order ticket.");
+    });
+    return () => controller.abort();
+  }, [token, activeAccount]);
 
   useEffect(() => {
     if (!token || !activeAccount) return;
@@ -961,7 +1000,7 @@ export default function Home() {
     setError("");
     try {
       const nextQuote = await authorizedRequest<Quote>(
-        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${instrument.tradingSymbol}/quote`,
+        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/quote`,
         { signal: controller.signal },
       );
       if (!isCurrent()) return;
@@ -1018,24 +1057,9 @@ export default function Home() {
     }
   }
 
-  function chooseWatchlistItem(item: WatchlistItem) {
-    void chooseInstrument({
-      id: item.instrumentId,
-      provider: item.provider,
-      instrumentKey: item.instrumentKey,
-      marketRegion: item.marketRegion,
-      tradingSymbol: item.symbol,
-      name: item.name,
-      exchange: item.exchange,
-      instrumentType: item.instrumentType,
-      currency: item.currency,
-      tickSize: item.tickSize,
-    });
-  }
-
   async function placeOrder(event: FormEvent) {
     event.preventDefault();
-    if (!token || !selected || !activeAccount || !activeAccount.active) return;
+    if (!token || !selected || !quote || !activeAccount || !activeAccount.active || selected.marketRegion !== activeAccount.marketRegion) return;
     setWorking(true);
     setError("");
     setNotice("");
@@ -1402,7 +1426,7 @@ export default function Home() {
               {visibleMovers.map((mover) => {
                 const rising = mover.changePercent >= 0;
                 return <tr key={mover.instrumentKey}>
-                  <td><span className="moverMonogram">{mover.symbol.slice(0, 2)}</span><span><strong>{mover.name}</strong><small>{mover.symbol} · {mover.exchange}</small></span></td>
+                  <td><span className="moverMonogram">{mover.symbol.slice(0, 2)}</span><a className="stockListingLink" href={stockHref(mover.exchange, mover.symbol)}><strong>{mover.name}</strong><small>{mover.symbol} · {mover.exchange}</small></a></td>
                   <td><strong>{displayMoney(mover.lastPrice)}</strong><small>{marketDataStatus}</small></td>
                   <td className={rising ? "positive" : "negative"}><strong>{rising ? "+" : ""}{displayMoney(mover.change)}</strong><small>{rising ? "+" : ""}{number(mover.changePercent)}%</small></td>
                   <td><strong>{mover.volume == null ? "—" : number(mover.volume)}</strong></td>
@@ -1423,7 +1447,7 @@ export default function Home() {
             <p id="stock-search-status" role="status">{searchError || (searchOpen && search.trim().length >= 2
               ? searchLoading ? "Finding matches…" : results.length ? `${results.length} matching stocks and ETFs` : "No matching stocks or ETFs found."
               : marketRegion === "INDIA" ? "Type 2 or more characters. NSE stocks and ETFs only." : "Type 2 or more characters to find US stocks and ETFs.")}</p>
-            {results.length > 0 && <div id="stock-search-results" className="searchResults" aria-label="Matching stocks and ETFs">{results.map((instrument) => <button type="button" key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
+            {results.length > 0 && <div id="stock-search-results" className="searchResults" aria-label="Matching stocks and ETFs">{results.map((instrument) => <div className="stockSearchResult" key={instrument.id}><a className="stockListingLink" href={stockHref(instrument.exchange, instrument.tradingSymbol)}><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span><small>{instrument.exchange} · {instrument.instrumentType}</small></a><button type="button" aria-label={`Quick quote for ${instrument.tradingSymbol} on ${instrument.exchange}`} onClick={() => chooseInstrument(instrument)}>Quick quote</button></div>)}</div>}
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
             {selected && quote && (
               <div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>
@@ -1449,7 +1473,7 @@ export default function Home() {
           <article className="panel">
             <div className="panelHeading"><div><span className="kicker">PORTFOLIO</span><h2>Your holdings</h2></div><span className="panelMeta">{portfolio?.holdings.length ?? 0} positions</span></div>
             <div className="tableWrap"><table><thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Value</th><th>Profit/Loss</th></tr></thead><tbody>
-              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><strong>{position.symbol}</strong><small>{position.name}</small></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus} · {priceSourceLabel(position.pricingSource)}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
+              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><a className="stockListingLink" href={stockHref(position.exchange, position.symbol)}><strong>{position.symbol}</strong><small>{position.name} · {position.exchange}</small></a></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus} · {priceSourceLabel(position.pricingSource)}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
               {!portfolio?.holdings.length && <tr><td colSpan={6} className="emptyCell">Your first executed buy will appear here.</td></tr>}
             </tbody></table></div>
           </article>
@@ -1467,7 +1491,7 @@ export default function Home() {
               {visibleWatchlistItems.map((item) => {
                 const rising = (item.change ?? 0) >= 0;
                 return <div className="watchlistRow" key={item.itemId}>
-                  <button type="button" className="watchlistSelect" onClick={() => chooseWatchlistItem(item)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {priceSourceLabel(item.pricingSource)}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></button>
+                  <a className="watchlistSelect stockListingLink" href={stockHref(item.exchange, item.symbol)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {priceSourceLabel(item.pricingSource)}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></a>
                   <button type="button" className="watchlistRemove" aria-label={`Remove ${item.symbol} from watchlist`} title="Remove" disabled={working} onClick={() => removeWatchlistItem(item)}>×</button>
                 </div>;
               })}
@@ -1475,17 +1499,18 @@ export default function Home() {
             </div>
           </article>
 
-          <form className="panel orderTicket" id="paper-order-ticket" onSubmit={placeOrder}>
+          <form className="panel orderTicket" id="paper-order-ticket" tabIndex={-1} onSubmit={placeOrder}>
             <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><span className="deliveryPill">SIMULATED</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
-            <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
+            <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} aria-pressed={side === "BUY"} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} aria-pressed={side === "SELL"} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
+            {selected && <p className="fieldHelp">{selected.exchange} · {selected.name}{!quote && !working ? " · Quote unavailable" : ""}</p>}
             <div className="fieldGrid"><label>Order type<select aria-describedby="order-type-help" value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market order</option><option value="LIMIT">Limit order</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
             <p className="fieldHelp" id="order-type-help">{orderType === "MARKET" ? "A market order uses the next available simulated price." : "A limit order executes only at your chosen price or better."}</p>
             {orderType === "LIMIT" && <label>Limit price<input type="number" min="0.01" step={selected?.tickSize ?? 0.05} value={limitPrice} onChange={(event) => setLimitPrice(event.target.value)} /></label>}
             {quote && <PricingNotice source={quote.pricingSource} />}
             <div className="estimateBox"><div><span>Estimated turnover</span><strong>{displayMoney(chargeEstimate?.turnover)}</strong></div><div><span>Simulated charges</span><strong>{displayMoney(chargeEstimate?.totalCharges)}</strong></div><div className="estimateTotal"><span>{side === "BUY" ? "Estimated debit" : "Estimated credit"}</span><strong>{displayMoney(chargeEstimate ? chargeEstimate.turnover + (side === "BUY" ? chargeEstimate.totalCharges : -chargeEstimate.totalCharges) : 0)}</strong></div>{chargeEstimate && <small>{chargeEstimate.scheduleVersion} · final amount uses execution price</small>}</div>
-            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working || !activeAccount?.active}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
+            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || !quote || working || !activeAccount?.active || selected.marketRegion !== activeAccount.marketRegion}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
 
           </form>
 

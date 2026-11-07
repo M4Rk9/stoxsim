@@ -11,6 +11,8 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+- Link stock listings to exchange-specific details and open prefilled virtual Buy and Sell tickets from the detail page.
+
 - Restore the learning recommendation label, space preference controls, and make Finwiz’s question composer the primary view.
 
 ### Non-payment closure (Android 0.5.7)
