@@ -131,9 +131,15 @@ class VirtualDerivativesIntegrationTest {
         when(quotes.isFresh(any())).thenReturn(false);
         order(UUID.randomUUID(), "OPEN_LONG", 1).andExpect(status().isServiceUnavailable());
         quote("80");
-        order(UUID.randomUUID(), "CLOSE", 1).andExpect(status().isBadRequest());
+        order(UUID.randomUUID(), "OPEN_LONG", 0).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.fields.lots").exists());
+        order(UUID.randomUUID(), "CLOSE", 1).andExpect(status().is(422))
+            .andExpect(jsonPath("$.message").value("Not enough open lots to close."));
+        order(UUID.randomUUID(), "OPEN_LONG", 100).andExpect(status().is(422))
+            .andExpect(jsonPath("$.message").value("Insufficient virtual funds for premium or futures margin."));
         clock.time = Instant.parse("2026-11-06T15:00:00Z");
-        order(UUID.randomUUID(), "OPEN_LONG", 1).andExpect(status().isBadRequest());
+        order(UUID.randomUUID(), "OPEN_LONG", 1).andExpect(status().is(422))
+            .andExpect(jsonPath("$.message").value("The regular index derivatives session is closed or the contract has expired."));
         portfolio().andExpect(jsonPath("$.cash").value(500000)).andExpect(jsonPath("$.fills.length()").value(0));
         mvc.perform(get("/api/v1/derivatives/portfolio")).andExpect(status().isUnauthorized());
     }
