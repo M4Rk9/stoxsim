@@ -5,6 +5,8 @@ set -Eeuo pipefail
 : "${ALPACA_API_SECRET_KEY:?Set ALPACA_API_SECRET_KEY}"
 
 ALPACA_DATA_FEED=${ALPACA_DATA_FEED:-iex}
+ALPACA_PREFLIGHT_MAX_ATTEMPTS=${ALPACA_PREFLIGHT_MAX_ATTEMPTS:-5}
+ALPACA_PREFLIGHT_RETRY_DELAY_SECONDS=${ALPACA_PREFLIGHT_RETRY_DELAY_SECONDS:-2}
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -13,21 +15,64 @@ AUTH_HEADERS=(
   -H "APCA-API-SECRET-KEY: ${ALPACA_API_SECRET_KEY}"
 )
 
-curl --fail-with-body --silent --show-error \
-  --retry 5 \
-  --retry-delay 2 \
-  --retry-max-time 90 \
-  "${AUTH_HEADERS[@]}" \
-  "https://paper-api.alpaca.markets/v2/assets/SPY" \
-  -o "$TMP_DIR/asset.json"
+fetch_with_transient_tolerance() {
+  local request_name="$1"
+  local url="$2"
+  local output_file="$3"
+  local last_http_status=000
 
-curl --fail-with-body --silent --show-error \
-  --retry 5 \
-  --retry-delay 2 \
-  --retry-max-time 90 \
-  "${AUTH_HEADERS[@]}" \
+  for ((attempt = 1; attempt <= ALPACA_PREFLIGHT_MAX_ATTEMPTS; attempt++)); do
+    : > "$output_file"
+    http_status=$(curl --silent --show-error \
+      --connect-timeout 10 \
+      --max-time 90 \
+      --output "$output_file" \
+      --write-out '%{http_code}' \
+      "${AUTH_HEADERS[@]}" \
+      "$url") || http_status=000
+    last_http_status="$http_status"
+
+    if [[ "$http_status" =~ ^2 ]]; then
+      return 0
+    fi
+    if [[ "$http_status" =~ ^(401|403|404)$ ]]; then
+      echo "::error::Alpaca ${request_name} preflight failed with HTTP ${http_status}"
+      # Provider responses may echo credentials; log only the HTTP status above.
+      return 1
+    fi
+    [[ "$attempt" -lt "$ALPACA_PREFLIGHT_MAX_ATTEMPTS" ]] && sleep "$ALPACA_PREFLIGHT_RETRY_DELAY_SECONDS"
+  done
+
+  if [[ "$last_http_status" =~ ^(000|408|429|5) ]]; then
+    echo "::warning::Alpaca ${request_name} preflight skipped after transient provider failures (HTTP ${last_http_status}); continuing deploy."
+    return 2
+  fi
+
+  echo "::error::Alpaca ${request_name} preflight failed with HTTP ${last_http_status}"
+  # Provider responses may echo credentials; log only the HTTP status above.
+  return 1
+}
+
+asset_result=0
+snapshot_result=0
+
+fetch_with_transient_tolerance \
+  "asset" \
+  "https://paper-api.alpaca.markets/v2/assets/SPY" \
+  "$TMP_DIR/asset.json" || asset_result=$?
+
+fetch_with_transient_tolerance \
+  "snapshot" \
   "https://data.alpaca.markets/v2/stocks/snapshots?symbols=SPY&feed=${ALPACA_DATA_FEED}" \
-  -o "$TMP_DIR/snapshot.json"
+  "$TMP_DIR/snapshot.json" || snapshot_result=$?
+
+if [[ "$asset_result" -eq 1 || "$snapshot_result" -eq 1 ]]; then
+  exit 1
+fi
+
+if [[ "$asset_result" -eq 2 || "$snapshot_result" -eq 2 ]]; then
+  exit 0
+fi
 
 python3 - "$TMP_DIR/asset.json" "$TMP_DIR/snapshot.json" <<'PY'
 import json
