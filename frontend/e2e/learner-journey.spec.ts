@@ -487,9 +487,10 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   await page.getByText("Explore all learning tools", { exact: true }).click();
   await page.getByRole("link", { name: "Ask Finwiz AI" }).click();
   await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
+  await expect(page.getByLabel("Your question")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeHidden();
+  await page.getByText("Explore the learning map", { exact: true }).click();
   await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
-  await page.getByRole("link", { name: "Skip the learning map and ask a question" }).click();
-  await expect(page.getByLabel("Your question")).toBeFocused();
   await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeVisible();
   await page.getByRole("button", { name: "Select Technical analysis" }).focus();
   await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeFocused();

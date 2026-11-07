@@ -24,9 +24,10 @@ export default function AppNavigation() {
     : /^(\/stocks|\/portfolio)/.test(pathname) ? "Markets"
       : /^(\/learn|\/progress|\/finwiz|\/scenario-lab)/.test(pathname) ? "Learn"
         : /^(\/competitions|\/campus)/.test(pathname) ? "Compete" : "Account";
+  const inFlow = pathname === "/finwiz";
   return <>
-    <div className={styles.space} aria-hidden="true" />
-    <nav className={styles.nav} aria-label="Main navigation">
+    {!inFlow && <div className={styles.space} aria-hidden="true" />}
+    <nav className={inFlow ? `${styles.nav} ${styles.inFlow}` : styles.nav} aria-label="Main navigation">
       {areas.map(area => <a key={area.label} href={area.href}
         aria-current={current === area.label ? "page" : undefined}>{area.label}</a>)}
     </nav>

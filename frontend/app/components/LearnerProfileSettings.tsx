@@ -39,6 +39,6 @@ export default function LearnerProfileSettings() {
       <div><label htmlFor="learner-market">Preferred market</label><select id="learner-market" value={profile.preferredMarket ?? ""} onChange={e => setProfile({ ...profile, preferredMarket: e.target.value as LearnerProfile["preferredMarket"] || null })}>
         <option value="">No preference</option><option value="INDIA">India</option><option value="UNITED_STATES">United States</option>
       </select></div>
-    </div><button disabled={busy}>{busy ? "Saving…" : "Save learning preferences"}</button></form>}
+    </div><button className={styles.preferenceSubmit} disabled={busy}>{busy ? "Saving…" : "Save learning preferences"}</button></form>}
   </section>;
 }

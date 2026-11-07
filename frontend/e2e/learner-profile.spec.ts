@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("optional preferences persist and can be cleared without changing authentication", async ({ page }) => {
+test("optional preferences persist and can be cleared without changing authentication", async ({ page }, testInfo) => {
   const user = { id: "profile-user", displayName: "Profile Learner", email: "profile@example.test", emailVerified: true, passwordLoginEnabled: true, accounts: [] };
   await page.addInitScript(user => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "fixture", user })), user);
   let profile = { experienceLevel: null as string | null, learningObjective: null as string | null, preferredMarket: null as string | null, updatedAt: null as string | null };
@@ -14,6 +14,9 @@ test("optional preferences persist and can be cleared without changing authentic
     return route.fulfill({ status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": request.headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true" }, body: JSON.stringify(body) });
   });
   await page.goto("/settings");
+  const preferences = page.locator("#learning-preferences");
+  await expect(preferences.getByRole("button", { name: "Save learning preferences" })).toHaveCSS("margin-top", "12px");
+  await testInfo.attach("learning-preferences", { body: await preferences.screenshot(), contentType: "image/png" });
   await page.getByLabel("Experience level", { exact: true }).selectOption("BEGINNER");
   await page.getByLabel("Primary learning objective", { exact: true }).selectOption("DIVERSIFICATION");
   await page.getByLabel("Preferred market", { exact: true }).selectOption("UNITED_STATES");

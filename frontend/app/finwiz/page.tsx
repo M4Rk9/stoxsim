@@ -199,21 +199,14 @@ export default function FinwizPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <div className={styles.gridBackdrop} aria-hidden="true" />
-    <h1 className={styles.srOnly}>FINWIZ AI</h1>
-
-    <a className={styles.backLink} href="/" aria-label="Back to dashboard">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m15 5-7 7 7 7" />
-      </svg>
-    </a>
-
-    <a className={styles.skipToComposer} href="#finwiz-question">Skip the learning map and ask a question</a>
-    <p className={styles.guide}>Choose a topic in the map, or go straight to the question box.</p>
-    <FeatureGuide title="Learn from your first trade">Choose a topic, read a lesson or send a question. Try asking how charges and diversification affect your portfolio. After your first trade executes, continue to Scenario Lab to explore a market fall.</FeatureGuide>
-
-    <section className={styles.skillViewport} aria-label="Finwiz learning modules">
-      <FinwizReactor selected={topic} onSelect={selectTopic} />
-    </section>
+    <header className={styles.header}>
+      <a className={styles.backLink} href="/" aria-label="Back to dashboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m15 5-7 7 7 7" />
+        </svg>
+      </a>
+      <h1>Finwiz AI</h1>
+    </header>
 
     {(submittedQuestion || answer || error) && <section className={styles.conversation} id="finwiz-response" aria-live="polite">
       {submittedQuestion && <div className={styles.userMessage}>
@@ -240,7 +233,7 @@ export default function FinwizPage() {
               key={suggestion}
               onClick={() => {
                 setQuestion(suggestion);
-                document.getElementById("finwiz-composer")?.scrollIntoView({ behavior: "smooth", block: "end" });
+                document.getElementById("finwiz-question")?.focus();
               }}
             >{suggestion}<span>↗</span></button>)}
           </div>}
@@ -317,7 +310,7 @@ export default function FinwizPage() {
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={handleQuestionKeyDown}
             maxLength={2000}
-            rows={1}
+            rows={3}
             placeholder="Ask Finwiz about markets, statements, valuation or risk"
           />
           <button
@@ -338,6 +331,20 @@ export default function FinwizPage() {
           <span>{question.length}/2000</span>
         </div>
       </form>
+    </div>
+
+    <div className={styles.learning}>
+      <FeatureGuide title="Learn from your first trade">Ask how charges and diversification affect your portfolio. After your first trade executes, continue to Scenario Lab to explore a market fall.</FeatureGuide>
+      <details className={styles.map}>
+        <summary>Explore the learning map</summary>
+        <p>Choose a topic to load a suggested question.</p>
+        <section className={styles.skillViewport} aria-label="Finwiz learning modules">
+          <FinwizReactor selected={topic} onSelect={next => {
+            selectTopic(next);
+            document.getElementById("finwiz-question")?.focus();
+          }} />
+        </section>
+      </details>
     </div>
   </main>;
 }

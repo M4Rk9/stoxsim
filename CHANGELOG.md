@@ -11,6 +11,8 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+- Restore the learning recommendation label, space preference controls, and make Finwiz’s question composer the primary view.
+
 ### Non-payment closure (Android 0.5.7)
 
 - Record successful home stock research; prevent premature Android stock-open analytics.

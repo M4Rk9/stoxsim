@@ -10,7 +10,8 @@
 .card button:disabled { opacity: .6; cursor: not-allowed; }
 .card button:focus-visible, .card a:focus-visible, .card select:focus-visible, .card textarea:focus-visible, .card input:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.actions a { color: var(--green); }
+.actions a:not(.primary) { color: var(--green); }
+.preferenceSubmit { margin-top: 12px; }
 .card .secondary { color: var(--ink); background: var(--panel); border-color: var(--line); }
 .card .check { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; line-height: 1.5; }
 .card .check input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; accent-color: var(--green); }
