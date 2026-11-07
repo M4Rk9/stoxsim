@@ -15,6 +15,7 @@ async function setup(page: Page, journey: { nextStep: string; [key: string]: unk
   let dismissed = false;
   await page.route("**/api/v1/**", async route => {
     const url = new URL(route.request().url()), path = url.pathname;
+    if (path.endsWith("/learner/home")) return reply(route, { recommendation: { id: "FIRST_TRADE", title: "Explore your first paper trade", description: "Use the walkthrough to understand a virtual order.", href: "/#stock-search", actionLabel: "Explore markets" } });
     if (path.endsWith("/onboarding/dismiss")) dismissed = true;
     if (path.endsWith("/onboarding/resume")) dismissed = false;
     if (path.includes("/onboarding")) return reply(route, path.endsWith("/journey") ? { completedSteps: 2, totalSteps: 6, ...journey } : { completed: true, introductionCompleted: true, firstOrderCompleted: true, dismissed });
@@ -109,3 +110,36 @@ test("signed-out Home does not show the Finwiz circle", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Launch Finwiz AI", exact: true })).toHaveCount(0);
 });
+
+for (const width of [320, 768, 1440]) {
+  test(`learning actions and Finwiz composer remain reachable at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 800 });
+    await setup(page, { nextStep: "FINWIZ", firstTradeExecuted: true });
+    const recommendation = page.getByRole("region", { name: "Recommended learning action" });
+    const action = recommendation.getByRole("link", { name: "Explore markets" });
+    await expect(action).toBeVisible();
+    await expect(action).toHaveAttribute("href", "/#stock-search");
+    const colors = await action.evaluate(link => {
+      const style = getComputedStyle(link);
+      return [style.color, style.backgroundColor];
+    });
+    expect(colors[0]).not.toBe(colors[1]);
+    await expect(recommendation.getByRole("link", { name: "Learning preferences" })).toHaveAttribute("href", "/settings#learning-preferences");
+    await testInfo.attach(`learning-actions-${width}`, { body: await recommendation.screenshot(), contentType: "image/png" });
+
+    await page.goto("/finwiz");
+    const question = page.getByRole("textbox", { name: "Your question" });
+    const send = page.getByRole("button", { name: "Ask Finwiz" });
+    await expect(question).toBeVisible();
+    await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeHidden();
+    await page.addStyleTag({ content: "html { font-size: 125%; }" });
+    if (width === 320) await page.setViewportSize({ width, height: 430 });
+    await question.focus();
+    await question.press("Tab");
+    await expect(send).toBeFocused();
+    await expect(send).toBeInViewport();
+    await send.click({ trial: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await testInfo.attach(`finwiz-layout-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+  });
+}

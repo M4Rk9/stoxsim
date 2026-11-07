@@ -1,8 +1,7 @@
 .shell {
   position: relative;
   min-height: 100svh;
-  overflow-x: hidden;
-  padding: 0 24px 230px;
+  padding: 24px 24px calc(108px + env(safe-area-inset-bottom, 0px));
   background: #000;
   color: #fff;
   color-scheme: dark;
@@ -23,23 +22,27 @@
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 76%, transparent 100%);
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.header,
+.learning {
+  position: relative;
+  width: min(860px, 100%);
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
 }
 
 .backLink {
-  position: fixed;
-  z-index: 40;
-  top: 24px;
-  left: 24px;
+  flex: 0 0 auto;
   display: grid;
   width: 46px;
   height: 46px;
@@ -70,62 +73,24 @@
   outline: none;
 }
 
-.skipToComposer,
-.guide {
-  position: fixed;
-  z-index: 40;
-  left: 50%;
-  transform: translateX(-50%);
+.learning {
+  margin-top: 24px;
 }
 
-.skipToComposer {
-  top: 20px;
-  padding: 9px 13px;
-  border: 1px solid rgba(255, 255, 255, .32);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, .76);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 750;
-  text-decoration: none;
+.learning a { color: #c6f2da; }
+
+.map {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #666;
+  border-radius: 16px;
+  background: #080808;
 }
 
-.skipToComposer:hover,
-.skipToComposer:focus-visible {
-  border-color: #fff;
-  background: #fff;
-  color: #000;
-}
-
-.guide {
-  top: 62px;
-  width: min(460px, calc(100% - 120px));
-  margin: 0;
-  color: rgba(255, 255, 255, .64);
-  font-size: 11px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-.skillViewport {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  min-height: 100svh;
-  place-items: center;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.skillViewport::-webkit-scrollbar {
-  display: none;
-}
-
-.treeModule {
-  width: min(1100px, 100%);
-  min-width: 760px;
-  margin: 0 auto;
-}
+.map summary { cursor: pointer; font-weight: 750; }
+.map p { line-height: 1.5; }
+.skillViewport { overflow-x: auto; }
+.treeModule { width: 100%; min-width: 680px; }
 
 .skillTree {
   display: block;
@@ -359,8 +324,9 @@
   position: relative;
   z-index: 3;
   width: min(820px, 100%);
-  margin: -72px auto 44px;
-  padding-top: 80px;
+  margin: 0 auto 24px;
+  scroll-margin-top: 16px;
+  overflow-wrap: anywhere;
 }
 
 .userMessage {
@@ -583,14 +549,7 @@
   font-size: 13px;
 }
 
-.composerDock {
-  position: fixed;
-  z-index: 30;
-  inset: auto 0 0;
-  padding: 52px 20px 20px;
-  background: linear-gradient(to top, #000 52%, rgba(0, 0, 0, 0.94) 74%, transparent 100%);
-  pointer-events: none;
-}
+.composerDock { position: relative; }
 
 .composer {
   width: min(860px, 100%);
@@ -599,8 +558,7 @@
   border: 1px solid rgba(255, 255, 255, 0.64);
   border-radius: 26px;
   background: #000;
-  box-shadow: 0 14px 60px rgba(0, 0, 0, 0.88);
-  pointer-events: auto;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
 }
 
 .contextBar {
@@ -697,8 +655,9 @@
   background: transparent;
   color: #fff;
   font: inherit;
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.45;
+  scroll-margin-bottom: 90px;
 }
 
 .questionInput::placeholder {
@@ -765,83 +724,10 @@
   letter-spacing: 0.04em;
 }
 
-@media (max-width: 820px) {
-  .shell {
-    padding-right: 12px;
-    padding-left: 12px;
-    padding-bottom: 260px;
-  }
-
-  .backLink {
-    top: 14px;
-    left: 14px;
-    width: 40px;
-    height: 40px;
-  }
-
-  .skillViewport {
-    justify-content: start;
-    min-height: 780px;
-    margin: 0 -12px;
-    padding: 0 12px;
-  }
-
-  .treeModule {
-    width: 760px;
-    min-width: 760px;
-  }
-
-  .conversation {
-    margin-top: 0;
-    padding-top: 30px;
-  }
-
-  .contextBar {
-    max-height: 74px;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-  }
-
-  .contextBar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .contextTopic,
-  .contextControl,
-  .symbolControl {
-    flex: 0 0 auto;
-  }
-
-  .composerDock {
-    padding-right: 10px;
-    padding-bottom: 10px;
-    padding-left: 10px;
-  }
-
-  .composer {
-    border-radius: 22px;
-  }
-
-  .composerHint span:first-child {
-    display: none;
-  }
-
-  .composerHint {
-    justify-content: flex-end;
-  }
-}
-
 @media (max-width: 540px) {
-  .skipToComposer {
-    top: 14px;
-    max-width: calc(100% - 124px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .guide { display: none; }
+  .shell { padding-inline: 12px; }
+  .composer { border-radius: 18px; }
+  .composerHint { flex-wrap: wrap; gap: 4px 12px; }
 
   .userMessage > div {
     max-width: 92%;
@@ -884,4 +770,9 @@
   .sendButton {
     transition: none;
   }
+}
+
+.composer :focus-visible, .map summary:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
