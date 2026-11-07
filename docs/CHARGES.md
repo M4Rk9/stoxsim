@@ -36,3 +36,9 @@ The prior `SIM-IN-DELIVERY-2024-10` schedule retains the 0.00297% NSE transactio
 - [CBIC stock-broker GST guidance](https://cbic-gst.gov.in/sectoral-faq.html)
 
 Rates can change. A new effective date must be represented by a new schedule version rather than mutating an old version.
+
+### BSE simulated delivery
+
+`SIM-IN-BSE-DELIVERY-2026-11` uses a flat ₹275 per crore exchange-fee assumption with the same simulated statutory-charge breakdown. Actual BSE fees vary by scrip group and turnover. The estimate and the fill use the same versioned model.
+
+BSE orders and web discovery are enabled by `STOXSIM_BSE_EQUITIES_ENABLED`. Before enabling, allow a fresh Upstox master sync to classify listings and normalize tick sizes, verify representative BSE quote/candle responses and the exchange calendar, and review the private approval for BSE display and simulated trading. The default search API stays NSE-only for legacy clients. New BSE fills require matching, recent provider data and do not use simulated fallback prices.

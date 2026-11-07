@@ -9,6 +9,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import com.stoxsim.account.repository.VirtualAccountRepository;
 import com.stoxsim.calendar.service.IndiaMarketSessionService;
 import com.stoxsim.charge.ChargeBreakdown;
 import com.stoxsim.charge.ChargeCalculator;
+import com.stoxsim.instrument.domain.MarketExchange;
 import com.stoxsim.market.data.InstrumentKey;
 import com.stoxsim.market.data.Quote;
 import com.stoxsim.order.domain.OrderSide;
@@ -34,6 +36,12 @@ import com.stoxsim.trade.repository.TradeRepository;
 
 @Service
 public class OrderSettlementService {
+
+    @Value("${stoxsim.trading.bse-equities-enabled:false}")
+    private boolean bseEquitiesEnabled;
+
+    @Value("${stoxsim.market-data.upstox.stale-after-seconds:15}")
+    private long staleAfterSeconds;
 
     private final PaperOrderRepository orders;
     private final VirtualAccountRepository accounts;
@@ -95,6 +103,11 @@ public class OrderSettlementService {
             return false;
         }
 
+        if (order.getInstrument().getExchange() == MarketExchange.BSE
+            && (!bseEquitiesEnabled || quote == null || quote.simulated() || !key(order).equals(quote.instrument())
+                || quote.receivedAt() == null || quote.receivedAt().isBefore(Instant.now().minusSeconds(staleAfterSeconds)))) {
+            return false;
+        }
         var fill = prices.fillPrice(order, quote);
         if (fill.isEmpty()) {
             return false;

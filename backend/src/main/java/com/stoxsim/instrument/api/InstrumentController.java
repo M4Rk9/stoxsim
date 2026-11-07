@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Locale;
 import com.stoxsim.instrument.domain.InstrumentType;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +25,14 @@ public class InstrumentController {
 
     private final TradableInstrumentRepository repository;
 
+    @Value("${stoxsim.trading.bse-equities-enabled:false}")
+    private boolean bseEquitiesEnabled;
+
+    @GetMapping("/cash-exchanges")
+    public List<MarketExchange> cashExchanges() {
+        return bseEquitiesEnabled ? List.of(MarketExchange.NSE, MarketExchange.BSE) : List.of(MarketExchange.NSE);
+    }
+
     public InstrumentController(TradableInstrumentRepository repository) {
         this.repository = repository;
     }
@@ -30,7 +40,9 @@ public class InstrumentController {
     @GetMapping("/search")
     public List<InstrumentResponse> search(
         @RequestParam MarketRegion marketRegion,
-        @RequestParam String q
+        @RequestParam String q,
+        @RequestParam(required = false) MarketExchange exchange,
+        @RequestParam(defaultValue = "false") boolean includeBse
     ) {
         String query = q.trim();
         if (query.length() < 2 || query.length() > 160) {
@@ -43,8 +55,15 @@ public class InstrumentController {
         if (marketRegion == MarketRegion.INDIA && query.equalsIgnoreCase("RIL")) query = "RELIANCE";
         String compact = query.toLowerCase(Locale.ROOT).replaceAll("[\\s&-]+", "");
         if (compact.isEmpty()) return List.of();
-        var exchanges = marketRegion == MarketRegion.INDIA ? List.of(MarketExchange.NSE)
+        var exchanges = marketRegion == MarketRegion.INDIA
+            ? (includeBse || exchange == MarketExchange.BSE ? cashExchanges() : List.of(MarketExchange.NSE))
             : List.of(MarketExchange.NASDAQ, MarketExchange.NYSE, MarketExchange.NYSE_ARCA, MarketExchange.AMEX, MarketExchange.CBOE);
+        if (exchange != null) {
+            if (!exchanges.contains(exchange)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This exchange is unavailable in the selected market.");
+            }
+            exchanges = List.of(exchange);
+        }
         return repository.search(marketRegion, query, compact, exchanges,
             List.of(InstrumentType.EQUITY, InstrumentType.ETF), PageRequest.of(0, 8))
             .stream()

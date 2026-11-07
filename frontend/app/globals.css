@@ -216,9 +216,12 @@ input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rg
 .searchBox input { border: 0; box-shadow: none; background: transparent; }
 .searchBox button { border: 0; background: var(--navy); color: white; border-radius: 8px; padding: 9px 13px; margin-right: 4px; font-size: .72rem; font-weight: 750; }
 .searchResults { border: 1px solid var(--line); border-radius: 10px; margin-top: 8px; overflow: hidden; }
-.searchResults button { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: white; text-align: left; padding: 11px 13px; display: flex; justify-content: space-between; align-items: center; }
-.searchResults button:last-child { border-bottom: 0; }
-.searchResults button:hover { background: #f6faf7; }
+.stockSearchResult { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.stockSearchResult:last-child { border-bottom: 0; }
+.stockSearchResult button { flex: 0 0 auto; font-size: .72rem; }
+.stockListingLink { color: var(--ink); min-width: 0; overflow-wrap: anywhere; text-decoration: none; }
+.stockListingLink:hover, .stockListingLink:focus-visible { text-decoration: underline; color: var(--green); }
+.stockListingLink:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .searchResults strong, .searchResults span { display: block; }
 .searchResults strong { font-size: .76rem; }
 .searchResults span, .searchResults small { color: var(--muted); font-size: .64rem; margin-top: 2px; }
@@ -523,11 +526,12 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
 .searchBox input, .searchBox input:focus, .searchBox input:focus-visible { width: 100%; min-width: 0; outline: none; border: 0; box-shadow: none; border-radius: 0; padding: 10px 2px; }
 .searchBox button { margin: 0; white-space: nowrap; }
 .searchResults { position: relative; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
-.searchResults button { gap: 12px; min-width: 0; }
-.searchResults button > span, .searchResults button > div { min-width: 0; overflow-wrap: anywhere; }
 .labLink { margin-left: auto; text-decoration: none; color: var(--green); font-size: .8rem; font-weight: 700; padding: 10px 14px; border: 1px solid var(--line); border-radius: 9px; }
 @media (max-width: 480px) { .labLink { margin: 0; } .searchBox { gap: 3px; } .searchBox button { padding: 9px; } }
 
 .appHeader > .labLink { margin-right: 292px; white-space: nowrap; }
 @media (max-width:1200px) { .appHeader > .labLink { margin-right: 78px; } }
 @media (max-width:760px) { .appHeader > .labLink { grid-row: 3; grid-column: 1 / -1; margin: 0 0 12px; justify-self: start; } }
+
+.cashExchangeFilter { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
+.cashExchangeFilter select { padding: 5px 8px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; }

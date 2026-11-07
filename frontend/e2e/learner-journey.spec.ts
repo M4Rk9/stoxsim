@@ -217,14 +217,14 @@ test("a learner can switch between India and United States markets", async ({ pa
     await expect(async () => {
       await page.getByPlaceholder("Search Apple, Nvidia, SPY…").fill("Apple");
       await page.getByRole("button", { name: "Search", exact: true }).click();
-      await expect(page.locator(".searchResults button strong").filter({ hasText: /^AAPL$/ }))
+      await expect(page.locator(".searchResults a strong").filter({ hasText: /^AAPL$/ }))
         .toBeVisible({ timeout: 5_000 });
     }).toPass({
       timeout: 300_000,
       intervals: [5_000, 10_000],
     });
 
-    await page.locator(".searchResults button").filter({ hasText: /^AAPL/ }).first().click();
+    await page.getByRole("button", { name: /Quick quote for AAPL/ }).first().click();
     const stockDetailLink = page.getByRole("link", { name: /Study AAPL in detail/ });
     await expect(stockDetailLink)
       .toHaveAttribute("href", "/stocks/NASDAQ/AAPL", { timeout: 10_000 });

@@ -11,6 +11,14 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+- Add a gated virtual NSE index Futures & Options workspace with its own wallet, positions, quotes, and expiry settlement.
+
+- Add a gated BSE equity search filter, exchange-specific practice orders, and a versioned BSE delivery fee model.
+
+- Add daily line and candlestick charts with OHLC inspection and optional educational pattern markers.
+
+- Link stock listings to exchange-specific details and open prefilled virtual Buy and Sell tickets from the detail page.
+
 - Restore the learning recommendation label, space preference controls, and make Finwiz’s question composer the primary view.
 
 ### Non-payment closure (Android 0.5.7)

@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const account = { id: "11111111-2222-4333-8444-555555555555", marketRegion: "INDIA", accountKind: "STANDARD", sandboxSlot: 0, accountLabel: "Standard India", currency: "INR", startingCapital: 500000, availableCash: 500000, blockedCash: 0, realizedProfitLoss: 0, active: true, leaderboardEligible: true };
 const usAccount = { ...account, id: "22222222-2222-4333-8444-555555555555", marketRegion: "UNITED_STATES", currency: "USD", accountLabel: "Standard US" };
-const stock = (symbol: string, exchange = "NSE", instrumentType = "EQUITY") => ({ id: symbol, tradingSymbol: symbol, name: `${symbol} company or exchange traded fund`, marketRegion: "INDIA", exchange, instrumentType, currency: "INR", tickSize: 0.05 });
+const stock = (symbol: string, exchange = "NSE", instrumentType = "EQUITY") => ({ id: `${exchange}-${symbol}`, tradingSymbol: symbol, name: `${symbol} company or exchange traded fund`, marketRegion: "INDIA", exchange, instrumentType, currency: "INR", tickSize: 0.05 });
 async function reply(route: Route, body: unknown, status = 200) {
   const options = route.request().method() === "OPTIONS";
   await route.fulfill({ status: options ? 204 : status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization,content-type", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" }, body: options ? undefined : JSON.stringify(body) });
@@ -174,4 +174,88 @@ for (const replacement of ["market", "stock"] as const) test(`superseded quote c
     expect(events.filter(event => event === "STOCK_OPENED")).toHaveLength(1);
   }
   expect(pageErrors).toEqual([]);
+});
+
+test("movers and watchlists open the exact listing, and details prefill the existing order ticket", async ({ page }, testInfo) => {
+  await setup(page, route => reply(route, []));
+  const quote = { lastPrice: 200, previousClose: 199, dataStatus: "CLOSED", pricingSource: "EXTERNAL" };
+  await page.route("**/api/v1/market/movers?*", route => reply(route, {
+    universe: "NIFTY", dataStatus: "CLOSED",
+    gainers: [{ ...quote, instrumentKey: "NSE_EQ|FIXTURE", symbol: "M&M", exchange: "NSE", name: "Mahindra fixture", change: 1, changePercent: .5 }],
+    losers: [],
+  }));
+  await page.route("**/api/v1/instruments/cash-exchanges", route => reply(route, ["NSE", "BSE"]));
+  await page.route("**/api/v1/watchlists/default", route => reply(route, {
+    id: "watchlist", name: "Watchlist",
+    items: [{ ...quote, ...stock("M&M", "BSE"), itemId: "bse-watch", instrumentId: "bse-instrument", symbol: "M&M", lastPrice: 210 }],
+  }));
+  await page.route(/\/api\/v1\/instruments\/INDIA\/(NSE|BSE)\/M(?:%26|&)M(?:\/quote)?$/, route => {
+    const exchange = new URL(route.request().url()).pathname.includes("/BSE/") ? "BSE" : "NSE";
+    return reply(route, route.request().url().endsWith("/quote") ? quote : stock("M&M", exchange));
+  });
+  await page.reload();
+  const mover = page.getByRole("link", { name: /Mahindra fixture/ });
+  await expect(mover).toHaveAttribute("href", "/stocks/NSE/M%26M");
+  await mover.focus();
+  await mover.press("Enter");
+  await expect(page.getByRole("heading", { name: "M&M", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "M&M", exact: true })).toBeVisible();
+  await testInfo.attach("stock-detail-actions", { body: await page.locator('[aria-label="Virtual trading"]').screenshot(), contentType: "image/png" });
+  await page.getByRole("link", { name: "Buy", exact: true }).click();
+  const ticket = page.locator("#paper-order-ticket");
+  await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("M&M");
+  await expect(ticket.getByRole("button", { name: "Buy", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(ticket.getByRole("button", { name: "Place buy order" })).toBeEnabled();
+  await page.getByRole("link", { name: /M&M BSE/ }).click();
+  await expect(page).toHaveURL(/\/stocks\/BSE\/M%26M$/);
+  await page.getByRole("link", { name: "Sell", exact: true }).click();
+  await expect(ticket).toContainText("BSE");
+  await expect(ticket.getByRole("button", { name: "Sell", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
+});
+
+test("the quick quote chart switches to OHLC candles and inspects educational patterns", async ({ page }, testInfo) => {
+  const input = await setup(page, route => reply(route, [stock("RELIANCE")]));
+  await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/quote", route => reply(route,
+    { lastPrice: 111, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
+  await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/candles?*", route => reply(route, { candles: [
+    { timestamp: "2025-05-05T03:45:00Z", open: 110, high: 111, low: 99, close: 100 },
+    { timestamp: "2025-05-06T03:45:00Z", open: 98, high: 112, low: 97, close: 111, volume: 450 },
+  ] }));
+  await input.fill("reli");
+  await page.getByRole("button", { name: "Quick quote for RELIANCE on NSE" }).click();
+  await expect(page.getByRole("img", { name: "Historical closing-price chart" })).toBeVisible();
+  await page.getByRole("button", { name: "Candlestick" }).click();
+  const candles = page.getByRole("img", { name: "Daily candlestick chart" });
+  await expect(candles).toBeVisible();
+  await page.getByRole("checkbox", { name: "Patterns" }).check();
+  const readout = page.locator('[aria-label="Selected candle"]');
+  await expect(readout).toContainText("Bullish engulfing");
+  await expect(readout).toContainText("Volume 450");
+  await candles.press("ArrowLeft");
+  await expect(readout).toContainText("Close ₹100.00");
+  await expect(readout).not.toContainText("Bullish engulfing");
+  await testInfo.attach("candlestick-chart", { body: await page.locator(".chartBlock").screenshot(), contentType: "image/png" });
+});
+
+test("the BSE exchange filter keeps a dual listing distinct and opens a BSE-only equity", async ({ page }) => {
+  const input = await setup(page, route => reply(route, [stock("ACME"), stock("ACME", "BSE"), stock("ACMEONLY", "BSE")]));
+  await page.route("**/api/v1/instruments/cash-exchanges", route => reply(route, ["NSE", "BSE"]));
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACMEONLY", route => reply(route, stock("ACMEONLY", "BSE")));
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACMEONLY/quote", route => reply(route, {
+    lastPrice: 100, dataStatus: "CLOSED", pricingSource: "EXTERNAL",
+  }));
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "Exchange", exact: true })).toBeVisible();
+  await input.fill("acme");
+  const results = page.locator("#stock-search-results");
+  await expect(results.locator('a[href="/stocks/NSE/ACME"]')).toBeVisible();
+  await expect(results.locator('a[href="/stocks/BSE/ACME"]')).toBeVisible();
+  await page.getByRole("combobox", { name: "Exchange", exact: true }).selectOption("BSE");
+  await expect(results.getByRole("link")).toHaveCount(2);
+  await expect(results.locator('a[href="/stocks/NSE/ACME"]')).toHaveCount(0);
+  await results.getByRole("link", { name: /ACMEONLY/ }).click();
+  await expect(page).toHaveURL(/\/stocks\/BSE\/ACMEONLY$/);
+  await expect(page.getByRole("heading", { name: "ACMEONLY", exact: true })).toBeVisible();
 });

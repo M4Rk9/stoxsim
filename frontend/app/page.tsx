@@ -1,5 +1,7 @@
 "use client";
 
+import PriceHistoryChart from "./components/PriceHistoryChart";
+
 import { GoogleSignInLink } from "./components/GoogleSignInLink";
 import HomeRecommendation from "./components/HomeRecommendation";
 import Notifications from "./components/Notifications";
@@ -10,7 +12,7 @@ import PricingNotice, { PortfolioPricingNotice, priceSourceLabel } from "./compo
 
 import { EMAIL_GUIDANCE } from "./lib/email-guidance";
 
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Client, IMessage } from "@stomp/stompjs";
 import {
@@ -22,6 +24,7 @@ import FeatureJourney, { type JourneyState } from "./components/FeatureJourney";
 import FinwizTradeFeedback, { type FinwizPortfolioFeedback } from "./components/FinwizTradeFeedback";
 
 import { marketAccount } from "./lib/portfolio-selection";
+import { readStockOrder, stockHref } from "./lib/stock-links";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
@@ -464,6 +467,9 @@ export default function Home() {
   const [orders, setOrders] = useState<PaperOrder[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [search, setSearch] = useState("");
+  const [bseAvailable, setBseAvailable] = useState(false);
+  const [derivativesAvailable, setDerivativesAvailable] = useState(false);
+  const [exchangeFilter, setExchangeFilter] = useState<"ALL" | "NSE" | "BSE">("ALL");
   const [results, setResults] = useState<Instrument[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -501,6 +507,7 @@ export default function Home() {
     () => accounts.find((account) => account.id === activeAccountId),
     [accounts, activeAccountId],
   );
+  const bseOrderBlocked = selected?.exchange === "BSE" && (!bseAvailable || quote?.pricingSource !== "EXTERNAL");
   const standardAccount = activeAccount?.accountKind !== "SANDBOX";
   const marketName = marketRegion === "INDIA" ? "India" : "USA";
   const displayMoney = (value?: number) => money(value, activeCurrency);
@@ -557,8 +564,10 @@ export default function Home() {
         if (!active) return;
         setAccounts(ownedAccounts);
         const savedId = window.sessionStorage.getItem("stoxsim-active-account");
-        const preferred = marketAccount(ownedAccounts, ownedAccounts.find(a => a.id === savedId)?.marketRegion ?? "INDIA")
-          ?? ownedAccounts[0];
+        const intent = readStockOrder(window.location.search);
+        const saved = ownedAccounts.find(a => a.id === savedId);
+        const preferred = intent && saved?.active && saved.marketRegion === intent.marketRegion ? saved
+          : marketAccount(ownedAccounts, intent?.marketRegion ?? saved?.marketRegion ?? "INDIA") ?? ownedAccounts[0];
         if (preferred) selectAccount(preferred.id, ownedAccounts);
       })
       .catch((cause) => {
@@ -566,6 +575,42 @@ export default function Home() {
       });
     return () => { active = false; };
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !activeAccount) return;
+    const intent = readStockOrder(window.location.search);
+    if (!intent) return;
+    if (!activeAccount.active || activeAccount.marketRegion !== intent.marketRegion) {
+      setError("A virtual account for this listing's market is unavailable.");
+      return;
+    }
+    const controller = new AbortController();
+    const clearIntent = () => {
+      const url = new URL(window.location.href);
+      for (const key of ["exchange", "symbol", "side"]) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, "", url);
+    };
+    void authorizedRequest<Instrument>(
+      `/api/v1/instruments/${intent.marketRegion}/${intent.exchange}/${encodeURIComponent(intent.symbol)}`,
+      { signal: controller.signal },
+    ).then(instrument => {
+      if (controller.signal.aborted || selectedRef.current) return;
+      if (instrument.marketRegion !== intent.marketRegion || instrument.exchange !== intent.exchange
+          || instrument.tradingSymbol !== intent.symbol || !["EQUITY", "ETF"].includes(instrument.instrumentType)) {
+        throw new Error("This listing is unavailable for virtual orders.");
+      }
+      clearIntent();
+      setSide(intent.side);
+      void chooseInstrument(instrument).then(() => {
+        document.getElementById("paper-order-ticket")?.focus();
+      });
+    }).catch(cause => {
+      if (controller.signal.aborted) return;
+      clearIntent();
+      setError(cause instanceof Error ? cause.message : "Could not open the practice order ticket.");
+    });
+    return () => controller.abort();
+  }, [token, activeAccount]);
 
   useEffect(() => {
     if (!token || !activeAccount) return;
@@ -900,6 +945,18 @@ export default function Home() {
   }
 
   useEffect(() => {
+    if (!token) return;
+    const controller = new AbortController();
+    void authorizedRequest<string[]>("/api/v1/instruments/cash-exchanges", { signal: controller.signal })
+      .then(exchanges => { if (!controller.signal.aborted) setBseAvailable(Array.isArray(exchanges) && exchanges.includes("BSE")); })
+      .catch(() => { if (!controller.signal.aborted) setBseAvailable(false); });
+    void authorizedRequest<{ enabled: boolean }>("/api/v1/derivatives/capability", { signal: controller.signal })
+      .then(value => { if (!controller.signal.aborted) setDerivativesAvailable(value?.enabled === true); })
+      .catch(() => { if (!controller.signal.aborted) setDerivativesAvailable(false); });
+    return () => controller.abort();
+  }, [token]);
+
+  useEffect(() => {
     setResults([]);
     setSearchError("");
     const query = search.trim();
@@ -910,15 +967,20 @@ export default function Home() {
     setSearchLoading(true);
     const timer = window.setTimeout(async () => {
       try {
+        const indiaExchanges = bseAvailable ? ["NSE", "BSE"] : ["NSE"];
+        const filter = marketRegion === "INDIA" && bseAvailable
+          ? exchangeFilter === "ALL" ? "&includeBse=true" : `&exchange=${exchangeFilter}`
+          : "";
         const found = await authorizedRequest<Instrument[]>(
-          `/api/v1/instruments/search?marketRegion=${marketRegion}&q=${encodeURIComponent(query)}`,
+          `/api/v1/instruments/search?marketRegion=${marketRegion}&q=${encodeURIComponent(query)}${filter}`,
           { signal: controller.signal },
         );
         if (!active || generation !== searchGeneration.current) return;
-        const exchanges = marketRegion === "INDIA" ? ["NSE"] : ["NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE"];
+        const exchanges = marketRegion === "INDIA" ? indiaExchanges : ["NASDAQ", "NYSE", "NYSE_ARCA", "AMEX", "CBOE"];
         setResults(found.filter(item => item.marketRegion === marketRegion
           && (item.instrumentType === "EQUITY" || item.instrumentType === "ETF")
-          && exchanges.includes(item.exchange)).slice(0, 8));
+          && exchanges.includes(item.exchange)
+          && (marketRegion !== "INDIA" || !bseAvailable || exchangeFilter === "ALL" || item.exchange === exchangeFilter)).slice(0, 8));
       } catch (cause) {
         if (active && generation === searchGeneration.current) setSearchError(cause instanceof Error ? cause.message : "Search unavailable. Please try again.");
       } finally {
@@ -926,7 +988,7 @@ export default function Home() {
       }
     }, 300);
     return () => { active = false; window.clearTimeout(timer); controller.abort(); };
-  }, [search, searchOpen, searchRetry, marketRegion, token, activeAccountId]);
+  }, [search, searchOpen, searchRetry, marketRegion, token, activeAccountId, bseAvailable, exchangeFilter]);
 
   function cancelQuoteRequest() {
     if (!quoteRequestRef.current) return;
@@ -961,7 +1023,7 @@ export default function Home() {
     setError("");
     try {
       const nextQuote = await authorizedRequest<Quote>(
-        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${instrument.tradingSymbol}/quote`,
+        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/quote`,
         { signal: controller.signal },
       );
       if (!isCurrent()) return;
@@ -1018,24 +1080,9 @@ export default function Home() {
     }
   }
 
-  function chooseWatchlistItem(item: WatchlistItem) {
-    void chooseInstrument({
-      id: item.instrumentId,
-      provider: item.provider,
-      instrumentKey: item.instrumentKey,
-      marketRegion: item.marketRegion,
-      tradingSymbol: item.symbol,
-      name: item.name,
-      exchange: item.exchange,
-      instrumentType: item.instrumentType,
-      currency: item.currency,
-      tickSize: item.tickSize,
-    });
-  }
-
   async function placeOrder(event: FormEvent) {
     event.preventDefault();
-    if (!token || !selected || !activeAccount || !activeAccount.active) return;
+    if (!token || !selected || !quote || !activeAccount || !activeAccount.active || selected.marketRegion !== activeAccount.marketRegion || bseOrderBlocked) return;
     setWorking(true);
     setError("");
     setNotice("");
@@ -1402,7 +1449,7 @@ export default function Home() {
               {visibleMovers.map((mover) => {
                 const rising = mover.changePercent >= 0;
                 return <tr key={mover.instrumentKey}>
-                  <td><span className="moverMonogram">{mover.symbol.slice(0, 2)}</span><span><strong>{mover.name}</strong><small>{mover.symbol} · {mover.exchange}</small></span></td>
+                  <td><span className="moverMonogram">{mover.symbol.slice(0, 2)}</span><a className="stockListingLink" href={stockHref(mover.exchange, mover.symbol)}><strong>{mover.name}</strong><small>{mover.symbol} · {mover.exchange}</small></a></td>
                   <td><strong>{displayMoney(mover.lastPrice)}</strong><small>{marketDataStatus}</small></td>
                   <td className={rising ? "positive" : "negative"}><strong>{rising ? "+" : ""}{displayMoney(mover.change)}</strong><small>{rising ? "+" : ""}{number(mover.changePercent)}%</small></td>
                   <td><strong>{mover.volume == null ? "—" : number(mover.volume)}</strong></td>
@@ -1417,23 +1464,32 @@ export default function Home() {
       <section className="workspaceGrid">
         <div className="leftRail">
           <article className="panel searchPanel" id="stock-search">
-            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
+            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div>{marketRegion === "INDIA" && derivativesAvailable
+              ? <a className="stockListingLink" href="/markets/derivatives">Futures &amp; Options</a>
+              : <span className="shortcut">⌘ K</span>}</div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
             <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => updateSearch(event.target.value)} maxLength={100} aria-controls="stock-search-results" aria-describedby="stock-search-status" placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, NIFTYBEES…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
+            {marketRegion === "INDIA" && bseAvailable && <label className="cashExchangeFilter">Exchange
+              <select value={exchangeFilter} onChange={event => {
+                searchGeneration.current++;
+                setExchangeFilter(event.target.value as typeof exchangeFilter);
+                setSearchOpen(true);
+              }}><option value="ALL">All exchanges</option><option value="NSE">NSE</option><option value="BSE">BSE</option></select>
+            </label>}
             <p id="stock-search-status" role="status">{searchError || (searchOpen && search.trim().length >= 2
               ? searchLoading ? "Finding matches…" : results.length ? `${results.length} matching stocks and ETFs` : "No matching stocks or ETFs found."
-              : marketRegion === "INDIA" ? "Type 2 or more characters. NSE stocks and ETFs only." : "Type 2 or more characters to find US stocks and ETFs.")}</p>
-            {results.length > 0 && <div id="stock-search-results" className="searchResults" aria-label="Matching stocks and ETFs">{results.map((instrument) => <button type="button" key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
+              : marketRegion === "INDIA" ? bseAvailable ? "Type 2 or more characters for NSE and BSE listings." : "Type 2 or more characters. NSE stocks and ETFs only." : "Type 2 or more characters to find US stocks and ETFs.")}</p>
+            {results.length > 0 && <div id="stock-search-results" className="searchResults" aria-label="Matching stocks and ETFs">{results.map((instrument) => <div className="stockSearchResult" key={instrument.id}><a className="stockListingLink" href={stockHref(instrument.exchange, instrument.tradingSymbol)}><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span><small>{instrument.exchange} · {instrument.instrumentType}</small></a><button type="button" aria-label={`Quick quote for ${instrument.tradingSymbol} on ${instrument.exchange}`} onClick={() => chooseInstrument(instrument)}>Quick quote</button></div>)}</div>}
             {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
             {selected && quote && (
               <div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>
-                <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><div className="quoteActions"><button type="button" className={watchedItem ? "watchButton watching" : "watchButton"} disabled={working || Boolean(watchedItem)} onClick={addSelectedToWatchlist}>{watchedItem ? "★ Watching" : "☆ Watch"}</button><span className={`quoteStatus ${marketDataStatus.toLowerCase()}`}>{marketDataStatus}</span></div></div>
+                <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><div className="quoteActions"><button type="button" className={watchedItem ? "watchButton watching" : "watchButton"} disabled={working || Boolean(watchedItem)} onClick={addSelectedToWatchlist}>{watchedItem ? "★ Watching" : "☆ Watch"}</button><span className={`quoteStatus ${(quote.dataStatus ?? marketDataStatus).toLowerCase()}`}>{quote.dataStatus ?? marketDataStatus}</span></div></div>
                 <div className="quotePrice"><div><strong>{displayMoney(quote.lastPrice)}</strong><QuoteMove quote={quote} currency={activeCurrency} /></div><span>{dateTime(quote.exchangeTimestamp)}</span></div>
                 <PricingNotice source={quote.pricingSource} />
                 <div className="quoteStats"><div><span>Open</span><strong>{displayMoneyOrDash(quote.open)}</strong></div><div><span>High</span><strong>{displayMoneyOrDash(quote.high)}</strong></div><div><span>Low</span><strong>{displayMoneyOrDash(quote.low)}</strong></div><div><span>Prev. close</span><strong>{displayMoneyOrDash(quote.previousClose)}</strong></div></div>
                 <div className="chartBlock">
                   <div className="chartHeader"><div><span>Price chart</span><small>{marketRegion === "INDIA" ? "Verified Upstox daily OHLC candles" : "Alpaca daily OHLC candles"}</small></div><div className="rangeTabs">{([1, 3, 6, 12, 36, 60] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range >= 12 ? `${range / 12}Y` : `${range}M`}</button>)}</div></div>
-                  <PriceChart candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} />
+                  <PriceHistoryChart key={selected.id} candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} exchange={selected.exchange} provider={marketRegion === "INDIA" ? "Upstox" : "Alpaca"} />
                 </div>
                 <StockPerformance quote={quote} candles={yearCandles} currency={activeCurrency} />
                 <StockFundamentals
@@ -1449,7 +1505,7 @@ export default function Home() {
           <article className="panel">
             <div className="panelHeading"><div><span className="kicker">PORTFOLIO</span><h2>Your holdings</h2></div><span className="panelMeta">{portfolio?.holdings.length ?? 0} positions</span></div>
             <div className="tableWrap"><table><thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Value</th><th>Profit/Loss</th></tr></thead><tbody>
-              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><strong>{position.symbol}</strong><small>{position.name}</small></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus} · {priceSourceLabel(position.pricingSource)}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
+              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><a className="stockListingLink" href={stockHref(position.exchange, position.symbol)}><strong>{position.symbol}</strong><small>{position.name} · {position.exchange}</small></a></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus} · {priceSourceLabel(position.pricingSource)}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
               {!portfolio?.holdings.length && <tr><td colSpan={6} className="emptyCell">Your first executed buy will appear here.</td></tr>}
             </tbody></table></div>
           </article>
@@ -1467,7 +1523,7 @@ export default function Home() {
               {visibleWatchlistItems.map((item) => {
                 const rising = (item.change ?? 0) >= 0;
                 return <div className="watchlistRow" key={item.itemId}>
-                  <button type="button" className="watchlistSelect" onClick={() => chooseWatchlistItem(item)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {priceSourceLabel(item.pricingSource)}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></button>
+                  <a className="watchlistSelect stockListingLink" href={stockHref(item.exchange, item.symbol)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {priceSourceLabel(item.pricingSource)}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></a>
                   <button type="button" className="watchlistRemove" aria-label={`Remove ${item.symbol} from watchlist`} title="Remove" disabled={working} onClick={() => removeWatchlistItem(item)}>×</button>
                 </div>;
               })}
@@ -1475,17 +1531,19 @@ export default function Home() {
             </div>
           </article>
 
-          <form className="panel orderTicket" id="paper-order-ticket" onSubmit={placeOrder}>
+          <form className="panel orderTicket" id="paper-order-ticket" tabIndex={-1} onSubmit={placeOrder}>
             <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><span className="deliveryPill">SIMULATED</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
-            <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
+            <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} aria-pressed={side === "BUY"} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} aria-pressed={side === "SELL"} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
+            {selected && <p className="fieldHelp">{selected.exchange} · {selected.name}{!quote && !working ? " · Quote unavailable" : ""}</p>}
             <div className="fieldGrid"><label>Order type<select aria-describedby="order-type-help" value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market order</option><option value="LIMIT">Limit order</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
             <p className="fieldHelp" id="order-type-help">{orderType === "MARKET" ? "A market order uses the next available simulated price." : "A limit order executes only at your chosen price or better."}</p>
             {orderType === "LIMIT" && <label>Limit price<input type="number" min="0.01" step={selected?.tickSize ?? 0.05} value={limitPrice} onChange={(event) => setLimitPrice(event.target.value)} /></label>}
-            {quote && <PricingNotice source={quote.pricingSource} />}
+            {bseOrderBlocked ? <p role="status">{bseAvailable ? "A current BSE provider quote is required for this order." : "BSE practice orders are unavailable."}</p>
+              : quote && <PricingNotice source={quote.pricingSource} />}
             <div className="estimateBox"><div><span>Estimated turnover</span><strong>{displayMoney(chargeEstimate?.turnover)}</strong></div><div><span>Simulated charges</span><strong>{displayMoney(chargeEstimate?.totalCharges)}</strong></div><div className="estimateTotal"><span>{side === "BUY" ? "Estimated debit" : "Estimated credit"}</span><strong>{displayMoney(chargeEstimate ? chargeEstimate.turnover + (side === "BUY" ? chargeEstimate.totalCharges : -chargeEstimate.totalCharges) : 0)}</strong></div>{chargeEstimate && <small>{chargeEstimate.scheduleVersion} · final amount uses execution price</small>}</div>
-            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working || !activeAccount?.active}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
+            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || !quote || working || bseOrderBlocked || !activeAccount?.active || selected.marketRegion !== activeAccount.marketRegion}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
 
           </form>
 
@@ -1688,58 +1746,5 @@ function FinancialChart({
         </div>;
       })}
     </div>
-  </div>;
-}
-
-function PriceChart({ candles, loading, error, currency }: { candles: Candle[]; loading: boolean; error: string; currency: CurrencyCode }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const ordered = useMemo(
-    () => [...candles]
-      .filter((candle) => Number.isFinite(candle.close))
-      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()),
-    [candles],
-  );
-
-  if (loading) return <div className="chartEmpty"><span className="chartLoader" />Loading historical prices…</div>;
-  if (!ordered.length) return <div className="chartEmpty">{error || "Historical prices are unavailable for this selection."}</div>;
-
-  const width = 720;
-  const height = 240;
-  const left = 18;
-  const right = 18;
-  const top = 18;
-  const bottom = 30;
-  const values = ordered.map((candle) => candle.close);
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const spread = Math.max(maximum - minimum, maximum * 0.005, 1);
-  const points = ordered.map((candle, index) => ({
-    candle,
-    x: left + (index / Math.max(ordered.length - 1, 1)) * (width - left - right),
-    y: top + ((maximum - candle.close) / spread) * (height - top - bottom),
-  }));
-  const line = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
-  const area = `${line} L${points.at(-1)?.x},${height - bottom} L${points[0].x},${height - bottom} Z`;
-  const active = hovered == null ? points.at(-1)! : points[hovered];
-  const rising = ordered.at(-1)!.close >= ordered[0].close;
-
-  function move(event: MouseEvent<SVGSVGElement>) {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
-    setHovered(Math.round(ratio * (points.length - 1)));
-  }
-
-  return <div className="priceChart">
-    <div className="chartReadout"><div><strong>{money(active.candle.close, currency)}</strong><span>{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(active.candle.timestamp))}</span></div><div><span>High {money(active.candle.high, currency)}</span><span>Low {money(active.candle.low, currency)}</span></div></div>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical closing-price chart" onMouseMove={move} onMouseLeave={() => setHovered(null)}>
-      <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity=".22" /><stop offset="100%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity="0" /></linearGradient></defs>
-      {[0.25, 0.5, 0.75].map((ratio) => <line key={ratio} x1={left} x2={width - right} y1={top + ratio * (height - top - bottom)} y2={top + ratio * (height - top - bottom)} className="chartGridLine" />)}
-      <path d={area} fill="url(#chartFill)" />
-      <path d={line} className={rising ? "chartLine rising" : "chartLine falling"} />
-      <line x1={active.x} x2={active.x} y1={top} y2={height - bottom} className="chartCrosshair" />
-      <circle cx={active.x} cy={active.y} r="5" className={rising ? "chartPoint rising" : "chartPoint falling"} />
-      <text x={left} y={height - 7} className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered[0].timestamp))}</text>
-      <text x={width - right} y={height - 7} textAnchor="end" className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered.at(-1)!.timestamp))}</text>
-    </svg>
   </div>;
 }
