@@ -5,6 +5,7 @@ import PricingNotice from "../../../components/PricingNotice";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { recordProductActivity } from "../../../lib/product-activity";
+import { stockOrderHref } from "../../../lib/stock-links";
 import { financialValue } from "../../../lib/financial-units";
 import styles from "./stock.module.css";
 
@@ -194,8 +195,8 @@ function monthsAgo(months: number) {
 
 export default function StockPage() {
   const params = useParams<{ exchange: string; symbol: string }>();
-  const exchange = decodeURIComponent(params.exchange).toUpperCase();
-  const symbol = decodeURIComponent(params.symbol).toUpperCase();
+  const exchange = params.exchange.toUpperCase();
+  const symbol = params.symbol.toUpperCase();
   const marketRegion = exchange === "NSE" || exchange === "BSE" ? "INDIA" : "UNITED_STATES";
   const [session, setSession] = useState<StoredSession | null>(null);
   const [instrument, setInstrument] = useState<Instrument | null>(null);
@@ -357,6 +358,13 @@ export default function StockPage() {
         </div>
       </section>
 
+      <div className={styles.tradeActions} aria-label="Virtual trading">
+        {["EQUITY", "ETF"].includes(instrument.instrumentType) ? <>
+          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "BUY")}>Buy</a>
+          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "SELL")}>Sell</a>
+          <span>Virtual orders only</span>
+        </> : <span>This listing is unavailable for equity practice orders.</span>}
+      </div>
       <PricingNotice source={quote.pricingSource} />
       <section className={styles.grid}>
         <div className={styles.stack}>

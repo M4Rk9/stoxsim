@@ -22,6 +22,7 @@ import FeatureJourney, { type JourneyState } from "./components/FeatureJourney";
 import FinwizTradeFeedback, { type FinwizPortfolioFeedback } from "./components/FinwizTradeFeedback";
 
 import { marketAccount } from "./lib/portfolio-selection";
+import { readStockOrder, stockHref } from "./lib/stock-links";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const MARKET_WS_URL = `${API_URL.replace(/\/$/, "").replace(/^http/, "ws")}/ws/market`;
@@ -557,8 +558,10 @@ export default function Home() {
         if (!active) return;
         setAccounts(ownedAccounts);
         const savedId = window.sessionStorage.getItem("stoxsim-active-account");
-        const preferred = marketAccount(ownedAccounts, ownedAccounts.find(a => a.id === savedId)?.marketRegion ?? "INDIA")
-          ?? ownedAccounts[0];
+        const intent = readStockOrder(window.location.search);
+        const saved = ownedAccounts.find(a => a.id === savedId);
+        const preferred = intent && saved?.active && saved.marketRegion === intent.marketRegion ? saved
+          : marketAccount(ownedAccounts, intent?.marketRegion ?? saved?.marketRegion ?? "INDIA") ?? ownedAccounts[0];
         if (preferred) selectAccount(preferred.id, ownedAccounts);
       })
       .catch((cause) => {
@@ -566,6 +569,74 @@ export default function Home() {
       });
     return () => { active = false; };
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !activeAccount) return;
+    const intent = readStockOrder(window.location.search);
+    if (!intent) return;
+    if (!activeAccount.active || activeAccount.marketRegion !== intent.marketRegion) {
+      setError("A virtual account for this listing's market is unavailable.");
+      return;
+    }
+    const controller = new AbortController();
+    const clearIntent = () => {
+      const url = new URL(window.location.href);
+      for (const key of ["exchange", "symbol", "side"]) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, "", url);
+    };
+    void authorizedRequest<Instrument>(
+      `/api/v1/instruments/${intent.marketRegion}/${intent.exchange}/${encodeURIComponent(iuthorizedRequest<Account[]>("/api/v1/accounts", {}, token)
+      .then((ownedAccounts) => {
+        if (!active) return;
+        setAccounts(ownedAccounts);
+        const savedId = window.sessionStorage.getItem("stoxsim-active-account");
+        const intent = readStockOrder(window.location.search);
+        const saved = ownedAccounts.find(a => a.id === savedId);
+        const preferred = intent && saved?.active && saved.marketRegion === intent.marketRegion ? saved
+          : marketAccount(ownedAccounts, intent?.marketRegion ?? saved?.marketRegion ?? "INDIA") ?? ownedAccounts[0];
+        if (preferred) selectAccount(preferred.id, ownedAccounts);
+      })
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : "Portfolio accounts could not be loaded");
+      });
+    return () => { active = false; };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !activeAccount) return;
+    const intent = readStockOrder(window.location.search);
+    if (!intent) return;
+    if (!activeAccount.active || activeAccount.marketRegion !== intent.marketRegion) {
+      setError("A virtual account for this listing's market is unavailable.");
+      return;
+    }
+    const controller = new AbortController();
+    const clearIntent = () => {
+      const url = new URL(window.location.href);
+      for (const key of ["exchange", "symbol", "side"]) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, "", url);
+    };
+    void authorizedRequest<Instrument>(
+      `/api/v1/instruments/${intent.marketRegion}/${intent.exchange}/${encodeURIComponent(intent.symbol)}`,
+      { signal: controller.signal },
+    ).then(instrument => {
+      if (controller.signal.aborted || selectedRef.current) return;
+      if (instrument.marketRegion !== intent.marketRegion || instrument.exchange !== intent.exchange
+          || instrument.tradingSymbol !== intent.symbol || !["EQUITY", "ETF"].includes(instrument.instrumentType)) {
+        throw new Error("This listing is unavailable for virtual orders.");
+      }
+      clearIntent();
+      setSide(intent.side);
+      void chooseInstrument(instrument).then(() => {
+        document.getElementById("paper-order-ticket")?.focus();
+      });
+    }).catch(cause => {
+      if (controller.signal.aborted) return;
+      clearIntent();
+      setError(cause instanceof Error ? cause.message : "Could not open the practice order ticket.");
+    });
+    return () => controller.abort();
+  }, [token, activeAccount]);
 
   useEffect(() => {
     if (!token || !activeAccount) return;
@@ -748,48 +819,7 @@ export default function Home() {
 
   async function loadIndices() {
     try {
-      setIndices(await authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${marketRegion}`));
-    } catch {
-      // Preserve the last successful values; each card already carries freshness metadata.
-    }
-  }
-
-  async function loadMarketOverview() {
-    try {
-      const [nextMarket, nextIndices, nextMovers] = await Promise.all([
-        authorizedRequest<MarketStatus>(`/api/v1/market/status?exchange=${primaryExchange}`),
-        authorizedRequest<IndexQuote[]>(`/api/v1/market/indices?marketRegion=${marketRegion}`),
-        authorizedRequest<MarketMovers>(`/api/v1/market/movers?marketRegion=${marketRegion}`),
-      ]);
-      setMarket(nextMarket);
-      setIndices(nextIndices);
-      setMovers(nextMovers);
-    } catch {
-      // Keep the last verified snapshot visible while connectivity recovers.
-    }
-  }
-
-  async function loadWatchlist() {
-    try {
-      setWatchlist(await authorizedRequest<Watchlist>("/api/v1/watchlists/default"));
-    } catch {
-      // Preserve the saved watchlist while the connection or token recovers.
-    }
-  }
-
-  function applyMarketTick(message: MarketQuoteMessage) {
-    if (message.marketRegion !== marketRegion || message.lastPrice == null) return;
-    const change = message.previousClose == null ? undefined : message.lastPrice - message.previousClose;
-    const changePercent = change == null || !message.previousClose
-      ? undefined
-      : (change / message.previousClose) * 100;
-
-    setIndices((current) => current.map((index) => index.instrumentKey !== message.instrumentKey ? index : {
-      ...index,
-      value: message.lastPrice,
-      previousClose: message.previousClose,
-      change,
-      changePercent,
+      setIndices(await authorizedRequest<IndexQuote[]      changePercent,
       dataStatus: "LIVE",
         pricingSource: message.pricingSource ?? "UNKNOWN",
       exchangeTimestamp: message.exchangeTimestamp,
@@ -961,7 +991,7 @@ export default function Home() {
     setError("");
     try {
       const nextQuote = await authorizedRequest<Quote>(
-        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${instrument.tradingSymbol}/quote`,
+        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/quote`,
         { signal: controller.signal },
       );
       if (!isCurrent()) return;
@@ -1018,24 +1048,103 @@ export default function Home() {
     }
   }
 
-  function chooseWatchlistItem(item: WatchlistItem) {
-    void chooseInstrument({
-      id: item.instrumentId,
-      provider: item.provider,
-      instrumentKey: item.instrumentKey,
-      marketRegion: item.marketRegion,
-      tradingSymbol: item.symbol,
-      name: item.name,
-      exchange: item.exchange,
-      instrumentType: item.instrumentType,
-      currency: item.currency,
-      tickSize: item.tickSize,
-    });
+  async function placeOrder(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !selected || !quote || !activeAccount || !activeAccount.active || selected.marketRegion !== activeAccount.marketRegion) return;
+    setWorking(true);
+    setError("");
+    setNotice("");
+    try {
+      const placedOrder = await authorizedRequest<PaperOrder>(
+        `/api/v1/accounts/${activeAccount.id}/orders`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+         eturn;
+    cancelQuoteRequest();
+    const controller = new AbortController();
+    quoteRequestRef.current = controller;
+    const userId = sessionRef.current?.user.id;
+    const isCurrent = () => quoteRequestRef.current === controller && !controller.signal.aborted
+      && selectedRef.current === instrument && sessionRef.current?.user.id === userId;
+    searchGeneration.current++;
+    setSearchOpen(false);
+    setSearchLoading(false);
+    selectedRef.current = instrument;
+    setSelected(instrument);
+    setResults([]);
+    setSearch(instrument.tradingSymbol);
+    setQuote(null);
+    setCandles([]);
+    setYearCandles([]);
+    setStockInsights(null);
+    setChartRange(12);
+    setFinancialPeriod("quarterly");
+    setChartError("");
+    setWorking(true);
+    setError("");
+    try {
+      const nextQuote = await authorizedRequest<Quote>(
+        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/quote`,
+        { signal: controller.signal },
+      );
+      if (!isCurrent()) return;
+      setQuote(nextQuote);
+      setLimitPrice(String(nextQuote.lastPrice));
+      recordProductActivity("STOCK_OPENED");
+    } catch (cause) {
+      if (!isCurrent()) return;
+      setQuote(null);
+      setError(cause instanceof Error ? cause.message : "Quote unavailable");
+    } finally {
+      if (quoteRequestRef.current === controller) {
+        quoteRequestRef.current = null;
+        setWorking(false);
+      }
+    }
+  }
+
+  async function addSelectedToWatchlist() {
+    if (!selected) return;
+    setWorking(true);
+    setError("");
+    try {
+      const next = await authorizedRequest<Watchlist>("/api/v1/watchlists/default/items", {
+        method: "POST",
+        body: JSON.stringify({
+          marketRegion: selected.marketRegion,
+          exchange: selected.exchange,
+          symbol: selected.tradingSymbol,
+        }),
+      });
+      setWatchlist(next);
+      setNotice(`${selected.tradingSymbol} added to your live watchlist.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Stock could not be added to your watchlist");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function removeWatchlistItem(item: WatchlistItem) {
+    setWorking(true);
+    setError("");
+    try {
+      const next = await authorizedRequest<Watchlist>(`/api/v1/watchlists/default/items/${item.itemId}`, {
+        method: "DELETE",
+      });
+      setWatchlist(next);
+      setNotice(`${item.symbol} removed from your watchlist.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Stock could not be removed from your watchlist");
+    } finally {
+      setWorking(false);
+    }
   }
 
   async function placeOrder(event: FormEvent) {
     event.preventDefault();
-    if (!token || !selected || !activeAccount || !activeAccount.active) return;
+    if (!token || !selected || !quote || !activeAccount || !activeAccount.active || selected.marketRegion !== activeAccount.marketRegion) return;
     setWorking(true);
     setError("");
     setNotice("");
@@ -1339,407 +1448,4 @@ export default function Home() {
 
       <section className={`marketBanner ${market?.phase === "REGULAR" ? "open" : "closed"}`}>
         <div><span className="pulse" /><div><strong>{marketDataStatus}</strong><small>{primaryExchange} · {market?.timezone ?? (marketRegion === "INDIA" ? "Asia/Kolkata" : "America/New_York")}</small></div></div>
-        <div className="bannerStatusGroup"><div className={`streamBadge ${marketDataStatus.toLowerCase()}`}><i />{marketDataStatus}</div><div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</strong></div></div>
-      </section>
-
-      <section className="indexStrip" aria-label={marketRegion === "INDIA" ? "Indian market indices" : "United States market benchmarks"}>
-        {displayedIndices.map((index) => {
-          const rising = (index.change ?? 0) >= 0;
-          return <article className="indexCard" key={index.code}>
-            <div><span>{index.label}</span><small>{index.exchange || "MARKET"}</small></div>
-            <strong>{index.value == null ? "—" : number(index.value)}</strong>
-            <div className="indexMove"><span className={index.value == null ? "muted" : rising ? "positive" : "negative"}>{index.value == null ? "Preparing snapshot" : `${rising ? "+" : ""}${number(index.change)} · ${rising ? "+" : ""}${number(index.changePercent)}%`}</span><i className={marketDataStatus.toLowerCase()} title={marketDataStatus} /></div>
-            <small className="indexTimestamp">{marketDataStatus}</small>
-          </article>;
-        })}
-      </section>
-
-      {!session.user.emailVerified && <div className="message verificationMessage" role="status">
-        Verify your email to secure account recovery. <a href="/settings">Open settings</a>
-      </div>}
-      {(error || notice) && <div className={`message ${error ? "errorMessage" : "successMessage"}`} role={error ? "alert" : "status"} aria-live="polite">{error || notice}<button type="button" aria-label="Dismiss message" onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
-      {market?.phase === "CALENDAR_UNAVAILABLE" && <p role="status">The exchange schedule is not yet verified. Order entry is temporarily unavailable; you can still cancel existing orders.</p>}
-      {activeAccount && !activeAccount.active && <div className="message accountLockedMessage">
-        This paid sandbox is locked. Its history remains visible, but new and modified orders are disabled until the entitlement is active.
-      </div>}
-
-      <section className="dashboardHeading">
-        <div><span className="eyebrow">{activeAccount?.accountKind === "SANDBOX" ? "SANDBOX" : "STANDARD"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
-        <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
-      </section>
-
-      {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
-      <section className="metricGrid" aria-busy={loading}>
-        <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
-        <Metric label="Available cash" value={displayMoney(portfolio?.availableCash)} sub={`${displayMoney(portfolio?.blockedCash)} blocked`} />
-        <Metric label="Unrealized P/L" value={displayMoney(portfolio?.unrealizedProfitLoss)} tone={(portfolio?.unrealizedProfitLoss ?? 0) >= 0 ? "positive" : "negative"} sub="Across current holdings" />
-        <Metric label="Total return" value={`${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${displayMoney(portfolio?.totalProfitLoss)} all time`} />
-      </section>
-
-
-      <HomeRecommendation userId={session.user.id} />
-      <Notifications compact />
-      <FeatureJourney userId={session.user.id} onboarding={onboarding}
-        request={() => authorizedRequest<JourneyState>("/api/v1/onboarding/journey")}
-        dismiss={dismissOnboarding} resume={resumeOnboarding} introduce={completeOnboardingIntroduction} />
-
-      {tradeFeedback && <FinwizTradeFeedback feedback={tradeFeedback} onDismiss={() => setTradeFeedback(null)} />}
-
-      <section className="panel moversPanel">
-        <div className="moversHeader">
-          <div><span className="kicker">MARKET OVERVIEW</span><h2>Top movers</h2><p>{marketRegion === "INDIA" ? "Leading NIFTY 100 gainers and losers by change from the previous close." : "Leading US-listed gainers and losers from Alpaca, with a large-cap fallback when SIP screening is unavailable."}</p></div>
-          <div className="moversMeta"><span className={`quoteStatus ${marketDataStatus.toLowerCase()}`}>{marketDataStatus}</span><small>{movers?.generatedAt ? `Updated ${dateTime(movers.generatedAt)}` : "Building the first market snapshot"}</small></div>
-        </div>
-        <div className="moverTabs" role="tablist" aria-label="Market mover category">
-          <button type="button" role="tab" aria-selected={moverTab === "gainers"} className={moverTab === "gainers" ? "active" : ""} onClick={() => setMoverTab("gainers")}>Gainers</button>
-          <button type="button" role="tab" aria-selected={moverTab === "losers"} className={moverTab === "losers" ? "active" : ""} onClick={() => setMoverTab("losers")}>Losers</button>
-          <span>{movers?.universe === "US_MARKET" ? "US MARKET" : movers?.universe === "US_LARGE_CAP" ? "US LARGE CAP" : "NIFTY 100"}</span>
-        </div>
-        <div className="moversTableWrap">
-          <table className="moversTable">
-            <thead><tr><th>Company</th><th>Market price</th><th>Day change</th><th>Volume</th></tr></thead>
-            <tbody>
-              {visibleMovers.map((mover) => {
-                const rising = mover.changePercent >= 0;
-                return <tr key={mover.instrumentKey}>
-                  <td><span className="moverMonogram">{mover.symbol.slice(0, 2)}</span><span><strong>{mover.name}</strong><small>{mover.symbol} · {mover.exchange}</small></span></td>
-                  <td><strong>{displayMoney(mover.lastPrice)}</strong><small>{marketDataStatus}</small></td>
-                  <td className={rising ? "positive" : "negative"}><strong>{rising ? "+" : ""}{displayMoney(mover.change)}</strong><small>{rising ? "+" : ""}{number(mover.changePercent)}%</small></td>
-                  <td><strong>{mover.volume == null ? "—" : number(mover.volume)}</strong></td>
-                </tr>;
-              })}
-              {!visibleMovers.length && <tr><td colSpan={4} className="emptyCell">{marketRegion === "INDIA" ? "StoxSim is preparing the first verified NIFTY 100 market snapshot." : "StoxSim is preparing the first verified USA mover snapshot."} It will remain available after the market closes.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="workspaceGrid">
-        <div className="leftRail">
-          <article className="panel searchPanel" id="stock-search">
-            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
-            {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
-            <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => updateSearch(event.target.value)} maxLength={100} aria-controls="stock-search-results" aria-describedby="stock-search-status" placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, NIFTYBEES…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
-            <p id="stock-search-status" role="status">{searchError || (searchOpen && search.trim().length >= 2
-              ? searchLoading ? "Finding matches…" : results.length ? `${results.length} matching stocks and ETFs` : "No matching stocks or ETFs found."
-              : marketRegion === "INDIA" ? "Type 2 or more characters. NSE stocks and ETFs only." : "Type 2 or more characters to find US stocks and ETFs.")}</p>
-            {results.length > 0 && <div id="stock-search-results" className="searchResults" aria-label="Matching stocks and ETFs">{results.map((instrument) => <button type="button" key={instrument.id} onClick={() => chooseInstrument(instrument)}><div><strong>{instrument.tradingSymbol}</strong><span>{instrument.name}</span></div><small>{instrument.exchange} · {instrument.instrumentType}</small></button>)}</div>}
-            {!selected && <div className="searchEmpty"><span>⌁</span><p>Search for a company to view its quote and open a paper order ticket.</p></div>}
-            {selected && quote && (
-              <div className="quoteCard" data-exchange={selected.exchange} data-market-region={selected.marketRegion}>
-                <div className="quoteTop"><div><span className="symbolIcon">{selected.tradingSymbol.slice(0, 2)}</span><div><h3>{selected.tradingSymbol}</h3><p>{selected.name}</p></div></div><div className="quoteActions"><button type="button" className={watchedItem ? "watchButton watching" : "watchButton"} disabled={working || Boolean(watchedItem)} onClick={addSelectedToWatchlist}>{watchedItem ? "★ Watching" : "☆ Watch"}</button><span className={`quoteStatus ${marketDataStatus.toLowerCase()}`}>{marketDataStatus}</span></div></div>
-                <div className="quotePrice"><div><strong>{displayMoney(quote.lastPrice)}</strong><QuoteMove quote={quote} currency={activeCurrency} /></div><span>{dateTime(quote.exchangeTimestamp)}</span></div>
-                <PricingNotice source={quote.pricingSource} />
-                <div className="quoteStats"><div><span>Open</span><strong>{displayMoneyOrDash(quote.open)}</strong></div><div><span>High</span><strong>{displayMoneyOrDash(quote.high)}</strong></div><div><span>Low</span><strong>{displayMoneyOrDash(quote.low)}</strong></div><div><span>Prev. close</span><strong>{displayMoneyOrDash(quote.previousClose)}</strong></div></div>
-                <div className="chartBlock">
-                  <div className="chartHeader"><div><span>Price chart</span><small>{marketRegion === "INDIA" ? "Verified Upstox daily OHLC candles" : "Alpaca daily OHLC candles"}</small></div><div className="rangeTabs">{([1, 3, 6, 12, 36, 60] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range >= 12 ? `${range / 12}Y` : `${range}M`}</button>)}</div></div>
-                  <PriceChart candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} />
-                </div>
-                <StockPerformance quote={quote} candles={yearCandles} currency={activeCurrency} />
-                <StockFundamentals
-                  insights={stockInsights}
-                  loading={insightsLoading}
-                  period={financialPeriod}
-                  onPeriodChange={setFinancialPeriod}
-                />
-              </div>
-            )}
-          </article>
-
-          <article className="panel">
-            <div className="panelHeading"><div><span className="kicker">PORTFOLIO</span><h2>Your holdings</h2></div><span className="panelMeta">{portfolio?.holdings.length ?? 0} positions</span></div>
-            <div className="tableWrap"><table><thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Value</th><th>Profit/Loss</th></tr></thead><tbody>
-              {(portfolio?.holdings ?? []).map((position) => <tr key={position.holdingId}><td><strong>{position.symbol}</strong><small>{position.name}</small></td><td>{position.quantity}<small>{position.blockedQuantity ? `${position.blockedQuantity} blocked` : "available"}</small></td><td>{displayMoney(position.averagePrice)}</td><td>{displayMoney(position.currentPrice)}<small className={position.pricingStatus.toLowerCase()}>{position.pricingStatus} · {priceSourceLabel(position.pricingSource)}</small></td><td>{displayMoney(position.marketValue)}</td><td className={position.unrealizedProfitLoss >= 0 ? "positive" : "negative"}>{displayMoney(position.unrealizedProfitLoss)}<small>{number(position.returnPercent)}%</small></td></tr>)}
-              {!portfolio?.holdings.length && <tr><td colSpan={6} className="emptyCell">Your first executed buy will appear here.</td></tr>}
-            </tbody></table></div>
-          </article>
-
-          <article className="panel">
-            <div className="panelHeading"><div><span className="kicker">ACTIVITY</span><h2>Recent trades</h2></div><span className="panelMeta">Charges included</span></div>
-            <div className="activityList">{trades.slice(0, 6).map((trade) => <div className="activityRow" key={trade.id}><span className={`sidePill ${trade.side.toLowerCase()}`}>{trade.side}</span><div><strong>{trade.symbol} · {trade.quantity} shares</strong><small>{dateTime(trade.executedAt)} · {trade.chargeScheduleVersion}</small></div><div><strong>{displayMoney(trade.netCashEffect)}</strong><small>{displayMoney(trade.charges)} simulated charges</small></div></div>)}{!trades.length && <div className="emptyState">No executed trades yet.</div>}</div>
-          </article>
-        </div>
-
-        <aside className="rightRail">
-          <article className="panel watchlistPanel">
-            <div className="panelHeading"><div><span className="kicker">LIVE LIST</span><h2>{watchlist?.name ?? "My Watchlist"}</h2></div><span className="countPill">{visibleWatchlistItems.length}</span></div>
-            <div className="watchlistRows">
-              {visibleWatchlistItems.map((item) => {
-                const rising = (item.change ?? 0) >= 0;
-                return <div className="watchlistRow" key={item.itemId}>
-                  <button type="button" className="watchlistSelect" onClick={() => chooseWatchlistItem(item)}><span><strong>{item.symbol}</strong><small>{item.exchange} · {priceSourceLabel(item.pricingSource)}</small></span><span><strong>{item.lastPrice == null ? "—" : displayMoney(item.lastPrice)}</strong><small className={rising ? "positive" : "negative"}>{item.changePercent == null ? "Awaiting tick" : `${rising ? "+" : ""}${number(item.changePercent)}%`}</small></span></button>
-                  <button type="button" className="watchlistRemove" aria-label={`Remove ${item.symbol} from watchlist`} title="Remove" disabled={working} onClick={() => removeWatchlistItem(item)}>×</button>
-                </div>;
-              })}
-              {!visibleWatchlistItems.length && <div className="emptyState compact">Open a stock and choose Watch to receive continuous price updates.</div>}
-            </div>
-          </article>
-
-          <form className="panel orderTicket" id="paper-order-ticket" onSubmit={placeOrder}>
-            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><span className="deliveryPill">SIMULATED</span></div>
-            {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
-            <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} onClick={() => setSide("SELL")}>Sell</button></div>
-            <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
-            <div className="fieldGrid"><label>Order type<select aria-describedby="order-type-help" value={orderType} onChange={(event) => setOrderType(event.target.value as OrderType)}><option value="MARKET">Market order</option><option value="LIMIT">Limit order</option></select></label><label>Quantity<input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label></div>
-            <p className="fieldHelp" id="order-type-help">{orderType === "MARKET" ? "A market order uses the next available simulated price." : "A limit order executes only at your chosen price or better."}</p>
-            {orderType === "LIMIT" && <label>Limit price<input type="number" min="0.01" step={selected?.tickSize ?? 0.05} value={limitPrice} onChange={(event) => setLimitPrice(event.target.value)} /></label>}
-            {quote && <PricingNotice source={quote.pricingSource} />}
-            <div className="estimateBox"><div><span>Estimated turnover</span><strong>{displayMoney(chargeEstimate?.turnover)}</strong></div><div><span>Simulated charges</span><strong>{displayMoney(chargeEstimate?.totalCharges)}</strong></div><div className="estimateTotal"><span>{side === "BUY" ? "Estimated debit" : "Estimated credit"}</span><strong>{displayMoney(chargeEstimate ? chargeEstimate.turnover + (side === "BUY" ? chargeEstimate.totalCharges : -chargeEstimate.totalCharges) : 0)}</strong></div>{chargeEstimate && <small>{chargeEstimate.scheduleVersion} · final amount uses execution price</small>}</div>
-            <button className={`orderButton ${side.toLowerCase()}`} disabled={!selected || working || !activeAccount?.active}>{working ? "Working…" : activeAccount && !activeAccount.active ? "Sandbox locked" : `${side === "BUY" ? "Place buy" : "Place sell"} order`}</button>
-
-          </form>
-
-          <article className="panel">
-            <div className="panelHeading"><div><span className="kicker">PENDING</span><h2 id="open-orders" tabIndex={-1}>Open orders</h2></div><span className="countPill">{openOrders.length}</span></div>
-            <div className="orderList">{openOrders.map((order) => <div className="openOrder" key={order.id}><div><span className={`sidePill ${order.side.toLowerCase()}`}>{order.side}</span><strong>{order.symbol}</strong><small>{order.quantity} · {order.orderType}{order.limitPrice ? ` @ ${displayMoney(order.limitPrice)}` : ""}</small></div><button type="button" onClick={() => cancelOrder(order.id)}>Cancel</button></div>)}{!openOrders.length && <div className="emptyState compact">No cash or shares are currently blocked by open orders.</div>}</div>
-          </article>
-
-          <article className="learnCard"><span>STOXSIM NOTE</span><h3>Charges change the lesson.</h3><p>Buy charges are included in your cost basis. Sell charges reduce realized returns. Every schedule is versioned and marked simulated.</p>{onboarding?.dismissed && <button type="button" onClick={() => void resumeOnboarding()}>Resume onboarding</button>}</article>
-        </aside>
-      </section>
-      <footer className="legalFooter">
-        <span>StoxSim · Educational paper trading</span>
-        <nav aria-label="Legal">
-          <a href="/terms">Terms</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/cookies">Cookies</a>
-          <a href="/disclaimer">Risk disclaimer</a>
-            <a href="/status">Status</a>
-        </nav>
-        <a href="/disclaimer">About StoxSim</a>
-      </footer>
-    </main>
-  );
-}
-
-function Brand() {
-  return <a className="brand" href="/" aria-label="StoxSim home">
-    <Image className="brandLogo" src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
-    <span>Stox<span>Sim</span></span>
-  </a>;
-}
-
-function Metric({ label, value, sub, tone = "" }: { label: string; value: string; sub: string; tone?: string }) {
-  return <article className="metric"><span>{label}</span><strong className={tone}>{value}</strong><small>{sub}</small></article>;
-}
-
-function QuoteMove({ quote, currency }: { quote: Quote; currency: CurrencyCode }) {
-  if (quote.previousClose == null || quote.previousClose <= 0) return null;
-  const change = quote.lastPrice - quote.previousClose;
-  const percent = (change / quote.previousClose) * 100;
-  const rising = change >= 0;
-  return <small className={`quoteMove ${rising ? "positive" : "negative"}`}>
-    {rising ? "+" : ""}{money(change, currency)} ({rising ? "+" : ""}{number(percent)}%)
-  </small>;
-}
-
-function StockPerformance({ quote, candles, currency }: { quote: Quote; candles: Candle[]; currency: CurrencyCode }) {
-  const valid = candles.filter((candle) =>
-    Number.isFinite(candle.low) && Number.isFinite(candle.high)
-  );
-  const yearLow = valid.length ? Math.min(...valid.map((candle) => candle.low)) : undefined;
-  const yearHigh = valid.length ? Math.max(...valid.map((candle) => candle.high)) : undefined;
-
-  return <section className="stockSection performanceSection">
-    <div className="stockSectionHeading"><div><h4>Performance</h4><p>Today and trailing 52-week trading range</p></div></div>
-    <div className="rangeMeters">
-      <RangeMeter label="Today" low={quote.low} high={quote.high} current={quote.lastPrice} currency={currency} />
-      <RangeMeter label="52 week" low={yearLow} high={yearHigh} current={quote.lastPrice} currency={currency} />
-    </div>
-    <div className="performanceStats">
-      <div><span>Open price</span><strong>{moneyOrDash(quote.open, currency)}</strong></div>
-      <div><span>Previous close</span><strong>{moneyOrDash(quote.previousClose, currency)}</strong></div>
-      <div><span>Volume</span><strong>{compactNumber(quote.volume)}</strong></div>
-      <div><span>Market</span><strong>{quote.dataStatus}</strong></div>
-    </div>
-  </section>;
-}
-
-function RangeMeter({
-  label,
-  low,
-  high,
-  current,
-  currency,
-}: {
-  label: string;
-  low?: number;
-  high?: number;
-  current?: number;
-  currency: CurrencyCode;
-}) {
-  const ready = low != null && high != null && current != null && high > low;
-  const position = ready
-    ? Math.min(100, Math.max(0, ((current - low) / (high - low)) * 100))
-    : 50;
-  return <div className="rangeMeter">
-    <div className="rangeLabels"><span>{label} low<strong>{moneyOrDash(low, currency)}</strong></span><span>{label} high<strong>{moneyOrDash(high, currency)}</strong></span></div>
-    <div className={`rangeTrack ${ready ? "" : "unavailable"}`}><i style={{ left: `${position}%` }} /></div>
-  </div>;
-}
-
-function StockFundamentals({
-  insights,
-  loading,
-  period,
-  onPeriodChange,
-}: {
-  insights: StockInsights | null;
-  loading: boolean;
-  period: FinancialPeriod;
-  onPeriodChange: (period: FinancialPeriod) => void;
-}) {
-  const providerLabel = insights?.provider === "SEC_EDGAR"
-    ? "SEC EDGAR filings"
-    : insights?.provider?.startsWith("UPSTOX")
-      ? "Upstox"
-      : insights?.provider?.replaceAll("_", " ") ?? "the configured provider";
-  const profile = insights?.profile;
-  const showSector = Boolean(profile?.sector);
-  const showSectorMarketCap = profile?.sectorMarketCapInrFormatted != null
-    || profile?.sectorMarketCapInrCrore != null;
-
-  return <section className="stockSection fundamentalsSection">
-    <div className="stockSectionHeading">
-      <div><h4>Fundamentals</h4><p>Company filing data supplied by {providerLabel}</p></div>
-      {insights && <span className={`insightsStatus ${insights.status.toLowerCase()}`}>{insights.status}</span>}
-    </div>
-    {loading && !insights && <div className="insightsLoading"><span className="chartLoader" />Loading company fundamentals…</div>}
-    {!loading && !insights && <div className="insightsEmpty">Company fundamentals are temporarily unavailable.</div>}
-    {insights && <>
-      {insights.message && <p className="insightsNotice">{insights.message}</p>}
-      {profile && <div className="companyProfile">
-        {showSector && <div><span>Sector</span><strong>{profile.sector}</strong></div>}
-        {showSectorMarketCap && <div><span>Sector market cap</span><strong>{profile.sectorMarketCapInrFormatted ?? crore(profile.sectorMarketCapInrCrore)}</strong></div>}
-        {profile.description && <p>{profile.description}</p>}
-      </div>}
-      <div className="ratioGrid">
-        {insights.ratios.map((ratio) => <div key={ratio.name} className="ratioItem">
-          <span>{ratio.name}</span><strong>{ratio.companyValue ?? "—"}</strong>
-          {ratio.sectorValue && <small>Sector {ratio.sectorValue}</small>}
-        </div>)}
-        {!insights.ratios.length && <div className="insightsEmpty compact">Valuation ratios are unavailable for this stock.</div>}
-      </div>
-      <div className="financialSection">
-        <div className="financialHeader">
-          <div>
-            <h4>Financial performance</h4>
-            <p>{insights.financials?.statementType ?? "Reported financial statements"} · {insights.financials?.unitsIn ?? "reported units"}</p>
-          </div>
-          <div className="financialTabs">
-            <button type="button" className={period === "quarterly" ? "active" : ""} onClick={() => onPeriodChange("quarterly")}>Quarterly</button>
-            <button type="button" className={period === "yearly" ? "active" : ""} onClick={() => onPeriodChange("yearly")}>Yearly</button>
-          </div>
-        </div>
-        <FinancialChart financials={insights.financials} loading={loading} />
-      </div>
-      <small className="insightsAsOf">Source: {providerLabel} · refreshed {dateTime(insights.asOf)}</small>
-    </>}
-  </section>;
-}
-
-function FinancialChart({
-  financials,
-  loading,
-}: {
-  financials?: FinancialPerformance;
-  loading: boolean;
-}) {
-  const metricKey = (category: string) => category
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "_")
-    .replaceAll(/^_+|_+$/g, "");
-  const revenue = financials?.metrics.find((metric) => metricKey(metric.category) === "revenue");
-  const profit = financials?.metrics.find((metric) =>
-    ["net_profit", "net_income"].includes(metricKey(metric.category))
-  );
-  const revenuePoints = [...(revenue?.history ?? [])].reverse().slice(-5);
-  const profitByPeriod = new Map((profit?.history ?? []).map((point) => [point.period, point]));
-  const maximum = Math.max(
-    1,
-    ...revenuePoints.flatMap((point) => [
-      Math.abs(point.value),
-      Math.abs(profitByPeriod.get(point.period)?.value ?? 0),
-    ]),
-  );
-
-  const formatted = (value?: number) => financialValue(value, financials?.unitsIn);
-
-  if (loading && !financials) return <div className="financialEmpty"><span className="chartLoader" />Updating financial history…</div>;
-  if (!revenuePoints.length) return <div className="financialEmpty">Financial history is unavailable for this stock.</div>;
-
-  const latestRevenue = revenuePoints.at(-1);
-  const latestProfit = latestRevenue ? profitByPeriod.get(latestRevenue.period) : undefined;
-  return <div className="financialChart">
-    <div className="financialLegend">
-      <div><i className="revenue" /><span>Revenue</span><strong>{formatted(latestRevenue?.value)} <small className={latestRevenue?.change?.startsWith("-") ? "negative" : "positive"}>{latestRevenue?.change}</small></strong></div>
-      <div><i className="profit" /><span>Net profit</span><strong>{formatted(latestProfit?.value)} <small className={latestProfit?.change?.startsWith("-") ? "negative" : "positive"}>{latestProfit?.change}</small></strong></div>
-    </div>
-    <div className="financialPlot">
-      {revenuePoints.map((point) => {
-        const profitPoint = profitByPeriod.get(point.period);
-        return <div className="financialGroup" key={point.period}>
-          <div className="financialBars">
-            <i className="revenue" title={`Revenue ${formatted(point.value)}`} style={{ height: `${Math.max(5, (Math.abs(point.value) / maximum) * 100)}%` }} />
-            <i className="profit" title={`Net profit ${formatted(profitPoint?.value)}`} style={{ height: `${Math.max(3, (Math.abs(profitPoint?.value ?? 0) / maximum) * 100)}%` }} />
-          </div>
-          <span>{point.period}</span>
-        </div>;
-      })}
-    </div>
-  </div>;
-}
-
-function PriceChart({ candles, loading, error, currency }: { candles: Candle[]; loading: boolean; error: string; currency: CurrencyCode }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const ordered = useMemo(
-    () => [...candles]
-      .filter((candle) => Number.isFinite(candle.close))
-      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()),
-    [candles],
-  );
-
-  if (loading) return <div className="chartEmpty"><span className="chartLoader" />Loading historical prices…</div>;
-  if (!ordered.length) return <div className="chartEmpty">{error || "Historical prices are unavailable for this selection."}</div>;
-
-  const width = 720;
-  const height = 240;
-  const left = 18;
-  const right = 18;
-  const top = 18;
-  const bottom = 30;
-  const values = ordered.map((candle) => candle.close);
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const spread = Math.max(maximum - minimum, maximum * 0.005, 1);
-  const points = ordered.map((candle, index) => ({
-    candle,
-    x: left + (index / Math.max(ordered.length - 1, 1)) * (width - left - right),
-    y: top + ((maximum - candle.close) / spread) * (height - top - bottom),
-  }));
-  const line = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
-  const area = `${line} L${points.at(-1)?.x},${height - bottom} L${points[0].x},${height - bottom} Z`;
-  const active = hovered == null ? points.at(-1)! : points[hovered];
-  const rising = ordered.at(-1)!.close >= ordered[0].close;
-
-  function move(event: MouseEvent<SVGSVGElement>) {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
-    setHovered(Math.round(ratio * (points.length - 1)));
-  }
-
-  return <div className="priceChart">
-    <div className="chartReadout"><div><strong>{money(active.candle.close, currency)}</strong><span>{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(active.candle.timestamp))}</span></div><div><span>High {money(active.candle.high, currency)}</span><span>Low {money(active.candle.low, currency)}</span></div></div>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical closing-price chart" onMouseMove={move} onMouseLeave={() => setHovered(null)}>
-      <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity=".22" /><stop offset="100%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity="0" /></linearGradient></defs>
-      {[0.25, 0.5, 0.75].map((ratio) => <line key={ratio} x1={left} x2={width - right} y1={top + ratio * (height - top - bottom)} y2={top + ratio * (height - top - bottom)} className="chartGridLine" />)}
-      <path d={area} fill="url(#chartFill)" />
-      <path d={line} className={rising ? "chartLine rising" : "chartLine falling"} />
-      <line x1={active.x} x2={active.x} y1={top} y2={height - bottom} className="chartCrosshair" />
-      <circle cx={active.x} cy={active.y} r="5" className={rising ? "chartPoint rising" : "chartPoint falling"} />
-      <text x={left} y={height - 7} className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered[0].timestamp))}</text>
-      <text x={width - right} y={height - 7} textAnchor="end" className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered.at(-1)!.timestamp))}</text>
-    </svg>
-  </div>;
-}
+        <div className="bannerStatusGroup"><div className={`streamBadge ${marketDataStatus.toLowerCase()}`}><i />{marketDataStatus}</div><div className="bannerRight"><span>Next transition</span><strong>{dateTime(market?.nextTransition)}</
