@@ -197,8 +197,8 @@ function monthsAgo(months: number) {
 
 export default function StockPage() {
   const params = useParams<{ exchange: string; symbol: string }>();
-  const exchange = params.exchange.toUpperCase();
-  const symbol = params.symbol.toUpperCase();
+  const exchange = decodeURIComponent(params.exchange).toUpperCase();
+  const symbol = decodeURIComponent(params.symbol).toUpperCase();
   const marketRegion = exchange === "NSE" || exchange === "BSE" ? "INDIA" : "UNITED_STATES";
   const [session, setSession] = useState<StoredSession | null>(null);
   const [instrument, setInstrument] = useState<Instrument | null>(null);
