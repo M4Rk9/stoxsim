@@ -24,7 +24,8 @@ export default function AppNavigation() {
     : /^(\/stocks|\/portfolio|\/markets)/.test(pathname) ? "Markets"
       : /^(\/learn|\/progress|\/finwiz|\/scenario-lab)/.test(pathname) ? "Learn"
         : /^(\/competitions|\/campus)/.test(pathname) ? "Compete" : "Account";
-  const inFlow = pathname === "/finwiz";
+  if (pathname === "/finwiz") return null;
+  const inFlow = false;
   return <>
     {!inFlow && <div className={styles.space} aria-hidden="true" />}
     <nav className={inFlow ? `${styles.nav} ${styles.inFlow}` : styles.nav} aria-label="Main navigation">
