@@ -6,6 +6,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.os.Build
 import androidx.compose.ui.unit.dp
 import com.stoxsim.app.AppState
 import com.stoxsim.app.AppViewModel
@@ -63,6 +68,8 @@ import org.json.JSONObject
 
 @Composable internal fun NotificationsScreen(state: AppState, read: (String, String?) -> Unit,
     readAll: () -> Unit, preference: (String, Boolean) -> Unit) {
+    val context=LocalContext.current
+    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if(granted)preference("pushEnabled",true) }
     SectionError(state, "notifications")
     val items = state.data["notifications"]?.objects("items").orEmpty()
     if (items.isEmpty()) Muted("No notifications yet.")
@@ -78,13 +85,17 @@ import org.json.JSONObject
     val preferences = state.data["notificationPreferences"]
     if (preferences != null) Panel(title = "Notification preferences") {
         listOf("learning" to "Learning progress", "competitions" to "Competitions", "portfolioEducation" to "Portfolio education",
-            "productAnnouncements" to "Product announcements", "promotionalMessages" to "Promotional messages", "pushEnabled" to "Push notifications when available", "emailDigest" to "Optional email digest").forEach { (key, label) ->
+            "productAnnouncements" to "Product announcements", "promotionalMessages" to "Promotional messages", "pushEnabled" to "Push notifications", "emailDigest" to "Optional email digest").forEach { (key, label) ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, Modifier.weight(1f)); Switch(preferences.optBoolean(key), { preference(key, it) }, enabled = !state.working)
+                Text(label, Modifier.weight(1f)); Switch(preferences.optBoolean(key), { enabled ->
+                    if(key=="pushEnabled" && enabled && Build.VERSION.SDK_INT>=33 && !PushNotifications.permitted(context))
+                        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    else preference(key,enabled)
+                }, enabled = !state.working && (key!="pushEnabled" || PushNotifications.configured(context)))
             }
         }
         Muted("Security notices are separate from optional updates. Promotional messages require your choice above.")
-        Muted("Android push is unavailable until StoxSim's Firebase delivery configuration is verified. In-app notifications remain available.")
+        Muted(if(PushNotifications.configured(context)) "Android permission and your preference are both required. Device updates contain only a generic reminder." else "Push notifications are not configured in this build. In-app notifications remain available.")
     }
 }
 

@@ -63,7 +63,7 @@ public class FcmHttp {
             // HttpRequest.timeout alone does not bound a streamed response after headers arrive.
             // Wait for the entire bounded body, then cancel both the body and HTTP exchange on timeout.
             var response = responseFuture.get(deadline.toNanos(), TimeUnit.NANOSECONDS);
-            
+
             byte[] bytes = response.body();
             JsonNode value = bytes.length == 0 ? json.createObjectNode() : json.readTree(bytes);
             if (value == null || !value.isObject()) throw unavailable();

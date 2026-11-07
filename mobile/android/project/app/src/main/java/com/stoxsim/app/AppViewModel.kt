@@ -126,7 +126,24 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private fun restartProductActivity() { activityJob?.cancel(); activityJob = null; startProductActivity() }
 
 
-    init { restore() }
+    init {
+        restore()
+        viewModelScope.launch { PushNotifications.tokenChanges.collect { syncPush() } }
+        viewModelScope.launch { state.collect { if(it.user == null && !it.restoring) PushNotifications.clear(getApplication()) } }
+    }
+    private var pendingPushOwner: String? = null
+    fun receivePush(owner: String?) {
+        pendingPushOwner = owner
+        if(owner != null && mutable.value.user?.id == owner) { pendingPushOwner = null; openScreen("Notifications") }
+    }
+    private fun syncPush() {
+        val owner=mutable.value.user?.id ?: return
+        viewModelScope.launch {
+            try { PushNotifications.sync(getApplication(),api,owner) }
+            catch(cancelled: CancellationException){throw cancelled}
+            catch(_: Exception){ /* Optional delivery cannot block account actions. */ }
+        }
+    }
 
     fun restore() = runAction {
         mutable.update { it.copy(restoring = true, restoreFailed = false) }
@@ -169,6 +186,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             else "Password added. All sessions signed out. Sign in with Google or your new password.")
     }
     private suspend fun signedIn(user: User) {
+        if(PushNotifications.owner(getApplication()) != user.id) PushNotifications.clear(getApplication())
         closeBilling()
         cancelSearch()
         streakJob?.cancel(); streakJob = null
@@ -185,6 +203,8 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         readAccounts()
         loadPage()
         startStream()
+        syncPush()
+        if(pendingPushOwner == user.id) { pendingPushOwner = null; openScreen("Notifications") }
     }
     fun forgot(email: String) = runAction {
         api.forgotPassword(email)
@@ -206,7 +226,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         foreground = active
         if (!active) { journeyJob?.cancel(); journeyJob = null; cancelSearch(); activityJob?.cancel(); activityJob = null; streakJob?.cancel(); streakJob = null; streamJob?.cancel(); streamJob = null; mutable.update { it.copy(streamStatus = "OFFLINE") } }
         else {
-            startStream(); startDailyStreak(); startProductActivity()
+            startStream(); startDailyStreak(); startProductActivity(); syncPush()
             if (mutable.value.user == null) closeBilling() else playBilling?.restore()
             if (mutable.value.user != null && !mutable.value.working) refresh()
             val current = mutable.value
@@ -660,9 +680,17 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun notificationsReadAll() = runAction { api.mutate("notifications/read-all"); read("notifications", "notifications") }
     fun notificationPreference(name: String, enabled: Boolean) = runAction {
         require(name in notificationPreferenceKeys)
+        val owner=mutable.value.user?.id ?: return@runAction
+        if(name=="pushEnabled" && enabled && (!PushNotifications.configured(getApplication()) || !PushNotifications.permitted(getApplication()))) {
+            mutable.update { it.copy(error="Push notifications need app configuration and Android notification permission.") };return@runAction
+        }
+        if(name=="pushEnabled" && !enabled) PushNotifications.unregister(getApplication(),api,owner)
         val existing = mutable.value.data["notificationPreferences"] ?: return@runAction
         val body = JSONObject(); notificationPreferenceKeys.forEach { body.put(it, if (it == name) enabled else existing.optBoolean(it)) }
-        putData("notificationPreferences", api.mutate("notifications/preferences", "PUT", body))
+        putData("notificationPreferences", api.mutate("notifications/preferences", "PUT", body, expectedUserId=owner))
+        if(name=="pushEnabled" && enabled && mutable.value.user?.id==owner) {
+            PushNotifications.allow(getApplication(),owner);PushNotifications.sync(getApplication(),api,owner)
+        }
     }
     fun saveReflection(id: String?, body: JSONObject) = runAction {
         id?.let { java.util.UUID.fromString(it) }
@@ -691,7 +719,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         api.endLocalSession(); GoogleCredentials.clear(getApplication()); mutable.value = AppState(restoring = false, working = true, notice = "Password updated. Sign in again.")
     }
     fun revokeSession(id: String) = runAction { api.mutate("auth/sessions/$id", "DELETE"); list("sessions", "auth/sessions") }
-    fun logoutAll() = runAction { cancelSearch(); api.mutate("auth/logout-all"); api.endLocalSession(); GoogleCredentials.clear(getApplication()); mutable.value = AppState(restoring = false, working = true, notice = "All sessions signed out.") }
+    fun logoutAll() = runAction { PushNotifications.clear(getApplication()); cancelSearch(); api.mutate("auth/logout-all"); api.endLocalSession(); GoogleCredentials.clear(getApplication()); mutable.value = AppState(restoring = false, working = true, notice = "All sessions signed out.") }
     fun deleteAccount(password: String) = runAction {
         api.mutate("auth/me", "DELETE", JSONObject().put("password", password)); api.endLocalSession()
         mutable.value = AppState(restoring = false, working = true, notice = "Account deleted.")
@@ -753,6 +781,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     fun clearData(key: String) { mutable.update { it.copy(data = it.data - key) } }
     fun clearMessage() { mutable.update { it.copy(error = null, notice = null) } }
     fun logout() = runAction {
+        mutable.value.user?.id?.let { PushNotifications.unregister(getApplication(),api,it) }
         closeBilling()
         cancelSearch()
         streakJob?.cancel(); streakJob = null
