@@ -13,7 +13,7 @@ async function signedIn(page: Page) {
 test("disabled billing never opens provider checkout", async ({ page }) => {
   await signedIn(page); let checkoutCalls = 0;
   await page.route("**/api/v1/billing", route => respond(route, { enabled: false, razorpayEnabled: false, googlePlayEnabled: false, keyId: null, entries: [] }));
-  page.on("request", req => { if (req.url().includes("checkout.razorpay.com")) checkoutCalls++; });
+  page.on("request", req => { if (new URL(req.url()).hostname === "checkout.razorpay.com") checkoutCalls++; });
   await page.goto("/billing");
   await expect(page.getByRole("button", { name: "Choose Plus", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Choose Pro", exact: true })).toBeDisabled();

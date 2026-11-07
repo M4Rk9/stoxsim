@@ -124,7 +124,21 @@ public class NotificationService {
  static void validate(NotificationRequested e) {
   if(e.userId()==null || e.category()==null || (e.promotional() && e.category()!=NotificationCategory.PRODUCT) || e.eventKey()==null || e.eventKey().isBlank() || e.eventKey().length()>160
    || e.title()==null || e.title().isBlank() || e.title().length()>160 || e.body()==null || e.body().length()>1000
-   || e.href()==null || e.href().length()>300 || !e.href().matches("/(?:[A-Za-z0-9_-]+/?)*(?:#[A-Za-z0-9_-]+)?")) throw new IllegalArgumentException("Invalid notification content or destination");
+   || !safeDestination(e.href())) throw new IllegalArgumentException("Invalid notification content or destination");
+ }
+ private static boolean safeDestination(String href) {
+  if(href==null || href.isEmpty() || href.length()>300 || href.charAt(0)!='/')return false;
+  boolean fragment=false;
+  // One bounded pass avoids ambiguous regex backtracking. Only internal ASCII
+  // path segments and an optional nonempty fragment are accepted.
+  for(int i=1;i<href.length();i++) {
+   char c=href.charAt(i);
+   if((c>='A'&&c<='Z') || (c>='a'&&c<='z') || (c>='0'&&c<='9') || c=='_' || c=='-')continue;
+   if(c=='/' && !fragment && href.charAt(i-1)!='/')continue;
+   if(c=='#' && !fragment && i<href.length()-1){fragment=true;continue;}
+   return false;
+  }
+  return true;
  }
  public static String hash(String token) {
   try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));}
