@@ -7,3 +7,7 @@ CodeQL findings were addressed by parsing the checkout URL and comparing its hos
 Local validation: 42 focused backend/security tests and 4 production Chromium billing tests passed. The callback tests cover a verified provider request without a browser CSRF token, invalid OIDC rejection, protected adjacent routes and other HTTP methods. Notification tests include valid paths/fragments, ambiguous or external links, and a maximum-length adversarial input. The same pinned Gitleaks version as CI passed the history scan; the exception boundary tests passed as well.
 
 The fixes are intended for `review/08-optional-push-delivery`, the head of PR177. No PR base change, merge, deployment, environment publication or alert dismissal is part of this fix. GitHub CI/CodeQL results must be checked on the pushed commit; local tests alone do not establish remote success.
+
+GitHub confirmed the security fixes on `9708383`: the secret-history scan, dependency/configuration scan, backend tests, frontend and staging-bundle checks passed. Both CodeQL analyses passed, and its aggregate result reported "No new alerts in code changed by this pull request".
+
+The previous Android device run also exposed an outdated navigation test: it searched for Orders on Home, although Orders is a Markets subtab. The test now follows Home → Markets → Orders, feeds navigation changes back into Compose state, checks the selected Markets/Orders tabs, and verifies the Account shortcut. Device execution on the updated revision remains necessary to confirm this fix.
