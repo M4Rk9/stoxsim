@@ -213,3 +213,27 @@ test("movers and watchlists open the exact listing, and details prefill the exis
   await expect(ticket.getByRole("button", { name: "Sell", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
 });
+
+test("the quick quote chart switches to OHLC candles and inspects educational patterns", async ({ page }, testInfo) => {
+  const input = await setup(page, route => reply(route, [stock("RELIANCE")]));
+  await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/quote", route => reply(route,
+    { lastPrice: 111, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
+  await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/candles?*", route => reply(route, { candles: [
+    { timestamp: "2025-05-05T03:45:00Z", open: 110, high: 111, low: 99, close: 100 },
+    { timestamp: "2025-05-06T03:45:00Z", open: 98, high: 112, low: 97, close: 111, volume: 450 },
+  ] }));
+  await input.fill("reli");
+  await page.getByRole("button", { name: "Quick quote for RELIANCE on NSE" }).click();
+  await expect(page.getByRole("img", { name: "Historical closing-price chart" })).toBeVisible();
+  await page.getByRole("button", { name: "Candlestick" }).click();
+  const candles = page.getByRole("img", { name: "Daily candlestick chart" });
+  await expect(candles).toBeVisible();
+  await page.getByRole("checkbox", { name: "Patterns" }).check();
+  const readout = page.locator('[aria-label="Selected candle"]');
+  await expect(readout).toContainText("Bullish engulfing");
+  await expect(readout).toContainText("Volume 450");
+  await candles.press("ArrowLeft");
+  await expect(readout).toContainText("Close ₹100.00");
+  await expect(readout).not.toContainText("Bullish engulfing");
+  await testInfo.attach("candlestick-chart", { body: await page.locator(".chartBlock").screenshot(), contentType: "image/png" });
+});

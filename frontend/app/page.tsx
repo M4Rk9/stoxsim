@@ -1,5 +1,7 @@
 "use client";
 
+import PriceHistoryChart from "./components/PriceHistoryChart";
+
 import { GoogleSignInLink } from "./components/GoogleSignInLink";
 import HomeRecommendation from "./components/HomeRecommendation";
 import Notifications from "./components/Notifications";
@@ -10,7 +12,7 @@ import PricingNotice, { PortfolioPricingNotice, priceSourceLabel } from "./compo
 
 import { EMAIL_GUIDANCE } from "./lib/email-guidance";
 
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Client, IMessage } from "@stomp/stompjs";
 import {
@@ -1457,7 +1459,7 @@ export default function Home() {
                 <div className="quoteStats"><div><span>Open</span><strong>{displayMoneyOrDash(quote.open)}</strong></div><div><span>High</span><strong>{displayMoneyOrDash(quote.high)}</strong></div><div><span>Low</span><strong>{displayMoneyOrDash(quote.low)}</strong></div><div><span>Prev. close</span><strong>{displayMoneyOrDash(quote.previousClose)}</strong></div></div>
                 <div className="chartBlock">
                   <div className="chartHeader"><div><span>Price chart</span><small>{marketRegion === "INDIA" ? "Verified Upstox daily OHLC candles" : "Alpaca daily OHLC candles"}</small></div><div className="rangeTabs">{([1, 3, 6, 12, 36, 60] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range >= 12 ? `${range / 12}Y` : `${range}M`}</button>)}</div></div>
-                  <PriceChart candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} />
+                  <PriceHistoryChart key={selected.id} candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} exchange={selected.exchange} provider={marketRegion === "INDIA" ? "Upstox" : "Alpaca"} />
                 </div>
                 <StockPerformance quote={quote} candles={yearCandles} currency={activeCurrency} />
                 <StockFundamentals
@@ -1713,58 +1715,5 @@ function FinancialChart({
         </div>;
       })}
     </div>
-  </div>;
-}
-
-function PriceChart({ candles, loading, error, currency }: { candles: Candle[]; loading: boolean; error: string; currency: CurrencyCode }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const ordered = useMemo(
-    () => [...candles]
-      .filter((candle) => Number.isFinite(candle.close))
-      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()),
-    [candles],
-  );
-
-  if (loading) return <div className="chartEmpty"><span className="chartLoader" />Loading historical prices…</div>;
-  if (!ordered.length) return <div className="chartEmpty">{error || "Historical prices are unavailable for this selection."}</div>;
-
-  const width = 720;
-  const height = 240;
-  const left = 18;
-  const right = 18;
-  const top = 18;
-  const bottom = 30;
-  const values = ordered.map((candle) => candle.close);
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const spread = Math.max(maximum - minimum, maximum * 0.005, 1);
-  const points = ordered.map((candle, index) => ({
-    candle,
-    x: left + (index / Math.max(ordered.length - 1, 1)) * (width - left - right),
-    y: top + ((maximum - candle.close) / spread) * (height - top - bottom),
-  }));
-  const line = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
-  const area = `${line} L${points.at(-1)?.x},${height - bottom} L${points[0].x},${height - bottom} Z`;
-  const active = hovered == null ? points.at(-1)! : points[hovered];
-  const rising = ordered.at(-1)!.close >= ordered[0].close;
-
-  function move(event: MouseEvent<SVGSVGElement>) {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
-    setHovered(Math.round(ratio * (points.length - 1)));
-  }
-
-  return <div className="priceChart">
-    <div className="chartReadout"><div><strong>{money(active.candle.close, currency)}</strong><span>{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(active.candle.timestamp))}</span></div><div><span>High {money(active.candle.high, currency)}</span><span>Low {money(active.candle.low, currency)}</span></div></div>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical closing-price chart" onMouseMove={move} onMouseLeave={() => setHovered(null)}>
-      <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity=".22" /><stop offset="100%" stopColor={rising ? "#0b8f55" : "#c33c3c"} stopOpacity="0" /></linearGradient></defs>
-      {[0.25, 0.5, 0.75].map((ratio) => <line key={ratio} x1={left} x2={width - right} y1={top + ratio * (height - top - bottom)} y2={top + ratio * (height - top - bottom)} className="chartGridLine" />)}
-      <path d={area} fill="url(#chartFill)" />
-      <path d={line} className={rising ? "chartLine rising" : "chartLine falling"} />
-      <line x1={active.x} x2={active.x} y1={top} y2={height - bottom} className="chartCrosshair" />
-      <circle cx={active.x} cy={active.y} r="5" className={rising ? "chartPoint rising" : "chartPoint falling"} />
-      <text x={left} y={height - 7} className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered[0].timestamp))}</text>
-      <text x={width - right} y={height - 7} textAnchor="end" className="chartAxisLabel">{new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(new Date(ordered.at(-1)!.timestamp))}</text>
-    </svg>
   </div>;
 }

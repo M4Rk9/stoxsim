@@ -1,8 +1,10 @@
 "use client";
 
+import PriceHistoryChart from "../../../components/PriceHistoryChart";
+
 import PricingNotice from "../../../components/PricingNotice";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { recordProductActivity } from "../../../lib/product-activity";
 import { stockOrderHref } from "../../../lib/stock-links";
@@ -380,7 +382,7 @@ export default function StockPage() {
                 >{months >= 12 ? `${months / 12}Y` : `${months}M`}</button>)}
               </div>
             </div>
-            <PriceChart candles={candles} loading={chartLoading} error={chartError} currency={currency} />
+            <PriceHistoryChart key={`${exchange}/${symbol}`} candles={candles} loading={chartLoading} error={chartError} currency={currency} exchange={exchange} provider={instrument.provider === "ALPACA" ? "Alpaca" : "Upstox"} />
           </article>
 
           <article className={styles.card}>
@@ -447,63 +449,6 @@ export default function StockPage() {
       </section>
     </div>
   </main>;
-}
-
-function PriceChart({ candles, loading, error, currency }: {
-  candles: Candle[];
-  loading: boolean;
-  error: string;
-  currency: "INR" | "USD";
-}) {
-  const ordered = useMemo(() => [...candles]
-    .filter((candle) => Number.isFinite(candle.close))
-    .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime()), [candles]);
-
-  if (loading) return <div className={styles.empty}>Loading historical prices…</div>;
-  if (!ordered.length) return <div className={styles.empty}>{error || "Historical prices are unavailable."}</div>;
-
-  const width = 820;
-  const height = 300;
-  const left = 20;
-  const right = 20;
-  const top = 20;
-  const bottom = 34;
-  const minimum = Math.min(...ordered.map((candle) => candle.close));
-  const maximum = Math.max(...ordered.map((candle) => candle.close));
-  const spread = Math.max(maximum - minimum, maximum * 0.005, 1);
-  const points = ordered.map((candle, index) => ({
-    candle,
-    x: left + (index / Math.max(ordered.length - 1, 1)) * (width - left - right),
-    y: top + ((maximum - candle.close) / spread) * (height - top - bottom),
-  }));
-  const path = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
-  const area = `${path} L${points[points.length - 1].x},${height - bottom} L${points[0].x},${height - bottom} Z`;
-  const latest = ordered[ordered.length - 1];
-
-  return <div className={styles.chart}>
-    <div className={styles.chartReadout}>
-      <div><strong>{money(latest.close, currency)}</strong><span>Latest historical close</span></div>
-      <div>High {money(latest.high, currency)} · Low {money(latest.low, currency)}</div>
-    </div>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${ordered.length} daily closing prices`}>
-      {[0.25, 0.5, 0.75].map((ratio) => <line
-        key={ratio}
-        className={styles.gridLine}
-        x1={left}
-        x2={width - right}
-        y1={top + ratio * (height - top - bottom)}
-        y2={top + ratio * (height - top - bottom)}
-      />)}
-      <path d={area} className={styles.area} />
-      <path d={path} className={styles.line} />
-      <text className={styles.axis} x={left} y={height - 8}>
-        {new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "2-digit" }).format(new Date(ordered[0].timestamp))}
-      </text>
-      <text className={styles.axis} x={width - right} y={height - 8} textAnchor="end">
-        {new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "2-digit" }).format(new Date(latest.timestamp))}
-      </text>
-    </svg>
-  </div>;
 }
 
 function FinancialTable({ financials, loading }: {
