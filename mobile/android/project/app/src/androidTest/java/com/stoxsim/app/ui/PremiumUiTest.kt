@@ -123,7 +123,7 @@ class PremiumUiTest {
         compose.setContent { StoxSimTheme { LaunchScreen(AppState(restoring = false, restoreFailed = true, error = "Offline")) { retried = true } } }
         compose.onNodeWithText("StoxSim").assertIsDisplayed()
         compose.onNodeWithText("Retry connection").performClick()
-        compose.onNodeWithContentDescription("Open Stock").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Open Home").assertDoesNotExist()
         compose.runOnIdle { assertTrue(retried) }
     }
     @Test fun largeTextHeaderAndNavigationLabelsDoNotOverflow() {
@@ -134,9 +134,14 @@ class PremiumUiTest {
                 }
             }
         } }
-        listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read", "Stock", "Finwiz", "Lab", "Contest").forEach { label ->
+        val contentLabels = listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read")
+        val navigationLabels = listOf("Home", "Markets", "Learn", "Compete", "Account")
+        (contentLabels + navigationLabels).forEach { label ->
             val results = mutableListOf<TextLayoutResult>()
-            compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
+            val node = compose.onNodeWithText(label, useUnmergedTree = true)
+            if (label in contentLabels) node.performScrollTo()
+            else compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
+            node.assertIsDisplayed()
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
             // Semantics can expose a paragraph's wrapping width, larger than the
             // painted text. Check glyph-line widths and truncation, allowing 1 px rounding.
@@ -149,7 +154,7 @@ class PremiumUiTest {
         val base = state().copy(screen = "Portfolio analysis", data = mapOf("history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-12","equity":10000},{"day":"2026-10-13","equity":10100}]}""")))
         compose.setContent { StoxSimTheme { Box(Modifier.width(320.dp).height(640.dp)) { AppFrame(base, {}, {}) { PortfolioAnalysisScreen(base, {}) } } } }
         val graph = compose.onNodeWithContentDescription("Observed portfolio history").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        val navigation = compose.onNodeWithContentDescription("Open Stock").fetchSemanticsNode().boundsInRoot
+        val navigation = compose.onNodeWithContentDescription("Open Home").fetchSemanticsNode().boundsInRoot
         compose.runOnIdle { assertTrue("The full graph must fit above navigation", graph.bottom <= navigation.top) }
     }
 }

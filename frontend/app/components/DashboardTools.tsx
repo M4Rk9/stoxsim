@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import styles from "./DashboardTools.module.css";
+import AppNavigation from "./AppNavigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -172,12 +173,13 @@ export default function DashboardTools() {
   }
 
   if (!session) return null;
-  if (pathsWithoutAccountMenu.has(pathname)) return null;
+  if (pathsWithoutAccountMenu.has(pathname)) return pathname === "/finwiz" ? <AppNavigation /> : null;
 
   const initial = session.user.displayName.trim().slice(0, 1).toUpperCase() || "U";
   const isDashboard = pathname === "/";
 
   return <>
+    <AppNavigation />
     <div className={`${styles.profileMenuWrap} ${isDashboard ? styles.profileMenuHome : ""}`} ref={wrapper}>
       <button
         ref={menuButton}
@@ -242,12 +244,6 @@ export default function DashboardTools() {
           Portfolio <span>↗</span>
         </a>
         <a className={styles.menuLink} href="/scenario-lab" target="_blank" rel="noopener noreferrer" role="menuitem">Scenario Lab <span>↗</span></a>
-        <a className={styles.menuLink} href="/progress" role="menuitem">
-          Learning path <span>→</span>
-        </a>
-        <a className={styles.menuLink} href="/competitions" role="menuitem">
-          Competitions <span>→</span>
-        </a>
         <a className={styles.menuLink} href="/settings" role="menuitem">
           Account settings <span>→</span>
         </a>

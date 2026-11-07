@@ -141,7 +141,13 @@ public class UserSubscription {
     public String getProviderSubscriptionReference() { return providerSubscriptionReference; }
     public Instant getTestAccessUntil() { return testAccessUntil; }
     public void setTestAccessUntil(Instant until) { testAccessUntil = until; }
+    @Column(name = "billing_access_until")
+    private Instant billingAccessUntil;
+    public Instant getBillingAccessUntil() { return billingAccessUntil; }
+    public void setBillingAccessUntil(Instant until) { billingAccessUntil = until; }
+    public boolean isLiveBilling() { return "RAZORPAY".equals(billingProvider) || "GOOGLE_PLAY".equals(billingProvider); }
     public SubscriptionPlan effectivePlan() {
+        if (isLiveBilling() && (billingAccessUntil == null || !billingAccessUntil.isAfter(Instant.now()))) return SubscriptionPlan.FREE;
         if (status != SubscriptionStatus.ACTIVE) return SubscriptionPlan.FREE;
         if (isTestBilling() && (testAccessUntil == null || !Instant.now().isBefore(testAccessUntil)
             || !user.isPlatformAdmin() || !user.isEmailVerified())) return SubscriptionPlan.FREE;
@@ -149,8 +155,12 @@ public class UserSubscription {
     }
     public SubscriptionPlan effectiveFinwizPlan(Instant now) {
         var effective = effectivePlan();
-        if (effective != SubscriptionPlan.FREE && (currentPeriodEnd == null || !currentPeriodEnd.isAfter(now))) return SubscriptionPlan.FREE;
+        if (effective != SubscriptionPlan.FREE && !hasCurrentAccess(now)) return SubscriptionPlan.FREE;
         return effective;
+    }
+    public boolean hasCurrentAccess(Instant now) {
+        Instant deadline = isLiveBilling() ? billingAccessUntil : currentPeriodEnd;
+        return deadline != null && deadline.isAfter(now);
     }
     public void clearTestBenefits(Instant now) {
         if (!isTestBilling()) return;

@@ -118,3 +118,7 @@ Before unrestricted public launch, add:
 ## Plan depth
 
 Basic, Expanded and Full behavior is selected and bounded on the backend. See [depth contract, limits and tests](ANDROID_ENGAGEMENT_FINWIZ_LINKS.md#server-selected-finwiz-depth). Plan descriptions and answer metadata reflect the applied tier.
+
+## Private reflections and provider usage budgets
+
+Optional reflection assistance requires explicit per-request consent and uses the existing Finwiz depth and fallback behavior. Shared daily PostgreSQL provider-attempt budgets and bounded provider timeouts now supplement per-minute limits. Administrator usage metrics expose measured token coverage without claiming invoice costs. See [decision reflection privacy, limits, rollout and tests](DECISION_REFLECTIONS.md).

@@ -6,7 +6,8 @@ export function proxy(request: NextRequest) {
   const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080");
   const socket = `${api.protocol === "https:" ? "wss:" : "ws:"}//${api.host}`;
   const billing = request.nextUrl.pathname === "/admin/billing"
-    || request.nextUrl.pathname.startsWith("/admin/billing/");
+    || request.nextUrl.pathname.startsWith("/admin/billing/")
+    || request.nextUrl.pathname === "/billing";
   const google = request.nextUrl.pathname === "/google-sign-in"
     || request.nextUrl.pathname === "/google-sign-in/manage"
     || request.nextUrl.pathname === "/google-sign-in/register";

@@ -26,13 +26,16 @@ export async function campus<T>(path = "", body?: unknown): Promise<T> {
 }
 export async function authenticated<T>(path: string, body?: unknown): Promise<T> {
   const options = body === undefined ? {} : { method: "POST", ...(body === null ? {} : { body: JSON.stringify(body) }) };
+  return authenticatedRequest<T>(path, options);
+}
+export async function authenticatedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const current = session() ?? await refresh();
   try { return await request<T>(path, options, current.accessToken); }
   catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
     const refreshed = await refresh();
     // Google writes consume a single-use challenge. The user must begin a new attempt.
-    if (body !== undefined && path.startsWith("auth/google/")) throw error;
+    if (options.method && options.method !== "GET" && path.startsWith("auth/google/")) throw error;
     return request<T>(path, options, refreshed.accessToken);
   }
 }
