@@ -532,3 +532,6 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
 .appHeader > .labLink { margin-right: 292px; white-space: nowrap; }
 @media (max-width:1200px) { .appHeader > .labLink { margin-right: 78px; } }
 @media (max-width:760px) { .appHeader > .labLink { grid-row: 3; grid-column: 1 / -1; margin: 0 0 12px; justify-self: start; } }
+
+.cashExchangeFilter { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
+.cashExchangeFilter select { padding: 5px 8px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; }

@@ -21,7 +21,7 @@ export default function AppNavigation() {
     return () => window.removeEventListener("hashchange", update);
   }, [pathname]);
   const current = pathname === "/" ? (hash === "#stock-search" ? "Markets" : "Home")
-    : /^(\/stocks|\/portfolio)/.test(pathname) ? "Markets"
+    : /^(\/stocks|\/portfolio|\/markets)/.test(pathname) ? "Markets"
       : /^(\/learn|\/progress|\/finwiz|\/scenario-lab)/.test(pathname) ? "Learn"
         : /^(\/competitions|\/campus)/.test(pathname) ? "Compete" : "Account";
   const inFlow = pathname === "/finwiz";

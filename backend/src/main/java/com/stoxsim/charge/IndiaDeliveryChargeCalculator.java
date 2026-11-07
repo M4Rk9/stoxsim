@@ -35,6 +35,11 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
         )
     );
 
+    // Flat teaching assumption. Actual BSE charges vary by scrip group and turnover.
+    private static final Schedule BSE_MODEL = new Schedule(
+        "SIM-IN-BSE-DELIVERY-2026-11", LocalDate.of(2026, 11, 1), new BigDecimal("0.0000275")
+    );
+
     @Override
     public ChargeBreakdown calculate(
         OrderSide side,
@@ -66,13 +71,14 @@ public class IndiaDeliveryChargeCalculator implements ChargeCalculator {
                 ZERO
             );
         }
-        if (exchange != MarketExchange.NSE) {
+        if (exchange != MarketExchange.NSE && exchange != MarketExchange.BSE) {
             throw new TradingValidationException(
-                "The simulated charge engine supports NSE and configured US cash markets"
+                "The simulated charge engine supports enabled India and US cash markets"
             );
         }
 
-        Schedule schedule = SCHEDULES.stream()
+        List<Schedule> schedules = exchange == MarketExchange.BSE ? List.of(BSE_MODEL) : SCHEDULES;
+        Schedule schedule = schedules.stream()
             .filter(candidate -> !candidate.effectiveFrom().isAfter(tradeDate))
             .max(Comparator.comparing(Schedule::effectiveFrom))
             .orElseThrow(() -> new TradingValidationException(

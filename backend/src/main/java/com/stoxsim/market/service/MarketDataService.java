@@ -107,6 +107,10 @@ public class MarketDataService {
             anchor == null ? null : anchor.exchangeTimestamp(), now, true);
     }
 
+    public boolean isFreshProviderQuote(Quote quote) {
+        return validPrice(quote) && !quote.simulated() && !isStale(quote);
+    }
+
     public boolean isStale(Quote quote) {
         Instant staleCutoff = Instant.now().minusSeconds(
             upstoxProperties.getStaleAfterSeconds()

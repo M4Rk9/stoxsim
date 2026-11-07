@@ -25,6 +25,8 @@ public class UpstoxInstrumentMapper {
         "BSE_INDEX"
     );
 
+    private static final Set<String> BSE_CASH_GROUPS = Set.of("A", "B", "X", "XT", "T", "Z", "M", "MT", "MS", "TS");
+
     public Optional<InstrumentSnapshot> map(JsonNode node) {
         String segment = text(node, "segment");
         if (!SUPPORTED_SEGMENTS.contains(segment)) {
@@ -35,6 +37,11 @@ public class UpstoxInstrumentMapper {
         // bonds, government securities and other non-stock series.
         if (segment.equals("NSE_EQ") && !Set.of("EQ", "BE", "BZ", "SM", "ST", "SZ")
             .contains(text(node, "instrument_type").toUpperCase(Locale.ROOT))) return Optional.empty();
+
+        String isin = text(node, "isin");
+        boolean bseCash = segment.equals("BSE_EQ");
+        if (bseCash && (!BSE_CASH_GROUPS.contains(text(node, "instrument_type"))
+            || !isin.matches("INE[A-Z0-9]{4}01[0-9]{3}"))) return Optional.empty();
 
         String instrumentKey = text(node, "instrument_key");
         String name = text(node, "name");
@@ -60,7 +67,8 @@ public class UpstoxInstrumentMapper {
             instrumentType(segment, securityType, text(node, "isin"), name),
             "INR",
             positiveInt(node, "lot_size", 1),
-            decimal(node, "tick_size", new BigDecimal("0.05")),
+            bseCash ? decimal(node, "tick_size", BigDecimal.valueOf(5)).movePointLeft(2)
+                : decimal(node, "tick_size", new BigDecimal("0.05")),
             securityType
         ));
     }

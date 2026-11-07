@@ -341,7 +341,7 @@ class StoxSimApiTest {
         override fun write(token: String) { value = token }
         override fun clear() { value = null }
     }
-    @Test fun searchKeepsNseStocksAndEtfsButRejectsBseIndicesAndWrongMarket() = runBlocking {
+    @Test fun indiaSearchUsesLegacyNseScopeAndKeepsNseStocksAndEtfs() = runBlocking {
         server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
         server.enqueue(MockResponse().setBody("""[
             {"tradingSymbol":"BSE","name":"BSE LIMITED","exchange":"NSE","marketRegion":"INDIA","instrumentType":"EQUITY"},
@@ -352,6 +352,10 @@ class StoxSimApiTest {
             {"tradingSymbol":"SPY","name":"US ETF","exchange":"NYSE_ARCA","marketRegion":"UNITED_STATES","instrumentType":"ETF"}
         ]"""))
         assertEquals(listOf("BSE", "NIFTYBEES"), api.search("INDIA", "bse").map { it.symbol })
+        val url = server.takeRequest().requestUrl!!
+        assertEquals("INDIA", url.queryParameter("marketRegion"))
+        assertNull(url.queryParameter("exchange"))
+        assertNull(url.queryParameter("includeBse"))
     }
     @Test fun cancelledSearchClosesSocketAndReleasesApiLockBeforeTheCallTimeout() = runBlocking {
         server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
