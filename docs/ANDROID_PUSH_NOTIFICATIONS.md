@@ -18,7 +18,7 @@ Local JVM tests and compilation do not verify real push delivery. Before activat
 
 The final optional-push sources passed all 75 JVM unit tests in 14 suites (zero failures/errors/skips), debug APK and instrumentation APK compilation, debug lint, and minified unsigned release APK/AAB builds. The sequential final run completed 131 tasks successfully on 6 November 2026. It included account-bound token mutation, rejected cross-account/delayed messages, the synchronized logout/display boundary and both token callbacks. Device instrumentation was compiled but not executed. The compatibility token getter/callback is deprecated by the pinned SDK; the current registration callback is handled as well.
 
-Backend FCM/notification checks passed 29 tests, including current ownership, opt-out, invalid-token handling, partial/ambiguous outcomes and stalled/oversized response handling. These checks used local fixtures and mocks.
+Backend FCM/notification checks passed 29 tests, including current ownership, opt-out, invalid device registrations, partial delivery and uncertain outcomes and stalled/oversized response handling. These checks used local fixtures and mocks.
 
 | Final local artifact | SHA-256 |
 |---|---|

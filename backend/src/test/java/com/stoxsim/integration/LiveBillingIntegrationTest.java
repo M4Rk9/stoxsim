@@ -34,8 +34,23 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 @Testcontainers
-@SpringBootTest(properties={"stoxsim.market-data.upstox.stream-enabled=false","stoxsim.market-data.upstox.instrument-sync-on-startup=false","stoxsim.market-data.alpaca.instrument-sync-on-startup=false","stoxsim.market-data.alpaca.polling-enabled=false","stoxsim.billing.reconciliation-enabled=false","stoxsim.billing.test.reconciliation-enabled=false","stoxsim.security.rate-limit.enabled=false","stoxsim.billing.live.approved=true","stoxsim.billing.live.enabled=true","stoxsim.billing.live.key-id=rzp_live_fixture","stoxsim.billing.live.key-secret=fixture-secret","stoxsim.billing.live.webhook-secret=01234567890123456789012345678901","stoxsim.billing.live.plus-plan=plan_plus","stoxsim.billing.live.pro-plan=plan_pro","stoxsim.billing.play.enabled=true","stoxsim.billing.play.plus-product=plus","stoxsim.billing.play.pro-product=pro","stoxsim.billing.play.plus-base-plan=monthly","stoxsim.billing.play.pro-base-plan=monthly","stoxsim.billing.play.credentials-file=/not-used-mocked-provider","stoxsim.billing.play.token-encryption-key=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","stoxsim.billing.play.notification-audience=https://api.stoxsim.test/api/v1/billing/play/notifications","stoxsim.billing.play.notification-email=push@fixture.iam.gserviceaccount.com"})
+@SpringBootTest(properties={"stoxsim.market-data.upstox.stream-enabled=false","stoxsim.market-data.upstox.instrument-sync-on-startup=false","stoxsim.market-data.alpaca.instrument-sync-on-startup=false","stoxsim.market-data.alpaca.polling-enabled=false","stoxsim.billing.reconciliation-enabled=false","stoxsim.billing.test.reconciliation-enabled=false","stoxsim.security.rate-limit.enabled=false","stoxsim.billing.live.approved=true","stoxsim.billing.live.enabled=true","stoxsim.billing.live.key-id=rzp_live_fixture","stoxsim.billing.live.key-secret=fixture-secret","stoxsim.billing.live.webhook-secret=01234567890123456789012345678901","stoxsim.billing.live.plus-plan=plan_plus","stoxsim.billing.live.pro-plan=plan_pro","stoxsim.billing.play.enabled=true","stoxsim.billing.play.plus-product=plus","stoxsim.billing.play.pro-product=pro","stoxsim.billing.play.plus-base-plan=monthly","stoxsim.billing.play.pro-base-plan=monthly","stoxsim.billing.play.credentials-file=/not-used-mocked-provider","stoxsim.billing.play.notification-audience=https://api.stoxsim.test/api/v1/billing/play/notifications","stoxsim.billing.play.notification-email=push@fixture.iam.gserviceaccount.com"})
 class LiveBillingIntegrationTest {
+ @org.springframework.test.context.DynamicPropertySource
+ static void freshTokenEncryptionKey(org.springframework.test.context.DynamicPropertyRegistry properties) {
+  byte[] bytes=new byte[32];new java.security.SecureRandom().nextBytes(bytes);
+  String key=HexFormat.of().formatHex(bytes);
+  properties.add("stoxsim.billing.play.token-encryption-key",()->key);
+ }
+ @Test void verifiedPubSubCallbackDoesNotRequireABrowserCsrfToken()throws Exception {
+  var mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+  byte[] data=json.writeValueAsBytes(Map.of("packageName","com.stoxsim.app","testNotification",Map.of()));
+  byte[] body=json.writeValueAsBytes(Map.of("message",Map.of("messageId","csrf_fixture","data",Base64.getEncoder().encodeToString(data))));
+  mvc.perform(post("/api/v1/billing/play/notifications").header("Authorization","Bearer google-oidc-fixture")
+      .contentType("application/json").content(body)).andExpect(status().isOk());
+  verify(notifications).verify("Bearer google-oidc-fixture");
+  mvc.perform(post("/api/v1/billing/play/notifications/other")).andExpect(status().isUnauthorized());
+ }
  @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
  @Autowired JdbcTemplate db;@Autowired AppUserRepository users;@Autowired SubscriptionService subscriptions;@Autowired UserSubscriptionRepository entitlementRows;@Autowired VirtualAccountRepository accounts;
  @Autowired LiveBillingService billing;@Autowired BillingAccountGuard guard;@Autowired PurchaseTokenVault vault;@Autowired ObjectMapper json;@Autowired WebApplicationContext context;

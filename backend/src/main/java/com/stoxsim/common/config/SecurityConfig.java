@@ -57,10 +57,13 @@ public class SecurityConfig {
         // Pub/Sub carries a Google OIDC bearer token, not a StoxSim session token.
         // Only this exact POST bypasses the application decoder; the controller
         // still requires PlayNotificationVerifier's signature/issuer/audience checks.
+        var notificationEndpoint = PathPatternRequestMatcher.withDefaults()
+            .matcher(HttpMethod.POST, "/api/v1/billing/play/notifications");
         return http
-            .securityMatcher(PathPatternRequestMatcher.withDefaults()
-                .matcher(HttpMethod.POST, "/api/v1/billing/play/notifications"))
-            .csrf(csrf -> csrf.disable())
+            .securityMatcher(notificationEndpoint)
+            // Google Pub/Sub cannot supply a browser CSRF token. Exempt only
+            // its OIDC-verified POST; keep Spring's CSRF protection configured.
+            .csrf(csrf -> csrf.ignoringRequestMatchers(notificationEndpoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
             .addFilterAfter(rateLimitFilter, org.springframework.security.web.context.SecurityContextHolderFilter.class)

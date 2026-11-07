@@ -1,0 +1,9 @@
+# PR177 security check fixes
+
+The backend job stopped at its prerequisite security gate; Maven tests had not run. Gitleaks reported two historical false positives: a deterministic encryption fixture in a billing integration test with mocked provider clients, and ordinary prose in the Android push documentation. The current test now generates a fresh random key and the prose was reworded. Exact matched-content and exact-path exceptions are combined with AND for the historical copies, with a review date. The complete-history scan and CI failure gate remain enabled. Synthetic negative controls verify that a different value at the test path and the old fixture under production code are still detected.
+
+CodeQL findings were addressed by parsing the checkout URL and comparing its hostname exactly, replacing the notification destination regex with a bounded linear parser, and keeping Spring CSRF configured with an exception only for the exact Google Pub/Sub POST endpoint. That endpoint still verifies Google OIDC signature, issuer, audience and identity. General application authentication and existing session behavior are unchanged.
+
+Local validation: 42 focused backend/security tests and 4 production Chromium billing tests passed. The callback tests cover a verified provider request without a browser CSRF token, invalid OIDC rejection, protected adjacent routes and other HTTP methods. Notification tests include valid paths/fragments, ambiguous or external links, and a maximum-length adversarial input. The same pinned Gitleaks version as CI passed the history scan; the exception boundary tests passed as well.
+
+The fixes are intended for `review/08-optional-push-delivery`, the head of PR177. No PR base change, merge, deployment, environment publication or alert dismissal is part of this fix. GitHub CI/CodeQL results must be checked on the pushed commit; local tests alone do not establish remote success.
