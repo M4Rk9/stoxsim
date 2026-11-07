@@ -123,6 +123,9 @@ public class DerivativeTradingService {
         Contract contract = catalog.active(contractId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract is unavailable."));
         requireSession(contract);
+        if (action != Action.CLOSE && !sessions.isTradingDay(MarketExchange.NSE, contract.expiry())) {
+            throw new TradingValidationException("The exchange session for this contract's expiry is unverified or closed.");
+        }
         Position existing = findPosition(user, contractId);
         if (existing == null && action != Action.CLOSE) {
             Integer count = db.queryForObject("SELECT count(*) FROM derivative_position WHERE user_id=?", Integer.class, user);

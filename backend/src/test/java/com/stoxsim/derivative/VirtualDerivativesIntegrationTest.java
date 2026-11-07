@@ -144,6 +144,17 @@ class VirtualDerivativesIntegrationTest {
         mvc.perform(get("/api/v1/derivatives/portfolio")).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void rejectsOpeningContractsWithUnverifiedExpiryDates() throws Exception {
+        call = new Contract(UUID.randomUUID(), "NSE_FO|790", call.underlyingKey(), "NIFTY later call", Kind.CE,
+            LocalDate.of(2099, 1, 5), call.lotSize(), call.tickSize(), call.strike());
+        catalog.upsert(List.of(call), UUID.randomUUID());
+        order(UUID.randomUUID(), "OPEN_LONG", 1).andExpect(status().is(422))
+            .andExpect(jsonPath("$.message").value("The exchange session for this contract's expiry is unverified or closed."));
+        verify(quotes, never()).snapshots(List.of(call.providerKey()));
+        portfolio().andExpect(jsonPath("$.cash").value(500000)).andExpect(jsonPath("$.positions.length()").value(0));
+    }
+
     private void quote(String value) {
         BigDecimal price = new BigDecimal(value);
         var key = new InstrumentKey("UPSTOX", call.providerKey(), MarketRegion.INDIA);
