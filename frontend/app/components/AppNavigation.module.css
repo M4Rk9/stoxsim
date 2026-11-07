@@ -5,3 +5,6 @@
 .nav a:hover { color: var(--ink); background: var(--surface-soft); }
 .nav a:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 @media (min-width: 700px) { .nav a { font-size: 14px; } }
+
+.nav.inFlow { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto max(12px, env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 350px) { .nav.inFlow { grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); } }

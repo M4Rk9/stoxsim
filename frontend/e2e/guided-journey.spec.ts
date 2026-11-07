@@ -140,6 +140,6 @@ for (const width of [320, 768, 1440]) {
     await expect(send).toBeInViewport();
     await send.click({ trial: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await testInfo.attach(`finwiz-layout-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+    await testInfo.attach(`finwiz-layout-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   });
 }
