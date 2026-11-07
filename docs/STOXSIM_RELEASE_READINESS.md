@@ -12,17 +12,19 @@ This register is for founder-controlled release decisions. It does not authorize
 
 ## Final candidate checks
 
-- [x] Core combined backend unit/integration/security suite: 435 tests, no failures/errors/skips; fresh PostgreSQL migrations through V130 passed. Final optional FCM changes require their own validation.
+- [x] Core combined backend unit/integration/security suite: 435 tests, no failures/errors/skips; fresh PostgreSQL migrations through V130 passed. The optional FCM extension additionally passed 29 focused transport/notification tests.
 - [x] Web typecheck/build/secret isolation and all 126 production Chromium tests passed, including ten local API journeys.
 - [ ] Android compile/unit checks and signed device/session/offline/account-switch tests recorded separately.
 - [ ] Payment success/pending/failure/duplicate/forged/out-of-order/renewal/cancellation/refund/revocation/expiry/cross-owner/interrupted/downtime cases pass.
 - [x] Customer export/deletion includes new records; tests verify token exclusion, owner isolation, session cleanup and provider-aware deletion protection.
-- [x] Inbox/email opt-in, suppression, unsubscribe, deduplication, bounded delivery and concurrency tests passed; no campaign was sent. FCM remains separately gated.
+- [x] Inbox/email opt-in, suppression, unsubscribe, deduplication, bounded delivery and concurrency tests passed; no campaign was sent. FCM transport/native compilation and unit checks passed; actual device delivery remains separately gated.
 - [x] AI consent/ownership/quota/fallback tests passed; usage counters and unknown monetary costs remain distinct.
 - [ ] Dedicated authorization/payment/security review has no unresolved critical findings; dependency/security scan limitations recorded.
 - [x] Bounded local timing/functional smoke recorded 100 warmed reads with zero errors. Workload, limits and results are in the progress register; VPS capacity remains unverified.
 
 ## External evidence still required
+
+GitHub reported six default-branch dependency alerts during the review-branch push (four critical, two high). Alert details remain unavailable; this is an unresolved security gate. See [the dependency review](DEPENDENCY_REVIEW_2026_11_06.md).
 
 - [ ] Current GitHub PR/check/review state, including separate PR #170; do not merge from historical green checks.
 - [ ] Google deployed web/native provider acceptance for the actual origins, client IDs and signed package.
