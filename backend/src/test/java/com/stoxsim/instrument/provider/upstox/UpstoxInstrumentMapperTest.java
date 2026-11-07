@@ -85,4 +85,22 @@ class UpstoxInstrumentMapperTest {
             {"segment":"NSE_INDEX","instrument_key":"NSE_INDEX|Nifty 50","name":"Nifty 50"}
             """)).orElseThrow().instrumentType()).isEqualTo(InstrumentType.INDEX);
     }
+
+    @Test
+    void mapsBseStocksInRupeesAndRejectsDebtInTheSameSegment() {
+        var equity = objectMapper.readTree("""
+            {"segment":"BSE_EQ","instrument_key":"BSE_EQ|INE376L01013",
+             "instrument_type":"X","trading_symbol":"RAJKSYN","name":"Rajkamal",
+             "isin":"INE376L01013","lot_size":1,"tick_size":5}
+            """);
+        var debt = objectMapper.readTree("""
+            {"segment":"BSE_EQ","instrument_key":"BSE_EQ|INE053F08270",
+             "instrument_type":"F","trading_symbol":"775IRFC33","name":"Bond",
+             "isin":"INE053F08270","lot_size":1,"tick_size":1}
+            """);
+        var snapshot = mapper.map(equity).orElseThrow();
+        assertThat(snapshot.exchange()).isEqualTo(MarketExchange.BSE);
+        assertThat(snapshot.tickSize()).isEqualByComparingTo("0.05");
+        assertThat(mapper.map(debt)).isEmpty();
+    }
 }

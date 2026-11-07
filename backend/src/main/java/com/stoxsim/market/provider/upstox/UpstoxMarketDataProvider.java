@@ -92,10 +92,10 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
             for (InstrumentKey instrument : instruments) {
                 MarketQuoteOHLCV3 ohlc = ohlcByKey.get(instrument.value());
                 MarketQuoteSymbolLtpV3 ltp = ltpByKey.get(instrument.value());
-                if (ohlc == null && instruments.size() == 1 && ohlcByKey.size() == 1) {
+                if (ohlc == null && instrument.value().startsWith("NSE_") && instruments.size() == 1 && ohlcByKey.size() == 1) {
                     ohlc = ohlcByKey.values().iterator().next();
                 }
-                if (ltp == null && instruments.size() == 1 && ltpByKey.size() == 1) {
+                if (ltp == null && instrument.value().startsWith("NSE_") && instruments.size() == 1 && ltpByKey.size() == 1) {
                     ltp = ltpByKey.values().iterator().next();
                 }
                 Double lastPrice = ltp != null && ltp.getLastPrice() != null

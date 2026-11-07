@@ -11,6 +11,8 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+- Add a gated BSE equity search filter, exchange-specific practice orders, and a versioned BSE delivery fee model.
+
 - Add daily line and candlestick charts with OHLC inspection and optional educational pattern markers.
 
 - Link stock listings to exchange-specific details and open prefilled virtual Buy and Sell tickets from the detail page.

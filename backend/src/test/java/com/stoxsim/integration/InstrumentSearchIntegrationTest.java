@@ -29,7 +29,7 @@ import com.stoxsim.market.domain.MarketRegion;
 @Testcontainers
 @Transactional
 @SpringBootTest(properties={"stoxsim.market-data.upstox.stream-enabled=false", "stoxsim.market-data.upstox.instrument-sync-on-startup=false",
-    "stoxsim.market-data.alpaca.instrument-sync-on-startup=false"})
+    "stoxsim.market-data.alpaca.instrument-sync-on-startup=false", "stoxsim.trading.bse-equities-enabled=true"})
 class InstrumentSearchIntegrationTest {
     @Container @ServiceConnection static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
     @Container @ServiceConnection(name="redis") static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
@@ -54,6 +54,19 @@ class InstrumentSearchIntegrationTest {
             n%2==0 ? InstrumentType.EQUITY : InstrumentType.INDEX, "INE118H01025");
         search("INDIA", "bse").andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].tradingSymbol").value("BSE")).andExpect(jsonPath("$[0].exchange").value("NSE"));
+    }
+    @Test void allowsWebClientsToOptIntoBseAndFilterByExchange() throws Exception {
+        add("DUAL", "Dual Fixture", MarketExchange.NSE, InstrumentType.EQUITY, "INE118H01025");
+        add("DUAL", "Dual Fixture", MarketExchange.BSE, InstrumentType.EQUITY, "INE118H01025");
+        add("DUALONLY", "Dual Fixture BSE-only", MarketExchange.BSE, InstrumentType.EQUITY, "INE040A01034");
+        search("INDIA", "dual").andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/v1/instruments/search").param("marketRegion", "INDIA").param("q", "dual")
+            .param("includeBse", "true").with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3));
+        mvc.perform(get("/api/v1/instruments/search").param("marketRegion", "INDIA").param("q", "dual")
+            .param("exchange", "BSE").with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].exchange").value("BSE")).andExpect(jsonPath("$[1].tradingSymbol").value("DUALONLY"));
     }
     @Test void ranksSymbolAndNamePrefixesBeforeIncidentalSubstringsAndHandlesSpaces() throws Exception {
         add("ZACME", "Acme Industries", MarketExchange.NSE, InstrumentType.EQUITY, "INE118H01025");

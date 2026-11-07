@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const account = { id: "11111111-2222-4333-8444-555555555555", marketRegion: "INDIA", accountKind: "STANDARD", sandboxSlot: 0, accountLabel: "Standard India", currency: "INR", startingCapital: 500000, availableCash: 500000, blockedCash: 0, realizedProfitLoss: 0, active: true, leaderboardEligible: true };
 const usAccount = { ...account, id: "22222222-2222-4333-8444-555555555555", marketRegion: "UNITED_STATES", currency: "USD", accountLabel: "Standard US" };
-const stock = (symbol: string, exchange = "NSE", instrumentType = "EQUITY") => ({ id: symbol, tradingSymbol: symbol, name: `${symbol} company or exchange traded fund`, marketRegion: "INDIA", exchange, instrumentType, currency: "INR", tickSize: 0.05 });
+const stock = (symbol: string, exchange = "NSE", instrumentType = "EQUITY") => ({ id: `${exchange}-${symbol}`, tradingSymbol: symbol, name: `${symbol} company or exchange traded fund`, marketRegion: "INDIA", exchange, instrumentType, currency: "INR", tickSize: 0.05 });
 async function reply(route: Route, body: unknown, status = 200) {
   const options = route.request().method() === "OPTIONS";
   await route.fulfill({ status: options ? 204 : status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization,content-type", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" }, body: options ? undefined : JSON.stringify(body) });
@@ -184,6 +184,7 @@ test("movers and watchlists open the exact listing, and details prefill the exis
     gainers: [{ ...quote, instrumentKey: "NSE_EQ|FIXTURE", symbol: "M&M", exchange: "NSE", name: "Mahindra fixture", change: 1, changePercent: .5 }],
     losers: [],
   }));
+  await page.route("**/api/v1/instruments/cash-exchanges", route => reply(route, ["NSE", "BSE"]));
   await page.route("**/api/v1/watchlists/default", route => reply(route, {
     id: "watchlist", name: "Watchlist",
     items: [{ ...quote, ...stock("M&M", "BSE"), itemId: "bse-watch", instrumentId: "bse-instrument", symbol: "M&M", lastPrice: 210 }],
@@ -236,4 +237,25 @@ test("the quick quote chart switches to OHLC candles and inspects educational pa
   await expect(readout).toContainText("Close ₹100.00");
   await expect(readout).not.toContainText("Bullish engulfing");
   await testInfo.attach("candlestick-chart", { body: await page.locator(".chartBlock").screenshot(), contentType: "image/png" });
+});
+
+test("the BSE exchange filter keeps a dual listing distinct and opens a BSE-only equity", async ({ page }) => {
+  const input = await setup(page, route => reply(route, [stock("ACME"), stock("ACME", "BSE"), stock("ACMEONLY", "BSE")]));
+  await page.route("**/api/v1/instruments/cash-exchanges", route => reply(route, ["NSE", "BSE"]));
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACMEONLY", route => reply(route, stock("ACMEONLY", "BSE")));
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACMEONLY/quote", route => reply(route, {
+    lastPrice: 100, dataStatus: "CLOSED", pricingSource: "EXTERNAL",
+  }));
+  await page.reload();
+  await expect(page.getByLabel("Exchange", { exact: true })).toBeVisible();
+  await input.fill("acme");
+  const results = page.locator("#stock-search-results");
+  await expect(results.locator('a[href="/stocks/NSE/ACME"]')).toBeVisible();
+  await expect(results.locator('a[href="/stocks/BSE/ACME"]')).toBeVisible();
+  await page.getByLabel("Exchange", { exact: true }).selectOption("BSE");
+  await expect(results.getByRole("link")).toHaveCount(2);
+  await expect(results.locator('a[href="/stocks/NSE/ACME"]')).toHaveCount(0);
+  await results.getByRole("link", { name: /ACMEONLY/ }).click();
+  await expect(page).toHaveURL(/\/stocks\/BSE\/ACMEONLY$/);
+  await expect(page.getByRole("heading", { name: "ACMEONLY", exact: true })).toBeVisible();
 });

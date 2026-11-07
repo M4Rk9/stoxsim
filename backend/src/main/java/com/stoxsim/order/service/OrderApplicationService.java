@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,9 @@ import com.stoxsim.portfolio.repository.HoldingRepository;
 
 @Service
 public class OrderApplicationService {
+
+    @Value("${stoxsim.trading.bse-equities-enabled:false}")
+    private boolean bseEquitiesEnabled;
 
     private final VirtualAccountRepository accounts;
     private final TradableInstrumentRepository instruments;
@@ -152,6 +156,7 @@ public class OrderApplicationService {
 
         TradableInstrument instrument = findInstrument(request);
         validateTickSize(instrument, request.limitPrice());
+        validateBseLots(instrument, request.quantity());
         var session = sessions.current(instrument.getExchange());
         if (session.phase() == com.stoxsim.calendar.domain.MarketPhase.CALENDAR_UNAVAILABLE) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -160,6 +165,9 @@ public class OrderApplicationService {
         ensureOrderChangesAllowed(session.allowsOrderEntry());
 
         Quote quote = marketData.latestQuote(instrument);
+        if (instrument.getExchange() == MarketExchange.BSE && !marketData.isFreshProviderQuote(quote)) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "A current BSE provider quote is unavailable.");
+        }
 
         boolean standardAccount = account.getAccountKind() == AccountKind.STANDARD;
         PortfolioAnalyticsResponse analyticsBefore = standardAccount
@@ -342,6 +350,7 @@ public class OrderApplicationService {
             request.limitPrice()
         );
         validateTickSize(order.getInstrument(), request.limitPrice());
+        validateBseLots(order.getInstrument(), request.quantity());
 
         if (order.getSide() == OrderSide.BUY) {
             BigDecimal newReservation = reservationValue(
@@ -505,7 +514,7 @@ public class OrderApplicationService {
             || (instrument.getInstrumentType() != InstrumentType.EQUITY
                 && instrument.getInstrumentType() != InstrumentType.ETF)) {
             throw new TradingValidationException(
-                "StoxSim supports NSE and configured US cash equities and ETFs"
+                "StoxSim supports equities and ETFs on enabled cash exchanges"
             );
         }
         return instrument;
@@ -517,7 +526,7 @@ public class OrderApplicationService {
             request.exchange()
         )) {
             throw new TradingValidationException(
-                "Orders are supported for NSE and configured US cash markets"
+                "This cash exchange is unavailable for orders in the selected market."
             );
         }
         validateLimitTerms(
@@ -532,12 +541,18 @@ public class OrderApplicationService {
         MarketExchange exchange
     ) {
         if (marketRegion == MarketRegion.INDIA) {
-            return exchange == MarketExchange.NSE;
+            return exchange == MarketExchange.NSE || (bseEquitiesEnabled && exchange == MarketExchange.BSE);
         }
         if (marketRegion == MarketRegion.UNITED_STATES) {
             return sessions.isUnitedStatesExchange(exchange);
         }
         return false;
+    }
+
+    private void validateBseLots(TradableInstrument instrument, long quantity) {
+        if (instrument.getExchange() == MarketExchange.BSE && quantity % instrument.getLotSize() != 0) {
+            throw new TradingValidationException("Quantity must be a multiple of the BSE listing's lot size.");
+        }
     }
 
     private void validateLimitTerms(
