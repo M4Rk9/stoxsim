@@ -247,12 +247,12 @@ test("the BSE exchange filter keeps a dual listing distinct and opens a BSE-only
     lastPrice: 100, dataStatus: "CLOSED", pricingSource: "EXTERNAL",
   }));
   await page.reload();
-  await expect(page.getByLabel("Exchange", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Exchange", exact: true })).toBeVisible();
   await input.fill("acme");
   const results = page.locator("#stock-search-results");
   await expect(results.locator('a[href="/stocks/NSE/ACME"]')).toBeVisible();
   await expect(results.locator('a[href="/stocks/BSE/ACME"]')).toBeVisible();
-  await page.getByLabel("Exchange", { exact: true }).selectOption("BSE");
+  await page.getByRole("combobox", { name: "Exchange", exact: true }).selectOption("BSE");
   await expect(results.getByRole("link")).toHaveCount(2);
   await expect(results.locator('a[href="/stocks/NSE/ACME"]')).toHaveCount(0);
   await results.getByRole("link", { name: /ACMEONLY/ }).click();
