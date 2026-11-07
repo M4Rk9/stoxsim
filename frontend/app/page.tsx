@@ -468,6 +468,7 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [search, setSearch] = useState("");
   const [bseAvailable, setBseAvailable] = useState(false);
+  const [derivativesAvailable, setDerivativesAvailable] = useState(false);
   const [exchangeFilter, setExchangeFilter] = useState<"ALL" | "NSE" | "BSE">("ALL");
   const [results, setResults] = useState<Instrument[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -949,6 +950,9 @@ export default function Home() {
     void authorizedRequest<string[]>("/api/v1/instruments/cash-exchanges", { signal: controller.signal })
       .then(exchanges => { if (!controller.signal.aborted) setBseAvailable(Array.isArray(exchanges) && exchanges.includes("BSE")); })
       .catch(() => { if (!controller.signal.aborted) setBseAvailable(false); });
+    void authorizedRequest<{ enabled: boolean }>("/api/v1/derivatives/capability", { signal: controller.signal })
+      .then(value => { if (!controller.signal.aborted) setDerivativesAvailable(value?.enabled === true); })
+      .catch(() => { if (!controller.signal.aborted) setDerivativesAvailable(false); });
     return () => controller.abort();
   }, [token]);
 
@@ -1460,7 +1464,9 @@ export default function Home() {
       <section className="workspaceGrid">
         <div className="leftRail">
           <article className="panel searchPanel" id="stock-search">
-            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
+            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div>{marketRegion === "INDIA" && derivativesAvailable
+              ? <a className="stockListingLink" href="/markets/derivatives">Futures &amp; Options</a>
+              : <span className="shortcut">⌘ K</span>}</div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
             <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => updateSearch(event.target.value)} maxLength={100} aria-controls="stock-search-results" aria-describedby="stock-search-status" placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, NIFTYBEES…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
             {marketRegion === "INDIA" && bseAvailable && <label className="cashExchangeFilter">Exchange

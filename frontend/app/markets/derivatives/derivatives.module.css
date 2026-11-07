@@ -1,0 +1,23 @@
+.shell { width: min(1060px, 100%); margin: 0 auto; padding: 24px 16px 104px; }
+.header, .card { margin-bottom: 16px; }
+.header a { color: var(--green); }
+.header h1 { margin: 12px 0 6px; }
+.header p, .card p, .card small { color: var(--muted); line-height: 1.5; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: clamp(12px, 3vw, 24px); }
+.card h2 { margin: 0 0 14px; font-size: 1.15rem; }
+.controls, .future { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.controls label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.controls button, .controls select, .controls input, .card td button, .future button { padding: 8px; min-height: 38px; color: var(--ink); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.controls input { width: 90px; }
+.card button:disabled { opacity: .55; }
+.card button:focus-visible, .card select:focus-visible, .card input:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.future { justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.future small, .quote small { display: block; }
+.table { overflow-x: auto; margin: 12px 0; }
+.table table { min-width: 390px; }
+.table th, .table td { text-align: start; padding: 8px; }
+.table td button { margin-top: 5px; }
+.totals { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+.totals dt { color: var(--muted); }
+.totals dd { margin: 3px 0 0; font-weight: 700; }
+.fills { padding-inline-start: 20px; }

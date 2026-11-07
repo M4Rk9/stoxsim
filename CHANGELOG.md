@@ -11,6 +11,8 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+- Add a gated virtual NSE index Futures & Options workspace with its own wallet, positions, quotes, and expiry settlement.
+
 - Add a gated BSE equity search filter, exchange-specific practice orders, and a versioned BSE delivery fee model.
 
 - Add daily line and candlestick charts with OHLC inspection and optional educational pattern markers.
