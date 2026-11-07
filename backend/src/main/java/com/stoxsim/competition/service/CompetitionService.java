@@ -114,7 +114,7 @@ public class CompetitionService {
         AppUser user = requireUser(userId);
         if (subscriptions.findByUserIdForUpdate(userId)
             .filter(subscription -> subscription.hasActiveEntitlement(com.stoxsim.subscription.domain.SubscriptionFeature.PREMIUM_COMPETITIONS)
-                && subscription.getCurrentPeriodEnd() != null && subscription.getCurrentPeriodEnd().isAfter(clock.instant()))
+                && subscription.hasCurrentAccess(clock.instant()))
             .isEmpty()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Pro competitions require an active Pro subscription; test benefits are not eligible");
         }

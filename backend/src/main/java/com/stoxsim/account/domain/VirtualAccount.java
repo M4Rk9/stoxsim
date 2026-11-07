@@ -282,7 +282,11 @@ public class VirtualAccount {
         return startingCapital;
     }
 
+    @Column(name = "billing_access_until")
+    private Instant billingAccessUntil;
+    public void setBillingAccessUntil(Instant until) { billingAccessUntil = until; touch(); }
     public boolean isActive() {
+        if (billingAccessUntil != null && !billingAccessUntil.isAfter(Instant.now())) return false;
         return active && (testTradingUntil == null || (Instant.now().isBefore(testTradingUntil)
             && user.isPlatformAdmin() && user.isEmailVerified()));
     }

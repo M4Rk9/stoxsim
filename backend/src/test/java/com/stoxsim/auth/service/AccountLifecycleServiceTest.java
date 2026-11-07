@@ -44,6 +44,7 @@ class AccountLifecycleServiceTest {
     @Mock private JdbcTemplate jdbcTemplate;
     @Mock private TransactionTemplate transactionTemplate;
     @Mock private AppUser user;
+    @Mock private com.stoxsim.billing.BillingAccountGuard billing;
 
     private AccountLifecycleService service;
 
@@ -58,7 +59,8 @@ class AccountLifecycleServiceTest {
             mailService,
             properties,
             jdbcTemplate,
-            transactionTemplate
+            transactionTemplate,
+            billing
         );
         doAnswer(invocation -> {
             TransactionCallback<?> callback = invocation.getArgument(0);

@@ -43,3 +43,7 @@ deploy/production/monitoring/alertmanager.yml
 deploy/production/monitoring/metrics-scrape-token
 
 mobile/android/project/native-review/
+
+# Optional Firebase Android configuration; supply privately in release CI.
+mobile/android/project/app/google-services.json
+mobile/android/project/app/src/main/res/values/firebase-config.xml

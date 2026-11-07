@@ -42,7 +42,10 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) for (con
       await expect(notice).toContainText("Spam/Junk");
       const noticeBox = await notice.boundingBox();
       const saveBox = await profile.getByRole("button", { name: "Save profile" }).boundingBox();
-      expect(noticeBox!.y).toBeGreaterThanOrEqual(box!.y + box!.height);
+      // Clicking resend may scroll a profile below the new preferences sections
+      // into view. Compare every box in the same viewport after that scroll.
+      const currentBadgeBox = await badge.boundingBox();
+      expect(noticeBox!.y).toBeGreaterThanOrEqual(currentBadgeBox!.y + currentBadgeBox!.height);
       expect(saveBox!.y).toBeGreaterThanOrEqual(noticeBox!.y + noticeBox!.height);
       expect(await notice.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     }

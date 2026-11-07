@@ -31,6 +31,8 @@ import com.stoxsim.app.data.*
     }
     AccountLink("Wallet", "Virtual cash, reserves and account activity", navigate)
     AccountLink("Subscriptions", state.data["subscription"]?.let { "${it.text("plan")} · ${it.text("status")} · Manage your benefits" } ?: "Manage your plan and benefits", navigate)
+    AccountLink("Learner profile", "Optional learning goals and preferred market", navigate)
+    AccountLink("Notifications", "Your updates and communication preferences", navigate)
     AccountLink("Profile & security", "Profile, passwords, sessions and your data", navigate)
     Panel(title = "More from StoxSim") {
         listOf("Learning path" to "Challenges & achievements", "Competitions" to "Leaderboard & private leagues", "Campus" to "Your institution & competitions", "Weekly reports" to "Reports & email preferences").forEach { (route, label) ->

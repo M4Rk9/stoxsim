@@ -21,6 +21,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,6 +37,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -50,6 +52,26 @@ public class SecurityConfig {
     }
 
     @Bean
+    @Order(1)
+    SecurityFilterChain playNotificationSecurityFilterChain(HttpSecurity http, ApiRateLimitFilter rateLimitFilter) throws Exception {
+        // Pub/Sub carries a Google OIDC bearer token, not a StoxSim session token.
+        // Only this exact POST bypasses the application decoder; the controller
+        // still requires PlayNotificationVerifier's signature/issuer/audience checks.
+        var notificationEndpoint = PathPatternRequestMatcher.withDefaults()
+            .matcher(HttpMethod.POST, "/api/v1/billing/play/notifications");
+        return http
+            .securityMatcher(notificationEndpoint)
+            // Google Pub/Sub cannot supply a browser CSRF token. Exempt only
+            // its OIDC-verified POST; keep Spring's CSRF protection configured.
+            .csrf(csrf -> csrf.ignoringRequestMatchers(notificationEndpoint))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+            .addFilterAfter(rateLimitFilter, org.springframework.security.web.context.SecurityContextHolderFilter.class)
+            .build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http, ApiRateLimitFilter rateLimitFilter) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
@@ -67,6 +89,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/v1/billing/test/webhook",
+                    "/api/v1/billing/razorpay/webhook",
+                    "/api/v1/notifications/unsubscribe",
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
                     "/api/v1/auth/google/config",

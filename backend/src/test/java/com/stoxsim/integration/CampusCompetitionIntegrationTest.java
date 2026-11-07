@@ -242,6 +242,7 @@ class CampusCompetitionIntegrationTest {
         var subscription=new com.stoxsim.subscription.domain.UserSubscription(learner);
         subscription.apply(new com.stoxsim.subscription.provider.BillingSubscriptionUpdate(learner.getId(), SubscriptionPlan.PRO,
             com.stoxsim.subscription.domain.SubscriptionStatus.ACTIVE,"GOOGLE_PLAY","customer","purchase",Instant.now().plusSeconds(86400)),Instant.now());
+        subscription.setBillingAccessUntil(Instant.now().plusSeconds(86400));
         subscriptions.saveAndFlush(subscription);
         assertThat(competitions.premiumBoard(learner.getId()).enrolled()).isFalse();
         assertThat(competitions.currentBoard(learner.getId()).enrolled()).isFalse();
@@ -252,10 +253,12 @@ class CampusCompetitionIntegrationTest {
         assertThat(competitions.currentBoard(learner.getId()).participantCount()).isZero();
         value(learner,"500000",PricingStatus.CLOSED,false);
         assertThat(competitions.enrollPremium(learner.getId()).yourBaselineValue()).isEqualByComparingTo("485000");
+        jdbc.update("UPDATE user_subscription SET current_period_end=now()-interval '1 hour' WHERE user_id=?",learner.getId());
+        assertThat(competitions.premiumBoard(learner.getId()).enrolled()).isTrue();
         mvc.perform(get("/api/v1/competitions/premium").with(jwt().jwt(t->t.subject(outsider.getId().toString())))).andExpect(status().isForbidden());
         jdbc.update("UPDATE user_subscription SET billing_provider='RAZORPAY_TEST',test_access_until=now()+interval '1 day' WHERE user_id=?",learner.getId());
         expectStatus(403, () -> competitions.premiumBoard(learner.getId()));
-        jdbc.update("UPDATE user_subscription SET billing_provider='GOOGLE_PLAY',current_period_end=now()-interval '1 day' WHERE user_id=?",learner.getId());
+        jdbc.update("UPDATE user_subscription SET billing_provider='GOOGLE_PLAY',current_period_end=now()-interval '1 day',billing_access_until=now()-interval '1 second' WHERE user_id=?",learner.getId());
         expectStatus(403, () -> competitions.enrollPremium(learner.getId()));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM competition_entry WHERE user_id=?",Long.class,learner.getId())).isEqualTo(1);
     }
