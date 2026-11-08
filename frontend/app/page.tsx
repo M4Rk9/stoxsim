@@ -59,7 +59,7 @@ type CurrencyCode = "INR" | "USD";
 type OrderSide = "BUY" | "SELL";
 type OrderType = "MARKET" | "LIMIT";
 type MarketDataStatus = "LIVE" | "CLOSED" | "STALE" | "UNAVAILABLE";
-type ChartRange = 1 | 3 | 6 | 12 | 36 | 60;
+import { chartRanges, rangeLabel, chartQuery, intervalLabel, visibleCandles, type ChartRange } from "./lib/chart-ranges";
 type FinancialPeriod = "quarterly" | "yearly";
 type AccountKind = "STANDARD" | "SANDBOX";
 type SubscriptionPlan = "FREE" | "PLUS" | "PRO";
@@ -423,12 +423,6 @@ const dateTime = (value?: string) =>
       }).format(new Date(value))
     : "—";
 
-const isoDate = (monthsAgo: number) => {
-  const date = new Date();
-  date.setUTCMonth(date.getUTCMonth() - monthsAgo);
-  return date.toISOString().slice(0, 10);
-};
-
 const phaseLabel = (phase?: string) =>
   ({
     REGULAR: "Market open",
@@ -468,6 +462,8 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [search, setSearch] = useState("");
   const [bseAvailable, setBseAvailable] = useState(false);
+  const [bseStatus, setBseStatus] = useState("Checking BSE availability…");
+  const [derivativesStatus, setDerivativesStatus] = useState("Checking availability…");
   const [derivativesAvailable, setDerivativesAvailable] = useState(false);
   const [exchangeFilter, setExchangeFilter] = useState<"ALL" | "NSE" | "BSE">("ALL");
   const [results, setResults] = useState<Instrument[]>([]);
@@ -480,6 +476,7 @@ export default function Home() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [yearCandles, setYearCandles] = useState<Candle[]>([]);
+  const candleGeneration = useRef(0);
   const [chartRange, setChartRange] = useState<ChartRange>(12);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState("");
@@ -872,22 +869,22 @@ export default function Home() {
   }
 
   async function loadCandles(instrument: Instrument, range: ChartRange) {
+    const generation = ++candleGeneration.current;
     setChartLoading(true);
     setChartError("");
     try {
-      const to = new Date().toISOString().slice(0, 10);
       const series = await authorizedRequest<CandleSeries>(
-        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/candles?interval=ONE_DAY&from=${isoDate(range)}&to=${to}`,
+        `/api/v1/instruments/${instrument.marketRegion}/${instrument.exchange}/${encodeURIComponent(instrument.tradingSymbol)}/candles?${chartQuery(range, instrument.exchange)}`,
       );
-      if (selectedRef.current?.id !== instrument.id) return;
-      setCandles(series.candles);
+      if (selectedRef.current?.id !== instrument.id || generation !== candleGeneration.current) return;
+      setCandles(visibleCandles(series.candles ?? [], range, instrument.exchange));
       if (range === 12) setYearCandles(series.candles);
     } catch (cause) {
-      if (selectedRef.current?.id !== instrument.id) return;
+      if (selectedRef.current?.id !== instrument.id || generation !== candleGeneration.current) return;
       setCandles([]);
       setChartError(cause instanceof Error ? cause.message : "Historical prices are unavailable");
     } finally {
-      if (selectedRef.current?.id === instrument.id) setChartLoading(false);
+      if (selectedRef.current?.id === instrument.id && generation === candleGeneration.current) setChartLoading(false);
     }
   }
 
@@ -948,11 +945,11 @@ export default function Home() {
     if (!token) return;
     const controller = new AbortController();
     void authorizedRequest<string[]>("/api/v1/instruments/cash-exchanges", { signal: controller.signal })
-      .then(exchanges => { if (!controller.signal.aborted) setBseAvailable(Array.isArray(exchanges) && exchanges.includes("BSE")); })
-      .catch(() => { if (!controller.signal.aborted) setBseAvailable(false); });
+      .then(exchanges => { if (!controller.signal.aborted) { const available = Array.isArray(exchanges) && exchanges.includes("BSE"); setBseAvailable(available); setBseStatus(available ? "NSE and BSE listings are available." : "BSE listings are not enabled on this server yet."); if (!available) setExchangeFilter("ALL"); } })
+      .catch(() => { if (!controller.signal.aborted) { setBseAvailable(false); setBseStatus("BSE availability could not be checked. NSE search remains available."); setExchangeFilter("ALL"); } });
     void authorizedRequest<{ enabled: boolean }>("/api/v1/derivatives/capability", { signal: controller.signal })
-      .then(value => { if (!controller.signal.aborted) setDerivativesAvailable(value?.enabled === true); })
-      .catch(() => { if (!controller.signal.aborted) setDerivativesAvailable(false); });
+      .then(value => { if (!controller.signal.aborted) { setDerivativesAvailable(value?.enabled === true); setDerivativesStatus(value?.enabled === true ? "Virtual trading available" : "Virtual trading is not enabled on this server yet."); } })
+      .catch(() => { if (!controller.signal.aborted) { setDerivativesAvailable(false); setDerivativesStatus("Availability could not be checked. Open the workspace to retry."); } });
     return () => controller.abort();
   }, [token]);
 
@@ -1461,21 +1458,25 @@ export default function Home() {
         </div>
       </section>
 
+      {marketRegion === "INDIA" && <section className="panel derivativesDiscovery" aria-labelledby="derivatives-heading">
+        <div><span className="kicker">VIRTUAL DERIVATIVES</span><h2 id="derivatives-heading">Futures &amp; Options</h2>
+          <p>Explore index futures and long calls and puts in a dedicated workspace.</p><small>{derivativesStatus}</small></div>
+        <a className="primaryLink" href="/markets/derivatives" target="_blank" rel="noopener noreferrer">{derivativesAvailable ? "Open F&O workspace" : "View F&O availability"} <span>(new tab)</span> ↗</a>
+      </section>}
       <section className="workspaceGrid">
         <div className="leftRail">
           <article className="panel searchPanel" id="stock-search">
-            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div>{marketRegion === "INDIA" && derivativesAvailable
-              ? <a className="stockListingLink" href="/markets/derivatives">Futures &amp; Options</a>
-              : <span className="shortcut">⌘ K</span>}</div>
+            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
             <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => updateSearch(event.target.value)} maxLength={100} aria-controls="stock-search-results" aria-describedby="stock-search-status" placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, NIFTYBEES…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
-            {marketRegion === "INDIA" && bseAvailable && <label className="cashExchangeFilter">Exchange
+            {marketRegion === "INDIA" && <label className="cashExchangeFilter">Exchange
               <select value={exchangeFilter} onChange={event => {
                 searchGeneration.current++;
                 setExchangeFilter(event.target.value as typeof exchangeFilter);
                 setSearchOpen(true);
-              }}><option value="ALL">All exchanges</option><option value="NSE">NSE</option><option value="BSE">BSE</option></select>
+              }}><option value="ALL">All exchanges</option><option value="NSE">NSE</option><option value="BSE" disabled={!bseAvailable}>BSE{bseAvailable ? "" : " · unavailable"}</option></select>
             </label>}
+            {marketRegion === "INDIA" && <p className="marketAvailability">{bseStatus}</p>}
             <p id="stock-search-status" role="status">{searchError || (searchOpen && search.trim().length >= 2
               ? searchLoading ? "Finding matches…" : results.length ? `${results.length} matching stocks and ETFs` : "No matching stocks or ETFs found."
               : marketRegion === "INDIA" ? bseAvailable ? "Type 2 or more characters for NSE and BSE listings." : "Type 2 or more characters. NSE stocks and ETFs only." : "Type 2 or more characters to find US stocks and ETFs.")}</p>
@@ -1488,8 +1489,8 @@ export default function Home() {
                 <PricingNotice source={quote.pricingSource} />
                 <div className="quoteStats"><div><span>Open</span><strong>{displayMoneyOrDash(quote.open)}</strong></div><div><span>High</span><strong>{displayMoneyOrDash(quote.high)}</strong></div><div><span>Low</span><strong>{displayMoneyOrDash(quote.low)}</strong></div><div><span>Prev. close</span><strong>{displayMoneyOrDash(quote.previousClose)}</strong></div></div>
                 <div className="chartBlock">
-                  <div className="chartHeader"><div><span>Price chart</span><small>{marketRegion === "INDIA" ? "Verified Upstox daily OHLC candles" : "Alpaca daily OHLC candles"}</small></div><div className="rangeTabs">{([1, 3, 6, 12, 36, 60] as const).map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{range >= 12 ? `${range / 12}Y` : `${range}M`}</button>)}</div></div>
-                  <PriceHistoryChart key={selected.id} candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} exchange={selected.exchange} provider={marketRegion === "INDIA" ? "Upstox" : "Alpaca"} />
+                  <div className="chartHeader"><div><span>Price chart</span><small>{marketRegion === "INDIA" ? `${intervalLabel(chartRange)} OHLC from Upstox` : `${intervalLabel(chartRange)} OHLC from Alpaca`}</small></div><div className="rangeTabs">{chartRanges.map((range) => <button type="button" key={range} className={chartRange === range ? "active" : ""} onClick={() => setChartRange(range)}>{rangeLabel(range)}</button>)}</div></div>
+                  <PriceHistoryChart interval={intervalLabel(chartRange)} key={selected.id} candles={candles} loading={chartLoading} error={chartError} currency={activeCurrency} exchange={selected.exchange} provider={marketRegion === "INDIA" ? "Upstox" : "Alpaca"} />
                 </div>
                 <StockPerformance quote={quote} candles={yearCandles} currency={activeCurrency} />
                 <StockFundamentals

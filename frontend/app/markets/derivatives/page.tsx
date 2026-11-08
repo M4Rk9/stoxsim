@@ -151,7 +151,7 @@ export default function DerivativesPage() {
       <p>Practise NSE index futures and buying calls and puts with a separate INR virtual wallet.</p>
     </header>
     {enabled === undefined && <p role="status">Checking virtual derivatives access…</p>}
-    {enabled === false && <p role="status">{catalogError || "Virtual derivatives are currently unavailable."}</p>}
+    {enabled === false && <section className={styles.card}><h2>Availability</h2><p role="status">{catalogError || "Virtual derivatives are currently unavailable."}</p><p>{catalogError ? "Please retry when your connection is available." : "This server has not enabled virtual F&O trading. Contract selection, quotes and orders will appear here when it is enabled."}</p><a href="/markets/derivatives">Check again</a></section>}
     {enabled && <>
       <section className={styles.card} aria-labelledby="derivative-market-heading">
         <h2 id="derivative-market-heading">NSE index contracts</h2>
