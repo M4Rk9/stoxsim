@@ -265,7 +265,7 @@ export default function FinwizPage() {
       {current?.turns.map((turn, index) => <article key={index}>
         <div className={styles.userMessage}><div>{turn.question}</div></div>
         <div className={styles.assistantMessage}><div className={styles.assistantMark}>F</div><div className={styles.assistantBody}>
-          <div className={styles.answerMeta}><strong>Finwiz</strong><small>{turn.answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small></div>
+          <div className={styles.answerMeta}><strong>Finwiz{turn.answer.finwizTier ? ` · ${turn.answer.finwizTier.toLowerCase()} depth` : ""}</strong><small>{turn.answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small></div>
           <FinwizAnswer answer={turn.answer.answer} />
           <p className={styles.disclaimer}>{turn.answer.disclaimer}</p>
           {index === current.turns.length - 1 && <div className={styles.suggestions}>{turn.answer.suggestedQuestions.map(item => <button key={item} onClick={() => { setQuestion(item); document.getElementById("finwiz-question")?.focus(); }}>{item} ↗</button>)}</div>}
