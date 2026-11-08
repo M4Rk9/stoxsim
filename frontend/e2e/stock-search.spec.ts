@@ -215,7 +215,7 @@ test("movers and watchlists open the exact listing, and details prefill the exis
   await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
 });
 
-test("the quick quote chart switches to OHLC candles and inspects educational patterns", async ({ page }, testInfo) => {
+test("the quick quote chart switches to OHLC candles and supports keyboard inspection", async ({ page }, testInfo) => {
   const input = await setup(page, route => reply(route, [stock("RELIANCE")]));
   await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/quote", route => reply(route,
     { lastPrice: 111, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
@@ -229,13 +229,11 @@ test("the quick quote chart switches to OHLC candles and inspects educational pa
   await page.getByRole("button", { name: "Candlestick" }).click();
   const candles = page.getByRole("img", { name: "Daily candlestick chart" });
   await expect(candles).toBeVisible();
-  await page.getByRole("checkbox", { name: "Patterns" }).check();
+  await expect(page.getByRole("checkbox", { name: "Patterns" })).toHaveCount(0);
   const readout = page.locator('[aria-label="Selected candle"]');
-  await expect(readout).toContainText("Bullish engulfing");
   await expect(readout).toContainText("Volume 450");
   await candles.press("ArrowLeft");
   await expect(readout).toContainText("Close ₹100.00");
-  await expect(readout).not.toContainText("Bullish engulfing");
   await testInfo.attach("candlestick-chart", { body: await page.locator(".chartBlock").screenshot(), contentType: "image/png" });
 });
 
@@ -258,4 +256,53 @@ test("the BSE exchange filter keeps a dual listing distinct and opens a BSE-only
   await results.getByRole("link", { name: /ACMEONLY/ }).click();
   await expect(page).toHaveURL(/\/stocks\/BSE\/ACMEONLY$/);
   await expect(page.getByRole("heading", { name: "ACMEONLY", exact: true })).toBeVisible();
+});
+
+for (const width of [320,768,1440]) test(`stock detail ranges and order card fit ${width}px`,async({page},info)=>{
+  await page.setViewportSize({width,height:1000}); await setup(page,route=>reply(route,[]));
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACME",route=>reply(route,{...stock("ACME","BSE"),provider:"UPSTOX"}));
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACME/quote",route=>reply(route,{lastPrice:111,open:100,high:112,low:99,previousClose:100,dataStatus:"CLOSED",pricingSource:"EXTERNAL"}));
+  const requested:string[]=[];
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACME/candles?*",route=>{
+    requested.push(new URL(route.request().url()).searchParams.get("interval")!);
+    return reply(route,{candles:[
+      {timestamp:"2026-11-05T03:45:00Z",open:100,high:110,low:98,close:108,volume:100},
+      {timestamp:"2026-11-06T03:45:00Z",open:108,high:112,low:106,close:111,volume:400},
+      {timestamp:"2026-11-06T04:00:00Z",open:111,high:112,low:103,close:105,volume:200},
+      {timestamp:"2026-11-06T04:15:00Z",open:105,high:111,low:101,close:109,volume:250}]});
+  });
+  await page.goto("/stocks/BSE/ACME"); await expect(page.getByRole("img",{name:"Historical closing-price chart"})).toBeVisible();
+  await page.getByRole("button",{name:"Candlestick",exact:true}).click();
+  for(const [label,interval] of [["1D","ONE_MINUTE"],["1W","FIFTEEN_MINUTES"],["1M","ONE_DAY"],["6M","ONE_DAY"],["1Y","ONE_DAY"],["3Y","ONE_WEEK"],["5Y","ONE_WEEK"]]){
+    const count=requested.length; await page.getByRole("button",{name:label,exact:true}).click();
+    await expect.poll(()=>requested.length).toBeGreaterThan(count); expect(requested.at(-1)).toBe(interval);
+    await expect(page.locator('[aria-label="Selected candle"]')).toBeVisible();
+  }
+  await page.getByRole("button",{name:"1M",exact:true}).click();
+  const svg=page.getByRole("img",{name:"Daily candlestick chart"}); await expect(svg).toBeVisible();
+  const positions=await svg.locator("rect").evaluateAll(rects=>rects.map(rect=>Number(rect.getAttribute("x"))));
+  expect(positions).toHaveLength(4); expect(positions[2]-positions[1]).toBeCloseTo(positions[1]-positions[0]);
+  const actions=page.locator('[aria-label="Virtual trading"]');
+  await expect(actions.getByRole("link",{name:"Buy",exact:true})).toHaveAttribute("href",/exchange=BSE.*side=BUY/);
+  expect(await actions.evaluate(el=>Boolean(el.closest("aside")))).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await info.attach(`stock-detail-${width}`,{body:await page.screenshot({path:info.outputPath(`stock-detail-${width}.png`),fullPage:true}),contentType:"image/png"});
+});
+test("F&O opens a separate tab and restores its session",async({page,context},info)=>{
+  await setup(page,route=>reply(route,[]));
+  await page.route("**/api/v1/derivatives/capability",route=>reply(route,{enabled:true}));
+  let refreshed=0;
+  await context.route("**/api/v1/**",route=>{
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith("/auth/refresh")){if(route.request().method()!=="OPTIONS")refreshed++;return reply(route,{accessToken:"popup-fixture",user:{id:"test",displayName:"Learner",email:"test@example.test"}});}
+    if(path.endsWith("/capability"))return reply(route,{enabled:true});
+    if(path.endsWith("/portfolio"))return reply(route,{cash:500000,reservedMargin:0,realizedPnl:0,totalEquity:500000,positions:[],fills:[]});
+    return reply(route,[]);
+  });
+  await page.reload(); const link=page.getByRole("link",{name:/Open F&O workspace/});
+  await expect(link).toHaveAttribute("target","_blank");
+  await info.attach("markets-fno",{body:await page.locator(".derivativesDiscovery").screenshot({path:info.outputPath("markets-fno.png")}),contentType:"image/png"});
+  const popupPromise=page.waitForEvent("popup"); await link.click(); const popup=await popupPromise;
+  await expect(popup.getByRole("heading",{name:"NSE index contracts"})).toBeVisible();
+  expect(refreshed).toBeGreaterThan(0); expect(await popup.evaluate(()=>window.opener)).toBeNull();
 });

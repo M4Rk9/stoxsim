@@ -9,6 +9,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.TreeMap;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -26,19 +30,47 @@ public class UpstoxHistoricalCandleClient {
 
     private static final String BASE_URL = "https://api.upstox.com/v3/historical-candle";
 
+    private final Clock clock;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final UpstoxClientFactory clientFactory;
 
     public UpstoxHistoricalCandleClient(
         ObjectMapper objectMapper,
-        UpstoxClientFactory clientFactory
+        UpstoxClientFactory clientFactory,
+        Clock clock
     ) {
+        this.clock = clock;
         this.objectMapper = objectMapper;
         this.clientFactory = clientFactory;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .build();
+    }
+
+    /** Historical V3 excludes today's candles; combine it with the intraday endpoint. */
+    public List<Candle> getRange(String instrumentKey, String unit, int interval, LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now(clock.withZone(ZoneId.of("Asia/Kolkata")));
+        boolean currentDay = !from.isAfter(today) && !to.isBefore(today)
+            && List.of("minutes", "hours", "days").contains(unit);
+        if (!currentDay) return getCandles(instrumentKey, unit, interval, from, to);
+        var rows = new TreeMap<Instant, Candle>();
+        if (from.isBefore(today)) {
+            for (Candle candle : getCandles(instrumentKey, unit, interval, from, today.minusDays(1))) {
+                rows.put(candle.timestamp(), candle);
+            }
+        }
+        for (Candle candle : getIntradayCandles(instrumentKey, unit, interval)) {
+            if (candle.timestamp().atZone(ZoneId.of("Asia/Kolkata")).toLocalDate().equals(today)) {
+                rows.put(candle.timestamp(), candle);
+            }
+        }
+        return List.copyOf(rows.values());
+    }
+
+    public List<Candle> getIntradayCandles(String instrumentKey, String unit, int interval) {
+        return request(URI.create(String.format("%s/intraday/%s/%s/%d",
+            BASE_URL, pathSegment(instrumentKey), pathSegment(unit), interval)));
     }
 
     public List<Candle> getCandles(
@@ -57,6 +89,10 @@ public class UpstoxHistoricalCandleClient {
             to,
             from
         ));
+        return request(uri);
+    }
+
+    private List<Candle> request(URI uri) {
         String authorization = clientFactory.authorizationHeaders().get("Authorization");
         HttpRequest request = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofSeconds(20))

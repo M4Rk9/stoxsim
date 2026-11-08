@@ -64,13 +64,14 @@ export default function FinwizPage() {
   const [symbol, setSymbol] = useState("");
   const [question, setQuestion] = useState(topics[0].prompt);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
-  const [answer, setAnswer] = useState<FinwizResponse | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeId, setActiveId] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [storageError, setStorageError] = useState("");
   const [clearPending, setClearPending] = useState(false);
   const busy = useRef(false);
+  const historyToggle = useRef<HTMLButtonElement>(null);
+  const historyPanel = useRef<HTMLElement>(null);
   const end = useRef<HTMLDivElement>(null);
   const current = chats.find(chat => chat.id === activeId);
   const [loading, setLoading] = useState(false);
@@ -115,13 +116,29 @@ export default function FinwizPage() {
     return () => view?.removeEventListener("resize", resize);
   }, []);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [chats, activeId, loading]);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const panel = historyPanel.current, toggle = historyToggle.current;
+    panel?.querySelector<HTMLElement>("a,button:not(:disabled)")?.focus();
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (!window.matchMedia("(max-width:700px)").matches) return;
+      if (event.key === "Escape") { setHistoryOpen(false); toggle?.focus(); }
+      if (event.key !== "Tab" || !panel || !toggle) return;
+      const items = [...panel.querySelectorAll<HTMLElement>("a,button:not(:disabled)"), toggle];
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [historyOpen]);
   function persist(next: Chat[]) {
     setChats(next);
-    try { localStorage.setItem(`stoxsim-finwiz:${session?.user.email}`, JSON.stringify(next)); }
+    try { localStorage.setItem(`stoxsim-finwiz:${session?.user.email}`, JSON.stringify(next)); setStorageError(""); }
     catch { setStorageError("History could not be saved on this device."); }
   }
   function newChat() {
-    setActiveId(""); setAnswer(null); setSubmittedQuestion(""); setQuestion(""); setError(""); setHistoryOpen(false);
+    setActiveId(""); setSubmittedQuestion(""); setQuestion(""); setError(""); setHistoryOpen(false);
     requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());
   }
   const selectedTopic = useMemo(
@@ -177,7 +194,6 @@ export default function FinwizPage() {
 
     setLoading(true);
     setError("");
-    setAnswer(null);
     setSubmittedQuestion(nextQuestion);
 
     try {
@@ -224,11 +240,11 @@ export default function FinwizPage() {
   if (!session) return null;
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
-    <aside className={`${styles.sidebar} ${historyOpen ? styles.open : ""}`} aria-label="Chat history">
+    <aside ref={historyPanel} id="chat-history" className={`${styles.sidebar} ${historyOpen ? styles.open : ""}`} aria-label="Chat history">
       <a href="/" className={styles.brand}>StoxSim</a>
-      <button disabled={loading} onClick={newChat}>＋ New chat</button><h2>Recent chats</h2>
+      <button disabled={loading} onClick={newChat}>+ New chat</button><h2>Recent chats</h2>
       <div className={styles.historyList}>{!chats.length && <p>Your conversations will appear here.</p>}{chats.map(chat => <button key={chat.id} disabled={loading} aria-current={activeId === chat.id ? "page" : undefined} onClick={() => {
-        setActiveId(chat.id); setAnswer(null); setSubmittedQuestion(""); setError(""); setQuestion(""); setHistoryOpen(false);
+        setActiveId(chat.id); setSubmittedQuestion(""); setError(""); setQuestion(""); setHistoryOpen(false); requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());
       }}>{chat.title}</button>)}</div>
       <a href="/learn#learning-map">Learning map ↗</a><a href="/">← Dashboard</a>
       <p>Last 30 chats saved on this device for your account.</p>
@@ -241,7 +257,7 @@ export default function FinwizPage() {
           <path d="m15 5-7 7 7 7" />
         </svg>
       </a>
-      <h1>Finwiz AI</h1><button className={styles.historyToggle} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}>{historyOpen ? "Close history" : "Chat history"}</button>
+      <h1>Finwiz AI</h1><button ref={historyToggle} aria-controls="chat-history" className={styles.historyToggle} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}>{historyOpen ? "Close history" : "Chat history"}</button>
     </header>
 
     <section className={styles.conversation} id="finwiz-response" aria-live="polite">
@@ -261,30 +277,7 @@ export default function FinwizPage() {
 
       {loading && <div className={styles.assistantMessage}>
         <div className={styles.assistantMark} aria-hidden="true">F</div>
-        <div className={styles.thinking}><span /><span /><span /></div>
-      </div>}
-
-      {answer && <div className={styles.assistantMessage}>
-        <div className={styles.assistantMark} aria-hidden="true">F</div>
-        <div className={styles.assistantBody}>
-          <div className={styles.answerMeta}>
-            <span>{selectedTopic.label}{answer.finwizTier ? ` · ${answer.finwizTier.toLowerCase()} depth` : ""}</span>
-            <small>{answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small>
-          </div>
-          <FinwizAnswer answer={answer.answer} />
-
-          {answer.suggestedQuestions.length > 0 && <div className={styles.suggestions}>
-            {answer.suggestedQuestions.map((suggestion) => <button
-              type="button"
-              key={suggestion}
-              onClick={() => {
-                setQuestion(suggestion);
-                document.getElementById("finwiz-question")?.focus();
-              }}
-            >{suggestion}<span>↗</span></button>)}
-          </div>}
-
-        </div>
+        <p className={styles.thinking} role="status">Finwiz is thinking…</p>
       </div>}
 
       <div ref={end} />
