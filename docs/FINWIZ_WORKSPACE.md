@@ -14,11 +14,13 @@ Stock detail Buy/Sell actions appear in the right column below Research note and
 
 ## Deployment configuration
 
-UI delivery does not change server flags. These are independent of permission to edit this repository:
+Production Compose defaults both trading switches to true:
 
-- `STOXSIM_BSE_EQUITIES_ENABLED=true` enables BSE cash discovery and eligible simulation after instrument sync and verified provider acceptance.
-- `STOXSIM_INDEX_DERIVATIVES_ENABLED=true` enables the virtual F&O lifecycle after the real-provider checks in [VIRTUAL_DERIVATIVES.md](VIRTUAL_DERIVATIVES.md).
+- `STOXSIM_BSE_EQUITIES_ENABLED` enables BSE cash discovery and eligible simulation.
+- `STOXSIM_INDEX_DERIVATIVES_ENABLED` enables virtual F&O.
 
-Both flags must be set in the actual deployment environment. A successful merge/build alone does not alter its environment. No configured Upstox credential or production connection was available in the implementation workspace, so automated provider scenarios are fixtures, not live acceptance. No paid service was added.
+An explicit value in the host's production `.env` overrides the default. Deployments preserve that file. Change existing `false` values to `true` or remove those entries before redeploying if you want both features enabled. Local development and staging remain opt-in.
+
+Provider confirmation was reported by the owner. Verify the deployed BSE instrument sync, quotes and candle history, and follow the [virtual F&O verification steps](VIRTUAL_DERIVATIVES.md) with the actual provider credentials. Automated provider scenarios use fixtures.
 
 Official API reference: [Upstox intraday V3](https://upstox.com/developer/api-documentation/v3/get-intra-day-candle-data/).
