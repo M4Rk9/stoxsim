@@ -1,20 +1,22 @@
 import { expect, test } from "@playwright/test";
-import { candlePattern, orderedCandles, type PriceCandle } from "../app/lib/candle-patterns";
-
-const bar = (day: string, open: number, high: number, low: number, close: number): PriceCandle =>
-  ({ timestamp: day + "T05:00:00Z", open, high, low, close });
-const zone = "Asia/Kolkata";
-const today = "2026-11-07";
-
-test("educational markers require valid completed daily candles and adjacent sessions", () => {
-  const red = bar("2026-11-04", 110, 111, 99, 100);
-  const green = bar("2026-11-05", 98, 112, 97, 111);
-  const bearish = bar("2026-11-06", 112, 114, 95, 97);
-  expect(candlePattern(green, red, zone, today)).toBe("Bullish engulfing");
-  expect(candlePattern(bearish, green, zone, today)).toBe("Bearish engulfing");
-  expect(candlePattern(bearish, red, zone, today)).toBeNull();
-  expect(candlePattern(green, red, zone, "2026-11-05")).toBeNull();
-  expect(candlePattern(bar("2026-11-06", 100, 111, 90, 101), undefined, zone, today)).toBe("Doji");
-  expect(candlePattern(bar("2026-11-06", 100, 102.5, 93, 102), undefined, zone, today)).toBe("Hammer");
-  expect(orderedCandles([green, red, red, bar("2026-11-06", 10, 9, 3, 7)])).toEqual([red, green]);
+import { orderedCandles } from "../app/lib/candle-patterns";
+import { chartQuery, chartRanges, rangeLabel, visibleCandles } from "../app/lib/chart-ranges";
+const bar = (timestamp: string, close = 100) => ({ timestamp, open:100, high:110, low:90, close });
+test("chart data rejects invalid bars and deduplicates without filling gaps", () => {
+  const first = bar("2026-11-05T04:00:00Z"), last = bar("2026-11-09T04:00:00Z");
+  expect(orderedCandles([last, first, first, bar("invalid"), bar(last.timestamp, NaN), {...last, high:95}])).toEqual([first,last]);
+});
+test("ranges use bounded provider intervals and exchange dates", () => {
+  const now = new Date("2026-11-05T23:00:00Z");
+  expect(chartRanges.map(rangeLabel)).toEqual(["1D","1W","1M","6M","1Y","3Y","5Y"]);
+  expect(chartQuery("1D","BSE",now)).toBe("interval=ONE_MINUTE&from=2026-10-27&to=2026-11-06");
+  expect(chartQuery("1W","NSE",now)).toBe("interval=FIFTEEN_MINUTES&from=2026-10-30&to=2026-11-06");
+  expect(chartQuery(60,"NSE",now)).toContain("interval=ONE_WEEK&from=2021-11-06");
+  expect(chartQuery(1,"NSE",new Date("2024-03-31T12:00:00Z"))).toContain("from=2024-02-29");
+  expect(chartQuery("1D","NASDAQ",now)).toContain("to=2026-11-05");
+});
+test("one day keeps only the latest available exchange session", () => {
+  const before = bar("2026-11-05T18:00:00Z"), after = bar("2026-11-05T18:45:00Z");
+  expect(visibleCandles([after,before],"1D","BSE")).toEqual([after]);
+  expect(visibleCandles([],"1D","BSE")).toEqual([]);
 });

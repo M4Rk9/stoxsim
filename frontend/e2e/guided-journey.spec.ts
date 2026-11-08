@@ -134,6 +134,7 @@ for (const width of [320, 768, 1440]) {
     await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeHidden();
     await page.addStyleTag({ content: "html { font-size: 125%; }" });
     if (width === 320) await page.setViewportSize({ width, height: 430 });
+    await question.fill("Explain diversification");
     await question.focus();
     await question.press("Tab");
     await expect(send).toBeFocused();

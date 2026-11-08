@@ -1,3 +1,4 @@
+import LearningMap from "./LearningMap";
 import styles from "./learn.module.css";
 import DecisionReflections from "../components/DecisionReflections";
 
@@ -10,6 +11,7 @@ export default function LearnPage() {
       <a href="/finwiz"><h2>Finwiz AI</h2><p>Ask for an educational explanation of a financial concept.</p><strong>Ask Finwiz →</strong></a>
       <a href="/scenario-lab"><h2>Scenario Lab</h2><p>Explore a what-if with your simulated portfolio.</p><strong>Explore scenarios →</strong></a>
     </section>
+    <LearningMap />
     <DecisionReflections />
   </main>;
 }

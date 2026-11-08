@@ -12,7 +12,7 @@ import { financialValue } from "../../../lib/financial-units";
 import styles from "./stock.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-type ChartRange = 1 | 3 | 6 | 12 | 36 | 60;
+import { chartRanges, rangeLabel, chartQuery, intervalLabel, visibleCandles, type ChartRange } from "../../../lib/chart-ranges";
 type FinancialPeriod = "quarterly" | "yearly";
 
 interface StoredSession {
@@ -189,12 +189,6 @@ function refreshSession(): Promise<StoredSession> {
   return tracked;
 }
 
-function monthsAgo(months: number) {
-  const date = new Date();
-  date.setUTCMonth(date.getUTCMonth() - months);
-  return date.toISOString().slice(0, 10);
-}
-
 export default function StockPage() {
   const params = useParams<{ exchange: string; symbol: string }>();
   const exchange = decodeURIComponent(params.exchange).toUpperCase();
@@ -274,11 +268,10 @@ export default function StockPage() {
     let active = true;
     setChartLoading(true);
     setChartError("");
-    const to = new Date().toISOString().slice(0, 10);
     authorized<CandleSeries>(
-      `/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}/candles?interval=ONE_DAY&from=${monthsAgo(range)}&to=${to}`,
+      `/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}/candles?${chartQuery(range, exchange)}`,
     ).then((series) => {
-      if (active) setCandles(series.candles ?? []);
+      if (active) setCandles(visibleCandles(series.candles ?? [], range, exchange));
     }).catch((cause) => {
       if (!active) return;
       setCandles([]);
@@ -360,29 +353,22 @@ export default function StockPage() {
         </div>
       </section>
 
-      <div className={styles.tradeActions} aria-label="Virtual trading">
-        {["EQUITY", "ETF"].includes(instrument.instrumentType) ? <>
-          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "BUY")}>Buy</a>
-          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "SELL")}>Sell</a>
-          <span>Virtual orders only</span>
-        </> : <span>This listing is unavailable for equity practice orders.</span>}
-      </div>
       <PricingNotice source={quote.pricingSource} />
       <section className={styles.grid}>
         <div className={styles.stack}>
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Price history</h2><p>{instrument.provider === "ALPACA" ? "Daily price history from Alpaca" : "Daily price history from Upstox"}</p></div>
+              <div><h2>Price history</h2><p>{instrument.provider === "ALPACA" ? `${intervalLabel(range)} price history from Alpaca` : `${intervalLabel(range)} price history from Upstox`}</p></div>
               <div className={styles.rangeTabs}>
-                {([1, 3, 6, 12, 36, 60] as const).map((months) => <button
+                {chartRanges.map((months) => <button
                   type="button"
                   key={months}
                   className={range === months ? styles.active : ""}
                   onClick={() => setRange(months)}
-                >{months >= 12 ? `${months / 12}Y` : `${months}M`}</button>)}
+                >{rangeLabel(months)}</button>)}
               </div>
             </div>
-            <PriceHistoryChart key={`${exchange}/${symbol}`} candles={candles} loading={chartLoading} error={chartError} currency={currency} exchange={exchange} provider={instrument.provider === "ALPACA" ? "Alpaca" : "Upstox"} />
+            <PriceHistoryChart interval={intervalLabel(range)} key={`${exchange}/${symbol}`} candles={candles} loading={chartLoading} error={chartError} currency={currency} exchange={exchange} provider={instrument.provider === "ALPACA" ? "Alpaca" : "Upstox"} />
           </article>
 
           <article className={styles.card}>
@@ -444,6 +430,16 @@ export default function StockPage() {
                 Compare price trend, valuation ratios and financial performance. StoxSim is an educational simulator; this information is not investment advice.
               </p>
             </div>
+          </article>
+          <article className={styles.card}>
+            <div className={styles.cardHeader}><div><h2>Practise a trade</h2><p>Open a ticket for this exact listing</p></div></div>
+      <div className={styles.tradeActions} aria-label="Virtual trading">
+        {["EQUITY", "ETF"].includes(instrument.instrumentType) ? <>
+          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "BUY")}>Buy</a>
+          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "SELL")}>Sell</a>
+          <span>Virtual orders only</span>
+        </> : <span>This listing is unavailable for equity practice orders.</span>}
+      </div>
           </article>
         </aside>
       </section>

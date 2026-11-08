@@ -460,7 +460,7 @@ test("a verified learner can request campus institution verification", async ({ 
   await expect(page.getByText(/Birla Institute of Technology, Mesra · submitted/)).toBeVisible();
 });
 
-test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
+test("Learn topics open Finwiz with a clean, accessible answer", async ({ page }) => {
   test.setTimeout(150_000);
   await registerLearner(page, "finwiz");
 
@@ -488,12 +488,14 @@ test("Finwiz reactor renders a clean, accessible answer", async ({ page }) => {
   await page.getByRole("link", { name: "Ask Finwiz AI" }).click();
   await expect(page.getByRole("heading", { name: "FINWIZ AI" })).toBeVisible();
   await expect(page.getByLabel("Your question")).toBeVisible();
-  await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeHidden();
-  await page.getByText("Explore the learning map", { exact: true }).click();
-  await expect(page.getByRole("img", { name: "Interactive Finwiz topic selector" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeVisible();
-  await page.getByRole("button", { name: "Select Technical analysis" }).focus();
-  await expect(page.getByRole("button", { name: "Select Technical analysis" })).toBeFocused();
+  await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Learning map", exact: false }).first().click();
+  await expect(page).toHaveURL(/[/]learn#learning-map$/);
+  const technical = page.locator('#learning-map a[href="/finwiz?topic=TECHNICAL_ANALYSIS"]');
+  await technical.focus();
+  await expect(technical).toBeFocused();
+  await technical.press("Enter");
+  await expect(page.getByLabel("Your question")).toHaveValue(/Explain technical analysis/);
 
   await page.getByLabel("Your question").fill("How should a beginner evaluate valuation?");
   await page.getByRole("button", { name: "Ask Finwiz" }).click();

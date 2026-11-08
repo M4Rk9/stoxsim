@@ -268,6 +268,21 @@ class StoxSimApiTest {
         val body = JSONObject(server.takeRequest().body.readUtf8())
         assertEquals("UNITED_STATES", body.getString("marketRegion")); assertEquals("NYSE_ARCA", body.getString("exchange")); assertEquals("SPY", body.getString("symbol"))
     }
+    @Test fun candleHistoryKeepsBseIdentityAndAcceptsCurrentSessionOhlc() = runBlocking {
+        server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("""{"candles":[
+          {"timestamp":"2026-11-05T03:45:00Z","open":100,"high":110,"low":98,"close":108,"volume":100},
+          {"timestamp":"2026-11-06T03:45:00Z","open":108,"high":112,"low":106,"close":111,"volume":400}
+        ]}"""))
+        val candles = api.candles(Instrument("RELIANCE", "Example", "BSE"), 1)
+        assertEquals(2, candles.size)
+        assertEquals("2026-11-06T03:45:00Z", candles.last().at)
+        assertEquals(java.math.BigDecimal("111"), candles.last().close)
+        val url = server.takeRequest().requestUrl!!
+        assertEquals("/api/v1/instruments/INDIA/BSE/RELIANCE/candles", url.encodedPath)
+        assertEquals("ONE_DAY", url.queryParameter("interval"))
+    }
+
     @Test fun financialPeriodRequestsKeepQuarterlyAndYearlySeparate() = runBlocking {
         server.enqueue(session("initial")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
         val stock = Instrument("RELIANCE", "Example", "BSE")

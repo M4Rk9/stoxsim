@@ -123,7 +123,7 @@ public class UpstoxMarketDataProvider implements MarketDataProvider {
     ) {
         validate(instrument);
         UpstoxCandleInterval upstoxInterval = UpstoxCandleInterval.from(interval);
-        return historicalCandles.getCandles(
+        return historicalCandles.getRange(
             instrument.value(),
             upstoxInterval.unit(),
             upstoxInterval.interval(),

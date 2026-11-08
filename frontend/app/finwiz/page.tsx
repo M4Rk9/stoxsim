@@ -1,10 +1,10 @@
 "use client";
 
-import { FeatureGuide } from "../components/FeatureJourney";
 
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import FinwizAnswer from "./FinwizAnswer";
-import FinwizReactor, { Topic, TopicDefinition, topics } from "./FinwizReactor";
+import { Topic, topics } from "./FinwizReactor";
 import styles from "./finwiz.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -32,6 +32,8 @@ interface FinwizResponse {
   disclaimer: string;
   finwizTier?: string;
 }
+
+interface Chat { id: string; title: string; turns: { question: string; answer: FinwizResponse }[]; }
 
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -62,7 +64,16 @@ export default function FinwizPage() {
   const [symbol, setSymbol] = useState("");
   const [question, setQuestion] = useState(topics[0].prompt);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
-  const [answer, setAnswer] = useState<FinwizResponse | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeId, setActiveId] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [storageError, setStorageError] = useState("");
+  const [clearPending, setClearPending] = useState(false);
+  const busy = useRef(false);
+  const historyToggle = useRef<HTMLButtonElement>(null);
+  const historyPanel = useRef<HTMLElement>(null);
+  const end = useRef<HTMLDivElement>(null);
+  const current = chats.find(chat => chat.id === activeId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -73,8 +84,14 @@ export default function FinwizPage() {
       return;
     }
     setSession(active);
+    try {
+      const saved = JSON.parse(localStorage.getItem(`stoxsim-finwiz:${active.user.email}`) ?? "[]");
+      if (Array.isArray(saved)) setChats(saved.filter(chat => typeof chat.id === "string" && typeof chat.title === "string" && Array.isArray(chat.turns) && chat.turns.every((turn: Chat["turns"][number]) => typeof turn.question === "string" && typeof turn.answer?.answer === "string" && Array.isArray(turn.answer.suggestedQuestions) && turn.answer.suggestedQuestions.every(item => typeof item === "string"))).slice(0, 30));
+    } catch { /* Ignore corrupt or unavailable device storage. */ }
 
     const searchParams = new URLSearchParams(window.location.search);
+    const requestedTopic = topics.find(item => item.id === searchParams.get("topic"));
+    if (requestedTopic) { setTopic(requestedTopic.id); setQuestion(requestedTopic.prompt); }
     const requestedRegion = searchParams.get("marketRegion");
     const requestedExchange = searchParams.get("exchange");
     const requestedSymbol = searchParams.get("symbol");
@@ -93,19 +110,41 @@ export default function FinwizPage() {
   }, []);
 
   useEffect(() => {
-    setExchange(marketRegion === "INDIA" ? "NSE" : "NASDAQ");
-  }, [marketRegion]);
-
+    const view = window.visualViewport;
+    const resize = () => document.documentElement.style.setProperty("--finwiz-height", `${view?.height ?? innerHeight}px`);
+    resize(); view?.addEventListener("resize", resize);
+    return () => view?.removeEventListener("resize", resize);
+  }, []);
+  useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [chats, activeId, loading]);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const panel = historyPanel.current, toggle = historyToggle.current;
+    panel?.querySelector<HTMLElement>("a,button:not(:disabled)")?.focus();
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (!window.matchMedia("(max-width:700px)").matches) return;
+      if (event.key === "Escape") { setHistoryOpen(false); toggle?.focus(); }
+      if (event.key !== "Tab" || !panel || !toggle) return;
+      const items = [...panel.querySelectorAll<HTMLElement>("a,button:not(:disabled)"), toggle];
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [historyOpen]);
+  function persist(next: Chat[]) {
+    setChats(next);
+    try { localStorage.setItem(`stoxsim-finwiz:${session?.user.email}`, JSON.stringify(next)); setStorageError(""); }
+    catch { setStorageError("History could not be saved on this device."); }
+  }
+  function newChat() {
+    setActiveId(""); setSubmittedQuestion(""); setQuestion(""); setError(""); setHistoryOpen(false);
+    requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());
+  }
   const selectedTopic = useMemo(
     () => topics.find((item) => item.id === topic) ?? topics[0],
     [topic],
   );
-
-  function selectTopic(next: TopicDefinition) {
-    setTopic(next.id);
-    setQuestion(next.prompt);
-    setError("");
-  }
 
   async function authorized(path: string, init: RequestInit): Promise<Response> {
     let active = readSession();
@@ -150,11 +189,11 @@ export default function FinwizPage() {
   async function ask(event: FormEvent) {
     event.preventDefault();
     const nextQuestion = question.trim();
-    if (!nextQuestion || loading) return;
+    if (!nextQuestion || busy.current) return;
+    busy.current = true;
 
     setLoading(true);
     setError("");
-    setAnswer(null);
     setSubmittedQuestion(nextQuestion);
 
     try {
@@ -174,7 +213,10 @@ export default function FinwizPage() {
       });
       if (!response.ok) throw new ApiError(await parseError(response), response.status);
 
-      setAnswer(await response.json() as FinwizResponse);
+      const result = await response.json() as FinwizResponse;
+      const chat = current ?? { id: crypto.randomUUID(), title: nextQuestion.slice(0, 80), turns: [] };
+      persist([{ ...chat, turns: [...chat.turns, { question: nextQuestion, answer: result }].slice(-50) }, ...chats.filter(item => item.id !== chat.id)].slice(0, 30));
+      setActiveId(chat.id); setSubmittedQuestion(""); setQuestion(draft => draft.trim() === nextQuestion ? "" : draft);
       window.requestAnimationFrame(() => {
         document.getElementById("finwiz-response")?.scrollIntoView({
           behavior: "smooth",
@@ -184,12 +226,12 @@ export default function FinwizPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Finwiz could not answer right now.");
     } finally {
-      setLoading(false);
+      setLoading(false); busy.current = false;
     }
   }
 
   function handleQuestionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
     }
@@ -198,55 +240,53 @@ export default function FinwizPage() {
   if (!session) return null;
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
-    <div className={styles.gridBackdrop} aria-hidden="true" />
+    <aside ref={historyPanel} id="chat-history" className={`${styles.sidebar} ${historyOpen ? styles.open : ""}`} aria-label="Chat history">
+      <a href="/" className={styles.brand}>StoxSim</a>
+      <button disabled={loading} onClick={newChat}>+ New chat</button><h2>Recent chats</h2>
+      <div className={styles.historyList}>{!chats.length && <p>Your conversations will appear here.</p>}{chats.map(chat => <button key={chat.id} disabled={loading} aria-current={activeId === chat.id ? "page" : undefined} onClick={() => {
+        setActiveId(chat.id); setSubmittedQuestion(""); setError(""); setQuestion(""); setHistoryOpen(false); requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());
+      }}>{chat.title}</button>)}</div>
+      <a href="/learn#learning-map">Learning map ↗</a><a href="/">← Dashboard</a>
+      <p>Last 30 chats saved on this device for your account.</p>
+      <button disabled={loading || !chats.length} onClick={() => { if (!clearPending) { setClearPending(true); return; } persist([]); newChat(); setClearPending(false); }}>{clearPending ? "Confirm clear history" : "Clear history"}</button>
+      {clearPending && <button onClick={() => setClearPending(false)}>Cancel</button>}
+    </aside><div className={styles.workspace}>
     <header className={styles.header}>
       <a className={styles.backLink} href="/" aria-label="Back to dashboard">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m15 5-7 7 7 7" />
         </svg>
       </a>
-      <h1>Finwiz AI</h1>
+      <h1>Finwiz AI</h1><button ref={historyToggle} aria-controls="chat-history" className={styles.historyToggle} aria-expanded={historyOpen} onClick={() => setHistoryOpen(!historyOpen)}>{historyOpen ? "Close history" : "Chat history"}</button>
     </header>
 
-    {(submittedQuestion || answer || error) && <section className={styles.conversation} id="finwiz-response" aria-live="polite">
+    <section className={styles.conversation} id="finwiz-response" aria-live="polite">
+      {!current && !submittedQuestion && <div className={styles.welcome}><span>YOUR LEARNING COMPANION</span><h2>What would you like to understand?</h2><p>Explore markets, make sense of a company, or learn from your paper trades.</p><a href="/learn#learning-map">Find a topic in your learning map →</a></div>}
+      {current?.turns.map((turn, index) => <article key={index}>
+        <div className={styles.userMessage}><div>{turn.question}</div></div>
+        <div className={styles.assistantMessage}><div className={styles.assistantMark}>F</div><div className={styles.assistantBody}>
+          <div className={styles.answerMeta}><strong>Finwiz{turn.answer.finwizTier ? ` · ${turn.answer.finwizTier.toLowerCase()} depth` : ""}</strong><small>{turn.answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small></div>
+          <FinwizAnswer answer={turn.answer.answer} />
+          <p className={styles.disclaimer}>{turn.answer.disclaimer}</p>
+          {index === current.turns.length - 1 && <div className={styles.suggestions}>{turn.answer.suggestedQuestions.map(item => <button key={item} onClick={() => { setQuestion(item); document.getElementById("finwiz-question")?.focus(); }}>{item} ↗</button>)}</div>}
+        </div></div>
+      </article>)}
       {submittedQuestion && <div className={styles.userMessage}>
         <div>{submittedQuestion}</div>
       </div>}
 
       {loading && <div className={styles.assistantMessage}>
         <div className={styles.assistantMark} aria-hidden="true">F</div>
-        <div className={styles.thinking}><span /><span /><span /></div>
+        <p className={styles.thinking} role="status">Finwiz is thinking…</p>
       </div>}
 
-      {answer && <div className={styles.assistantMessage}>
-        <div className={styles.assistantMark} aria-hidden="true">F</div>
-        <div className={styles.assistantBody}>
-          <div className={styles.answerMeta}>
-            <span>{selectedTopic.label}{answer.finwizTier ? ` · ${answer.finwizTier.toLowerCase()} depth` : ""}</span>
-            <small>{answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small>
-          </div>
-          <FinwizAnswer answer={answer.answer} />
-
-          {answer.suggestedQuestions.length > 0 && <div className={styles.suggestions}>
-            {answer.suggestedQuestions.map((suggestion) => <button
-              type="button"
-              key={suggestion}
-              onClick={() => {
-                setQuestion(suggestion);
-                document.getElementById("finwiz-question")?.focus();
-              }}
-            >{suggestion}<span>↗</span></button>)}
-          </div>}
-
-        </div>
-      </div>}
-
+      <div ref={end} />
       {error && <div className={styles.error} role="alert">{error}</div>}
-    </section>}
+    </section>
 
     <div className={styles.composerDock} id="finwiz-composer">
       <form className={styles.composer} onSubmit={ask}>
-        <div className={styles.contextBar}>
+        <details className={styles.contextSettings}><summary>Learning context · {selectedTopic.label}</summary><div className={styles.contextBar}>
           <span className={styles.contextTopic}>{selectedTopic.shortLabel}</span>
 
           <label className={styles.contextControl}>
@@ -266,7 +306,7 @@ export default function FinwizPage() {
             <select
               aria-label="Market"
               value={marketRegion}
-              onChange={(event) => setMarketRegion(event.target.value as MarketRegion)}
+              onChange={(event) => { setMarketRegion(event.target.value as MarketRegion); setExchange(event.target.value === "INDIA" ? "NSE" : "NASDAQ"); }}
             >
               <option value="INDIA">India</option>
               <option value="UNITED_STATES">United States</option>
@@ -301,7 +341,7 @@ export default function FinwizPage() {
           </label>
         </div>
 
-        <div className={styles.inputRow}>
+        </details><div className={styles.inputRow}>
           <textarea
             id="finwiz-question"
             className={styles.questionInput}
@@ -333,18 +373,7 @@ export default function FinwizPage() {
       </form>
     </div>
 
-    <div className={styles.learning}>
-      <FeatureGuide title="Learn from your first trade">Ask how charges and diversification affect your portfolio. After your first trade executes, continue to Scenario Lab to explore a market fall.</FeatureGuide>
-      <details className={styles.map}>
-        <summary>Explore the learning map</summary>
-        <p>Choose a topic to load a suggested question.</p>
-        <section className={styles.skillViewport} aria-label="Finwiz learning modules">
-          <FinwizReactor selected={topic} onSelect={next => {
-            selectTopic(next);
-            document.getElementById("finwiz-question")?.focus();
-          }} />
-        </section>
-      </details>
+    <p className={styles.disclaimer}>{storageError || "Educational explanations, not investment advice. Check important information."}</p>
     </div>
   </main>;
 }

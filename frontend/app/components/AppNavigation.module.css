@@ -8,3 +8,4 @@
 
 .nav.inFlow { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto max(12px, env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 350px) { .nav.inFlow { grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); } }
+@media (max-width: 350px) { .nav a { font-size:11px; padding-inline:1px; } }

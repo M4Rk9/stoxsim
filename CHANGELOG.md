@@ -11,6 +11,13 @@ All notable changes to StoxSim will be documented in this file. The project foll
 
 ## [Unreleased]
 
+- Enable BSE equities and virtual index derivatives by default in production Compose. Explicit host environment settings still override both defaults.
+
+- Add 1D/1W/1M/6M/1Y/3Y/5Y chart ranges, current-session Upstox candles and evenly spaced verified OHLC; remove pattern controls.
+- Move stock detail order actions below Research note and expose BSE availability and a separate-tab F&O workspace from Markets.
+
+- Redesign Finwiz with the app theme, device-local chat history and a dedicated composer; move topic discovery to Learn and remove Finwiz bottom navigation.
+
 - Add a gated virtual NSE index Futures & Options workspace with its own wallet, positions, quotes, and expiry settlement.
 
 - Add a gated BSE equity search filter, exchange-specific practice orders, and a versioned BSE delivery fee model.

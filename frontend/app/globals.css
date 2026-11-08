@@ -535,3 +535,9 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
 
 .cashExchangeFilter { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: .8rem; color: var(--muted); }
 .cashExchangeFilter select { padding: 5px 8px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; }
+
+.derivativesDiscovery { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; margin-bottom:24px; }
+.derivativesDiscovery h2 { margin:6px 0; }.derivativesDiscovery p,.derivativesDiscovery small,.marketAvailability { color:var(--muted); line-height:1.6; }
+.derivativesDiscovery .primaryLink { color:var(--panel); background:var(--green-dark); padding:12px 18px; border-radius:10px; text-decoration:none; font-weight:700; }
+.derivativesDiscovery .primaryLink span { font-size:.8rem; font-weight:400; }
+.derivativesDiscovery a:focus-visible { outline:3px solid var(--green); outline-offset:3px; }

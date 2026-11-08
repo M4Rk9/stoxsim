@@ -10,3 +10,5 @@
 .grid strong { color: var(--green); }
 .grid a:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
 @media(max-width: 650px) { .shell { padding-inline: 18px; } .grid { grid-template-columns: 1fr; } }
+
+.learningMap { margin: 32px 0; scroll-margin-top: 24px; }.learningMap .grid { grid-template-columns: repeat(2,minmax(0,1fr)); } @media(max-width:650px) { .learningMap .grid { grid-template-columns:1fr; } }
