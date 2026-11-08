@@ -54,3 +54,23 @@ for (const width of [320,768,1440]) test(`Finwiz theme and keyboard layout at ${
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await info.attach(`finwiz-enlarged-${width}`,{body:await page.screenshot({path:info.outputPath(`finwiz-enlarged-${width}.png`)}),contentType:"image/png"});
 });
+
+test("Finwiz preserves a follow-up draft while an answer is loading", async ({ page }) => {
+  await setup(page);
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/v1/finwiz/ask", async route => {
+    await pending;
+    await route.fallback();
+  });
+  await page.goto("/finwiz");
+  const input = page.getByLabel("Your question");
+  await input.fill("What is a share?");
+  await page.getByRole("button", { name: "Ask Finwiz", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Finwiz is thinking…");
+  await input.fill("How does diversification work?");
+  release();
+  await expect(page.getByText("A share represents ownership.")).toBeVisible();
+  await expect(input).toHaveValue("How does diversification work?");
+  await expect(page.getByRole("button", { name: "Ask Finwiz", exact: true })).toBeEnabled();
+});

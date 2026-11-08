@@ -216,7 +216,7 @@ export default function FinwizPage() {
       const result = await response.json() as FinwizResponse;
       const chat = current ?? { id: crypto.randomUUID(), title: nextQuestion.slice(0, 80), turns: [] };
       persist([{ ...chat, turns: [...chat.turns, { question: nextQuestion, answer: result }].slice(-50) }, ...chats.filter(item => item.id !== chat.id)].slice(0, 30));
-      setActiveId(chat.id); setSubmittedQuestion(""); setQuestion("");
+      setActiveId(chat.id); setSubmittedQuestion(""); setQuestion(draft => draft.trim() === nextQuestion ? "" : draft);
       window.requestAnimationFrame(() => {
         document.getElementById("finwiz-response")?.scrollIntoView({
           behavior: "smooth",
