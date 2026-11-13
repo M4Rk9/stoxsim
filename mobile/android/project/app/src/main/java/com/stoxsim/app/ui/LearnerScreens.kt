@@ -2,11 +2,13 @@ package com.stoxsim.app.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.Manifest
@@ -130,7 +132,12 @@ import org.json.JSONObject
     state.lists["reflections"].orEmpty().forEach { item -> Panel(title = item.text("reason")) {
         item.optJSONObject("plan")?.let { plan ->
             listOf("symbol" to "Symbol", "exchange" to "Exchange", "horizon" to "Horizon", "target" to "Target", "invalidation" to "Invalidation", "reviewOn" to "Review date").forEach { (key, label) ->
-                plan.text(key).takeIf { it.isNotBlank() }?.let { Text("$label: $it") }
+                plan.text(key).takeIf { it.isNotBlank() }?.let { value ->
+                    val readable = if (key == "reviewOn") runCatching {
+                        java.time.LocalDate.parse(value).format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
+                    }.getOrDefault(value) else value
+                    Text("$label: $readable")
+                }
             }
         }
         if (item.text("reviewedAt").isNotBlank()) Muted("Reviewed ${time(item.text("reviewedAt"))}")
@@ -199,7 +206,11 @@ import org.json.JSONObject
                 isError = key == "reviewOn" && !validDate) }
             fields.forEach { (key, label) -> OutlinedTextField(values.getValue(key).value, { values.getValue(key).value = it.take(2000) },
                 label = { Text(label) }, supportingText = { Text("${values.getValue(key).value.length}/2000") }, modifier = Modifier.fillMaxWidth(), minLines = 2, enabled = !working) }
-            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(completeReview, { completeReview = it }, enabled = !working); Text("Complete review after recording what I learned") }
+            Row(Modifier.fillMaxWidth().toggleable(value = completeReview, enabled = !working, role = Role.Checkbox,
+                onValueChange = { completeReview = it }), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(completeReview, onCheckedChange = null, enabled = !working)
+                Text("Complete review after recording what I learned")
+            }
         } },
         confirmButton = { TextButton({ save(reflectionPayload(values.getValue("reason").value, values.getValue("assumptions").value,
             values.getValue("risks").value, values.getValue("expectedOutcome").value, values.getValue("reflection").value,

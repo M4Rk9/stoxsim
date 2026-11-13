@@ -97,6 +97,11 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     expect(resultBox!.y).toBeGreaterThanOrEqual(formBox!.y + formBox!.height);
     for (const button of await results.getByRole("button").all()) expect(await button.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await testInfo.attach("stock-search-suggestions", { body: await results.locator("..").screenshot(), contentType: "image/png" });
+    if ((width === 390 && dark) || (width === 1280 && !dark)) {
+      await input.fill("");
+      await page.evaluate(() => { const banner = document.createElement("p"); banner.textContent = "REVIEW FIXTURE · Synthetic account data · Not production"; banner.style.cssText = "padding:12px;background:#263c31;color:#fff;font:14px system-ui;margin:0"; document.body.prepend(banner); });
+      await testInfo.attach(`research-home-${width}-${dark ? "dark" : "light"}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    }
   });
 }
 
