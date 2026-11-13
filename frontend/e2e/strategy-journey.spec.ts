@@ -65,7 +65,7 @@ for (const [width, dark] of [[390, true], [1440, true], [1440, false]] as const)
     expect(await page.evaluate(() => Object.keys(localStorage).some(k => /journal|reflection/.test(k)))).toBe(false);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.locator("form").first().evaluate(el => el.closest("details")?.removeAttribute("open"));
-    await page.evaluate(() => { const banner = document.createElement("p"); banner.textContent = "REVIEW FIXTURE · Synthetic account and order data · Not production"; banner.style.cssText = "padding:12px;background:#263c31;color:#fff;font:14px system-ui;margin:0"; document.body.prepend(banner); });
+    await page.evaluate(() => { const banner = document.createElement("p"); banner.textContent = "REVIEW FIXTURE · Synthetic account and order data · Not production"; banner.style.cssText = "padding:12px;background:#263c31;color:#fff;font:14px system-ui;margin:0"; (document.querySelector(".dashboardHeading") ?? document.querySelector("main > div"))?.before(banner); if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); window.scrollTo({ top: 0, behavior: "instant" }); });
     const screenshot = await page.screenshot({ fullPage: true });
     await test.info().attach(`journal-${width}-${dark ? "dark" : "light"}.png`, { body: screenshot, contentType: "image/png" });
   });

@@ -1431,6 +1431,7 @@ export default function Home() {
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
+      <ResearchHome userId={session.user.id} />
       {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
       <section className="metricGrid" aria-busy={loading}>
         <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
@@ -1440,7 +1441,6 @@ export default function Home() {
       </section>
 
 
-      <ResearchHome userId={session.user.id} />
       <HomeRecommendation userId={session.user.id} />
       <Notifications compact />
       <FeatureJourney userId={session.user.id} onboarding={onboarding}

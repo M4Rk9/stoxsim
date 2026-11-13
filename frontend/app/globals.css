@@ -448,9 +448,12 @@ footer { margin: 28px 0 22px; padding-top: 18px; border-top: 1px solid var(--lin
   .profileBlock { grid-column: 2; }
   .dashboardHeading { align-items: flex-start; gap: 15px; }
   .dataBadge { margin-top: 5px; }
-  .metricGrid { grid-template-columns: 1fr; }
-  .metric { border-right: 0; border-bottom: 1px solid var(--line); }
-  .metric:last-child { border-bottom: 0; }
+  .metricGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric { padding: 16px 12px; min-width: 0; border-right: 1px solid var(--line); }
+  .metric:nth-child(2n) { border-right: 0; }
+  .metric:nth-child(n+3) { border-bottom: 0; }
+  .metric strong { overflow-wrap: anywhere; }
+  .metric > span, .metric small { font-size: 12px; line-height: 1.5; }
   .rightRail { grid-template-columns: 1fr; }
   .moversHeader { display: grid; gap: 12px; }
   .moversMeta { justify-items: start; text-align: left; }

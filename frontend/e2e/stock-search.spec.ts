@@ -99,7 +99,7 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     await testInfo.attach("stock-search-suggestions", { body: await results.locator("..").screenshot(), contentType: "image/png" });
     if ((width === 390 && dark) || (width === 1280 && !dark)) {
       await input.fill("");
-      await page.evaluate(() => { const banner = document.createElement("p"); banner.textContent = "REVIEW FIXTURE · Synthetic account data · Not production"; banner.style.cssText = "padding:12px;background:#263c31;color:#fff;font:14px system-ui;margin:0"; document.body.prepend(banner); });
+      await page.evaluate(() => { const banner = document.createElement("p"); banner.textContent = "REVIEW FIXTURE · Synthetic account data · Not production"; banner.style.cssText = "padding:12px;background:#263c31;color:#fff;font:14px system-ui;margin:0"; (document.querySelector(".dashboardHeading") ?? document.querySelector("main > div"))?.before(banner); if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); window.scrollTo({ top: 0, behavior: "instant" }); });
       await testInfo.attach(`research-home-${width}-${dark ? "dark" : "light"}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     }
   });
