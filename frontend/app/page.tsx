@@ -1055,7 +1055,7 @@ export default function Home() {
         }),
       });
       setWatchlist(next);
-      setNotice(`${selected.tradingSymbol} added to your live watchlist.`);
+      setNotice(`${selected.tradingSymbol} added to your watchlist.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Stock could not be added to your watchlist");
     } finally {
@@ -1110,12 +1110,12 @@ export default function Home() {
         : null;
       if (nextOnboarding) setOnboarding(nextOnboarding);
       setNotice(placedOrder.finwizFeedback
-        ? `${selected.tradingSymbol} executed. FinWiz portfolio feedback is ready below.`
+        ? `${selected.tradingSymbol} executed. Finwiz portfolio feedback is ready below.`
         : wasFirstOrder && nextOnboarding?.firstOrderCompleted
         ? `First paper order submitted for ${selected.tradingSymbol}. Check its status below; the learning journey advances after execution.`
         : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
       const strategyId = new URLSearchParams(window.location.search).get("strategy");
-      if (strategyId && /^[0-9a-f-]{36}$/i.test(strategyId)) {
+      if (strategyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategyId)) {
         try {
           await authorizedRequest(`/api/v1/reflections/${encodeURIComponent(strategyId)}/order`, {
             method: "POST", body: JSON.stringify({ orderId: placedOrder.id }),
@@ -1123,6 +1123,12 @@ export default function Home() {
           setNotice(`Practice order ${placedOrder.status.toLowerCase()}. Linked to your strategy; open Journal to review it.`);
         } catch {
           setNotice("Your practice order was submitted, but its strategy link could not be saved. Do not submit again. Open Journal to link the existing order.");
+        } finally {
+          // Consume this intent after submission, even if linking needs recovery.
+          // A later, unrelated order must not reuse the previous strategy.
+          const url = new URL(window.location.href);
+          url.searchParams.delete("strategy");
+          window.history.replaceState(window.history.state, "", url);
         }
       }
       await loadDashboard(token, activeAccount);

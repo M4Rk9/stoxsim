@@ -2,7 +2,7 @@
 
 import { PortfolioPricingNotice } from "../components/PricingNotice";
 
-import Image from "next/image";
+import Brand from "../components/Brand";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./portfolio.module.css";
 import PortfolioHistory from "./PortfolioHistory";
@@ -265,10 +265,7 @@ export default function PortfolioPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/" aria-label="StoxSim dashboard">
-        <Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
-        <span>Stox<span>Sim</span></span>
-      </a>
+      <Brand />
       <a className={styles.back} href="/">Back to dashboard</a>
     </header>
 

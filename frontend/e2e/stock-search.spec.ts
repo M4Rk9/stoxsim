@@ -220,6 +220,36 @@ test("movers and watchlists open the exact listing, and details prefill the exis
   await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
 });
 
+for (const linkFails of [false, true]) test(`strategy order submission consumes its intent when linking ${linkFails ? "fails" : "succeeds"}`, async ({ page }) => {
+  await setup(page, route => reply(route, []));
+  const strategyId = "55555555-5555-4555-8555-555555555555";
+  const orderId = "66666666-6666-4666-8666-666666666666";
+  let submissions = 0, links = 0;
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY", route => reply(route, stock("INFY")));
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY/quote", route => reply(route,
+    { lastPrice: 1500, previousClose: 1490, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
+  await page.route(`**/api/v1/accounts/${account.id}/orders`, route => {
+    if (route.request().method() !== "POST") return reply(route, []);
+    submissions++;
+    expect(route.request().postDataJSON()).toMatchObject({ exchange: "NSE", symbol: "INFY", side: "BUY" });
+    return reply(route, { id: orderId, status: "OPEN", symbol: "INFY", side: "BUY", quantity: 1 });
+  });
+  await page.route(`**/api/v1/reflections/${strategyId}/order`, route => {
+    if (route.request().method() !== "POST") return reply(route, {});
+    links++;
+    expect(route.request().postDataJSON()).toEqual({ orderId });
+    return reply(route, linkFails ? { message: "Link unavailable" } : {}, linkFails ? 503 : 200);
+  });
+  await page.goto(`/?exchange=NSE&symbol=INFY&side=BUY&strategy=${strategyId}#paper-order-ticket`);
+  const ticket = page.locator("#paper-order-ticket");
+  await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("INFY");
+  await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: linkFails ? "Do not submit again" : "Linked to your strategy" })).toBeVisible();
+  expect(submissions).toBe(1);
+  expect(links).toBe(1);
+  await expect(page).not.toHaveURL(/strategy=/);
+});
+
 test("the quick quote chart switches to OHLC candles and supports keyboard inspection", async ({ page }, testInfo) => {
   const input = await setup(page, route => reply(route, [stock("RELIANCE")]));
   await page.route("**/api/v1/instruments/INDIA/NSE/RELIANCE/quote", route => reply(route,

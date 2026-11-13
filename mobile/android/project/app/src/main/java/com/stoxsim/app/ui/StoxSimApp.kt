@@ -33,9 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -186,8 +183,7 @@ internal fun productTab(screen: String) = when (screen) {
                     }
                 } else {
                     Image(painterResource(R.drawable.stoxsim_logo), null, Modifier.size(34.dp))
-                    val brandColor = MaterialTheme.colorScheme.primary
-                    Text(buildAnnotatedString { append("Stox"); withStyle(SpanStyle(color = brandColor)) { append("Sim") } }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("StoxSim", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
             }
             if (signedIn && state.screen in stockPages) StocksTabs(state.screen, navigate)
@@ -218,7 +214,7 @@ internal fun productTab(screen: String) = when (screen) {
             val base = Modifier.widthIn(max = 640.dp).fillMaxWidth().imePadding()
             Column((if (chat) base.fillMaxSize() else base.verticalScroll(key(state.screen) { rememberScrollState() }))
                 .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen == "Home") 8.dp else if (state.screen == "Finwiz") 12.dp else 16.dp)) {
-                if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab", "Portfolio analysis")) {
+                if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab", "Portfolio analysis", "Reflections")) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
                         IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh ${state.screen}") }

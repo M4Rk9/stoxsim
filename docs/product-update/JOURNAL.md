@@ -21,7 +21,8 @@ It checks both owners, exact symbol/exchange when specified, and rejects replaci
 a different already-linked order. Repeating the same link is safe. It creates no
 order. Web's post-submission link failure tells the learner the order succeeded
 and offers manual linking; it never resubmits the order. One note links one order
-in M1; multiple fills/round-trip attribution are not claimed.
+in M1; multiple fills/round-trip attribution are not claimed. After submission,
+the web strategy intent is removed from the URL so later orders cannot reuse it.
 
 Responses include the owned order's actual status, side, quantity, symbol,
 exchange, currency, execution price and execution time. Pending/rejected orders

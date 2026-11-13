@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Brand from "./Brand";
 import type { ReactNode } from "react";
 import styles from "./LegalDocument.module.css";
 
@@ -18,9 +19,7 @@ export default function LegalDocument({
   return (
     <main className={styles.shell} id="main-content" tabIndex={-1}>
       <header className={styles.header}>
-        <Link className={styles.brand} href="/" aria-label="StoxSim home">
-          Stox<span>Sim</span>
-        </Link>
+        <Brand />
         <Link className={styles.back} href="/">Back to StoxSim</Link>
       </header>
       <article className={styles.document}>

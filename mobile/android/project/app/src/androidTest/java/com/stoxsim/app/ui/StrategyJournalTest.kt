@@ -13,6 +13,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.stoxsim.app.AppState
+import com.stoxsim.app.data.User
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Rule
@@ -65,7 +66,7 @@ class StrategyJournalTest {
         val reviewed = note().put("reflection", "Costs challenged my thesis. A gain alone would not validate it.")
             .put("reviewedAt", "2026-11-13T07:00:00Z").put("orderId", "matching-order")
             .put("linkedOrder", JSONObject("""{"side":"BUY","quantity":2,"symbol":"EXAMPLE","status":"EXECUTED","executionPrice":1500,"currency":"INR"}"""))
-        val state = AppState(restoring = false, screen = "Reflections", dark = dark, lists = mapOf("reflections" to listOf(reviewed)))
+        val state = AppState(restoring = false, user = User("Example Learner", "learner@example.test", true, emptyList()), screen = "Reflections", dark = dark, lists = mapOf("reflections" to listOf(reviewed)))
         compose.setContent { StoxSimTheme(dark) { AppFrame(state, {}, {}) {
             Text("REVIEW FIXTURE · Synthetic data · Not production")
             ReflectionsScreen(state,

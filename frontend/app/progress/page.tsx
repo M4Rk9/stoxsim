@@ -2,7 +2,7 @@
 
 import { FeatureGuide } from "../components/FeatureJourney";
 
-import Image from "next/image";
+import Brand from "../components/Brand";
 import { DAILY_VISIT_EVENT, recordDailyVisit } from "../lib/daily-visit";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./progress.module.css";
@@ -145,10 +145,7 @@ export default function ProgressPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/" aria-label="StoxSim dashboard">
-        <Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
-        <span>Stox<span>Sim</span></span>
-      </a>
+      <Brand />
       <a className={styles.back} href="/">Back to dashboard</a>
     </header>
     <FeatureGuide title="Build a useful learning habit">Review your achievements and choose one unfinished mission for your next visit. Your daily visit is recorded automatically. Explore Competitions when you are ready to practise alongside others.</FeatureGuide>
