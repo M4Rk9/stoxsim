@@ -33,6 +33,11 @@ public class ReflectionController {
     public ReflectionResponse update(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @Valid @RequestBody ReflectionRequest body) {
         return reflections.update(user(jwt), id, body);
     }
+    public record LinkOrderRequest(@NotNull UUID orderId) { }
+    @PostMapping("/{id}/order")
+    public ReflectionResponse linkOrder(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @Valid @RequestBody LinkOrderRequest body) {
+        return reflections.linkOrder(user(jwt), id, body.orderId());
+    }
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) { reflections.delete(user(jwt), id); }
 

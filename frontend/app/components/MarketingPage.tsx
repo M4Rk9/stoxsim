@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Brand from "./Brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -29,10 +29,7 @@ export default function MarketingPage({
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <Link className={styles.brand} href="/" aria-label="StoxSim home">
-          <Image className={styles.logo} src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
-          <span>Stox<span>Sim</span></span>
-        </Link>
+        <Brand />
         <nav className={styles.nav} aria-label="Product">
           <Link href="/paper-trading">Paper trading</Link>
           <Link href="/stock-market-simulator-india">India simulator</Link>

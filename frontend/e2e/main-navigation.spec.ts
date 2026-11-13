@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-for (const width of [320, 1280]) test(`five core areas remain reachable at ${width}px`, async ({ page }) => {
+for (const width of [320, 1280]) test(`core areas and journal remain reachable at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   await page.addInitScript(() => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "fixture", user: { id: "nav-user", displayName: "Navigation Learner", email: "nav@example.test" } })));
   await page.route("**/api/v1/**", route => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
   await page.goto("/learn");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav.getByRole("link")).toHaveCount(5);
-  for (const label of ["Home", "Markets", "Learn", "Compete", "Account"]) {
+  await expect(nav.getByRole("link")).toHaveCount(6);
+  for (const label of ["Home", "Markets", "Journal", "Learn", "Compete", "Account"]) {
     const link = nav.getByRole("link", { name: label, exact: true });
     await expect(link).toBeInViewport();
     expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);

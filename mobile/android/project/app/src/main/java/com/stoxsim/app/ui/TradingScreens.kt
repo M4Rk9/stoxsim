@@ -232,6 +232,7 @@ import java.math.RoundingMode
     }
 }
 @Composable internal fun StockScreen(state: AppState, model: AppViewModel) {
+    OutlinedButton({ model.openScreen("Reflections") }, enabled = !state.working) { Text("Form a strategy in your journal") }
     val instrument = state.selected ?: return
     val quote = state.quote
     val delta = if (quote?.price != null && quote.previous != null && quote.previous.signum() > 0)

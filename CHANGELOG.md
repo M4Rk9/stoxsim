@@ -1,5 +1,12 @@
 # Changelog
 
+## Research and practice journey (unreleased)
+
+- Added private strategy fields, review dates and explicit review completion; linked owned practice orders show actual outcomes.
+- Added web journal/home workspace and native Android journal editing/access.
+- Unified shared branding, refined theme foundations and clarified market-data provenance and product positioning.
+- Added server-only strategy/review activity markers without changing existing cohort definitions.
+
 ## Android engagement and Finwiz depth
 
 - Explain Inbox/Spam/Junk checks across email flows.

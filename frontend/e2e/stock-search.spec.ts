@@ -202,14 +202,14 @@ test("movers and watchlists open the exact listing, and details prefill the exis
   await page.reload();
   await expect(page.getByRole("heading", { name: "M&M", exact: true })).toBeVisible();
   await testInfo.attach("stock-detail-actions", { body: await page.locator('[aria-label="Virtual trading"]').screenshot(), contentType: "image/png" });
-  await page.getByRole("link", { name: "Buy", exact: true }).click();
+  await page.getByRole("link", { name: "Virtual Buy", exact: true }).click();
   const ticket = page.locator("#paper-order-ticket");
   await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("M&M");
   await expect(ticket.getByRole("button", { name: "Buy", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(ticket.getByRole("button", { name: "Place buy order" })).toBeEnabled();
   await page.getByRole("link", { name: /M&M BSE/ }).click();
   await expect(page).toHaveURL(/\/stocks\/BSE\/M%26M$/);
-  await page.getByRole("link", { name: "Sell", exact: true }).click();
+  await page.getByRole("link", { name: "Virtual Sell", exact: true }).click();
   await expect(ticket).toContainText("BSE");
   await expect(ticket.getByRole("button", { name: "Sell", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();

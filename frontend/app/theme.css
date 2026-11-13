@@ -460,3 +460,24 @@ html[data-theme="dark"] [class*="settings-module__submit"] {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Product foundations. Accent text and button foreground have separate roles. */
+:root {
+  --muted: #596a62; --green: #087a4b; --green-dark: #06653e;
+  --on-accent: #ffffff;
+  --radius-sm: 10px; --radius-md: 16px; --radius-lg: 22px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px;
+  --space-4: 16px; --space-6: 24px; --space-8: 32px;
+}
+html[data-theme="dark"] {
+  --paper: #101513; --panel: #18201c; --line: #303e36;
+  --ink: #eef3ef; --muted: #a9b8ae;
+  --green: #5bd6a2; --green-dark: #79e3b7; --green-soft: #19392c;
+  --surface-subtle: #131b17; --surface-soft: #202c25; --on-accent: #0c2418;
+}
+.primaryButton, .orderButton { color:var(--on-accent); }
+.brand > span:last-child > span { color:inherit; }
+.welcomeShell { background:var(--paper); }
+.welcomeCopy h1 { font-size:clamp(3rem,6vw,5.5rem); line-height:1.02; letter-spacing:-.065em; }
+.welcomeSeoGrid article, .featureRow span { background:var(--panel); }
+.authCard small { color:var(--muted); }

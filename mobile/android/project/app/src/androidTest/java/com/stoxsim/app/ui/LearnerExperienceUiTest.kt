@@ -18,7 +18,7 @@ class LearnerExperienceUiTest {
         var requests = 0
         val item = JSONObject("""{"id":"00000000-0000-0000-0000-000000000001","reason":"Review my assumptions","reflection":"I learned patience"}""")
         compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) {
-            ReflectionsScreen(AppState(restoring = false, lists = mapOf("reflections" to listOf(item))), { _, _ -> }, {}, { _, consent -> assertTrue(consent); requests++ }, {})
+            ReflectionsScreen(AppState(restoring = false, lists = mapOf("reflections" to listOf(item))), { _, _ -> }, {}, { _, _ -> }, { _, consent -> assertTrue(consent); requests++ }, {})
         } } }
         compose.runOnIdle { assertEquals(0, requests) }
         compose.onNodeWithText("Ask Finwiz about this reflection").performScrollTo().performClick()
@@ -32,7 +32,7 @@ class LearnerExperienceUiTest {
     @Test fun learningHubKeepsAllExistingLearningToolsAvailable() {
         var route = ""
         compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { LearnHub(AppState(), { route = it }) } } }
-        listOf("Ask Finwiz" to "Finwiz", "Continue learning missions" to "Learning path", "Explore a portfolio scenario" to "Scenario Lab", "Review a simulated decision" to "Reflections").forEach { (label, target) ->
+        listOf("Ask Finwiz" to "Finwiz", "Continue learning missions" to "Learning path", "Explore a portfolio scenario" to "Scenario Lab", "Strategy journal and reviews" to "Reflections").forEach { (label, target) ->
             compose.onNodeWithText(label).performScrollTo().performClick()
             compose.runOnIdle { assertEquals(target, route) }
         }

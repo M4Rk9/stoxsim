@@ -145,7 +145,7 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   await portfolioPage.close();
 
   await page.getByRole("menuitem", { name: /Sign out/ }).click();
-  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your research and practice space" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -541,7 +541,7 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await expect((await download).suggestedFilename()).toBe("stoxsim-account-export.json");
 
   await page.getByRole("button", { name: "Log out all devices" }).click();
-  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your research and practice space" })).toBeVisible();
 });
 
 test("an active Pro learner can provision an additional isolated sandbox", async ({ page }) => {

@@ -18,6 +18,16 @@ import com.stoxsim.app.data.*
 import org.json.JSONObject
 
 @Composable internal fun LearnerHome(state: AppState, model: AppViewModel) {
+    Panel("RESEARCH · PRACTISE · REVIEW", "Test your thinking.") {
+        Text("Research a company, form a view and practise with virtual money. Review the evidence, not just the return.")
+        Button({ model.openScreen("Markets") }) { Text("Explore a company") }
+        OutlinedButton({ model.openScreen("Reflections") }) { Text("Open strategy journal") }
+        val due = state.lists["reflections"].orEmpty().count { note ->
+            val date = note.optJSONObject("plan")?.text("reviewOn").orEmpty()
+            note.text("reviewedAt").isBlank() && date.isNotBlank() && date <= java.time.LocalDate.now().toString()
+        }
+        if (due > 0) Muted("$due review${if (due == 1) "" else "s"} due in your journal")
+    }
     PortfolioMetrics(state)
     val recommendation = state.data["learnerHome"]?.optJSONObject("recommendation")
     if (recommendation != null) Panel("YOUR NEXT LEARNING STEP", recommendation.text("title")) {
@@ -41,7 +51,7 @@ import org.json.JSONObject
 
 @Composable internal fun LearnHub(state: AppState, navigate: (String) -> Unit) {
     Muted("Build understanding at your own pace. All trades use virtual money.")
-    listOf("Finwiz" to "Ask Finwiz", "Learning path" to "Continue learning missions", "Scenario Lab" to "Explore a portfolio scenario", "Reflections" to "Review a simulated decision").forEach { (route, label) ->
+    listOf("Finwiz" to "Ask Finwiz", "Learning path" to "Continue learning missions", "Scenario Lab" to "Explore a portfolio scenario", "Reflections" to "Strategy journal and reviews").forEach { (route, label) ->
         OutlinedButton({ navigate(route) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
     }
     SectionError(state, "progression")
@@ -100,7 +110,7 @@ import org.json.JSONObject
 }
 
 @Composable internal fun ReflectionsScreen(state: AppState, save: (String?, JSONObject) -> Unit,
-    delete: (String) -> Unit, assist: (String, Boolean) -> Unit, clearAnswer: () -> Unit) {
+    delete: (String) -> Unit, link: (String, String) -> Unit, assist: (String, Boolean) -> Unit, clearAnswer: () -> Unit) {
     // Private text deliberately stays out of saved instance state and disk caches.
     var editing by remember(state.user?.id) { mutableStateOf<JSONObject?>(null) }
     var creating by remember(state.user?.id) { mutableStateOf(false) }
@@ -113,10 +123,38 @@ import org.json.JSONObject
     }
     var assisting by remember(state.user?.id) { mutableStateOf<JSONObject?>(null) }
     var deleting by remember(state.user?.id) { mutableStateOf<JSONObject?>(null) }
-    Text("Record what you thought, then revisit what you learned. Reflections do not affect orders or account balances.")
-    OutlinedButton({ editing = null; creating = true }, enabled = !state.working) { Text("New reflection") }
+    Text("Strategy journal", style = MaterialTheme.typography.headlineMedium)
+    Text("Record your thesis, then revisit the evidence. Targets and stops are notes, not executable orders. Review dates appear in the app; no reminder is sent.")
+    OutlinedButton({ editing = null; creating = true }, enabled = !state.working) { Text("New strategy") }
     SectionError(state, "reflections")
     state.lists["reflections"].orEmpty().forEach { item -> Panel(title = item.text("reason")) {
+        item.optJSONObject("plan")?.let { plan ->
+            listOf("symbol" to "Symbol", "exchange" to "Exchange", "horizon" to "Horizon", "target" to "Target", "invalidation" to "Invalidation", "reviewOn" to "Review date").forEach { (key, label) ->
+                plan.text(key).takeIf { it.isNotBlank() }?.let { Text("$label: $it") }
+            }
+        }
+        if (item.text("reviewedAt").isNotBlank()) Muted("Reviewed ${time(item.text("reviewedAt"))}")
+        item.optJSONObject("linkedOrder")?.let { order ->
+            Text("Practice outcome", style = MaterialTheme.typography.titleMedium)
+            Text("${order.text("side").lowercase()} ${order.text("quantity")} · ${order.text("symbol")} · ${order.text("status").lowercase()}")
+            if (order.text("executionPrice").isNotBlank()) Text("Executed at ${order.text("currency")} ${order.text("executionPrice")}")
+            Muted("Execution is not a closed-trade return. Review charges and holdings in Portfolio.")
+        }
+        if (item.text("orderId").isBlank()) {
+            var showOrders by remember(item.text("id")) { mutableStateOf(false) }
+            TextButton({ showOrders = !showOrders }) { Text("Link an existing practice order") }
+            if (showOrders) {
+                val plan = item.optJSONObject("plan")
+                val matching = state.lists["journalOrders"].orEmpty().filter { order ->
+                    plan?.text("symbol").isNullOrBlank() || (order.text("symbol") == plan?.text("symbol") && order.text("exchange") == plan?.text("exchange"))
+                }
+                Muted("Orders from your currently selected practice account. Change accounts in Markets to use another.")
+                if (matching.isEmpty()) Muted("No matching orders available in this account.")
+                matching.forEach { order -> OutlinedButton({ link(item.text("id"), order.text("id")) }, enabled = !state.working) {
+                    Text("${order.text("symbol")} · ${order.text("side").lowercase()} ${order.text("quantity")} · ${order.text("status").lowercase()} · ${time(order.text("createdAt"))}")
+                } }
+            }
+        }
         listOf("assumptions" to "Assumptions", "risks" to "Risks", "expectedOutcome" to "Expected outcome", "reflection" to "What I learned").forEach { (key, label) ->
             item.text(key).takeIf { it.isNotBlank() }?.let { Text(label, style = MaterialTheme.typography.labelLarge); Text(it) }
         }
@@ -146,16 +184,29 @@ import org.json.JSONObject
 
 @Composable private fun ReflectionEditor(owner: String, item: JSONObject?, working: Boolean, error: String?, save: (JSONObject) -> Unit, dismiss: () -> Unit) {
     val fields = listOf("reason" to "Why I made this decision", "assumptions" to "Assumptions", "risks" to "Risks considered", "expectedOutcome" to "Expected outcome", "reflection" to "What I learned")
+    val planFields = listOf("exchange" to "Exchange (e.g. NSE)", "symbol" to "Symbol", "horizon" to "Time horizon", "target" to "Target / evidence", "invalidation" to "Stop / invalidation", "reviewOn" to "Review date (YYYY-MM-DD)")
+    val planValues = remember(owner, item) { planFields.associate { it.first to mutableStateOf(item?.optJSONObject("plan")?.text(it.first).orEmpty()) } }
+    var completeReview by remember(owner, item) { mutableStateOf(false) }
+    val reviewDate = planValues.getValue("reviewOn").value
+    val validDate = reviewDate.isBlank() || runCatching { java.time.LocalDate.parse(reviewDate).year in 1970..2100 }.getOrDefault(false)
     val values = remember(owner, item) { fields.associate { it.first to mutableStateOf(item?.text(it.first).orEmpty()) } }
-    AlertDialog(onDismissRequest = dismiss, title = { Text(if (item == null) "New reflection" else "Edit reflection") },
+    AlertDialog(onDismissRequest = dismiss, title = { Text(if (item == null) "New strategy" else "Review strategy") },
         text = { Column(Modifier.heightIn(max = 400.dp).then(Modifier.verticalScrollForReflection()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Message(error)
+            planFields.forEach { (key, label) -> OutlinedTextField(planValues.getValue(key).value,
+                { planValues.getValue(key).value = (if (key == "exchange" || key == "symbol") it.uppercase(java.util.Locale.ROOT) else it).take(when(key) { "exchange" -> 20; "symbol" -> 100; "horizon" -> 200; "reviewOn" -> 10; else -> 500 }) },
+                label = { Text(label) }, modifier = Modifier.fillMaxWidth(), enabled = !working,
+                isError = key == "reviewOn" && !validDate) }
             fields.forEach { (key, label) -> OutlinedTextField(values.getValue(key).value, { values.getValue(key).value = it.take(2000) },
                 label = { Text(label) }, supportingText = { Text("${values.getValue(key).value.length}/2000") }, modifier = Modifier.fillMaxWidth(), minLines = 2, enabled = !working) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(completeReview, { completeReview = it }, enabled = !working); Text("Complete review after recording what I learned") }
         } },
         confirmButton = { TextButton({ save(reflectionPayload(values.getValue("reason").value, values.getValue("assumptions").value,
             values.getValue("risks").value, values.getValue("expectedOutcome").value, values.getValue("reflection").value,
-            item?.text("accountId")?.takeIf { it.isNotBlank() }, item?.text("orderId")?.takeIf { it.isNotBlank() })) }, enabled = !working && values.getValue("reason").value.isNotBlank()) { Text("Save reflection") } },
+            item?.text("accountId")?.takeIf { it.isNotBlank() }, item?.text("orderId")?.takeIf { it.isNotBlank() }).apply {
+                put("plan", JSONObject().apply { planFields.forEach { (key, _) -> put(key, planValues.getValue(key).value.takeIf { it.isNotBlank() } ?: if (key == "reviewOn") JSONObject.NULL else "") } })
+                put("completeReview", completeReview)
+            }) }, enabled = !working && validDate && values.getValue("reason").value.isNotBlank() && (!completeReview || values.getValue("reflection").value.isNotBlank())) { Text("Save reflection") } },
         dismissButton = { TextButton(dismiss) { Text("Cancel") } })
 }
 @Composable private fun Modifier.verticalScrollForReflection(): Modifier = this.then(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()))

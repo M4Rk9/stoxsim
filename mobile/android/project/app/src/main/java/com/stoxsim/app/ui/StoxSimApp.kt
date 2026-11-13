@@ -106,13 +106,13 @@ import com.stoxsim.app.R
                 "Learn" -> { GuidedJourney(state, model::openScreen, model::onboarding, showLinks = false); LearnHub(state, model::openScreen) }
                 "Learner profile" -> LearnerProfileScreen(state, model::saveLearnerProfile)
                 "Notifications" -> NotificationsScreen(state, model::notificationRead, model::notificationsReadAll, model::notificationPreference)
-                "Reflections" -> ReflectionsScreen(state, model::saveReflection, model::deleteReflection, model::reflectionAssistance, { model.clearData("reflectionAssistance") })
+                "Reflections" -> ReflectionsScreen(state, model::saveReflection, model::deleteReflection, model::linkStrategyOrder, model::reflectionAssistance, { model.clearData("reflectionAssistance") })
                 "Markets" -> MarketsScreen(state, model)
                 "Stock" -> StockScreen(state, model)
                 "Watchlist" -> WatchlistScreen(state, model)
                 "Portfolio" -> PortfolioScreen(state, model)
                 "Portfolio analysis" -> PortfolioAnalysisScreen(state, model::history)
-                "Orders" -> { OrdersScreen(state, model); TextButton({ model.openScreen("Reflections") }) { Text("Reflect on a simulated decision") } }
+                "Orders" -> { OrdersScreen(state, model); TextButton({ model.openScreen("Reflections") }) { Text("Review in strategy journal") } }
                 "Explore" -> ExploreScreen(model::openScreen)
                 "Scenario Lab" -> ScenarioScreen(state, model)
                 "Learning path" -> LearningScreen(state, model)

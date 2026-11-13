@@ -1,5 +1,5 @@
 .space { height: 76px; }
-.nav { position: fixed; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 75; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: min(560px, calc(100% - 24px)); padding: 5px; gap: 3px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 8px 30px var(--shadow-color); }
+.nav { position: fixed; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 75; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: min(660px, calc(100% - 24px)); padding: 5px; gap: 3px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 8px 30px var(--shadow-color); }
 .nav a { display: grid; place-items: center; min-height: 44px; min-width: 0; padding: 8px 3px; border-radius: 10px; font-size: 12px; font-weight: 750; color: var(--muted); text-decoration: none; }
 .nav a[aria-current] { color: var(--green); background: var(--green-soft); }
 .nav a:hover { color: var(--ink); background: var(--surface-soft); }

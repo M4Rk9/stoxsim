@@ -116,6 +116,18 @@ class DecisionReflectionIntegrationTest {
         assertThatThrownBy(() -> reflections.create(user.getId(), note(mine.getId(), theirOrder.getId()))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         var saved = reflections.create(user.getId(), note(null, myOrder.getId()));
         assertThat(saved.accountId()).isEqualTo(mine.getId());
+        var unlinked = reflections.create(user.getId(), note(null, null));
+        assertThatThrownBy(() -> reflections.linkOrder(other.getId(), unlinked.id(), theirOrder.getId()))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(() -> reflections.linkOrder(user.getId(), unlinked.id(), theirOrder.getId()))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThat(reflections.linkOrder(user.getId(), unlinked.id(), myOrder.getId()).linkedOrder().status()).isEqualTo("OPEN");
+        assertThat(reflections.linkOrder(user.getId(), unlinked.id(), myOrder.getId()).orderId()).isEqualTo(myOrder.getId());
+        var wrong = reflections.create(user.getId(), new ReflectionRequest(null, null, "Different company", "", "", "", "",
+            new com.stoxsim.reflection.api.StrategyPlan("NSE", "OTHER", "", "", "", null), false));
+        assertThatThrownBy(() -> reflections.linkOrder(user.getId(), wrong.id(), myOrder.getId()))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThat(reflections.get(user.getId(), wrong.id()).orderId()).isNull();
         var second = accounts.saveAndFlush(new VirtualAccount(user, MarketRegion.UNITED_STATES, new BigDecimal("10000")));
         assertThatThrownBy(() -> reflections.create(user.getId(), note(second.getId(), myOrder.getId()))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         assertThat(db.queryForObject("SELECT available_cash FROM virtual_account WHERE id=?", BigDecimal.class, mine.getId())).isEqualByComparingTo("500000");
@@ -146,4 +158,41 @@ class DecisionReflectionIntegrationTest {
             .hasMessageContaining("storage limit");
         assertThat(reflections.list(other.getId())).isEmpty();
     }
+    @Test void strategyFieldsSurviveLegacyUpdatesAndReviewIsExplicit() throws Exception {
+        String body = """
+            {"reason":"Margins should improve", "plan":{"exchange":"NSE","symbol":"INFY",
+             "horizon":"Next results","target":"Evidence of margin improvement","invalidation":"Margin contraction","reviewOn":"2026-12-01"}}
+            """;
+        mvc.perform(post("/api/v1/reflections").with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content(body)).andExpect(status().isCreated())
+            .andExpect(jsonPath("$.plan.reviewOn").value("2026-12-01")).andExpect(jsonPath("$.reviewedAt").isEmpty())
+            .andReturn();
+        var saved = reflections.list(user.getId()).getFirst();
+        reflections.update(user.getId(), saved.id(), note(null, null)); // old native payload omits plan
+        assertThat(reflections.get(user.getId(), saved.id()).plan().symbol()).isEqualTo("INFY");
+        assertThat(reflections.get(user.getId(), saved.id()).reviewedAt()).isNull();
+        mvc.perform(put("/api/v1/reflections/" + saved.id()).with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content("{\"reason\":\"Thesis\",\"completeReview\":true}"))
+            .andExpect(status().isBadRequest());
+        var request = new ReflectionRequest(null, null, "My thesis", "", "", "", "The evidence contradicted my assumptions", saved.plan(), true);
+        var reviewed = reflections.update(user.getId(), saved.id(), request);
+        assertThat(reviewed.reviewedAt()).isNotNull();
+        reflections.update(user.getId(), saved.id(), request);
+        assertThat(reflections.get(user.getId(), saved.id()).reviewedAt()).isEqualTo(reviewed.reviewedAt());
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=? AND event_name='REVIEW_COMPLETED'", Integer.class, user.getId())).isEqualTo(1);
+        assertThat(db.queryForObject("SELECT count(*) FROM product_activity WHERE user_id=? AND event_name='STRATEGY_CREATED'", Integer.class, user.getId())).isEqualTo(1);
+        verifyNoInteractions(finwiz);
+    }
+
+    @Test void invalidStrategyInputIsRejectedWithoutSaving() throws Exception {
+        for (String plan : List.of("{\"exchange\":\"FAKE\",\"symbol\":\"INFY\"}",
+            "{\"exchange\":\"NSE\",\"symbol\":\"<script>\"}", "{\"exchange\":\"NSE\"}",
+            "{\"reviewOn\":\"2200-01-01\"}")) {
+            mvc.perform(post("/api/v1/reflections").with(jwt().jwt(j -> j.subject(user.getId().toString())))
+                .contentType("application/json").content("{\"reason\":\"Thesis\",\"plan\":" + plan + "}"))
+                .andExpect(status().isBadRequest());
+        }
+        assertThat(reflections.list(user.getId())).isEmpty();
+    }
+
 }

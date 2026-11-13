@@ -1,4 +1,5 @@
 "use client";
+import Brand from "../components/Brand";
 
 import { FormEvent, useEffect, useState } from "react";
 import styles from "../settings/settings.module.css";
@@ -51,7 +52,7 @@ export default function ResetPasswordPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/">Stox<span>Sim</span></a>
+      <Brand />
       <a className={styles.back} href="/">← Back to sign in</a>
     </header>
     <section className={styles.content}>

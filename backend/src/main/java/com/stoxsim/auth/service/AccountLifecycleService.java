@@ -221,7 +221,7 @@ public class AccountLifecycleService {
         export.put("learnerProfile", jdbcTemplate.queryForList(
             "SELECT experience_level,learning_objective,preferred_market,updated_at FROM learner_profile WHERE user_id=?", userId));
         export.put("decisionReflections", jdbcTemplate.queryForList(
-            "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
+            "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at,strategy_exchange,strategy_symbol,horizon,target,invalidation,review_on,reviewed_at,strategy_created_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
         export.put("finwizUsage", jdbcTemplate.queryForList(
             "SELECT usage_day,provider_attempts FROM finwiz_usage_daily WHERE user_id=? ORDER BY usage_day", userId));
         export.put("billingPurchases", billing.export(userId));

@@ -181,3 +181,17 @@ all four counts are null/— and `fullWindowObserved=false`, rather than partial
 counts masquerading as a full window. This includes the migration's partial UTC
 day. Within a fully observed window, absent events are real zeroes. Today remains
 partial through response time, as with existing activity. Deploy backend before web.
+
+## Strategy and review markers — V133
+
+`STRATEGY_CREATED` records the first structured-plan save for a note (including
+an existing note upgraded to a strategy). `REVIEW_COMPLETED` records the first
+explicit completion with nonempty outcome/reflection text. Both are server-owned,
+transactional and deduplicated per learner/category/UTC day. They capture distinct
+learners, not numbers of strategies/reviews. Re-saving a plan or completed review
+does not emit another marker. `strategy_journey_started_at` is a separate coverage
+boundary; existing data is not backfilled. Daily activity retention and current
+USER/non-test/deleted-account exclusions apply unchanged. Maximum categories are
+now thirteen per learner/day. No note text or instrument/order identifiers enter
+activity rows. Existing activation/retention queries and first-trade definitions
+are unchanged; new cohort views are M2, not implied by these markers.
