@@ -31,11 +31,11 @@ class StrategyJournalTest {
             ReflectionsScreen(AppState(restoring = false, lists = mapOf("reflections" to listOf(note()))),
                 { _, body -> saved = body }, {}, { _, _ -> }, { _, _ -> aiRequests++ }, {})
         } } }
-        compose.onNodeWithText("Edit", exact = true).performScrollTo().performClick()
+        compose.onNodeWithText("Edit").performScrollTo().performClick()
         compose.onNodeWithText("Complete review after recording what I learned").performScrollTo().performClick()
-        compose.onNodeWithText("Save reflection", exact = true).assertIsNotEnabled()
-        compose.onNodeWithText("What I learned", exact = true).performScrollTo().performTextInput("Evidence challenged my margin assumption.")
-        compose.onNodeWithText("Save reflection", exact = true).performClick()
+        compose.onNodeWithText("Save reflection").assertIsNotEnabled()
+        compose.onNodeWithText("What I learned").performScrollTo().performTextInput("Evidence challenged my margin assumption.")
+        compose.onNodeWithText("Save reflection").performClick()
         compose.runOnIdle {
             assertNotNull(saved)
             assertTrue(saved!!.getBoolean("completeReview"))

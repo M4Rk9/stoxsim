@@ -318,7 +318,7 @@ for (const width of [320,768,1440]) test(`stock detail ranges and order card fit
   const positions=await svg.locator("rect").evaluateAll(rects=>rects.map(rect=>Number(rect.getAttribute("x"))));
   expect(positions).toHaveLength(4); expect(positions[2]-positions[1]).toBeCloseTo(positions[1]-positions[0]);
   const actions=page.locator('[aria-label="Virtual trading"]');
-  await expect(actions.getByRole("link",{name:"Buy",exact:true})).toHaveAttribute("href",/exchange=BSE.*side=BUY/);
+  await expect(actions.getByRole("link",{name:"Virtual Buy",exact:true})).toHaveAttribute("href",/exchange=BSE.*side=BUY/);
   expect(await actions.evaluate(el=>Boolean(el.closest("aside")))).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await info.attach(`stock-detail-${width}`,{body:await page.screenshot({path:info.outputPath(`stock-detail-${width}.png`),fullPage:true}),contentType:"image/png"});

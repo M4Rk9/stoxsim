@@ -51,8 +51,8 @@ for (const [width, dark] of [[390, true], [1440, true], [1440, false]] as const)
     await summary.click();
     await expect(page.getByRole("link", { name: "Practise this strategy" })).toHaveAttribute("href", /strategy=11111111.*paper-order-ticket/);
     await page.getByRole("button", { name: "Link an existing practice order" }).click();
-    await page.getByLabel("Practice account", { exact: true }).selectOption(accountId);
-    await page.getByLabel("Matching order", { exact: true }).selectOption(orderId);
+    await page.getByRole("combobox", { name: "Practice account", exact: true }).selectOption(accountId);
+    await page.getByRole("combobox", { name: "Matching order", exact: true }).selectOption(orderId);
     await page.getByRole("button", { name: "Link selected order" }).click();
     await expect(page.getByText("Executed at", { exact: false })).toBeVisible();
     await page.getByRole("button", { name: "Edit reflection", exact: true }).click();
