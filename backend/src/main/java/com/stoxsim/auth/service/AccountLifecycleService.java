@@ -28,6 +28,12 @@ import com.stoxsim.billing.BillingAccountGuard;
 @Service
 public class AccountLifecycleService {
 
+    public void recordSignup(UUID userId, String method, String source, String userAgent) {
+        jdbcTemplate.update("INSERT INTO signup_attribution(user_id,source,device,method) VALUES (?,?,?,?) ON CONFLICT (user_id) DO NOTHING",
+            userId, com.stoxsim.analytics.service.SignupAttribution.source(source),
+            com.stoxsim.analytics.service.SignupAttribution.device(userAgent), method);
+    }
+
     private static final Duration PASSWORD_RESET_COOLDOWN = Duration.ofMinutes(1);
     private static final Duration PASSWORD_RESET_WINDOW = Duration.ofHours(1);
     private static final int PASSWORD_RESET_WINDOW_LIMIT = 5;
@@ -220,6 +226,7 @@ public class AccountLifecycleService {
             """, userId));
         export.put("learnerProfile", jdbcTemplate.queryForList(
             "SELECT experience_level,learning_objective,preferred_market,updated_at FROM learner_profile WHERE user_id=?", userId));
+        export.put("signupAttribution", jdbcTemplate.queryForList("SELECT source,device,method,recorded_at FROM signup_attribution WHERE user_id=?", userId));
         export.put("decisionReflections", jdbcTemplate.queryForList(
             "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at,strategy_exchange,strategy_symbol,horizon,target,invalidation,review_on,reviewed_at,strategy_created_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
         export.put("finwizUsage", jdbcTemplate.queryForList(

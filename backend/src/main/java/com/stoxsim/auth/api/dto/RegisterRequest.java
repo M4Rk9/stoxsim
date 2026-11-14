@@ -10,6 +10,10 @@ public record RegisterRequest(
     @NotBlank @Email @Size(max = 320) String email,
     @NotBlank @Size(min = 8, max = 72) @Utf8Password String password,
     @NotBlank @Size(min = 2, max = 100) String displayName,
-    @AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted
+    @AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted,
+    @Size(max = 24) String signupSource
 ) {
+    public RegisterRequest(String email, String password, String displayName, boolean termsAccepted) {
+        this(email, password, displayName, termsAccepted, null);
+    }
 }

@@ -1,4 +1,5 @@
 "use client";
+import { signupSource } from "../lib/signup-source";
 
 import Script from "next/script";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -95,7 +96,7 @@ export default function GoogleSignIn({ scriptNonce, manage = false, register = f
       } else {
         const value = details.current;
         const session = register
-          ? await post("register", { credential, displayName: value.displayName.trim(), termsAccepted: value.accepted })
+          ? await post("register", { credential, displayName: value.displayName.trim(), termsAccepted: value.accepted, signupSource: signupSource() })
           : await post("login", { credential });
         window.sessionStorage.setItem("stoxsim-session", JSON.stringify(session));
         window.location.assign("/");

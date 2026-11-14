@@ -1,4 +1,5 @@
 "use client";
+import { signupSource } from "./lib/signup-source";
 
 import Brand from "./components/Brand";
 import ResearchHome from "./components/ResearchHome";
@@ -443,6 +444,7 @@ export default function Home() {
   const [session, setSession] = useState<AuthResponse | null>(null);
   const sessionRef = useRef<AuthResponse | null>(null);
   const refreshPromiseRef = useRef<Promise<AuthResponse> | null>(null);
+  useEffect(() => { signupSource(); }, []);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [authForm, setAuthForm] = useState({
     displayName: "",
@@ -913,7 +915,7 @@ export default function Home() {
     setError("");
     try {
       const path = authMode === "register" ? "/api/v1/auth/register" : "/api/v1/auth/login";
-      const body = authMode === "register" ? authForm : { email: authForm.email, password: authForm.password };
+      const body = authMode === "register" ? { ...authForm, signupSource: signupSource() } : { email: authForm.email, password: authForm.password };
       const authenticated = await rawRequest<AuthResponse>(path, {
         method: "POST",
         body: JSON.stringify(body),

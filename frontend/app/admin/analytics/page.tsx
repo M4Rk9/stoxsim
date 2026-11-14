@@ -4,6 +4,7 @@ import Brand from "../../components/Brand";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ApiError, loadAnalytics } from "./client";
 import ActivityPanel from "./ActivityPanel";
+import CohortPanel from "./CohortPanel";
 import styles from "./analytics.module.css";
 
 const number = new Intl.NumberFormat("en-IN");
@@ -158,6 +159,7 @@ export default function AnalyticsPage() {
         </table></div>
       </section>
       <ActivityPanel from={data.from} to={data.to} revision={data.generatedAt} />
+      <CohortPanel from={data.from} to={data.to} revision={data.generatedAt} />
       <aside className={styles.notice}>
         <h2>About these numbers</h2>
         <p>Administrator, deleted and controlled test accounts are excluded. These are current records, so deleting an account changes past counts. India and US activity can each contribute to first-trade conversion; every learner counts once.</p>

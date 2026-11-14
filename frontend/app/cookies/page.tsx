@@ -30,6 +30,7 @@ export default function CookiesPage() {
             <strong>Session storage:</strong> holds the short-lived signed-in browser session and is
             cleared when the browser session ends or you sign out.
           </li>
+          <li>A broad signup-source category is held in session storage until the tab session ends. It contains no referring URL or campaign text and is not sent to an advertising service.</li>
           <li>
             <strong>Local storage:</strong> remembers the light, dark or system appearance preference.
           </li>

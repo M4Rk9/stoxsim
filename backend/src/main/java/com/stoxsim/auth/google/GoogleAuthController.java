@@ -68,7 +68,7 @@ public class GoogleAuthController {
             @RequestHeader(name = HttpHeaders.USER_AGENT, required = false) String userAgent) {
         requireOrigin(origin);
         var identity = verifier.identity(request.credential(), challenges.consume(binding), false);
-        var response = accounts.register(identity, request.displayName(), request.termsAccepted(), userAgent);
+        var response = accounts.register(identity, request.displayName(), request.termsAccepted(), userAgent, request.signupSource());
         return ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.CACHE_CONTROL, "no-store")
             .header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString(), refreshCookies.issue(response.refreshToken()).toString()).body(response);
     }
@@ -121,7 +121,11 @@ public class GoogleAuthController {
     }
     public record Registration(@NotBlank @Size(max = 16384) String credential,
         @NotBlank @Size(min = 2, max = 100) String displayName,
-        @jakarta.validation.constraints.AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted) {}
+        @jakarta.validation.constraints.AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted, @Size(max = 24) String signupSource) {
+        public Registration(String credential, String displayName, boolean termsAccepted) {
+            this(credential, displayName, termsAccepted, null);
+        }
+    }
     public record InitialPassword(@NotBlank @Size(max = 16384) String credential,
         @NotBlank @Size(min = 8, max = 72) @com.stoxsim.auth.validation.Utf8Password String newPassword) {}
     public record Deletion(@NotBlank @Size(max = 16384) String credential,

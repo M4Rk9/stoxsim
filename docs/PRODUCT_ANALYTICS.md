@@ -195,3 +195,19 @@ USER/non-test/deleted-account exclusions apply unchanged. Maximum categories are
 now thirteen per learner/day. No note text or instrument/order identifiers enter
 activity rows. Existing activation/retention queries and first-trade definitions
 are unchanged; new cohort views are M2, not implied by these markers.
+
+
+## Research cohorts — V134
+
+`GET /api/v1/admin/analytics/cohorts?from=YYYY-MM-DD&to=YYYY-MM-DD&groupBy=WEEK|SOURCE|DEVICE`
+requires a current platform administrator. It accepts the existing 1–90 UTC-date range and returns aggregate counts only, with `Cache-Control: no-store`. All rows exclude administrators, controlled tests and deleted accounts using the same current USER/non-test predicates as existing analytics. Changing role/test classification applies consistently at query time.
+
+Grouping uses signup week (Monday UTC; only registrations inside the selected range), signup source or signup device. V134 starts forward-only attribution; existing registrations remain UNKNOWN. Source is a bounded client-reported DIRECT/SEARCH/SOCIAL/REFERRAL category (not verified marketing attribution); device is the registration user-agent classified as ANDROID_APP/MOBILE_WEB/DESKTOP_WEB/UNKNOWN. Older native clients still get device classification without an app update and report UNKNOWN acquisition source. Registration method EMAIL/GOOGLE is recorded separately. Only categories enter the new table, never raw URLs, UTM values, user agents, research notes, symbols or order IDs. The first category in a browser tab session is retained through the Google redirect. Account export includes it and account deletion cascades it. These dimensions describe signup, not the device used on a later return.
+
+Return activity retains the existing ACTIVE/STOCK_OPENED/WATCHLIST_ADDED/ORDER_SUBMITTED definition. Fills alone are not returns. D1 and D7 require that exact UTC signup-date offset. Days 1–7 means any of those seven dates; following week means any date 8–14. Each denominator includes only learners whose complete target window ended before the current UTC date and whose signup is within retained activity coverage. Earlier signups are excluded; not-yet-ended windows are immature. Empty denominators yield null/—, not 0%. Numerators and denominators are returned together. Existing `activity` D1/D7/D30 and seven-day activation SQL are unchanged.
+
+New journey milestone columns use the first **14 × 24 hours** after signup, with a common mature denominator observed since max(V133 strategy coverage, activity coverage, 180-day retention floor). Research, watchlist, strategy, executed standard trade and explicit written review columns are independent milestones, not a funnel or counts of actions. The existing first-trade conversion remains unbounded-to-query-time, and existing seven-day activation remains research+watchlist+valid submission in any order within seven days.
+
+Linked completion additionally requires: research marker <= strategy_created_at <= linked standard order executed_at <= reviewed_at < signup+14 days, for one owned note/order pair. No marker carries a symbol, so the research step cannot prove research of the same company. Notes are mutable; these counts describe currently saved links, not an immutable audit or performance attribution model. Deleting the note removes linked completion; deleting the account removes all its contribution. Profit/loss never determines completion. No historic strategy/review event is inferred or backfilled.
+
+Validation: SQL integration fixtures cover distinct-day windows, immature denominators, unknown coverage, administrators/tests/deletion, background fills, out-of-order review, link deletion and attribution grouping/cascade. Browser fixtures are explicitly synthetic. Apply V134 before deploying clients; older client payloads remain valid.
