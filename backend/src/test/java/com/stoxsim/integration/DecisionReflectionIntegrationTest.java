@@ -105,7 +105,7 @@ class DecisionReflectionIntegrationTest {
         verifyNoMoreInteractions(finwiz);
     }
 
-    @Test void linksCannotCrossAccountsOrOwnersAndNeverChangeFinancialState() {
+    @Test void linksCannotCrossAccountsOrOwnersAndNeverChangeFinancialState() throws Exception {
         var mine = accounts.saveAndFlush(new VirtualAccount(user, MarketRegion.INDIA, new BigDecimal("500000")));
         var theirs = accounts.saveAndFlush(new VirtualAccount(other, MarketRegion.INDIA, new BigDecimal("500000")));
         var instrument = instruments.saveAndFlush(new TradableInstrument(new InstrumentSnapshot("UPSTOX", UUID.randomUUID().toString(), MarketRegion.INDIA,
@@ -117,6 +117,21 @@ class DecisionReflectionIntegrationTest {
         var saved = reflections.create(user.getId(), note(null, myOrder.getId()));
         assertThat(saved.accountId()).isEqualTo(mine.getId());
         var unlinked = reflections.create(user.getId(), note(null, null));
+        String linkPath = "/api/v1/reflections/" + unlinked.id() + "/order";
+        String myOrderBody = "{\"orderId\":\"" + myOrder.getId() + "\"}";
+        mvc.perform(post(linkPath).contentType("application/json").content(myOrderBody))
+            .andExpect(status().isUnauthorized());
+        mvc.perform(post(linkPath).with(jwt().jwt(j -> j.subject(other.getId().toString())))
+            .contentType("application/json").content(myOrderBody)).andExpect(status().isNotFound());
+        mvc.perform(post(linkPath).with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content("{\"orderId\":\"" + theirOrder.getId() + "\"}"))
+            .andExpect(status().isNotFound());
+        mvc.perform(post(linkPath).with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content("{\"orderId\":\"not-a-uuid\"}")).andExpect(status().isBadRequest());
+        assertThat(reflections.get(user.getId(), unlinked.id()).orderId()).isNull();
+        mvc.perform(post(linkPath).with(jwt().jwt(j -> j.subject(user.getId().toString())))
+            .contentType("application/json").content(myOrderBody))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.orderId").value(myOrder.getId().toString()));
         assertThatThrownBy(() -> reflections.linkOrder(other.getId(), unlinked.id(), theirOrder.getId()))
             .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         assertThatThrownBy(() -> reflections.linkOrder(user.getId(), unlinked.id(), theirOrder.getId()))

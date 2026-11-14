@@ -220,7 +220,7 @@ test("movers and watchlists open the exact listing, and details prefill the exis
   await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
 });
 
-for (const linkFails of [false, true]) test(`strategy order submission consumes its intent when linking ${linkFails ? "fails" : "succeeds"}`, async ({ page }) => {
+for (const linkStatus of [200, 404, 503]) test(`strategy order submission consumes its intent after link response ${linkStatus}`, async ({ page }) => {
   await setup(page, route => reply(route, []));
   const strategyId = "55555555-5555-4555-8555-555555555555";
   const orderId = "66666666-6666-4666-8666-666666666666";
@@ -238,16 +238,48 @@ for (const linkFails of [false, true]) test(`strategy order submission consumes 
     if (route.request().method() !== "POST") return reply(route, {});
     links++;
     expect(route.request().postDataJSON()).toEqual({ orderId });
-    return reply(route, linkFails ? { message: "Link unavailable" } : {}, linkFails ? 503 : 200);
+    return reply(route, linkStatus === 200 ? {} : { message: "Link unavailable" }, linkStatus);
   });
   await page.goto(`/?exchange=NSE&symbol=INFY&side=BUY&strategy=${strategyId}#paper-order-ticket`);
   const ticket = page.locator("#paper-order-ticket");
   await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("INFY");
   await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: linkFails ? "Do not submit again" : "Linked to your strategy" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: linkStatus === 200 ? "Linked to your strategy" : "Do not submit again" })).toBeVisible();
   expect(submissions).toBe(1);
   expect(links).toBe(1);
   await expect(page).not.toHaveURL(/strategy=/);
+  await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Buy order submitted for INFY." })).toBeVisible();
+  expect(submissions).toBe(2);
+  expect(links).toBe(1);
+});
+
+for (const intent of [null, "", "not-a-uuid", "../../another-resource"]) test(`order submission rejects invalid strategy intent ${JSON.stringify(intent)} without replay`, async ({ page }) => {
+  await setup(page, route => reply(route, []));
+  let submissions = 0, links = 0;
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY", route => reply(route, stock("INFY")));
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY/quote", route => reply(route,
+    { lastPrice: 1500, previousClose: 1490, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
+  await page.route(`**/api/v1/accounts/${account.id}/orders`, route => {
+    if (route.request().method() !== "POST") return reply(route, []);
+    submissions++;
+    return reply(route, { id: "66666666-6666-4666-8666-666666666666", status: "OPEN", symbol: "INFY", side: "BUY", quantity: 1 });
+  });
+  await page.route("**/api/v1/reflections/**", route => {
+    if (route.request().method() === "POST") links++;
+    return reply(route, {}, 404);
+  });
+  const query = new URLSearchParams({ exchange: "NSE", symbol: "INFY", side: "BUY" });
+  if (intent !== null) query.set("strategy", intent);
+  await page.goto(`/?${query}#paper-order-ticket`);
+  const ticket = page.locator("#paper-order-ticket");
+  await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("INFY");
+  await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: intent === null ? "Buy order submitted for INFY." : "the strategy link is invalid" })).toBeVisible();
+  expect(submissions).toBe(1);
+  expect(links).toBe(0);
+  await expect(page).not.toHaveURL(/strategy=/);
+  await expect(page).toHaveURL(/exchange=NSE&symbol=INFY&side=BUY#paper-order-ticket$/);
 });
 
 test("the quick quote chart switches to OHLC candles and supports keyboard inspection", async ({ page }, testInfo) => {

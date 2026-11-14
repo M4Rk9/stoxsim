@@ -1114,28 +1114,38 @@ export default function Home() {
         : wasFirstOrder && nextOnboarding?.firstOrderCompleted
         ? `First paper order submitted for ${selected.tradingSymbol}. Check its status below; the learning journey advances after execution.`
         : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
-      const strategyId = new URLSearchParams(window.location.search).get("strategy");
-      if (strategyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategyId)) {
-        try {
-          await authorizedRequest(`/api/v1/reflections/${encodeURIComponent(strategyId)}/order`, {
-            method: "POST", body: JSON.stringify({ orderId: placedOrder.id }),
-          });
-          setNotice(`Practice order ${placedOrder.status.toLowerCase()}. Linked to your strategy; open Journal to review it.`);
-        } catch {
-          setNotice("Your practice order was submitted, but its strategy link could not be saved. Do not submit again. Open Journal to link the existing order.");
-        } finally {
-          // Consume this intent after submission, even if linking needs recovery.
-          // A later, unrelated order must not reuse the previous strategy.
-          const url = new URL(window.location.href);
-          url.searchParams.delete("strategy");
-          window.history.replaceState(window.history.state, "", url);
-        }
-      }
+      await linkSubmittedOrderToStrategy(placedOrder);
       await loadDashboard(token, activeAccount);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Order could not be submitted");
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function linkSubmittedOrderToStrategy(placedOrder: PaperOrder) {
+    const url = new URL(window.location.href);
+    const strategyId = url.searchParams.get("strategy");
+    // This is optional navigation intent, never authorization. The API derives
+    // identity from the session and checks ownership of both records on every call.
+    if (strategyId === null) return;
+
+    // Consume even invalid intent before linking: the order already exists and
+    // a failed link must not make a later order reuse this strategy.
+    url.searchParams.delete("strategy");
+    window.history.replaceState(window.history.state, "", url);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategyId)) {
+      setNotice("Your practice order was submitted, but the strategy link is invalid. Do not submit again. Open Journal to link the existing order.");
+      return;
+    }
+
+    try {
+      await authorizedRequest(`/api/v1/reflections/${encodeURIComponent(strategyId)}/order`, {
+        method: "POST", body: JSON.stringify({ orderId: placedOrder.id }),
+      });
+      setNotice(`Practice order ${placedOrder.status.toLowerCase()}. Linked to your strategy; open Journal to review it.`);
+    } catch {
+      setNotice("Your practice order was submitted, but its strategy link could not be saved. Do not submit again. Open Journal to link the existing order.");
     }
   }
 

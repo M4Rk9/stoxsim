@@ -34,3 +34,21 @@ List is bounded at 50, with unreviewed/due notes first. Storage remains capped a
 No notes are persisted in browser localStorage or native saved state. Explicit AI
 consent/tier limits remain in the existing assistance endpoint, which sends only
 its existing bounded text excerpts.
+
+## URL intent and security scanning
+
+The `strategy` query parameter is untrusted navigation input, not a permission.
+After order submission, `linkSubmittedOrderToStrategy` consumes the intent and
+returns early for absent or malformed IDs before making a link request. Invalid
+IDs show manual recovery; a failed link never repeats the order. A UUID shape
+check does not prove ownership: the endpoint always uses the authenticated JWT
+subject and checks strategy and order ownership in `ReflectionService`.
+
+CodeQL alert #14 (`js/user-controlled-bypass`) flagged the prior positive URL
+condition enclosing `authorizedRequest`. Explicit early-rejection guards separate
+input validation from the request; no query exclusion or suppression is added.
+HTTP integration coverage rejects anonymous requests, foreign strategies, foreign
+orders and malformed IDs; browser coverage includes missing/invalid intent,
+404/503 recovery, and a second order without reusing the consumed intent.
+A successful analysis workflow is not a clean findings check: inspect the separate
+CodeQL code-scanning result on the current PR commit before declaring it clear.
