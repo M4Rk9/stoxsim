@@ -40,6 +40,14 @@ for (const [width, dark] of [[390, true], [1440, true], [1440, false]] as const)
     await page.setViewportSize({ width, height: 1000 });
     const state = await setup(page, dark);
     await page.goto("/journal?exchange=NSE&symbol=INFY");
+    const markets = page.getByRole("link", { name: "Explore markets" });
+    const account = page.getByRole("button", { name: "Open account menu for Example Learner" });
+    await expect(markets).toBeVisible();
+    await expect(account).toBeVisible();
+    const marketsBox = (await markets.boundingBox())!;
+    const accountBox = (await account.boundingBox())!;
+    expect(marketsBox.height).toBeGreaterThanOrEqual(44);
+    expect(marketsBox.y).toBeGreaterThanOrEqual(accountBox.y + accountBox.height);
     await page.getByLabel("My thesis and entry rationale", { exact: true }).fill("Example research: recurring revenue could support margins.");
     await page.getByLabel("Time horizon", { exact: true }).fill(plan.horizon);
     await page.getByLabel("Target or evidence").fill(plan.target);
