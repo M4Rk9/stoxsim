@@ -45,7 +45,7 @@ import java.util.Locale
     BackHandler(mode != "login" && !state.working) { mode = "login"; password = ""; clearMessage() }
     Text(when (mode) { "register" -> "Start practising."; "forgot" -> "Reset your password."; else -> "Welcome back." },
         style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-    Text("Build your investing skills with virtual money.", style = MaterialTheme.typography.bodyLarge)
+    Text("Research markets, practise with virtual money, and review what you learn.", style = MaterialTheme.typography.bodyLarge)
     Message(state.error, state.notice)
     if (register) OutlinedTextField(name, { name = it }, label = { Text("Display name") },
         singleLine = true, enabled = !state.working, modifier = Modifier.fillMaxWidth())

@@ -1,5 +1,8 @@
 "use client";
 
+import Brand from "./components/Brand";
+import ResearchHome from "./components/ResearchHome";
+
 import PriceHistoryChart from "./components/PriceHistoryChart";
 
 import { GoogleSignInLink } from "./components/GoogleSignInLink";
@@ -13,7 +16,6 @@ import PricingNotice, { PortfolioPricingNotice, priceSourceLabel } from "./compo
 import { EMAIL_GUIDANCE } from "./lib/email-guidance";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { Client, IMessage } from "@stomp/stompjs";
 import {
   FirstTradeCoach,
@@ -1053,7 +1055,7 @@ export default function Home() {
         }),
       });
       setWatchlist(next);
-      setNotice(`${selected.tradingSymbol} added to your live watchlist.`);
+      setNotice(`${selected.tradingSymbol} added to your watchlist.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Stock could not be added to your watchlist");
     } finally {
@@ -1108,15 +1110,42 @@ export default function Home() {
         : null;
       if (nextOnboarding) setOnboarding(nextOnboarding);
       setNotice(placedOrder.finwizFeedback
-        ? `${selected.tradingSymbol} executed. FinWiz portfolio feedback is ready below.`
+        ? `${selected.tradingSymbol} executed. Finwiz portfolio feedback is ready below.`
         : wasFirstOrder && nextOnboarding?.firstOrderCompleted
         ? `First paper order submitted for ${selected.tradingSymbol}. Check its status below; the learning journey advances after execution.`
         : `${side === "BUY" ? "Buy" : "Sell"} order submitted for ${selected.tradingSymbol}.`);
+      await linkSubmittedOrderToStrategy(placedOrder);
       await loadDashboard(token, activeAccount);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Order could not be submitted");
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function linkSubmittedOrderToStrategy(placedOrder: PaperOrder) {
+    const url = new URL(window.location.href);
+    const strategyId = url.searchParams.get("strategy");
+    // This is optional navigation intent, never authorization. The API derives
+    // identity from the session and checks ownership of both records on every call.
+    if (strategyId === null) return;
+
+    // Consume even invalid intent before linking: the order already exists and
+    // a failed link must not make a later order reuse this strategy.
+    url.searchParams.delete("strategy");
+    window.history.replaceState(window.history.state, "", url);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(strategyId)) {
+      setNotice("Your practice order was submitted, but the strategy link is invalid. Do not submit again. Open Journal to link the existing order.");
+      return;
+    }
+
+    try {
+      await authorizedRequest(`/api/v1/reflections/${encodeURIComponent(strategyId)}/order`, {
+        method: "POST", body: JSON.stringify({ orderId: placedOrder.id }),
+      });
+      setNotice(`Practice order ${placedOrder.status.toLowerCase()}. Linked to your strategy; open Journal to review it.`);
+    } catch {
+      setNotice("Your practice order was submitted, but its strategy link could not be saved. Do not submit again. Open Journal to link the existing order.");
     }
   }
 
@@ -1257,11 +1286,11 @@ export default function Home() {
         </nav>
         <section className="welcomeGrid">
           <div className="welcomeCopy">
-            <span className="eyebrow">PAPER TRADING, BUILT LIKE THE REAL THING</span>
-            <h1>Learn stock trading.<br /><span>Risk nothing.</span></h1>
-            <p>Use a free stock-market simulator with ₹5,00,000 in India and $10,000 in the USA. Research stocks and ETFs, practise simulated orders, and learn from every virtual trade.</p>
+            <span className="eyebrow">RESEARCH · PRACTISE · REVIEW · LEARN</span>
+            <h1>Understand markets.<br /><span>Test your thinking.</span></h1>
+            <p>Research Indian and US stocks and ETFs, examine ideas with Finwiz AI, and practise with virtual money. Keep a strategy journal, review your decisions, and learn what to investigate next.</p>
             <div className="featureRow">
-              <span>Live market structure</span><span>Simulated charges</span><span>Portfolio analytics</span>
+              <span>AI-assisted learning</span><span>Virtual portfolios</span><span>Private strategy journal</span>
             </div>
           </div>
           <form className="authCard" id="get-started" onSubmit={submitAuth}>
@@ -1269,8 +1298,8 @@ export default function Home() {
               <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>Create account</button>
               <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
             </div>
-            <h2>{authMode === "register" ? "Your first virtual portfolio" : "Welcome back"}</h2>
-            <p>{authMode === "register" ? "Free, educational and no brokerage account required." : "Continue practising where you stopped."}</p>
+            <h2>{authMode === "register" ? "Your research and practice space" : "Welcome back"}</h2>
+            <p>{authMode === "register" ? "Free, educational and no brokerage account required." : "Return to your research, practice and reviews."}</p>
             {authMode === "register" && (
               <label>Display name<input required minLength={2} value={authForm.displayName} onChange={(event) => setAuthForm({ ...authForm, displayName: event.target.value })} placeholder="Market learner" /></label>
             )}
@@ -1299,9 +1328,9 @@ export default function Home() {
         </section>
         <section className="welcomeSeo" aria-labelledby="stoxsim-overview">
           <div className="welcomeSeoIntro">
-            <span className="eyebrow">BUILT FOR BEGINNERS</span>
-            <h2 id="stoxsim-overview">A free paper-trading simulator for India and the US</h2>
-            <p>StoxSim helps new market learners understand the relationship between research, orders, holdings and portfolio performance before real money is involved.</p>
+            <span className="eyebrow">FOR CURIOUS MARKET MINDS</span>
+            <h2 id="stoxsim-overview">From a market question to a better-informed decision</h2>
+            <p>For beginners building confidence, enthusiasts testing ideas, and researchers and investors examining evidence. One workspace connects research, virtual practice and reflection.</p>
           </div>
           <div className="welcomeSeoGrid">
             <article>
@@ -1408,10 +1437,11 @@ export default function Home() {
       </div>}
 
       <section className="dashboardHeading">
-        <div><span className="eyebrow">{activeAccount?.accountKind === "SANDBOX" ? "SANDBOX" : "STANDARD"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
+        <div><span className="eyebrow">{activeAccount?.accountKind === "SANDBOX" ? "EXTRA PRACTICE" : "YOUR PRACTICE"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
+      <ResearchHome userId={session.user.id} />
       {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
       <section className="metricGrid" aria-busy={loading}>
         <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
@@ -1431,7 +1461,7 @@ export default function Home() {
 
       <section className="panel moversPanel">
         <div className="moversHeader">
-          <div><span className="kicker">MARKET OVERVIEW</span><h2>Top movers</h2><p>{marketRegion === "INDIA" ? "Leading NIFTY 100 gainers and losers by change from the previous close." : "Leading US-listed gainers and losers from Alpaca, with a large-cap fallback when SIP screening is unavailable."}</p></div>
+          <div><span className="kicker">MARKET OVERVIEW</span><h2>Top movers</h2><p>{marketRegion === "INDIA" ? "Leading NIFTY 100 gainers and losers by change from the previous close." : "Explore the available US gainers and losers. The label below shows whether coverage is market-wide or limited to large companies."}</p></div>
           <div className="moversMeta"><span className={`quoteStatus ${marketDataStatus.toLowerCase()}`}>{marketDataStatus}</span><small>{movers?.generatedAt ? `Updated ${dateTime(movers.generatedAt)}` : "Building the first market snapshot"}</small></div>
         </div>
         <div className="moverTabs" role="tablist" aria-label="Market mover category">
@@ -1571,12 +1601,6 @@ export default function Home() {
   );
 }
 
-function Brand() {
-  return <a className="brand" href="/" aria-label="StoxSim home">
-    <Image className="brandLogo" src="/stoxsim-logo.png" alt="" width={42} height={42} priority />
-    <span>Stox<span>Sim</span></span>
-  </a>;
-}
 
 function Metric({ label, value, sub, tone = "" }: { label: string; value: string; sub: string; tone?: string }) {
   return <article className="metric"><span>{label}</span><strong className={tone}>{value}</strong><small>{sub}</small></article>;

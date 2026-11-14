@@ -1,4 +1,5 @@
 "use client";
+import Brand from "../components/Brand";
 
 
 
@@ -241,7 +242,7 @@ export default function FinwizPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <aside ref={historyPanel} id="chat-history" className={`${styles.sidebar} ${historyOpen ? styles.open : ""}`} aria-label="Chat history">
-      <a href="/" className={styles.brand}>StoxSim</a>
+      <Brand />
       <button disabled={loading} onClick={newChat}>+ New chat</button><h2>Recent chats</h2>
       <div className={styles.historyList}>{!chats.length && <p>Your conversations will appear here.</p>}{chats.map(chat => <button key={chat.id} disabled={loading} aria-current={activeId === chat.id ? "page" : undefined} onClick={() => {
         setActiveId(chat.id); setSubmittedQuestion(""); setError(""); setQuestion(""); setHistoryOpen(false); requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());

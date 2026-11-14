@@ -405,14 +405,14 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val id = mutable.value.accountId
         when (mutable.value.screen) {
             "Home" -> {
-                portfolio(); read("onboarding", "onboarding"); read("journey", "onboarding/journey"); read("learnerHome", "learner/home"); read("notifications", "notifications")
+                portfolio(); read("onboarding", "onboarding"); read("journey", "onboarding/journey"); read("learnerHome", "learner/home"); read("notifications", "notifications"); list("reflections", "reflections")
                 if (id.isNotBlank()) list("trades", "accounts/$id/trades")
             }
             "Markets" -> { market(); portfolio(); read("watchlist", "watchlists/default") }
             "Learn" -> { read("progression", "progression"); read("journey", "onboarding/journey"); read("onboarding", "onboarding") }
             "Learner profile" -> read("learnerProfile", "learner/profile")
             "Notifications" -> { read("notifications", "notifications"); read("notificationPreferences", "notifications/preferences") }
-            "Reflections" -> list("reflections", "reflections")
+            "Reflections" -> { list("reflections", "reflections"); if (id.isNotBlank()) list("journalOrders", "accounts/$id/orders") }
             "Watchlist" -> { read("watchlist", "watchlists/default"); read("market", "market/status", mapOf("exchange" to if (mutable.value.region == "INDIA") "NSE" else "NASDAQ")) }
             "Stock" -> mutable.value.selected?.let { instrument ->
                 read("market", "market/status", mapOf("exchange" to instrument.exchange))
@@ -691,6 +691,12 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         if(name=="pushEnabled" && enabled && mutable.value.user?.id==owner) {
             PushNotifications.allow(getApplication(),owner);PushNotifications.sync(getApplication(),api,owner)
         }
+    }
+    fun linkStrategyOrder(id: String, orderId: String) = runAction {
+        java.util.UUID.fromString(id); java.util.UUID.fromString(orderId)
+        api.mutate("reflections/$id/order", body = JSONObject().put("orderId", orderId))
+        list("reflections", "reflections")
+        mutable.update { it.copy(notice = "Existing practice order linked. No new order was placed.") }
     }
     fun saveReflection(id: String?, body: JSONObject) = runAction {
         id?.let { java.util.UUID.fromString(it) }

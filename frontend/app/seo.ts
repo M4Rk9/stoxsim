@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 
 export const SITE_URL = new URL("https://stoxsim.com");
 export const SITE_NAME = "StoxSim";
-export const DEFAULT_TITLE = "StoxSim — Free Stock Market Simulator for India & US";
+export const DEFAULT_TITLE = "StoxSim — Research Markets, Practise and Learn";
 export const DEFAULT_DESCRIPTION =
-  "Learn stock trading with virtual money on StoxSim. Practise Indian and US markets, research stocks and ETFs, and review simulated portfolio performance without risking real money.";
+  "Research Indian and US markets with AI-assisted learning. Form a strategy, practise with virtual money, and review your decisions in StoxSim.";
 
 export const SEARCH_KEYWORDS = [
   "StoxSim",

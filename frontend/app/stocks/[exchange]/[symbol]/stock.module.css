@@ -397,8 +397,9 @@
     padding-inline: 14px;
   }
 
-  .header { align-items: flex-start; }
-  .headerActions { flex-direction: column; align-items: flex-end; gap: 8px; }
+  .header { align-items: flex-start; flex-wrap: wrap; padding-right: 0; }
+  .headerActions { flex-direction: row; width: 100%; justify-content: space-between; gap: 12px; }
+  .headerActions a { display: inline-flex; align-items: center; min-height: 44px; }
 
   .cardHeader {
     flex-direction: column;

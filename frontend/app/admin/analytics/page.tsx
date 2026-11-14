@@ -1,4 +1,5 @@
 "use client";
+import Brand from "../../components/Brand";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ApiError, loadAnalytics } from "./client";
@@ -80,7 +81,7 @@ export default function AnalyticsPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/">Stox<span>Sim</span></a>
+      <Brand />
       <a href="/settings">Account settings</a>
     </header>
     <div className={styles.heading}>

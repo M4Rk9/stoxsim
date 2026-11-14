@@ -97,6 +97,11 @@ for (const width of [320, 390, 1280]) for (const dark of [false, true]) {
     expect(resultBox!.y).toBeGreaterThanOrEqual(formBox!.y + formBox!.height);
     for (const button of await results.getByRole("button").all()) expect(await button.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await testInfo.attach("stock-search-suggestions", { body: await results.locator("..").screenshot(), contentType: "image/png" });
+    if ((width === 390 && dark) || (width === 1280 && !dark)) {
+      await input.fill("");
+      await page.evaluate(() => { const banner = document.createElement("p"); banner.textContent = "REVIEW FIXTURE · Synthetic account data · Not production"; banner.style.cssText = "padding:12px;background:#263c31;color:#fff;font:14px system-ui;margin:0"; (document.querySelector(".dashboardHeading") ?? document.querySelector("main > div"))?.before(banner); if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); window.scrollTo({ top: 0, behavior: "instant" }); });
+      await testInfo.attach(`research-home-${width}-${dark ? "dark" : "light"}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    }
   });
 }
 
@@ -202,17 +207,80 @@ test("movers and watchlists open the exact listing, and details prefill the exis
   await page.reload();
   await expect(page.getByRole("heading", { name: "M&M", exact: true })).toBeVisible();
   await testInfo.attach("stock-detail-actions", { body: await page.locator('[aria-label="Virtual trading"]').screenshot(), contentType: "image/png" });
-  await page.getByRole("link", { name: "Buy", exact: true }).click();
+  await page.getByRole("link", { name: "Virtual Buy", exact: true }).click();
   const ticket = page.locator("#paper-order-ticket");
   await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("M&M");
   await expect(ticket.getByRole("button", { name: "Buy", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(ticket.getByRole("button", { name: "Place buy order" })).toBeEnabled();
   await page.getByRole("link", { name: /M&M BSE/ }).click();
   await expect(page).toHaveURL(/\/stocks\/BSE\/M%26M$/);
-  await page.getByRole("link", { name: "Sell", exact: true }).click();
+  await page.getByRole("link", { name: "Virtual Sell", exact: true }).click();
   await expect(ticket).toContainText("BSE");
   await expect(ticket.getByRole("button", { name: "Sell", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(ticket.getByRole("button", { name: "Place sell order" })).toBeEnabled();
+});
+
+for (const linkStatus of [200, 404, 503]) test(`strategy order submission consumes its intent after link response ${linkStatus}`, async ({ page }) => {
+  await setup(page, route => reply(route, []));
+  const strategyId = "55555555-5555-4555-8555-555555555555";
+  const orderId = "66666666-6666-4666-8666-666666666666";
+  let submissions = 0, links = 0;
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY", route => reply(route, stock("INFY")));
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY/quote", route => reply(route,
+    { lastPrice: 1500, previousClose: 1490, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
+  await page.route(`**/api/v1/accounts/${account.id}/orders`, route => {
+    if (route.request().method() !== "POST") return reply(route, []);
+    submissions++;
+    expect(route.request().postDataJSON()).toMatchObject({ exchange: "NSE", symbol: "INFY", side: "BUY" });
+    return reply(route, { id: orderId, status: "OPEN", symbol: "INFY", side: "BUY", quantity: 1 });
+  });
+  await page.route(`**/api/v1/reflections/${strategyId}/order`, route => {
+    if (route.request().method() !== "POST") return reply(route, {});
+    links++;
+    expect(route.request().postDataJSON()).toEqual({ orderId });
+    return reply(route, linkStatus === 200 ? {} : { message: "Link unavailable" }, linkStatus);
+  });
+  await page.goto(`/?exchange=NSE&symbol=INFY&side=BUY&strategy=${strategyId}#paper-order-ticket`);
+  const ticket = page.locator("#paper-order-ticket");
+  await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("INFY");
+  await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: linkStatus === 200 ? "Linked to your strategy" : "Do not submit again" })).toBeVisible();
+  expect(submissions).toBe(1);
+  expect(links).toBe(1);
+  await expect(page).not.toHaveURL(/strategy=/);
+  await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Buy order submitted for INFY." })).toBeVisible();
+  expect(submissions).toBe(2);
+  expect(links).toBe(1);
+});
+
+for (const intent of [null, "", "not-a-uuid", "../../another-resource"]) test(`order submission rejects invalid strategy intent ${JSON.stringify(intent)} without replay`, async ({ page }) => {
+  await setup(page, route => reply(route, []));
+  let submissions = 0, links = 0;
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY", route => reply(route, stock("INFY")));
+  await page.route("**/api/v1/instruments/INDIA/NSE/INFY/quote", route => reply(route,
+    { lastPrice: 1500, previousClose: 1490, dataStatus: "CLOSED", pricingSource: "EXTERNAL" }));
+  await page.route(`**/api/v1/accounts/${account.id}/orders`, route => {
+    if (route.request().method() !== "POST") return reply(route, []);
+    submissions++;
+    return reply(route, { id: "66666666-6666-4666-8666-666666666666", status: "OPEN", symbol: "INFY", side: "BUY", quantity: 1 });
+  });
+  await page.route("**/api/v1/reflections/**", route => {
+    if (route.request().method() === "POST") links++;
+    return reply(route, {}, 404);
+  });
+  const query = new URLSearchParams({ exchange: "NSE", symbol: "INFY", side: "BUY" });
+  if (intent !== null) query.set("strategy", intent);
+  await page.goto(`/?${query}#paper-order-ticket`);
+  const ticket = page.locator("#paper-order-ticket");
+  await expect(ticket.getByLabel("Stock", { exact: true })).toHaveValue("INFY");
+  await ticket.getByRole("button", { name: "Place buy order", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: intent === null ? "Buy order submitted for INFY." : "the strategy link is invalid" })).toBeVisible();
+  expect(submissions).toBe(1);
+  expect(links).toBe(0);
+  await expect(page).not.toHaveURL(/strategy=/);
+  // Stock prefill is consumed on load; strategy intent is consumed on submission.
+  await expect(page).toHaveURL(/\/#paper-order-ticket$/);
 });
 
 test("the quick quote chart switches to OHLC candles and supports keyboard inspection", async ({ page }, testInfo) => {
@@ -283,7 +351,7 @@ for (const width of [320,768,1440]) test(`stock detail ranges and order card fit
   const positions=await svg.locator("rect").evaluateAll(rects=>rects.map(rect=>Number(rect.getAttribute("x"))));
   expect(positions).toHaveLength(4); expect(positions[2]-positions[1]).toBeCloseTo(positions[1]-positions[0]);
   const actions=page.locator('[aria-label="Virtual trading"]');
-  await expect(actions.getByRole("link",{name:"Buy",exact:true})).toHaveAttribute("href",/exchange=BSE.*side=BUY/);
+  await expect(actions.getByRole("link",{name:"Virtual Buy",exact:true})).toHaveAttribute("href",/exchange=BSE.*side=BUY/);
   expect(await actions.evaluate(el=>Boolean(el.closest("aside")))).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await info.attach(`stock-detail-${width}`,{body:await page.screenshot({path:info.outputPath(`stock-detail-${width}.png`),fullPage:true}),contentType:"image/png"});

@@ -4,7 +4,7 @@ import { FeatureGuide } from "../components/FeatureJourney";
 
 import { safeWebsiteUrl } from "../lib/safe-url";
 
-import Image from "next/image";
+import Brand from "../components/Brand";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./competitions.module.css";
 
@@ -339,7 +339,7 @@ export default function CompetitionsPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/" aria-label="StoxSim dashboard"><Image src="/stoxsim-logo.png" alt="" width={42} height={42} priority /><span>Stox<span>Sim</span></span></a>
+      <Brand />
       <a className={styles.back} href="/">Back to dashboard</a>
     </header>
     <FeatureGuide title="Explore before joining">Read the season rules and compare the standings. You can browse without enrolling. Join a season or private league only if you want to participate.</FeatureGuide>

@@ -40,7 +40,7 @@ for (const width of [320,768,1440]) test(`Finwiz theme and keyboard layout at ${
   const input = page.getByLabel("Your question"); await expect(input).toBeVisible();
   if (width === 320) {
     await page.getByRole("button",{name:"Chat history",exact:true}).click();
-    await expect(page.getByRole("link",{name:"StoxSim",exact:true})).toBeFocused();
+    await expect(page.getByRole("link",{name:"StoxSim home",exact:true})).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button",{name:"Chat history",exact:true})).toBeFocused();
   }

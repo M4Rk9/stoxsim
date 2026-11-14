@@ -79,6 +79,6 @@ class WebParityScreenTest {
             selected = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.value.toLong()
             Column { androidx.compose.material3.Text("Shared StoxSim theme") }
         } }
-        compose.runOnIdle { assertEquals(androidx.compose.ui.graphics.Color(0xFF121212).value.toLong(), background); assertEquals(androidx.compose.ui.graphics.Color(0xFF00D09C).value.toLong(), primary); assertEquals(androidx.compose.ui.graphics.Color(0xFF17332B).value.toLong(), selected) }
+        compose.runOnIdle { assertEquals(androidx.compose.ui.graphics.Color(0xFF101513).value.toLong(), background); assertEquals(androidx.compose.ui.graphics.Color(0xFF5BD6A2).value.toLong(), primary); assertEquals(androidx.compose.ui.graphics.Color(0xFF17332B).value.toLong(), selected) }
     }
 }

@@ -12,29 +12,29 @@ import androidx.compose.ui.unit.sp
 
 // Shared web brand colours, with neutral native surfaces and a restrained type scale.
 private val Light = lightColorScheme(
-    primary = Color(0xFF0B8F55), onPrimary = Color.White,
+    primary = Color(0xFF087A4B), onPrimary = Color.White,
     primaryContainer = Color(0xFFE8F7EE), onPrimaryContainer = Color(0xFF087143),
-    secondary = Color(0xFF6D7C75), onSecondary = Color.White,
+    secondary = Color(0xFF596A62), onSecondary = Color.White,
     secondaryContainer = Color(0xFFE8F7EE), onSecondaryContainer = Color(0xFF087143),
-    background = Color(0xFFF7F8FA), surfaceTint = Color(0xFF0B8F55),
+    background = Color(0xFFF7F8FA), surfaceTint = Color(0xFF087A4B),
     surface = Color(0xFFFFFFFF), surfaceContainer = Color(0xFFFFFFFF),
     surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF7F8FA),
     surfaceContainerHigh = Color.White, surfaceContainerHighest = Color(0xFFF0F2F5), surfaceVariant = Color(0xFFF0F2F5),
-    onSurface = Color(0xFF17211D), onBackground = Color(0xFF17211D), onSurfaceVariant = Color(0xFF6D7C75),
-    outline = Color(0xFF6D7C75), outlineVariant = Color(0xFFDFE5DE),
+    onSurface = Color(0xFF17211D), onBackground = Color(0xFF17211D), onSurfaceVariant = Color(0xFF596A62),
+    outline = Color(0xFF596A62), outlineVariant = Color(0xFFDFE5DE),
     error = Color(0xFFC33C3C), errorContainer = Color(0xFFFFF0EF), onErrorContainer = Color(0xFFC33C3C)
 )
 private val Dark = darkColorScheme(
-    primary = Color(0xFF00D09C), onPrimary = Color(0xFF06150D),
-    primaryContainer = Color(0xFF17332B), onPrimaryContainer = Color(0xFF00D09C),
-    secondary = Color(0xFFA3A3A3), onSecondary = Color(0xFF121212),
-    secondaryContainer = Color(0xFF17332B), onSecondaryContainer = Color(0xFF00D09C),
-    background = Color(0xFF121212), surfaceTint = Color(0xFF00D09C),
-    surface = Color(0xFF1B1B1B), surfaceContainer = Color(0xFF1B1B1B),
-    surfaceContainerLowest = Color(0xFF121212), surfaceContainerLow = Color(0xFF181818),
+    primary = Color(0xFF5BD6A2), onPrimary = Color(0xFF0C2418),
+    primaryContainer = Color(0xFF17332B), onPrimaryContainer = Color(0xFF5BD6A2),
+    secondary = Color(0xFFA9B8AE), onSecondary = Color(0xFF101513),
+    secondaryContainer = Color(0xFF17332B), onSecondaryContainer = Color(0xFF5BD6A2),
+    background = Color(0xFF101513), surfaceTint = Color(0xFF5BD6A2),
+    surface = Color(0xFF18201C), surfaceContainer = Color(0xFF18201C),
+    surfaceContainerLowest = Color(0xFF101513), surfaceContainerLow = Color(0xFF181818),
     surfaceContainerHigh = Color(0xFF222222), surfaceContainerHighest = Color(0xFF262626), surfaceVariant = Color(0xFF222222),
-    onSurface = Color(0xFFF1F1F1), onBackground = Color(0xFFF1F1F1), onSurfaceVariant = Color(0xFFA3A3A3),
-    outline = Color(0xFFA3A3A3), outlineVariant = Color(0xFF303030),
+    onSurface = Color(0xFFEEF3EF), onBackground = Color(0xFFEEF3EF), onSurfaceVariant = Color(0xFFA9B8AE),
+    outline = Color(0xFFA9B8AE), outlineVariant = Color(0xFF303E36),
     error = Color(0xFFEF6464), errorContainer = Color(0xFF331F1F), onErrorContainer = Color(0xFFFFAAAA)
 )
 private val Type = Typography(

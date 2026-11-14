@@ -1,4 +1,5 @@
 "use client";
+import Brand from "../components/Brand";
 import LearnerProfileSettings from "../components/LearnerProfileSettings";
 import Notifications from "../components/Notifications";
 
@@ -542,7 +543,7 @@ export default function SettingsPage() {
 
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/">Stox<span>Sim</span></a>
+      <Brand />
       <a className={styles.back} href="/">← Back to dashboard</a>
     </header>
 

@@ -1,4 +1,5 @@
 "use client";
+import Brand from "../../../components/Brand";
 
 import PriceHistoryChart from "../../../components/PriceHistoryChart";
 
@@ -311,7 +312,7 @@ export default function StockPage() {
   if (error || !instrument || !quote) {
     return <main id="main-content" tabIndex={-1} className={styles.shell}>
       <header className={styles.header}>
-        <a className={styles.brand} href="/">Stox<span>Sim</span></a>
+        <Brand />
         <div className={styles.headerActions}><a href="/">← Dashboard</a></div>
       </header>
       <div className={styles.error} role="alert">{error || "This stock is unavailable."}</div>
@@ -327,7 +328,7 @@ export default function StockPage() {
 
   return <main id="main-content" tabIndex={-1} className={styles.shell}>
     <header className={styles.header}>
-      <a className={styles.brand} href="/">Stox<span>Sim</span></a>
+      <Brand />
       <div className={styles.headerActions}>
         <a href="/settings">Account settings</a>
         <a href="/">← Dashboard</a>
@@ -358,7 +359,7 @@ export default function StockPage() {
         <div className={styles.stack}>
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Price history</h2><p>{instrument.provider === "ALPACA" ? `${intervalLabel(range)} price history from Alpaca` : `${intervalLabel(range)} price history from Upstox`}</p></div>
+              <div><h2>Price history</h2><p>{`${intervalLabel(range)} prices · inspect the chart to explore`}</p></div>
               <div className={styles.rangeTabs}>
                 {chartRanges.map((months) => <button
                   type="button"
@@ -435,8 +436,9 @@ export default function StockPage() {
             <div className={styles.cardHeader}><div><h2>Practise a trade</h2><p>Open a ticket for this exact listing</p></div></div>
       <div className={styles.tradeActions} aria-label="Virtual trading">
         {["EQUITY", "ETF"].includes(instrument.instrumentType) ? <>
-          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "BUY")}>Buy</a>
-          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "SELL")}>Sell</a>
+          <a href={`/journal?${new URLSearchParams({ exchange: instrument.exchange, symbol: instrument.tradingSymbol })}`}>Plan a strategy</a>
+          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "BUY")}>Virtual Buy</a>
+          <a href={stockOrderHref(instrument.exchange, instrument.tradingSymbol, "SELL")}>Virtual Sell</a>
           <span>Virtual orders only</span>
         </> : <span>This listing is unavailable for equity practice orders.</span>}
       </div>

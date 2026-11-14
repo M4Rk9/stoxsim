@@ -23,7 +23,7 @@ export default function PriceHistoryChart({ candles, loading, error, currency, e
 
 
   if (loading) return <div className={styles.empty} role="status">Loading historical prices…</div>;
-  if (!bars.length) return <div className={styles.empty} role="status">{error || "Verified OHLC data is unavailable for this selection."}</div>;
+  if (!bars.length) return <div className={styles.empty} role="status">{error || "Price history is unavailable for this selection."}</div>;
 
   const first = bars[0], last = bars[bars.length - 1];
   const index = bars.findIndex(bar => bar.timestamp === selectedTimestamp);
@@ -55,8 +55,12 @@ export default function PriceHistoryChart({ candles, loading, error, currency, e
       <button type="button" aria-pressed={mode === "line"} onClick={() => setMode("line")}>Line</button>
       <button type="button" aria-pressed={mode === "candles"} onClick={() => setMode("candles")}>Candlestick</button>
     </div>
-    <p className={styles.source}>{exchange} · {provider} · {interval} OHLC · Latest bar {time.format(new Date(last.timestamp))}
-      {candleDay(last.timestamp, zone) >= today ? " (current session may be incomplete)" : ""}</p>
+    <p className={styles.source}>Prices through {day.format(new Date(last.timestamp))}
+      {candleDay(last.timestamp, zone) >= today ? " · Today's session may still be incomplete" : " · Last available session"}</p>
+    <details className={styles.source}><summary>About this market data</summary>
+      <p>{exchange} · {provider} · {interval} open, high, low and close. Latest observation: {time.format(new Date(last.timestamp))} ({zone}). This chart is historical data, not a live quote.</p>
+      <p>Available observations are evenly spaced. Closed sessions and missing prices are not filled in.</p>
+    </details>
     <div className={styles.readout} aria-label="Selected candle">
       <time dateTime={active.timestamp}>{time.format(new Date(active.timestamp))}</time>
       <span>Open <strong>{money.format(active.open)}</strong></span>
@@ -66,7 +70,7 @@ export default function PriceHistoryChart({ candles, loading, error, currency, e
       {typeof active.volume === "number" && Number.isFinite(active.volume) && active.volume >= 0
         && <span>Volume <strong>{active.volume.toLocaleString("en-IN")}</strong></span>}
     </div>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img"
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img"
       aria-label={mode === "line" ? "Historical closing-price chart" : `${interval} candlestick chart`} tabIndex={0}
       aria-description="Use the left and right arrow keys to inspect prices."
       onPointerMove={event => { if (event.pointerType === "mouse") inspect(event); }} onPointerDown={inspect}
@@ -87,10 +91,10 @@ export default function PriceHistoryChart({ candles, loading, error, currency, e
       </g>)}
       <line x1={x(active)} x2={x(active)} y1={top} y2={height - bottom} className={styles.crosshair} />
       <circle cx={x(active)} cy={y(active.close)} r="4" className={styles.point} />
-      <text x={left} y={height - 7}>{day.format(new Date(first.timestamp))}</text>
-      {duration > 0 && <text x={width - right} y={height - 7} textAnchor="end">{day.format(new Date(last.timestamp))}</text>}
+
     </svg>
-    <p className={styles.source}>Available candles are evenly spaced; closed sessions and missing observations are not filled in.</p>
+    <div className={styles.axisDates}><span>{day.format(new Date(first.timestamp))}</span>{duration > 0 && <span>{day.format(new Date(last.timestamp))}</span>}</div>
+
     {bars.length < 5 && <p className={styles.source}>Limited history. Only available observations are shown.</p>}
   </div>;
 }

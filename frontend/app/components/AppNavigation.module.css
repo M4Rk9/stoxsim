@@ -1,11 +1,9 @@
 .space { height: 76px; }
-.nav { position: fixed; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 75; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: min(560px, calc(100% - 24px)); padding: 5px; gap: 3px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 8px 30px var(--shadow-color); }
-.nav a { display: grid; place-items: center; min-height: 44px; min-width: 0; padding: 8px 3px; border-radius: 10px; font-size: 12px; font-weight: 750; color: var(--muted); text-decoration: none; }
+.nav { position: fixed; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 75; display: flex; width: min(660px, calc(100% - 24px)); padding: 5px; gap: 3px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 8px 30px var(--shadow-color); }
+.nav a { display: grid; place-items: center; flex: 1 0 auto; min-height: 44px; min-width: 44px; padding: 8px 2px; white-space: nowrap; border-radius: 10px; font-size: 12px; font-weight: 750; color: var(--muted); text-decoration: none; }
 .nav a[aria-current] { color: var(--green); background: var(--green-soft); }
 .nav a:hover { color: var(--ink); background: var(--surface-soft); }
 .nav a:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 @media (min-width: 700px) { .nav a { font-size: 14px; } }
 
 .nav.inFlow { position: relative; left: auto; bottom: auto; transform: none; margin: 0 auto max(12px, env(safe-area-inset-bottom, 0px)); }
-@media (max-width: 350px) { .nav.inFlow { grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); } }
-@media (max-width: 350px) { .nav a { font-size:11px; padding-inline:1px; } }

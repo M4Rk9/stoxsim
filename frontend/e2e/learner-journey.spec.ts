@@ -122,8 +122,8 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
     await page.goto(themedPage.path);
     await expect(page.getByRole("heading", { name: themedPage.heading })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.locator("main")).toHaveCSS("background-color", "rgb(18, 18, 18)");
-    await expect(page.locator("main")).toHaveCSS("color", "rgb(241, 241, 241)");
+    await expect(page.locator("main")).toHaveCSS("background-color", "rgb(16, 21, 19)");
+    await expect(page.locator("main")).toHaveCSS("color", "rgb(238, 243, 239)");
   }
 
   await page.goto("/");
@@ -145,7 +145,7 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
   await portfolioPage.close();
 
   await page.getByRole("menuitem", { name: /Sign out/ }).click();
-  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your research and practice space" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -318,7 +318,7 @@ test("the market switch selects the active paid portfolio without a redundant se
   await registerLearner(page, "sandbox-switcher", false);
   await expect(page.getByLabel("Portfolio account")).toHaveCount(0);
 
-  await expect(page.getByText("SANDBOX · INDIA PORTFOLIO"))
+  await expect(page.getByText("EXTRA PRACTICE · INDIA PORTFOLIO"))
     .toBeVisible({ timeout: PORTFOLIO_TIMEOUT });
   await expect(page.getByText("Learning sandbox · excluded from standard rankings")).toHaveCount(0);
   await expect(page.locator(".metric").filter({ hasText: "Account value" }))
@@ -541,7 +541,7 @@ test("account settings expose recovery, sessions and portable data", async ({ pa
   await expect((await download).suggestedFilename()).toBe("stoxsim-account-export.json");
 
   await page.getByRole("button", { name: "Log out all devices" }).click();
-  await expect(page.getByRole("heading", { name: "Your first virtual portfolio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your research and practice space" })).toBeVisible();
 });
 
 test("an active Pro learner can provision an additional isolated sandbox", async ({ page }) => {
