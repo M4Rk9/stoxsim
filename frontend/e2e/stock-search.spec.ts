@@ -279,7 +279,8 @@ for (const intent of [null, "", "not-a-uuid", "../../another-resource"]) test(`o
   expect(submissions).toBe(1);
   expect(links).toBe(0);
   await expect(page).not.toHaveURL(/strategy=/);
-  await expect(page).toHaveURL(/exchange=NSE&symbol=INFY&side=BUY#paper-order-ticket$/);
+  // Stock prefill is consumed on load; strategy intent is consumed on submission.
+  await expect(page).toHaveURL(/\/#paper-order-ticket$/);
 });
 
 test("the quick quote chart switches to OHLC candles and supports keyboard inspection", async ({ page }, testInfo) => {
