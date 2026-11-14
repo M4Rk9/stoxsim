@@ -73,10 +73,15 @@ class StrategyJournalTest {
                 { _, _ -> }, {}, { _, _ -> }, { _, _ -> }, {})
         } } }
         compose.onNodeWithText("Strategy journal").assertIsDisplayed()
+        captureFrame("strategy-journal-${if (dark) "dark" else "light"}.png")
+        compose.onNodeWithText("Practice outcome").performScrollTo()
+        captureFrame("strategy-outcome-${if (dark) "dark" else "light"}.png")
+    }
+    private fun captureFrame(name: String) {
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
         val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
         val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, "strategy-journal-${if (dark) "dark" else "light"}.png")
+            put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/png")
             put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/StoxSimReview")
         }

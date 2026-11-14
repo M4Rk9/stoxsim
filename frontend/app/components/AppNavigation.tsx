@@ -7,7 +7,6 @@ import styles from "./AppNavigation.module.css";
 const areas = [
   { label: "Home", href: "/" },
   { label: "Markets", href: "/#stock-search" },
-  { label: "Journal", href: "/journal" },
   { label: "Learn", href: "/learn" },
   { label: "Compete", href: "/competitions" },
   { label: "Account", href: "/settings" },
@@ -22,7 +21,7 @@ export default function AppNavigation() {
     return () => window.removeEventListener("hashchange", update);
   }, [pathname]);
   const current = pathname === "/" ? (hash === "#stock-search" ? "Markets" : "Home")
-    : pathname === "/journal" ? "Journal"
+    : pathname === "/journal" ? "Learn"
     : /^(\/stocks|\/portfolio|\/markets)/.test(pathname) ? "Markets"
       : /^(\/learn|\/progress|\/finwiz|\/scenario-lab)/.test(pathname) ? "Learn"
         : /^(\/competitions|\/campus)/.test(pathname) ? "Compete" : "Account";

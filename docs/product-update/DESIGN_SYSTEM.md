@@ -16,6 +16,8 @@ Use accent for actions, selected states and meaningful gains. Losses retain red 
 
 System sans-serif stack, native Compose typography, 14–16px reading text; compact metadata may use 12–13px. Heading scale 22/26/32/38/52px by hierarchy and width. Shared spacing tokens: 4, 8, 12, 16, 24, 32px. Radius tokens: 10px controls, 16px cards, 22px major containers. Minimum interactive height 44px web and Material native touch behavior. Visible keyboard focus and reduced-motion preferences remain supported.
 
+Web and Android share five main destinations: Home, Markets, Learn, Compete and Account. The journal is one tap away from Home and Learn; it sits in the Learn area so mobile navigation keeps readable labels and 44px targets.
+
 The home hub groups the research loop with a review-due card and persistent Finwiz/Scenario/Learn/Competition shortcuts. Journal forms progressively disclose saved research and actual linked-order outcomes. Mobile stacks panels without hiding required fields. Finwiz retains its focused chat layout without a bottom navigation overlay.
 
 This is incremental adoption. Existing domain pages keep their working components; remaining page-specific hard-coded styling is tracked in the audit and subsequent milestones.

@@ -70,7 +70,7 @@ export default function PriceHistoryChart({ candles, loading, error, currency, e
       {typeof active.volume === "number" && Number.isFinite(active.volume) && active.volume >= 0
         && <span>Volume <strong>{active.volume.toLocaleString("en-IN")}</strong></span>}
     </div>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img"
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img"
       aria-label={mode === "line" ? "Historical closing-price chart" : `${interval} candlestick chart`} tabIndex={0}
       aria-description="Use the left and right arrow keys to inspect prices."
       onPointerMove={event => { if (event.pointerType === "mouse") inspect(event); }} onPointerDown={inspect}
@@ -91,9 +91,9 @@ export default function PriceHistoryChart({ candles, loading, error, currency, e
       </g>)}
       <line x1={x(active)} x2={x(active)} y1={top} y2={height - bottom} className={styles.crosshair} />
       <circle cx={x(active)} cy={y(active.close)} r="4" className={styles.point} />
-      <text x={left} y={height - 7}>{day.format(new Date(first.timestamp))}</text>
-      {duration > 0 && <text x={width - right} y={height - 7} textAnchor="end">{day.format(new Date(last.timestamp))}</text>}
+
     </svg>
+    <div className={styles.axisDates}><span>{day.format(new Date(first.timestamp))}</span>{duration > 0 && <span>{day.format(new Date(last.timestamp))}</span>}</div>
 
     {bars.length < 5 && <p className={styles.source}>Limited history. Only available observations are shown.</p>}
   </div>;

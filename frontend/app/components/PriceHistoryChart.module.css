@@ -1,14 +1,14 @@
 .chart { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
 .controls, .readout { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .controls button { padding: 6px 12px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
-.controls button[aria-pressed="true"] { color: var(--panel); background: var(--green); border-color: var(--green); }
+.controls button[aria-pressed="true"] { color: var(--on-accent); background: var(--green); border-color: var(--green); }
 .controls label { display: flex; align-items: center; gap: 5px; }
 .source, .readout { font-size: .8rem; line-height: 1.45; color: var(--muted); }
 .readout strong { color: var(--ink); }
 .readout .pattern { padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; }
-.chart svg { display: block; width: 100%; height: auto; margin-top: 4px; touch-action: pan-y; }
+.chart svg { display: block; width: 100%; height: clamp(180px, 24vw, 250px); margin-top: 4px; touch-action: pan-y; }
 .chart svg:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-.chart svg text { fill: var(--muted); font-size: 11px; }
+.axisDates { display:flex; justify-content:space-between; gap:12px; color:var(--muted); font-size:12px; line-height:1.5; margin:0 8px 8px; }
 .grid { stroke: var(--line); stroke-dasharray: 4 5; }
 .line { stroke: var(--green); stroke-width: 2.5; fill: none; }
 .up { stroke: var(--green); fill: var(--green); }
