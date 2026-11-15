@@ -1,4 +1,5 @@
 "use client";
+import ResearchNews from "./ResearchNews";
 import Brand from "../../../components/Brand";
 
 import PriceHistoryChart from "../../../components/PriceHistoryChart";
@@ -412,6 +413,7 @@ export default function StockPage() {
         </div>
 
         <aside className={styles.stack}>
+          <ResearchNews listing={`/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}`} load={authorized} />
           <article className={styles.card}>
             <div className={styles.cardHeader}><div><h2>Market snapshot</h2><p>Latest verified trading values</p></div></div>
             <div className={styles.stats}>
@@ -428,8 +430,11 @@ export default function StockPage() {
             <div className={styles.cardHeader}><div><h2>Research note</h2><p>Use this page before placing a simulated order</p></div></div>
             <div className={styles.profile}>
               <p className={styles.description}>
-                Compare price trend, valuation ratios and financial performance. StoxSim is an educational simulator; this information is not investment advice.
+                Separate what you know from what you assume. Compare the business, valuation and financial performance, then write down what would change your view. A profitable simulated trade is not automatically a good decision.
               </p>
+              <ol className={styles.researchChecklist}><li>What supports your thesis?</li><li>What is the strongest counterargument?</li><li>Which evidence would invalidate it?</li><li>When will you review the outcome?</li></ol>
+              <a className={styles.researchLink} href={`/finwiz?${new URLSearchParams({ marketRegion, exchange, symbol })}`}>Examine this company with Finwiz ↗</a>
+              <p className={styles.description}>AI explanations can be wrong. Check the underlying information. Virtual practice only; no real trades or promised returns.</p>
             </div>
           </article>
           <article className={styles.card}>
