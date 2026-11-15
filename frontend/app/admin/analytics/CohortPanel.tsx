@@ -25,8 +25,8 @@ export default function CohortPanel({ from, to, revision }: { from: string; to: 
       .catch(() => { if (!controller.signal.aborted) setError(true); });
     return () => controller.abort();
   }, [from,to,revision,group,retry]);
-  return <section className={styles.panel} aria-labelledby="cohort-title">
-    <h2 id="cohort-title">Research and return cohorts</h2>
+  return <section className={styles.panel} aria-labelledby="research-cohort-title">
+    <h2 id="research-cohort-title">Research and return cohorts</h2>
     <p>Compare learners who signed up in the selected dates. Existing first-trade conversion and seven-day activation above keep their original definitions.</p>
     <label>Group registrations by <select value={group} onChange={e=>setGroup(e.target.value as typeof group)}>
       <option value="WEEK">Signup week (Monday, UTC)</option><option value="SOURCE">Signup source</option><option value="DEVICE">Signup device</option>
