@@ -1,9 +1,9 @@
 # Changelog
 
-## Finwiz unavailable-response fix
-- Stop substituting canned topic paragraphs for failed AI answers; return a clear unavailable notice without looping suggestions or raw model context.
-- Label unavailable and saved legacy fallback replies clearly in the web chat; retain existing provider/tier API compatibility.
-- Add safe configuration diagnostics and regressions for the reported stock/RSI questions.
+## Research evidence (Milestone 2)
+- Add separately gated India/US company headlines with source links and publication times; fail honestly for missing coverage.
+- Connect company research to evidence-focused Finwiz prompts; correct short-history technical indicators and disclose source freshness independently.
+- Explain that current Scenario Lab shocks are not historical investment backtests; document the exact point-in-time data dependency.
 
 
 ## Research cohorts (unreleased)

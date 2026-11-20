@@ -428,3 +428,11 @@
 .card .empty { min-height:120px; }
 .ratios > .empty { grid-column:1 / -1; }
 .tradeActions { padding-top:16px; }
+
+.newsList { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: 1.2rem; }
+.newsList li { border-bottom: 1px solid var(--border, #46534e); padding-bottom: 1rem; overflow-wrap: anywhere; }
+.newsList a { color: inherit; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; line-height: 1.55; }
+.newsList time, .newsSource { display: block; font-size: .875rem; line-height: 1.6; margin-top: .35rem; font-weight: 400; }
+.researchChecklist { padding-left: 1.25rem; line-height: 1.75; }
+.researchLink { display: inline-block; color: inherit; padding: .7rem 0; font-weight: 600; text-underline-offset: 4px; }
+.newsList a:focus-visible, .researchLink:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }

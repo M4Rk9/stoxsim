@@ -106,7 +106,7 @@ export default function FinwizPage() {
       const normalizedSymbol = requestedSymbol.toUpperCase();
       setSymbol(normalizedSymbol);
       setTopic("STOCK_FUNDAMENTALS");
-      setQuestion(`Explain the fundamentals, valuation, cash-flow quality and key risks of ${normalizedSymbol} using the available StoxSim data.`);
+      setQuestion(`Explain the fundamentals, valuation, cash-flow quality and key risks of ${normalizedSymbol} using the available StoxSim data. Separate evidence from assumptions, give the strongest counterargument, identify missing or stale inputs and suggest a review question. Link to the StoxSim source page without inventing citations.`);
     }
   }, []);
 

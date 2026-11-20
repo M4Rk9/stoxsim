@@ -36,6 +36,14 @@ export default function ScenarioLabPage() {
         <button aria-pressed={region === "UNITED_STATES"} onClick={() => setRegion("UNITED_STATES")}>US · USD</button>
       </div>
     </section>
+    <section className={styles.historyNotice} aria-labelledby="scenario-method">
+      <h2 id="scenario-method">Know what this scenario measures</h2>
+      <p>These are hypothetical shocks to your current practice portfolio. They are not historical backtests or forecasts.</p>
+      <details><summary>Can I test an investment from a past date?</summary>
+        <p>Historical investment replay is not available yet. A credible result needs prices and company information available at the chosen time, complete corporate actions, and explicit costs. Current charts alone cannot establish that result.</p>
+        <p>You can inspect price history on a company page and record a thesis in your <a href="/journal">strategy journal</a>. Do not treat that chart comparison as an achievable investment return.</p>
+      </details>
+    </section>
     {account && <label className={styles.accountPicker}>Portfolio to explore
       <select value={account.id} onChange={event => setSelectedAccount(event.target.value)} aria-label="Portfolio to explore">
         {accounts.filter(a => a.marketRegion === region && a.active).map(a => <option key={a.id} value={a.id}>

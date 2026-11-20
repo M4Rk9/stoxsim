@@ -30,6 +30,8 @@ services:
   backend:
     build: ./backend
     environment:
+      UPSTOX_NEWS_ENABLED: ${UPSTOX_NEWS_ENABLED:-false}
+      ALPACA_NEWS_ENABLED: ${ALPACA_NEWS_ENABLED:-false}
       DATABASE_URL: jdbc:postgresql://postgres:5432/stoxsim
       DATABASE_USERNAME: stoxsim
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
