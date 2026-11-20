@@ -3,8 +3,7 @@ name: CodeQL
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  pull_request: # Include stacked review branches as well as main.
   schedule:
     - cron: "23 3 * * 1"
 

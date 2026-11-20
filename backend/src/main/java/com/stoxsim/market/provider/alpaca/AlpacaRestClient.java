@@ -21,11 +21,16 @@ public class AlpacaRestClient {
     private final AlpacaMarketDataProperties properties;
     private final RestClient dataClient;
     private final RestClient tradingClient;
+    private final RestClient newsClient;
 
     public AlpacaRestClient(AlpacaMarketDataProperties properties) {
         this.properties = properties;
         this.dataClient = client(properties.getDataBaseUrl());
         this.tradingClient = client(properties.getTradingBaseUrl());
+        var requests = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requests.setConnectTimeout(5000);
+        requests.setReadTimeout(5000);
+        this.newsClient = dataClient.mutate().requestFactory(requests).build();
     }
 
     public Map<String, JsonNode> getSnapshots(Collection<String> symbols) {
@@ -93,6 +98,15 @@ public class AlpacaRestClient {
                 exception
             );
         }
+    }
+
+    public JsonNode getNews(String symbol, java.time.Instant since) {
+        requirePublicServing();
+        return newsClient.get().uri(uri -> uri.path("/v1beta1/news")
+            .queryParam("symbols", "{symbol}").queryParam("start", since.toString())
+            .queryParam("limit", 10).queryParam("include_content", false)
+            .queryParam("sort", "desc").build(symbol))
+            .retrieve().body(JsonNode.class);
     }
 
     public JsonNode getMovers(int top) {

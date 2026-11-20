@@ -92,6 +92,9 @@ stoxsim:
     max-question-characters: ${FINWIZ_MAX_QUESTION_CHARACTERS:2000}
     max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
     thinking-level: ${FINWIZ_THINKING_LEVEL:minimal}
+  news:
+    upstox-enabled: ${UPSTOX_NEWS_ENABLED:false}
+    alpaca-enabled: ${ALPACA_NEWS_ENABLED:false}
   market-data:
     sec:
       user-agent: ${SEC_USER_AGENT:StoxSim/1.0 support.stoxsim@gmail.com}
