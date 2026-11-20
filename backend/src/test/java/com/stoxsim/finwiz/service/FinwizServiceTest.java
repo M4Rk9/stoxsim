@@ -49,7 +49,7 @@ class FinwizServiceTest {
     }
 
     @Test
-    void usesEducationalFallbackWhenNoGeminiKeyIsConfigured() {
+    void reportsUnavailableWhenNoGeminiKeyIsConfigured() {
         FinwizProperties properties = new FinwizProperties();
         properties.setApiKey("");
         FinwizRequest request = new FinwizRequest(
@@ -65,13 +65,25 @@ class FinwizServiceTest {
         var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
 
         assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
-        assertThat(response.answer()).contains("Operating cash flow");
+        assertThat(response.answer()).contains("Your question has not been answered");
         assertThat(response.disclaimer()).contains("does not provide investment advice");
         assertThat(response.groundedInStoxSimData()).isFalse();
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"What is a stock ?", "Why can RSI stay high or low for a long time?"})
+    void unavailableAiNeverSubstitutesATopicFrameworkForTheActualQuestion(String question) {
+        var request = new FinwizRequest(question, Topic.LEARN, null, null, null, null);
+        when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
+        var result = new FinwizService(new FinwizProperties(), contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
+        assertThat(result.answer()).contains("Your question has not been answered")
+            .doesNotContain("Beginner framework", "Finwiz learning mode", "VERIFIED STOXSIM CONTEXT");
+        assertThat(result.suggestedQuestions()).isEmpty();
+        assertThat(result.model()).isEqualTo("unavailable-v2");
+    }
+
     @Test
-    void exhaustedOrUnavailableBudgetNeverCallsProviderAndKeepsDeterministicLearning() {
+    void exhaustedOrUnavailableBudgetNeverCallsProviderOrPretendsToAnswer() {
         FinwizProperties properties = new FinwizProperties();
         properties.setApiKey("test-provider-key");
         properties.setBaseUrl("http://127.0.0.1:1");
@@ -131,7 +143,7 @@ class FinwizServiceTest {
     }
 
     @Test
-    void preservesVerifiedContextInFallbackMode() {
+    void unavailableNoticeDoesNotDumpRawContextOrClaimGrounding() {
         FinwizProperties properties = new FinwizProperties();
         FinwizRequest request = new FinwizRequest(
             "Explain the available data without recommending a trade.",
@@ -151,9 +163,10 @@ class FinwizServiceTest {
 
         var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
 
-        assertThat(response.answer()).contains("What the verified StoxSim data says");
-        assertThat(response.answer()).contains("lastPrice=100.00");
-        assertThat(response.dataAsOf()).isEqualTo(context.dataAsOf());
+        assertThat(response.answer()).doesNotContain("What the verified StoxSim data says");
+        assertThat(response.answer()).doesNotContain("lastPrice=100.00");
+        assertThat(response.dataAsOf()).isNull();
+        assertThat(response.groundedInStoxSimData()).isFalse();
     }
 
     @Test
@@ -202,19 +215,14 @@ class FinwizServiceTest {
         var service = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget);
         var fallback = service.ask(USER, request);
         assertThat(fallback.finwizTier()).isEqualTo(depth.name());
-        assertThat(fallback.suggestedQuestions()).hasSize(depth.suggestions);
+        assertThat(fallback.suggestedQuestions()).isEmpty();
         assertThat(fallback.answer().length()).isLessThanOrEqualTo(depth.characters);
-        if (depth == FinwizDepth.BASIC) assertThat(fallback.answer()).doesNotContain("Worked example");
-        else assertThat(fallback.answer()).contains("Worked example", "P/E = 200 ÷ 10 = 20");
-        if (depth == FinwizDepth.FULL) assertThat(fallback.answer()).contains("Compare assumptions and practise");
-        else assertThat(fallback.answer()).doesNotContain("Compare assumptions and practise");
-
-        when(contexts.build(request)).thenReturn(new ContextSnapshot(true, "TEST", Instant.now(), "verified metric ".repeat(1000)));
+        assertThat(fallback.answer()).contains("Your question has not been answered").doesNotContain("Worked example", "Beginner framework");
+        when(contexts.build(request)).thenReturn(new ContextSnapshot(true, "TEST", Instant.now(), "internal context instruction ".repeat(1000)));
         var longContext = service.ask(USER, request);
-        assertThat(longContext.answer()).contains("Missing values remain unknown", "Additional context omitted");
-        assertThat(longContext.answer().length()).isLessThanOrEqualTo(depth.characters);
-        if (depth != FinwizDepth.BASIC) assertThat(longContext.answer()).contains("Worked example");
-        if (depth == FinwizDepth.FULL) assertThat(longContext.answer()).contains("Compare assumptions and practise");
+        assertThat(longContext.answer()).doesNotContain("internal context instruction");
+        assertThat(longContext.groundedInStoxSimData()).isFalse();
+        assertThat(longContext.dataAsOf()).isNull();
 
         var body = new AtomicReference<String>();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -258,13 +266,11 @@ class FinwizServiceTest {
         assertThat(calls.get()).isEqualTo(1);
         assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
         assertThat(response.answer()).startsWith("Finwiz could not complete this answer.")
-            .contains("general lesson on the selected topic", "Missing values remain unknown")
+            .contains("No answer was generated for your question")
             .doesNotContain("If you make 20 trades");
         assertThat(response.finwizTier()).isEqualTo(depth.name());
         assertThat(response.answer().length()).isLessThanOrEqualTo(depth.characters);
-        assertThat(response.suggestedQuestions()).hasSize(depth.suggestions);
-        if (depth != FinwizDepth.BASIC) assertThat(response.answer()).contains("Worked example");
-        if (depth == FinwizDepth.FULL) assertThat(response.answer()).contains("Compare assumptions and practise");
+        assertThat(response.suggestedQuestions()).isEmpty();
         assertThat(metrics.get("stoxsim.finwiz.responses").tags("provider", "fallback", "result", "provider_incomplete").counter().count()).isEqualTo(1);
         assertThat(metrics.find("stoxsim.finwiz.responses").tag("result", "success").counter()).isNull();
     }
@@ -281,7 +287,7 @@ class FinwizServiceTest {
         var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
 
         assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
-        assertThat(response.answer()).contains("Operating cash flow").doesNotContain("Partial provider content");
+        assertThat(response.answer()).contains("No answer was generated").doesNotContain("Partial provider content");
     }
 
     @Test
