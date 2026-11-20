@@ -31,3 +31,9 @@
 .acknowledge input { width: 20px; height: 20px; flex-shrink: 0; }
 .controls button, .controls select, .controls input, .card td button, .future button { min-height: 44px; }
 .controls button[aria-pressed="true"] { border-color: var(--green); font-weight: 700; }
+
+.payoff { margin: 20px 0; color: var(--ink); }
+.payoff svg { width: 100%; height: auto; min-height: 180px; }
+.payoff figcaption { color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
+.payoff summary { cursor: pointer; padding: 8px 0; }
+.future { overflow-wrap: anywhere; }

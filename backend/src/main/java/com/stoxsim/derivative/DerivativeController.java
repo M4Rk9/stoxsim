@@ -23,10 +23,12 @@ import com.stoxsim.derivative.DerivativeBook.Action;
 class DerivativeController {
     private final DerivativeCatalog catalog;
     private final DerivativeTradingService trading;
+    private final DerivativeBasketService baskets;
 
-    DerivativeController(DerivativeCatalog catalog, DerivativeTradingService trading) {
+    DerivativeController(DerivativeCatalog catalog, DerivativeTradingService trading, DerivativeBasketService baskets) {
         this.catalog = catalog;
         this.trading = trading;
+        this.baskets = baskets;
     }
 
     @GetMapping("/capability")
@@ -67,6 +69,23 @@ class DerivativeController {
     DerivativeTradingService.Fill place(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody OrderRequest order) {
         requireEnabled();
         return trading.place(UUID.fromString(jwt.getSubject()), order.contractId(), order.requestKey(), order.action(), order.lots());
+    }
+
+    record BasketPreviewRequest(@NotNull @jakarta.validation.constraints.Size(min=2, max=4)
+        List<@NotNull @Valid DerivativeBasketService.Leg> legs) {}
+    record BasketOrderRequest(@NotNull UUID requestKey, @NotNull @jakarta.validation.constraints.Size(min=2, max=4)
+        List<@NotNull @Valid DerivativeBasketService.Leg> legs) {}
+
+    @PostMapping("/baskets/preview")
+    DerivativeBasketService.BasketPreview previewBasket(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BasketPreviewRequest body) {
+        requireEnabled();
+        return baskets.preview(UUID.fromString(jwt.getSubject()), body.legs());
+    }
+
+    @PostMapping("/baskets/orders")
+    DerivativeBasketService.BasketFill placeBasket(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BasketOrderRequest body) {
+        requireEnabled();
+        return baskets.place(UUID.fromString(jwt.getSubject()), body.requestKey(), body.legs());
     }
 
     private void requireUnderlying(String key) {

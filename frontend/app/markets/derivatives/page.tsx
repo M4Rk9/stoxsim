@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { authenticatedRequest } from "../../campus/client";
+import BasketWorkspace, { type BasketDraft } from "./BasketWorkspace";
 import styles from "./derivatives.module.css";
 
 type Kind = "FUT" | "CE" | "PE";
@@ -19,6 +20,7 @@ interface Position {
   reservedMargin: number; unrealizedPnl: number | null; awaitingSettlement: boolean;
 }
 interface Fill {
+  basketId?: string | null;
   id: string; providerKey?: string; underlyingKey?: string; symbol: string; action: Action | "EXPIRY"; lots: number;
   price: number; realizedPnl: number; filledAt: string;
 }
@@ -53,6 +55,7 @@ export default function DerivativesPage() {
   const [revision, setRevision] = useState(0);
   const [chain, setChain] = useState<Market[]>([]);
   const [portfolio, setPortfolio] = useState<Portfolio>();
+  const [basket, setBasket] = useState<BasketDraft[]>([]);
   const [ticket, setTicket] = useState<Ticket>();
   const [lots, setLots] = useState("1");
   const [preview, setPreview] = useState<Preview>();
@@ -135,6 +138,21 @@ export default function DerivativesPage() {
     setPreview(undefined); setAccepted(false);
     setLots("1"); setOrderError(""); setNotice("");
     window.requestAnimationFrame(() => document.getElementById("derivative-order")?.focus());
+  }
+
+  function addToBasket() {
+    if (!ticket || ticket.action === "CLOSE" || working) return;
+    const size = Number(lots);
+    if (!Number.isInteger(size) || size < 1 || size > 100) { setOrderError("Choose valid lots first."); return; }
+    if (basket.length >= 4 || basket.some(l => l.contract.id === ticket.market.contract.id)) {
+      setOrderError("A basket supports up to four distinct contracts. Edit existing legs in the basket."); return;
+    }
+    const first = basket[0]?.contract, c = ticket.market.contract;
+    if (first && (first.underlyingKey !== c.underlyingKey || first.expiry !== c.expiry)) {
+      setOrderError("Use the same index and expiry as the basket, or clear it first."); return;
+    }
+    setBasket([...basket, { contract: c, action: ticket.action, lots: size }]);
+    setTicket(undefined); setPreview(undefined);
   }
 
   async function review() {
@@ -257,6 +275,7 @@ export default function DerivativesPage() {
         <div className={styles.controls}>
           <label>Lots <input required type="number" min={1} max={ticket.limit} step={1} value={lots}
             disabled={working} onChange={event => { setLots(event.target.value); setPreview(undefined); setAccepted(false); }} /></label>
+          {ticket.action !== "CLOSE" && <button type="button" disabled={working} onClick={addToBasket}>Add to strategy basket</button>}
           <button type="button" disabled={working} onClick={review}>Review risk and funds</button>
           <button type="submit" disabled={working || !previewValid || !accepted}>{working ? "Submitting…" : "Place virtual order"}</button>
           <button type="button" disabled={working} onClick={() => { setTicket(undefined); setOrderError(""); }}>Cancel</button>
@@ -295,6 +314,8 @@ export default function DerivativesPage() {
         </section>}
         {orderError && <p role="alert">{orderError}</p>}
       </form>}
+      <BasketWorkspace legs={basket} onChange={setBasket} disabled={working} onBusy={setWorking}
+        onFilled={message => { setNotice(message); setTicket(undefined); setPreview(undefined); setRevision(value => value + 1); }} />
       {notice && <p role="status">{notice}</p>}
 
       <section className={styles.card} aria-labelledby="derivative-positions-heading">
@@ -317,7 +338,7 @@ export default function DerivativesPage() {
               onClick={() => start(position.market, "CLOSE", position)}>Close lots</button>
           </div>)}
           {portfolio.fills.length > 0 && <><h3>Recent virtual fills</h3><ul className={styles.fills}>
-            {portfolio.fills.map(fill => <li key={fill.id}>{actions[fill.action]} · {fill.symbol} · {fill.lots} lots · {money(fill.price)} · P&amp;L {money(fill.realizedPnl)}</li>)}
+            {portfolio.fills.map(fill => <li key={fill.id}>{fill.basketId && <strong>Basket {fill.basketId.slice(0, 8)} · </strong>}{actions[fill.action]} · {fill.symbol} · {fill.lots} lots · {money(fill.price)} · P&amp;L {money(fill.realizedPnl)}</li>)}
           </ul></>}
         </>}
         <p>Educational simulator. Futures use a flat margin model and can lose more than reserved margin.</p>

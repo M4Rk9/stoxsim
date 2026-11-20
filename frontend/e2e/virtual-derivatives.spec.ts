@@ -107,3 +107,82 @@ test("virtual options show lots, stale futures, and reuse a request key on retry
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await testInfo.attach("virtual-derivatives-markets", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
 });
+
+test("basket review blocks execution until acknowledged and submits all legs in one request", async ({ page }, testInfo) => {
+  await signedIn(page);
+  await page.clock.install();
+  await page.setViewportSize({ width: 390, height: 850 });
+  const put = { ...option, last: 60, ask: 61, contract: { ...contract,
+    id: "33333333-2222-4333-8444-555555555555", providerKey: "NSE_FO|fixture-put", kind: "PE", symbol: "NIFTY 27000 PE" } };
+  const keys: string[] = [];
+  let reviews = 0;
+  let singleOrders = 0;
+  await page.route("**/api/v1/derivatives/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "OPTIONS") return reply(route, {});
+    if (path.endsWith("/capability")) return reply(route, { enabled: true });
+    if (path.endsWith("/expiries")) return reply(route, [expiry]);
+    if (path.endsWith("/chain")) return reply(route, [option, put]);
+    if (path.endsWith("/portfolio")) return reply(route, { cash: 500000, reservedMargin: 0, realizedPnl: 0, totalEquity: 500000, positions: [], fills: [] });
+    if (path.endsWith("/baskets/preview")) {
+      reviews++;
+      const body = route.request().postDataJSON();
+      expect(body.legs).toHaveLength(2);
+      return reply(route, {
+        legs: [option, put].map(m => ({contract: m.contract, action: "OPEN_LONG", lots: 1, quantity: 65,
+          price: m.ask, requiredFunds: m.ask * 65, quoteAt: m.lastTradeAt})),
+        requiredFunds: 9230, cashAfter: 490770,
+        payoff: { maximumLoss: 9230, unlimitedLoss: false, maximumProfit: null, unlimitedProfit: true,
+          breakevens: [26858, 27142], zeroRanges: [],
+          points: [{underlying: 0, pnl: 1745770}, {underlying: 26858, pnl: 0},
+            {underlying: 27000, pnl: -9230}, {underlying: 27142, pnl: 0}, {underlying: 33750, pnl: 429520}] },
+      });
+    }
+    if (path.endsWith("/baskets/orders")) {
+      const body = route.request().postDataJSON();
+      expect(body.legs).toHaveLength(2);
+      keys.push(body.requestKey);
+      if (keys.length === 1) return reply(route, {message: "Basket result could not be confirmed. Retry unchanged."}, 503);
+      return reply(route, {basketId: "basket-fixture", fills: [{id: "one"}, {id: "two"}]});
+    }
+    singleOrders++;
+    return reply(route, {}, 500);
+  });
+  await page.goto("/markets/derivatives");
+  await page.getByRole("button", {name: "Buy 27000 call"}).click();
+  await page.getByRole("button", {name: "Add to strategy basket"}).click();
+  await expect(page.getByRole("button", {name: "Review basket risk"})).toBeDisabled();
+  await page.getByRole("button", {name: "Buy 27000 put"}).click();
+  await page.getByRole("button", {name: "Add to strategy basket"}).click();
+  const review = page.getByRole("button", {name: "Review basket risk"});
+  await review.click();
+  const submit = page.getByRole("button", {name: "Place virtual basket"});
+  await expect(submit).toBeDisabled();
+  await expect(page.getByRole("region", {name: "Combined basket risk review"})).toContainText("₹9,230.00");
+  await expect(page.getByRole("img", {name: "Calculated basket expiry profit and loss across index levels"})).toBeVisible();
+  await page.getByRole("checkbox", {name: /I understand the combined risk/}).check();
+  await expect(submit).toBeEnabled();
+  await page.clock.fastForward(31000);
+  await expect(submit).toBeDisabled();
+  await expect(page.getByText("Basket review expired. Review the basket again.")).toBeVisible();
+  await page.getByRole("spinbutton", {name: "Leg 1 lots"}).fill("2");
+  await expect(page.getByRole("region", {name: "Combined basket risk review"})).toHaveCount(0);
+  await page.getByRole("spinbutton", {name: "Leg 1 lots"}).fill("1");
+  await review.click();
+  await page.getByRole("checkbox", {name: /I understand the combined risk/}).check();
+  await page.getByText("Payoff values", {exact: true}).click();
+  expect(keys).toHaveLength(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await testInfo.attach("basket-payoff-mobile-synthetic", {body: await page.screenshot({fullPage: true}), contentType: "image/png"});
+  await page.setViewportSize({width: 1440, height: 1000});
+  await testInfo.attach("basket-payoff-desktop-synthetic", {body: await page.screenshot({fullPage: true}), contentType: "image/png"});
+  await submit.click();
+  await expect(page.getByRole("alert")).toContainText("Basket result could not be confirmed");
+  await submit.click();
+  await expect(page.getByText("Virtual basket filled: 2 legs.", {exact: false})).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+  expect(reviews).toBe(2);
+  expect(singleOrders).toBe(0);
+  await expect(page.getByRole("spinbutton", {name: "Leg 1 lots"})).toHaveCount(0);
+});

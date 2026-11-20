@@ -154,3 +154,5 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Add beginner/advanced discovery and filters for loaded contracts.
 - Require a web risk review and acknowledgement using a read-only server preview shared with execution calculations.
 - Show exact contract, quantity, premium/margin, expiry breakeven and loss bounds with explicit simulation limitations.
+
+- Extend F&O practice with 2–4-leg atomic opening baskets, user-scoped retry protection and combined expiry payoff charts/tables. Add backward-compatible V135 basket records and export/deletion support.

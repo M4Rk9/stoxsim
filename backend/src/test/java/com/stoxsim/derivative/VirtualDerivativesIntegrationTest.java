@@ -67,6 +67,8 @@ class VirtualDerivativesIntegrationTest {
     @Autowired DerivativeCatalog catalog;
     @Autowired DerivativeExpiryJob expiryJob;
     @Autowired TestClock clock;
+    @Autowired DerivativeBasketService baskets;
+    @Autowired com.stoxsim.auth.service.AccountLifecycleService lifecycle;
     @MockitoBean UpstoxDerivativeQuotes quotes;
     @MockitoBean UpstoxHistoricalCandleClient candles;
 
@@ -92,7 +94,7 @@ class VirtualDerivativesIntegrationTest {
         clock.time = REGULAR;
         db.execute("TRUNCATE app_user, derivative_contract CASCADE");
         user = users.saveAndFlush(new AppUser("derivative@test.local", "hash", "Derivative Learner")).getId();
-        call = new Contract(UUID.randomUUID(), "NSE_FO|789", "NSE_INDEX|Nifty 50", "NIFTY fixture call", Kind.CE,
+        call = new Contract(UUID.fromString("11111111-1111-4111-8111-111111111111"), "NSE_FO|789", "NSE_INDEX|Nifty 50", "NIFTY fixture call", Kind.CE,
             EXPIRY, 65, new BigDecimal("0.05"), new BigDecimal("24000"));
         catalog.upsert(List.of(call), UUID.randomUUID());
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
@@ -241,6 +243,98 @@ class VirtualDerivativesIntegrationTest {
             .contentType(MediaType.APPLICATION_JSON).content("""
                 {"contractId":"%s","action":"%s","lots":%d}
                 """.formatted(call.id(), action, lots)));
+    }
+
+    private Contract basketPut() {
+        Contract put = new Contract(UUID.fromString("ffffffff-ffff-4fff-8fff-ffffffffffff"), "NSE_FO|790",
+            call.underlyingKey(), "NIFTY fixture put", Kind.PE, EXPIRY, 65, new BigDecimal("0.05"), call.strike());
+        catalog.upsert(List.of(call, put), UUID.randomUUID());
+        BigDecimal price = new BigDecimal("80");
+        when(quotes.snapshots(List.of(put.providerKey()))).thenReturn(Map.of(put.providerKey(),
+            new Quote(new InstrumentKey("UPSTOX", put.providerKey(), MarketRegion.INDIA), price, price, price,
+                null, null, null, null, null, 10L, REGULAR, REGULAR)));
+        return put;
+    }
+
+    private String basketBody(UUID key, Contract put, int lots) {
+        return """
+            {"requestKey":"%s","legs":[{"contractId":"%s","action":"OPEN_LONG","lots":%d},
+            {"contractId":"%s","action":"OPEN_LONG","lots":%d}]}
+            """.formatted(key, call.id(), lots, put.id(), lots);
+    }
+
+    private ResultActions basketRequest(String endpoint, String body) throws Exception {
+        return mvc.perform(post("/api/v1/derivatives/baskets/" + endpoint).with(jwt().jwt(j -> j.subject(user.toString())))
+            .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    @Test void basketPreviewIsReadOnlyAndRepeatedExecutionHasExactlyTwoFills() throws Exception {
+        Contract put = basketPut();
+        UUID key = UUID.randomUUID();
+        String body = basketBody(key, put, 1);
+        basketRequest("preview", body).andExpect(status().isOk())
+            .andExpect(jsonPath("$.requiredFunds").value(10400))
+            .andExpect(jsonPath("$.cashAfter").value(489600))
+            .andExpect(jsonPath("$.payoff.maximumLoss").value(10400));
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_wallet", Integer.class)).isZero();
+        basketRequest("orders", body).andExpect(status().isOk()).andExpect(jsonPath("$.fills.length()").value(2))
+            .andExpect(jsonPath("$.fills[0].basketId").isNotEmpty());
+        basketRequest("orders", body).andExpect(status().isOk());
+        basketRequest("orders", basketBody(key, put, 2)).andExpect(status().isConflict());
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isEqualTo(2);
+        portfolio().andExpect(jsonPath("$.cash").value(489600));
+        var export = lifecycle.exportAccount(user);
+        assertThat((List<?>) export.get("derivativesBaskets")).hasSize(1);
+        db.update("DELETE FROM app_user WHERE id=?", user);
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_basket", Integer.class)).isZero();
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isZero();
+    }
+
+    @Test void laterLegFailureRollsBackEarlierFillWalletAndBasket() throws Exception {
+        Contract put = basketPut();
+        // Canonical ordering ensures the call executes first.
+        when(quotes.snapshots(List.of(put.providerKey()))).thenReturn(Map.of());
+        when(quotes.isFresh(isNull())).thenReturn(false);
+        basketRequest("orders", basketBody(UUID.randomUUID(), put, 1)).andExpect(status().isServiceUnavailable());
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isZero();
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_wallet", Integer.class)).isZero();
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_basket", Integer.class)).isZero();
+    }
+
+    @Test void basketRejectsCombinedFundingAndUnsupportedComposition() throws Exception {
+        Contract put = basketPut();
+        String expensive = basketBody(UUID.randomUUID(), put, 50); // Each leg fits; both together do not.
+        basketRequest("preview", expensive).andExpect(status().is(422));
+        basketRequest("orders", expensive).andExpect(status().is(422));
+        basketRequest("preview", basketBody(UUID.randomUUID(), put, 1).replace(put.id().toString(), call.id().toString()))
+            .andExpect(status().is(422));
+        basketRequest("orders", basketBody(UUID.randomUUID(), put, 1).replace("OPEN_LONG", "OPEN_SHORT"))
+            .andExpect(status().is(422));
+        basketRequest("preview", basketBody(UUID.randomUUID(), put, 1).replace("OPEN_LONG", "CLOSE"))
+            .andExpect(status().is(422));
+        basketRequest("preview", basketBody(UUID.randomUUID(), put, 0)).andExpect(status().isBadRequest());
+        db.update("UPDATE derivative_contract SET underlying_key='NSE_INDEX|Nifty Bank' WHERE id=?", put.id());
+        basketRequest("orders", basketBody(UUID.randomUUID(), put, 1)).andExpect(status().is(422));
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isZero();
+    }
+
+    @Test void concurrentBasketRetriesRemainUserScopedAndExecuteOnce() throws Exception {
+        Contract put = basketPut();
+        UUID key = UUID.randomUUID();
+        var legs = List.of(new DerivativeBasketService.Leg(call.id(), DerivativeBook.Action.OPEN_LONG, 1),
+            new DerivativeBasketService.Leg(put.id(), DerivativeBook.Action.OPEN_LONG, 1));
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var a = executor.submit(() -> baskets.place(user, key, legs));
+            var b = executor.submit(() -> baskets.place(user, key, legs.reversed()));
+            assertThat(a.get(20, java.util.concurrent.TimeUnit.SECONDS).basketId())
+                .isEqualTo(b.get(20, java.util.concurrent.TimeUnit.SECONDS).basketId());
+        }
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isEqualTo(2);
+        UUID other = users.saveAndFlush(new AppUser("basket-other@test.local", "hash", "Other")).getId();
+        baskets.place(other, key, legs);
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_basket", Integer.class)).isEqualTo(2);
+        mvc.perform(post("/api/v1/derivatives/baskets/orders").contentType(MediaType.APPLICATION_JSON)
+            .content(basketBody(key, put, 1))).andExpect(status().isUnauthorized());
     }
 
     private void quote(String value) {

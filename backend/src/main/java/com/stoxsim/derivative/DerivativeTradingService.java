@@ -40,7 +40,7 @@ public class DerivativeTradingService {
     public record OpenPosition(ContractQuote market, int lots, Direction direction, BigDecimal averageEntry,
         BigDecimal reservedMargin, BigDecimal unrealizedPnl, boolean awaitingSettlement) {}
     public record Fill(UUID id, UUID contractId, String symbol, Action action, int lots, BigDecimal price,
-        BigDecimal cashChange, BigDecimal realizedPnl, Instant filledAt) {}
+        BigDecimal cashChange, BigDecimal realizedPnl, Instant filledAt, UUID basketId) {}
     public record Portfolio(BigDecimal cash, BigDecimal reservedMargin, BigDecimal realizedPnl,
         BigDecimal totalEquity, List<OpenPosition> positions, List<Fill> fills) {}
     private record Wallet(BigDecimal cash, BigDecimal realizedPnl) {}
@@ -203,7 +203,7 @@ public class DerivativeTradingService {
             VALUES (?,?,?,?,?,?,?,?,?,?)
             """, id, user, contract.id(), requestKey, action.name(), lots, price, movement.cashChange(), movement.realizedPnl(),
             java.sql.Timestamp.from(now));
-        return new Fill(id, contract.id(), contract.symbol(), action, lots, price, movement.cashChange(), movement.realizedPnl(), now);
+        return new Fill(id, contract.id(), contract.symbol(), action, lots, price, movement.cashChange(), movement.realizedPnl(), now, null);
     }
 
     private ContractQuote view(Contract c, Map<String, Quote> snapshots) {
@@ -245,9 +245,16 @@ public class DerivativeTradingService {
             row.getBigDecimal("average_entry"), row.getBigDecimal("reserved_margin"));
     }
 
+    List<Fill> basketFills(UUID user, UUID basket) {
+        return db.query("""
+            SELECT f.*, c.symbol FROM derivative_fill f JOIN derivative_contract c ON c.id=f.contract_id
+            WHERE f.user_id=? AND f.basket_id=? ORDER BY f.contract_id
+            """, this::fill, user, basket);
+    }
+
     private Fill fill(ResultSet row, int ignored) throws SQLException {
         return new Fill(row.getObject("id", UUID.class), row.getObject("contract_id", UUID.class), row.getString("symbol"),
             Action.valueOf(row.getString("action")), row.getInt("lots"), row.getBigDecimal("price"), row.getBigDecimal("cash_change"),
-            row.getBigDecimal("realized_pnl"), row.getTimestamp("filled_at").toInstant());
+            row.getBigDecimal("realized_pnl"), row.getTimestamp("filled_at").toInstant(), row.getObject("basket_id", UUID.class));
     }
 }

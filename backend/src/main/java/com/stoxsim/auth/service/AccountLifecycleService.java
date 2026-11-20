@@ -219,8 +219,10 @@ public class AccountLifecycleService {
             FROM derivative_position p JOIN derivative_contract c ON c.id=p.contract_id
             WHERE p.user_id=? ORDER BY c.expiry,c.symbol
             """, userId));
+        export.put("derivativesBaskets", jdbcTemplate.queryForList(
+            "SELECT id,request_key,filled_at FROM derivative_basket WHERE user_id=? ORDER BY filled_at,id", userId));
         export.put("derivativesFills", jdbcTemplate.queryForList("""
-            SELECT c.symbol,c.provider_key,c.expiry,c.kind,c.lot_size,f.action,f.lots,f.price,f.cash_change,f.realized_pnl,f.filled_at
+            SELECT c.symbol,c.provider_key,c.expiry,c.kind,c.lot_size,f.action,f.lots,f.price,f.cash_change,f.realized_pnl,f.filled_at,f.basket_id
             FROM derivative_fill f JOIN derivative_contract c ON c.id=f.contract_id
             WHERE f.user_id=? ORDER BY f.filled_at,f.id
             """, userId));
