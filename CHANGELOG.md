@@ -1,5 +1,11 @@
 # Changelog
 
+## Research evidence (Milestone 2)
+- Add separately gated India/US company headlines with source links and publication times; fail honestly for missing coverage.
+- Connect company research to evidence-focused Finwiz prompts; correct short-history technical indicators and disclose source freshness independently.
+- Explain that current Scenario Lab shocks are not historical investment backtests; document the exact point-in-time data dependency.
+
+
 ## Research cohorts (unreleased)
 
 - Added signup-week/source/device cohorts, exact D1/D7, days 1–7 and following-week returns with independent mature denominators.

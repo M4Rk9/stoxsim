@@ -65,3 +65,8 @@
 .accountPicker { display: grid; gap: 8px; margin-bottom: 20px; font-size: .85rem; color: var(--ink); }
 .accountPicker select { width: 100%; max-width: 480px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
 .accountPicker small { color: var(--muted); line-height: 1.6; }
+
+.historyNotice { margin: 1.5rem 0; padding: 1.25rem; border: 1px solid var(--border, #46534e); border-radius: 16px; line-height: 1.6; }
+.historyNotice h2 { font-size: 1.1rem; margin-top: 0; }
+.historyNotice summary { cursor: pointer; font-weight: 600; }
+.historyNotice a { color: inherit; text-underline-offset: 3px; }

@@ -62,6 +62,8 @@ services:
     restart: unless-stopped
     mem_limit: 768m
     environment:
+      UPSTOX_NEWS_ENABLED: ${UPSTOX_NEWS_ENABLED:-false}
+      ALPACA_NEWS_ENABLED: ${ALPACA_NEWS_ENABLED:-false}
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       DATABASE_USERNAME: ${POSTGRES_USER}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
