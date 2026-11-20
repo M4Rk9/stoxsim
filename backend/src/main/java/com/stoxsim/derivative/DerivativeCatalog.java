@@ -104,6 +104,10 @@ public class DerivativeCatalog {
             """, this::contract, underlying, expiry, underlying, expiry, offset);
     }
 
+    public Optional<Contract> activeSnapshot(UUID id) {
+        return db.query("SELECT * FROM derivative_contract WHERE id=? AND active", this::contract, id).stream().findFirst();
+    }
+
     public Optional<Contract> active(UUID id) {
         // The catalog row lock serializes specification refreshes with new positions.
         return db.query("SELECT * FROM derivative_contract WHERE id=? AND active FOR UPDATE", this::contract, id).stream().findFirst();

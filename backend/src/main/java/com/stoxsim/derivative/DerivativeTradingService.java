@@ -120,7 +120,7 @@ public class DerivativeTradingService {
             return fill;
         }
 
-        Prepared prepared = prepare(user, contractId, action, lots, wallet.cash());
+        Prepared prepared = prepare(user, contractId, action, lots, wallet.cash(), true);
         return record(user, prepared.contract(), requestKey, action, lots, prepared.price(), prepared.movement());
     }
 
@@ -136,7 +136,7 @@ public class DerivativeTradingService {
             throw new TradingValidationException("Invalid virtual order.");
         BigDecimal cash = db.query("SELECT cash, realized_pnl FROM derivative_wallet WHERE user_id=?", this::wallet, user)
             .stream().findFirst().orElse(new Wallet(STARTING_CASH, BigDecimal.ZERO)).cash();
-        Prepared p = prepare(user, contractId, action, lots, cash);
+        Prepared p = prepare(user, contractId, action, lots, cash, false);
         Contract c = p.contract();
         boolean opening = action != Action.CLOSE;
         boolean unlimited = opening && c.kind() == Kind.FUT && action == Action.OPEN_SHORT;
@@ -154,8 +154,8 @@ public class DerivativeTradingService {
             breakeven, maximumLoss, unlimited, p.quoteAt(), clock.instant());
     }
 
-    private Prepared prepare(UUID user, UUID contractId, Action action, int lots, BigDecimal cash) {
-        Contract contract = catalog.active(contractId)
+    private Prepared prepare(UUID user, UUID contractId, Action action, int lots, BigDecimal cash, boolean lockContract) {
+        Contract contract = (lockContract ? catalog.active(contractId) : catalog.activeSnapshot(contractId))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract is unavailable."));
         requireSession(contract);
         if (action != Action.CLOSE && !sessions.isTradingDay(MarketExchange.NSE, contract.expiry())) {
