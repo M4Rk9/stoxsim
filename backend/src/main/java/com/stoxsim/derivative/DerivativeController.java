@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.stoxsim.derivative.DerivativeBook.Action;
+import com.stoxsim.derivative.DerivativeBasketService.Leg;
 
 @RestController
 @RequestMapping("/api/v1/derivatives")
@@ -72,9 +73,9 @@ class DerivativeController {
     }
 
     record BasketPreviewRequest(@NotNull @jakarta.validation.constraints.Size(min=2, max=4)
-        List<@NotNull @Valid DerivativeBasketService.Leg> legs) {}
+        List<@NotNull @Valid Leg> legs) {}
     record BasketOrderRequest(@NotNull UUID requestKey, @NotNull @jakarta.validation.constraints.Size(min=2, max=4)
-        List<@NotNull @Valid DerivativeBasketService.Leg> legs) {}
+        List<@NotNull @Valid Leg> legs) {}
 
     @PostMapping("/baskets/preview")
     DerivativeBasketService.BasketPreview previewBasket(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BasketPreviewRequest body) {
