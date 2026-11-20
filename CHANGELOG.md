@@ -1,5 +1,12 @@
 # Changelog
 
+## Research cohorts (unreleased)
+
+- Added signup-week/source/device cohorts, exact D1/D7, days 1–7 and following-week returns with independent mature denominators.
+- Added fourteen-day research/strategy/trade/review milestones and ordered, linked strategy-review completion without changing existing activation or first-trade definitions.
+- Capture bounded signup categories for new accounts; unknown history remains unknown. Include categories in export/deletion and explain them in the privacy/storage notices.
+
+
 ## Research and practice journey (unreleased)
 
 - Added private strategy fields, review dates and explicit review completion; linked owned practice orders show actual outcomes.

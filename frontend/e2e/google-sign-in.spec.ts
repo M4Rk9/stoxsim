@@ -110,7 +110,7 @@ test("Google signup requires explicit consent without requesting a password", as
   await enabledGoogle(page);
   let registered = false;
   await mock(page, `${API}/api/v1/auth/google/register`, async route => {
-    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", displayName: "New Learner", termsAccepted: true });
+    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", displayName: "New Learner", termsAccepted: true, signupSource: "DIRECT" });
     registered = true;
     await respond(route, { status: 201, json: { accessToken: "new-access", expiresInSeconds: 900, user: { ...user, passwordLoginEnabled: false } } });
   });

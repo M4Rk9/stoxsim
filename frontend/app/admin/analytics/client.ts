@@ -28,9 +28,9 @@ function refreshSession(): Promise<Session> {
   return refreshInFlight;
 }
 
-export async function loadAnalytics<T>(endpoint: "overview" | "activity", from: string, to: string, signal: AbortSignal): Promise<T> {
+export async function loadAnalytics<T>(endpoint: "overview" | "activity" | "cohorts", from: string, to: string, signal: AbortSignal, groupBy?: "WEEK" | "SOURCE" | "DEVICE"): Promise<T> {
   const session = readSession() ?? await refreshSession();
-  const url = `${API_URL}/api/v1/admin/analytics/${endpoint}?${new URLSearchParams({ from, to })}`;
+  const url = `${API_URL}/api/v1/admin/analytics/${endpoint}?${new URLSearchParams({ from, to, ...(groupBy ? { groupBy } : {}) })}`;
   const request = (token: string) => fetch(url, {
     credentials: "include", cache: "no-store", signal,
     headers: { Authorization: `Bearer ${token}` },

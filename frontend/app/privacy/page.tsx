@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     <LegalDocument
       title="Privacy Notice"
       summary="This notice explains what personal data StoxSim handles, why it is needed, and the choices available to you."
-      effectiveDate="21 October 2026"
+      effectiveDate="15 November 2026"
     >
       <section>
         <h2>1. Who is responsible</h2>
@@ -32,7 +32,8 @@ export default function PrivacyPage() {
           <li>Learning data: XP, levels, check-in streaks, completed missions and unlocked achievements.</li>
           <li>Competition data: season entry values, percentage returns, valuation freshness and private-league memberships. Campus records include affiliation requests, review notes, membership roles, competition entries and moderation actions.</li>
           <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>
-          <li>Product activity: your account ID, UTC day, first occurrence time and category of signed-in activity, stock research, watchlist additions, standard paper-order submissions/executions, successful Finwiz answers, completed Scenario Lab runs, and Learning Path or Competitions visits. We keep one marker per category per day. These activity markers contain no stock symbols, search text, Finwiz prompts, order payloads or session replay.</li>
+          <li>Product activity: your account ID, UTC day, first occurrence time and category of signed-in activity, stock research, watchlist additions, standard paper-order submissions/executions, successful Finwiz answers, completed Scenario Lab runs, Learning Path or Competitions visits, saved strategies and completed written reviews. We keep one marker per category per day. These activity markers contain no stock symbols, search text, Finwiz prompts, order payloads or session replay.</li>
+          <li>Signup categories: broad referral source (direct, search, social, other referral or unknown), device category and email/Google registration method. These categories help compare research and return cohorts. We do not store referring URLs, campaign text or raw user-agent strings in this analytics record.</li>
           <li>Technical data: service logs, request timing, IP-derived security signals and error diagnostics.</li>
           <li>Communications you send to our support or privacy addresses.</li>
         </ul>
@@ -77,7 +78,7 @@ export default function PrivacyPage() {
       <section>
         <h2>6. Retention and security</h2>
         <p>
-          Product activity covers the latest 180 UTC dates and is removed in scheduled batches after expiry. It is included in your account export and deleted with your account.
+          Signup categories remain with your account, are included in your export and are deleted with your account. Product activity covers the latest 180 UTC dates and is removed in scheduled batches after expiry. It is included in your account export and deleted with your account.
           Campus requests and entries are included in your export and removed when you delete your account. You can cancel pending requests, leave your institution or withdraw from a competition; withdrawal is final for that competition. Withdrawn entry baselines remain stored while your account exists to prevent re-entry resets. Campus moderation actions remain with account references cleared on deletion.
           Account and simulator data is kept while your account is active. Security and backup
           records may remain for a limited period after deletion to protect the service and meet
