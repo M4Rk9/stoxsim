@@ -1,5 +1,11 @@
 # Changelog
 
+## Finwiz unavailable-response fix
+- Stop substituting canned topic paragraphs for failed AI answers; return a clear unavailable notice without looping suggestions or raw model context.
+- Label unavailable and saved legacy fallback replies clearly in the web chat; retain existing provider/tier API compatibility.
+- Add safe configuration diagnostics and regressions for the reported stock/RSI questions.
+
+
 ## Research cohorts (unreleased)
 
 - Added signup-week/source/device cohorts, exact D1/D7, days 1–7 and following-week returns with independent mature denominators.

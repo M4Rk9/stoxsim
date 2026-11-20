@@ -74,3 +74,16 @@ test("Finwiz preserves a follow-up draft while an answer is loading", async ({ p
   await expect(input).toHaveValue("How does diversification work?");
   await expect(page.getByRole("button", { name: "Ask Finwiz", exact: true })).toBeEnabled();
 });
+
+test("saved fallback lessons are labelled unavailable and do not offer looping suggestions", async ({ page }) => {
+  await setup(page);
+  await page.addInitScript(() => localStorage.setItem("stoxsim-finwiz:learner@example.test", JSON.stringify([
+    { id:"fallback-fixture", title:"What is a stock?", turns:[{question:"What is a stock?",answer:{provider:"STOXSIM_EDUCATIONAL_FALLBACK",model:"deterministic-v1",answer:"Beginner framework: start with exchanges.",groundedInStoxSimData:false,suggestedQuestions:["Why can RSI stay high or low for a long time?"],disclaimer:"Educational only.",finwizTier:"BASIC"}}] }
+  ])));
+  await page.goto("/finwiz");
+  await page.getByRole("button", {name:"What is a stock?",exact:true}).click();
+  await expect(page.getByText("No AI answer received",{exact:true})).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("not an AI answer to your question");
+  await expect(page.getByRole("button", {name:"Why can RSI stay high or low for a long time?"})).toHaveCount(0);
+  await expect(page.getByText("General learning mode",{exact:true})).toHaveCount(0);
+});
