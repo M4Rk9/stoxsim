@@ -21,3 +21,13 @@
 .totals dt { color: var(--muted); }
 .totals dd { margin: 3px 0 0; font-weight: 700; }
 .fills { padding-inline-start: 20px; }
+
+.controls { margin-bottom: 12px; }
+.controls .search { width: min(240px, 100%); }
+.preview { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+.identifier, .table small { overflow-wrap: anywhere; }
+.warning { border-inline-start: 3px solid var(--green); padding-inline-start: 12px; }
+.acknowledge { display: flex; gap: 12px; align-items: flex-start; line-height: 1.5; }
+.acknowledge input { width: 20px; height: 20px; flex-shrink: 0; }
+.controls button, .controls select, .controls input, .card td button, .future button { min-height: 44px; }
+.controls button[aria-pressed="true"] { border-color: var(--green); font-weight: 700; }

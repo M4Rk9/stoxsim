@@ -120,6 +120,41 @@ public class DerivativeTradingService {
             return fill;
         }
 
+        Prepared prepared = prepare(user, contractId, action, lots, wallet.cash());
+        return record(user, prepared.contract(), requestKey, action, lots, prepared.price(), prepared.movement());
+    }
+
+    private record Prepared(Contract contract, BigDecimal price, Movement movement, Instant quoteAt) {}
+    public record Preview(Contract contract, Action action, int lots, long quantity, BigDecimal price,
+        BigDecimal requiredFunds, BigDecimal cashChange, BigDecimal cashAfter, BigDecimal realizedPnl,
+        BigDecimal breakeven, BigDecimal maximumLoss, boolean unlimitedLoss, Instant quoteAt, Instant generatedAt) {}
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Preview preview(UUID user, UUID contractId, Action action, int lots) {
+        if (!catalog.enabled()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (action == null || action == Action.EXPIRY || lots < 1 || lots > 100)
+            throw new TradingValidationException("Invalid virtual order.");
+        BigDecimal cash = db.query("SELECT cash, realized_pnl FROM derivative_wallet WHERE user_id=?", this::wallet, user)
+            .stream().findFirst().orElse(new Wallet(STARTING_CASH, BigDecimal.ZERO)).cash();
+        Prepared p = prepare(user, contractId, action, lots, cash);
+        Contract c = p.contract();
+        boolean opening = action != Action.CLOSE;
+        boolean unlimited = opening && c.kind() == Kind.FUT && action == Action.OPEN_SHORT;
+        BigDecimal breakeven = !opening ? null : switch (c.kind()) {
+            case FUT -> p.price();
+            case CE -> c.strike().add(p.price());
+            case PE -> c.strike().subtract(p.price());
+        };
+        // A negative put breakeven cannot be reached by a nonnegative index.
+        if (breakeven != null && breakeven.signum() < 0) breakeven = null;
+        BigDecimal maximumLoss = !opening || unlimited ? null : DerivativeBook.value(c, lots, p.price());
+        return new Preview(c, action, lots, (long) c.lotSize() * lots, p.price(),
+            opening ? p.movement().cashChange().negate() : BigDecimal.ZERO,
+            p.movement().cashChange(), cash.add(p.movement().cashChange()), p.movement().realizedPnl(),
+            breakeven, maximumLoss, unlimited, p.quoteAt(), clock.instant());
+    }
+
+    private Prepared prepare(UUID user, UUID contractId, Action action, int lots, BigDecimal cash) {
         Contract contract = catalog.active(contractId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract is unavailable."));
         requireSession(contract);
@@ -138,8 +173,8 @@ public class DerivativeTradingService {
         BigDecimal price = buy ? quote.ask() : quote.bid();
         if (price == null) price = quote.lastPrice();
         price = price.divide(contract.tickSize(), 0, RoundingMode.HALF_UP).multiply(contract.tickSize());
-        return record(user, contract, requestKey, action, lots, price,
-            DerivativeBook.trade(contract, existing, action, lots, price, wallet.cash()));
+        return new Prepared(contract, price, DerivativeBook.trade(contract, existing, action, lots, price, cash),
+            quote.exchangeTimestamp());
     }
 
     void settle(UUID user, Contract contract, BigDecimal underlyingClose) {

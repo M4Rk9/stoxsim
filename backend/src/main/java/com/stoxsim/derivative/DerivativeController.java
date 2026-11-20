@@ -55,6 +55,14 @@ class DerivativeController {
     record OrderRequest(@NotNull UUID contractId, @NotNull UUID requestKey,
         @NotNull Action action, @Min(1) @Max(100) int lots) {}
 
+    record PreviewRequest(@NotNull UUID contractId, @NotNull Action action, @Min(1) @Max(100) int lots) {}
+
+    @PostMapping("/preview")
+    DerivativeTradingService.Preview preview(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PreviewRequest order) {
+        requireEnabled();
+        return trading.preview(UUID.fromString(jwt.getSubject()), order.contractId(), order.action(), order.lots());
+    }
+
     @PostMapping("/orders")
     DerivativeTradingService.Fill place(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody OrderRequest order) {
         requireEnabled();

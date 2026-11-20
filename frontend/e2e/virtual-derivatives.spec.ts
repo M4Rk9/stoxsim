@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 const expiry = "2026-12-29";
-const contract = { id: "11111111-2222-4333-8444-555555555555", kind: "CE", symbol: "NIFTY 27000 CE", expiry, lotSize: 65, tickSize: .05, strike: 27000 };
+const contract = { providerKey: "NSE_FO|fixture", underlyingKey: "NSE_INDEX|Nifty 50", id: "11111111-2222-4333-8444-555555555555", kind: "CE", symbol: "NIFTY 27000 CE", expiry, lotSize: 65, tickSize: .05, strike: 27000 };
 const option = { contract, last: 80, bid: 79, ask: 81, volume: 450, lastTradeAt: "2026-11-06T06:00:00Z", fresh: true };
 const future = { ...option, contract: { ...contract, id: "22222222-2222-4333-8444-555555555555", kind: "FUT", symbol: "NIFTY FUT", strike: null }, fresh: false };
 
@@ -37,6 +37,7 @@ test("disabled derivatives expose no order controls", async ({ page }) => {
 
 test("virtual options show lots, stale futures, and reuse a request key on retry", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 850 });
+  await page.clock.install();
   await signedIn(page);
   let filled = false;
   const orderKeys: string[] = [];
@@ -51,6 +52,13 @@ test("virtual options show lots, stale futures, and reuse a request key on retry
       positions: filled ? [{ market: option, lots: 2, direction: "LONG", averageEntry: 81, reservedMargin: 0, unrealizedPnl: -130, awaitingSettlement: false }] : [],
       fills: [],
     });
+    if (path.endsWith("/preview")) {
+      const { lots } = route.request().postDataJSON();
+      return reply(route, { contract, action: "OPEN_LONG", lots, quantity: 65 * lots, price: 81,
+        requiredFunds: 5265 * lots, cashChange: -5265 * lots, cashAfter: 500000 - 5265 * lots,
+        realizedPnl: 0, breakeven: 27081, maximumLoss: 5265 * lots, unlimitedLoss: false,
+        quoteAt: option.lastTradeAt, generatedAt: new Date().toISOString() });
+    }
     const order = route.request().postDataJSON();
     orderKeys.push(order.requestKey);
     expect(order).toMatchObject({ contractId: contract.id, action: "OPEN_LONG", lots: 2 });
@@ -61,9 +69,34 @@ test("virtual options show lots, stale futures, and reuse a request key on retry
   await page.goto("/markets/derivatives");
   await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Markets" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Open short" })).toBeDisabled();
+  await page.getByRole("searchbox", { name: "Find in loaded contracts" }).fill("99999");
+  await expect(page.getByText("No loaded contracts match your filters.")).toBeVisible();
+  await page.getByRole("searchbox", { name: "Find in loaded contracts" }).fill("");
   await page.getByRole("button", { name: "Buy 27000 call" }).click();
   await page.getByRole("spinbutton", { name: "Lots" }).fill("2");
   const submit = page.getByRole("button", { name: "Place virtual order" });
+  await expect(submit).toBeDisabled();
+  await page.getByRole("button", { name: "Review risk and funds" }).click();
+  await expect(submit).toBeDisabled();
+  await expect(page.getByRole("region", { name: "Order risk review" })).toContainText("₹10,530.00");
+  await page.getByRole("checkbox", { name: /I understand the risk/ }).check();
+  await expect(submit).toBeEnabled();
+  await page.clock.fastForward(31000);
+  await expect(submit).toBeDisabled();
+  await expect(page.getByText("This review has expired. Review risk and funds again before submitting.")).toBeVisible();
+  // Editing quantity discards the reviewed snapshot and its acknowledgement.
+  await page.getByRole("spinbutton", { name: "Lots" }).fill("1");
+  await expect(submit).toBeDisabled();
+  await expect(page.getByRole("region", { name: "Order risk review" })).toHaveCount(0);
+  await page.getByRole("spinbutton", { name: "Lots" }).fill("2");
+  await page.getByRole("button", { name: "Review risk and funds" }).click();
+  await page.getByRole("checkbox", { name: /I understand the risk/ }).check();
+  expect(orderKeys).toHaveLength(0);
+  await testInfo.attach("fno-risk-review-mobile-synthetic", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: "Advanced view" }).click();
+  await testInfo.attach("fno-risk-review-desktop-synthetic", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+  await page.setViewportSize({ width: 390, height: 850 });
   await submit.click();
   await expect(page.locator("#derivative-order").getByRole("alert")).toHaveText("The quote changed. Try again.");
   await submit.click();

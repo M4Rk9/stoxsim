@@ -155,6 +155,94 @@ class VirtualDerivativesIntegrationTest {
         portfolio().andExpect(jsonPath("$.cash").value(500000)).andExpect(jsonPath("$.positions.length()").value(0));
     }
 
+    @Test
+    void previewMatchesExecutionWithoutCreatingAWalletOrFill() throws Exception {
+        preview("OPEN_LONG", 2).andExpect(status().isOk())
+            .andExpect(jsonPath("$.quantity").value(130))
+            .andExpect(jsonPath("$.price").value(80))
+            .andExpect(jsonPath("$.requiredFunds").value(10400))
+            .andExpect(jsonPath("$.cashAfter").value(489600))
+            .andExpect(jsonPath("$.maximumLoss").value(10400))
+            .andExpect(jsonPath("$.breakeven").value(24080))
+            .andExpect(jsonPath("$.unlimitedLoss").value(false));
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_wallet", Integer.class)).isZero();
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isZero();
+        order(UUID.randomUUID(), "OPEN_LONG", 2).andExpect(jsonPath("$.cashChange").value(-10400));
+        quote("90");
+        preview("CLOSE", 1).andExpect(status().isOk())
+            .andExpect(jsonPath("$.cashChange").value(5850))
+            .andExpect(jsonPath("$.realizedPnl").value(650))
+            .andExpect(jsonPath("$.maximumLoss").isEmpty());
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void futuresPreviewSeparatesMarginFromFullExposureAndShortUnlimitedLoss() throws Exception {
+        call = new Contract(UUID.randomUUID(), "NSE_FO|791", call.underlyingKey(), "NIFTY fixture future",
+            Kind.FUT, EXPIRY, 65, new BigDecimal("0.05"), null);
+        catalog.upsert(List.of(call), UUID.randomUUID());
+        quote("24000");
+        preview("OPEN_LONG", 1).andExpect(status().isOk())
+            .andExpect(jsonPath("$.requiredFunds").value(312000))
+            .andExpect(jsonPath("$.maximumLoss").value(1560000))
+            .andExpect(jsonPath("$.breakeven").value(24000));
+        preview("OPEN_SHORT", 1).andExpect(status().isOk())
+            .andExpect(jsonPath("$.requiredFunds").value(312000))
+            .andExpect(jsonPath("$.maximumLoss").isEmpty())
+            .andExpect(jsonPath("$.unlimitedLoss").value(true));
+        preview("OPEN_LONG", 2).andExpect(status().is(422));
+    }
+
+    @Test
+    void putPreviewUsesStrikeMinusPremiumAndCannotWriteOptions() throws Exception {
+        call = new Contract(UUID.randomUUID(), "NSE_FO|792", call.underlyingKey(), "NIFTY fixture put",
+            Kind.PE, EXPIRY, 65, new BigDecimal("0.05"), new BigDecimal("24000"));
+        catalog.upsert(List.of(call), UUID.randomUUID());
+        quote("80");
+        preview("OPEN_LONG", 1).andExpect(status().isOk())
+            .andExpect(jsonPath("$.breakeven").value(23920))
+            .andExpect(jsonPath("$.maximumLoss").value(5200));
+        preview("OPEN_SHORT", 1).andExpect(status().is(422));
+    }
+
+    @Test
+    void previewUsesExecutableSideAndTickRoundingRatherThanLastTrade() throws Exception {
+        var key = new InstrumentKey("UPSTOX", call.providerKey(), MarketRegion.INDIA);
+        when(quotes.snapshots(List.of(call.providerKey()))).thenReturn(Map.of(call.providerKey(),
+            new Quote(key, new BigDecimal("80"), new BigDecimal("79.97"), new BigDecimal("81.03"),
+                null, null, null, null, null, 10L, REGULAR, REGULAR)));
+        preview("OPEN_LONG", 1).andExpect(status().isOk()).andExpect(jsonPath("$.price").value(81.05))
+            .andExpect(jsonPath("$.requiredFunds").value(5268.25));
+        order(UUID.randomUUID(), "OPEN_LONG", 1).andExpect(jsonPath("$.price").value(81.05));
+        preview("CLOSE", 1).andExpect(status().isOk()).andExpect(jsonPath("$.price").value(79.95))
+            .andExpect(jsonPath("$.realizedPnl").value(-71.5));
+    }
+
+    @Test
+    void previewRequiresAuthenticationOwnPositionAndFreshExecutableQuote() throws Exception {
+        mvc.perform(post("/api/v1/derivatives/preview").contentType(MediaType.APPLICATION_JSON)
+            .content("{\"contractId\":\"" + call.id() + "\",\"action\":\"OPEN_LONG\",\"lots\":1}"))
+            .andExpect(status().isUnauthorized());
+        preview("OPEN_LONG", 0).andExpect(status().isBadRequest());
+        preview("EXPIRY", 1).andExpect(status().is(422));
+        order(UUID.randomUUID(), "OPEN_LONG", 1).andExpect(status().isOk());
+        user = users.saveAndFlush(new AppUser("other-derivative@test.local", "hash", "Other")).getId();
+        preview("CLOSE", 1).andExpect(status().is(422));
+        when(quotes.isFresh(any())).thenReturn(false);
+        preview("OPEN_LONG", 1).andExpect(status().isServiceUnavailable());
+        quote("80");
+        clock.time = Instant.parse("2026-11-06T15:00:00Z");
+        preview("OPEN_LONG", 1).andExpect(status().is(422));
+        assertThat(db.queryForObject("SELECT count(*) FROM derivative_fill", Integer.class)).isEqualTo(1);
+    }
+
+    private ResultActions preview(String action, int lots) throws Exception {
+        return mvc.perform(post("/api/v1/derivatives/preview").with(jwt().jwt(j -> j.subject(user.toString())))
+            .contentType(MediaType.APPLICATION_JSON).content("""
+                {"contractId":"%s","action":"%s","lots":%d}
+                """.formatted(call.id(), action, lots)));
+    }
+
     private void quote(String value) {
         BigDecimal price = new BigDecimal(value);
         var key = new InstrumentKey("UPSTOX", call.providerKey(), MarketRegion.INDIA);
