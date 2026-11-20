@@ -37,3 +37,5 @@
 .payoff figcaption { color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
 .payoff summary { cursor: pointer; padding: 8px 0; }
 .future { overflow-wrap: anywhere; }
+
+@media (max-width: 600px) { .payoff svg text { font-size: 25px; } }
