@@ -17,16 +17,19 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.stoxsim.derivative.DerivativeBook.Action;
+import com.stoxsim.derivative.DerivativeBasketService.Leg;
 
 @RestController
 @RequestMapping("/api/v1/derivatives")
 class DerivativeController {
     private final DerivativeCatalog catalog;
     private final DerivativeTradingService trading;
+    private final DerivativeBasketService baskets;
 
-    DerivativeController(DerivativeCatalog catalog, DerivativeTradingService trading) {
+    DerivativeController(DerivativeCatalog catalog, DerivativeTradingService trading, DerivativeBasketService baskets) {
         this.catalog = catalog;
         this.trading = trading;
+        this.baskets = baskets;
     }
 
     @GetMapping("/capability")
@@ -55,10 +58,35 @@ class DerivativeController {
     record OrderRequest(@NotNull UUID contractId, @NotNull UUID requestKey,
         @NotNull Action action, @Min(1) @Max(100) int lots) {}
 
+    record PreviewRequest(@NotNull UUID contractId, @NotNull Action action, @Min(1) @Max(100) int lots) {}
+
+    @PostMapping("/preview")
+    DerivativeTradingService.Preview preview(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PreviewRequest order) {
+        requireEnabled();
+        return trading.preview(UUID.fromString(jwt.getSubject()), order.contractId(), order.action(), order.lots());
+    }
+
     @PostMapping("/orders")
     DerivativeTradingService.Fill place(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody OrderRequest order) {
         requireEnabled();
         return trading.place(UUID.fromString(jwt.getSubject()), order.contractId(), order.requestKey(), order.action(), order.lots());
+    }
+
+    record BasketPreviewRequest(@NotNull @jakarta.validation.constraints.Size(min=2, max=4)
+        List<@NotNull @Valid Leg> legs) {}
+    record BasketOrderRequest(@NotNull UUID requestKey, @NotNull @jakarta.validation.constraints.Size(min=2, max=4)
+        List<@NotNull @Valid Leg> legs) {}
+
+    @PostMapping("/baskets/preview")
+    DerivativeBasketService.BasketPreview previewBasket(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BasketPreviewRequest body) {
+        requireEnabled();
+        return baskets.preview(UUID.fromString(jwt.getSubject()), body.legs());
+    }
+
+    @PostMapping("/baskets/orders")
+    DerivativeBasketService.BasketFill placeBasket(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BasketOrderRequest body) {
+        requireEnabled();
+        return baskets.place(UUID.fromString(jwt.getSubject()), body.requestKey(), body.legs());
     }
 
     private void requireUnderlying(String key) {

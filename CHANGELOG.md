@@ -148,3 +148,11 @@ All notable changes to StoxSim will be documented in this file. The project foll
 - Next.js is patched to 16.3.3, which contains the upstream critical RCE fixes shipped after 16.3.1.
 - Provider credentials alone cannot enable public market-data serving; provider clients and background synchronization honor the explicit serving gate.
 - Public registration is rejected unless the operator opens registration and both provider-serving gates are enabled.
+
+## F&O practice risk review
+
+- Add beginner/advanced discovery and filters for loaded contracts.
+- Require a web risk review and acknowledgement using a read-only server preview shared with execution calculations.
+- Show exact contract, quantity, premium/margin, expiry breakeven and loss bounds with explicit simulation limitations.
+
+- Extend F&O practice with 2–4-leg atomic opening baskets, user-scoped retry protection and combined expiry payoff charts/tables. Add backward-compatible V135 basket records and export/deletion support.

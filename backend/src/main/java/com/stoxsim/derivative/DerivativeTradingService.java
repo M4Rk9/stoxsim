@@ -40,7 +40,7 @@ public class DerivativeTradingService {
     public record OpenPosition(ContractQuote market, int lots, Direction direction, BigDecimal averageEntry,
         BigDecimal reservedMargin, BigDecimal unrealizedPnl, boolean awaitingSettlement) {}
     public record Fill(UUID id, UUID contractId, String symbol, Action action, int lots, BigDecimal price,
-        BigDecimal cashChange, BigDecimal realizedPnl, Instant filledAt) {}
+        BigDecimal cashChange, BigDecimal realizedPnl, Instant filledAt, UUID basketId) {}
     public record Portfolio(BigDecimal cash, BigDecimal reservedMargin, BigDecimal realizedPnl,
         BigDecimal totalEquity, List<OpenPosition> positions, List<Fill> fills) {}
     private record Wallet(BigDecimal cash, BigDecimal realizedPnl) {}
@@ -120,7 +120,42 @@ public class DerivativeTradingService {
             return fill;
         }
 
-        Contract contract = catalog.active(contractId)
+        Prepared prepared = prepare(user, contractId, action, lots, wallet.cash(), true);
+        return record(user, prepared.contract(), requestKey, action, lots, prepared.price(), prepared.movement());
+    }
+
+    private record Prepared(Contract contract, BigDecimal price, Movement movement, Instant quoteAt) {}
+    public record Preview(Contract contract, Action action, int lots, long quantity, BigDecimal price,
+        BigDecimal requiredFunds, BigDecimal cashChange, BigDecimal cashAfter, BigDecimal realizedPnl,
+        BigDecimal breakeven, BigDecimal maximumLoss, boolean unlimitedLoss, Instant quoteAt, Instant generatedAt) {}
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Preview preview(UUID user, UUID contractId, Action action, int lots) {
+        if (!catalog.enabled()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (action == null || action == Action.EXPIRY || lots < 1 || lots > 100)
+            throw new TradingValidationException("Invalid virtual order.");
+        BigDecimal cash = db.query("SELECT cash, realized_pnl FROM derivative_wallet WHERE user_id=?", this::wallet, user)
+            .stream().findFirst().orElse(new Wallet(STARTING_CASH, BigDecimal.ZERO)).cash();
+        Prepared p = prepare(user, contractId, action, lots, cash, false);
+        Contract c = p.contract();
+        boolean opening = action != Action.CLOSE;
+        boolean unlimited = opening && c.kind() == Kind.FUT && action == Action.OPEN_SHORT;
+        BigDecimal breakeven = !opening ? null : switch (c.kind()) {
+            case FUT -> p.price();
+            case CE -> c.strike().add(p.price());
+            case PE -> c.strike().subtract(p.price());
+        };
+        // A negative put breakeven cannot be reached by a nonnegative index.
+        if (breakeven != null && breakeven.signum() < 0) breakeven = null;
+        BigDecimal maximumLoss = !opening || unlimited ? null : DerivativeBook.value(c, lots, p.price());
+        return new Preview(c, action, lots, (long) c.lotSize() * lots, p.price(),
+            opening ? p.movement().cashChange().negate() : BigDecimal.ZERO,
+            p.movement().cashChange(), cash.add(p.movement().cashChange()), p.movement().realizedPnl(),
+            breakeven, maximumLoss, unlimited, p.quoteAt(), clock.instant());
+    }
+
+    private Prepared prepare(UUID user, UUID contractId, Action action, int lots, BigDecimal cash, boolean lockContract) {
+        Contract contract = (lockContract ? catalog.active(contractId) : catalog.activeSnapshot(contractId))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract is unavailable."));
         requireSession(contract);
         if (action != Action.CLOSE && !sessions.isTradingDay(MarketExchange.NSE, contract.expiry())) {
@@ -138,8 +173,8 @@ public class DerivativeTradingService {
         BigDecimal price = buy ? quote.ask() : quote.bid();
         if (price == null) price = quote.lastPrice();
         price = price.divide(contract.tickSize(), 0, RoundingMode.HALF_UP).multiply(contract.tickSize());
-        return record(user, contract, requestKey, action, lots, price,
-            DerivativeBook.trade(contract, existing, action, lots, price, wallet.cash()));
+        return new Prepared(contract, price, DerivativeBook.trade(contract, existing, action, lots, price, cash),
+            quote.exchangeTimestamp());
     }
 
     void settle(UUID user, Contract contract, BigDecimal underlyingClose) {
@@ -168,7 +203,7 @@ public class DerivativeTradingService {
             VALUES (?,?,?,?,?,?,?,?,?,?)
             """, id, user, contract.id(), requestKey, action.name(), lots, price, movement.cashChange(), movement.realizedPnl(),
             java.sql.Timestamp.from(now));
-        return new Fill(id, contract.id(), contract.symbol(), action, lots, price, movement.cashChange(), movement.realizedPnl(), now);
+        return new Fill(id, contract.id(), contract.symbol(), action, lots, price, movement.cashChange(), movement.realizedPnl(), now, null);
     }
 
     private ContractQuote view(Contract c, Map<String, Quote> snapshots) {
@@ -210,9 +245,16 @@ public class DerivativeTradingService {
             row.getBigDecimal("average_entry"), row.getBigDecimal("reserved_margin"));
     }
 
+    List<Fill> basketFills(UUID user, UUID basket) {
+        return db.query("""
+            SELECT f.*, c.symbol FROM derivative_fill f JOIN derivative_contract c ON c.id=f.contract_id
+            WHERE f.user_id=? AND f.basket_id=? ORDER BY f.contract_id
+            """, this::fill, user, basket);
+    }
+
     private Fill fill(ResultSet row, int ignored) throws SQLException {
         return new Fill(row.getObject("id", UUID.class), row.getObject("contract_id", UUID.class), row.getString("symbol"),
             Action.valueOf(row.getString("action")), row.getInt("lots"), row.getBigDecimal("price"), row.getBigDecimal("cash_change"),
-            row.getBigDecimal("realized_pnl"), row.getTimestamp("filled_at").toInstant());
+            row.getBigDecimal("realized_pnl"), row.getTimestamp("filled_at").toInstant(), row.getObject("basket_id", UUID.class));
     }
 }
