@@ -177,7 +177,7 @@ test("basket review blocks execution until acknowledged and submits all legs in 
   await page.setViewportSize({width: 1440, height: 1000});
   await testInfo.attach("basket-payoff-desktop-synthetic", {body: await page.screenshot({fullPage: true}), contentType: "image/png"});
   await submit.click();
-  await expect(page.getByRole("alert")).toContainText("Basket result could not be confirmed");
+  await expect(page.getByRole("alert").filter({hasText: "Basket result could not be confirmed"})).toBeVisible();
   await submit.click();
   await expect(page.getByText("Virtual basket filled: 2 legs.", {exact: false})).toBeVisible();
   expect(keys).toHaveLength(2);
