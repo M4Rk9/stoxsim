@@ -1,5 +1,7 @@
 # Changelog
 
+- Android: native F&O contract discovery, required order/basket risk review, combined expiry payoff, positions/fills and company-news states; same-key explicit retry for uncertain submissions.
+
 ## Research evidence (Milestone 2)
 - Add separately gated India/US company headlines with source links and publication times; fail honestly for missing coverage.
 - Connect company research to evidence-focused Finwiz prompts; correct short-history technical indicators and disclose source freshness independently.

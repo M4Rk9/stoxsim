@@ -104,6 +104,7 @@ import com.stoxsim.app.R
                 "Learner profile" -> LearnerProfileScreen(state, model::saveLearnerProfile)
                 "Notifications" -> NotificationsScreen(state, model::notificationRead, model::notificationsReadAll, model::notificationPreference)
                 "Reflections" -> ReflectionsScreen(state, model::saveReflection, model::deleteReflection, model::linkStrategyOrder, model::reflectionAssistance, { model.clearData("reflectionAssistance") })
+                "F&O" -> DerivativesScreen(state.derivatives, state.working, model::derivativeMarket, model::derivativeTicket, model::derivativeBasket, model::derivativeReview, model::derivativeAcknowledge, model::derivativeSubmit, model::derivativeDiscardUncertain)
                 "Markets" -> MarketsScreen(state, model)
                 "Stock" -> StockScreen(state, model)
                 "Watchlist" -> WatchlistScreen(state, model)
@@ -137,13 +138,13 @@ internal fun parentScreen(screen: String) = when (screen) {
     "Portfolio analysis" -> "Portfolio"
     "Finwiz lesson", "Finwiz chat" -> "Finwiz"
     "Finwiz", "Learning path", "Scenario Lab", "Reflections" -> "Learn"
-    "Stock", "Portfolio", "Orders", "Watchlist" -> "Markets"
+    "F&O", "Stock", "Portfolio", "Orders", "Watchlist" -> "Markets"
     "Campus" -> "Competitions"
     "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 internal fun productTab(screen: String) = when (screen) {
-    "Markets", "Stock", "Portfolio", "Orders", "Watchlist", "Portfolio analysis" -> "Markets"
+    "Markets", "F&O", "Stock", "Portfolio", "Orders", "Watchlist", "Portfolio analysis" -> "Markets"
     "Learn", "Finwiz", "Finwiz lesson", "Finwiz chat", "Learning path", "Scenario Lab", "Reflections" -> "Learn"
     "Competitions", "Campus" -> "Competitions"
     "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"

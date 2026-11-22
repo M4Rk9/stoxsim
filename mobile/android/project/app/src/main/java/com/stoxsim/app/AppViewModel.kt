@@ -23,6 +23,7 @@ import java.util.UUID
 internal data class EmailLinkPrompt(val action: EmailAction, val id: String = UUID.randomUUID().toString())
 
 internal data class AppState(
+    val derivatives: DerivativesState = DerivativesState(),
     val restoring: Boolean = true, val restoreFailed: Boolean = false,
     val working: Boolean = false, val user: User? = null,
     val region: String = "INDIA", val accountId: String = "", val screen: String = "Home",
@@ -216,7 +217,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         mutable.update { it.copy(dark = dark) }
     }
     fun openScreen(screen: String) {
-        if (screen !in listOf("Home", "Learn", "Learner profile", "Notifications", "Reflections", "Markets", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
+        if (screen !in listOf("Home", "Learn", "Learner profile", "Notifications", "Reflections", "Markets", "F&O", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
                 "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Portfolio analysis")) return
         cancelSearch()
         mutable.update { it.copy(screen = screen, error = null, notice = null) }
@@ -366,7 +367,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         if (mutable.value.working || instrument.region != mutable.value.region) return
         cancelSearch()
         mutable.update { it.copy(selected = instrument, screen = "Stock", quote = null, candles = emptyList(),
-            data = it.data - "stockInsights", chartMonths = 1, insightPeriod = "quarterly",
+            data = it.data - "stockInsights" - "companyNews", chartMonths = 1, insightPeriod = "quarterly",
             recentStocks = (listOf(instrument) + it.recentStocks.filterNot { recent -> recent.symbol == instrument.symbol && recent.exchange == instrument.exchange && recent.region == instrument.region }).take(10)) }
         refresh()
     }
@@ -408,6 +409,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
                 portfolio(); read("onboarding", "onboarding"); read("journey", "onboarding/journey"); read("learnerHome", "learner/home"); read("notifications", "notifications"); list("reflections", "reflections")
                 if (id.isNotBlank()) list("trades", "accounts/$id/trades")
             }
+            "F&O" -> loadDerivatives()
             "Markets" -> { market(); portfolio(); read("watchlist", "watchlists/default") }
             "Learn" -> { read("progression", "progression"); read("journey", "onboarding/journey"); read("onboarding", "onboarding") }
             "Learner profile" -> read("learnerProfile", "learner/profile")
@@ -419,6 +421,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
                 section("quote") { val quote = api.quote(instrument); mutable.update { it.copy(quote = quote) } }
                 section("chart") { val candles = api.candles(instrument, mutable.value.chartMonths); mutable.update { it.copy(candles = candles) } }
                 section("stockInsights") { putData("stockInsights", api.insights(instrument, mutable.value.insightPeriod)) }
+                section("companyNews") { putData("companyNews", api.companyNews(instrument)) }
                 read("watchlist", "watchlists/default")
             }
             "Portfolio", "Portfolio analysis" -> {
@@ -439,6 +442,82 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             "Weekly reports" -> { read("reportPreference", "reports/weekly/preferences"); list("reports", "reports/weekly") }
         }
     }
+    private fun updateDerivatives(change: (DerivativesState) -> DerivativesState) {
+        mutable.update { it.copy(derivatives = change(it.derivatives)) }
+    }
+    private suspend fun loadDerivatives() {
+        updateDerivatives { it.copy(error = null, chain = emptyList(), portfolio = null, review = null) }
+        val enabled = api.objectData("derivatives/capability").optBoolean("enabled")
+        updateDerivatives { it.copy(enabled = enabled) }
+        if (!enabled) return
+        try {
+            val portfolio = api.objectData("derivatives/portfolio")
+            updateDerivatives { it.copy(portfolio = portfolio) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (expired: SessionExpired) { throw expired }
+        catch (_: Exception) { updateDerivatives { it.copy(error = "Wallet and fills could not be loaded. Refresh before placing another order.") } }
+        try {
+            val current = mutable.value.derivatives
+            val expiries = api.derivativeExpiries(current.underlying)
+            val expiry = current.expiry.takeIf { it in expiries } ?: expiries.firstOrNull().orEmpty()
+            updateDerivatives { it.copy(expiries = expiries, expiry = expiry) }
+            if (expiry.isNotBlank()) {
+                val chain = api.arrayData("derivatives/chain", mapOf("underlying" to current.underlying, "expiry" to expiry, "offset" to current.offset.toString()))
+                updateDerivatives { it.copy(chain = chain) }
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (expired: SessionExpired) { throw expired }
+        catch (_: Exception) { updateDerivatives { it.copy(error = listOfNotNull(it.error, "Contract discovery could not be loaded. Wallet and fills are shown separately.").joinToString(" ")) } }
+    }
+
+    fun derivativeMarket(underlying: String, expiry: String = "", offset: Int = 0) = runAction {
+        require(underlying in listOf("NSE_INDEX|Nifty 50", "NSE_INDEX|Nifty Bank") && offset in 0..1000)
+        updateDerivatives { it.copy(underlying = underlying, expiry = expiry, offset = offset, ticket = null, review = null) }
+        loadDerivatives()
+    }
+    fun derivativeTicket(leg: DerivativeLeg?) {
+        if (mutable.value.working || mutable.value.derivatives.uncertain != null) return
+        updateDerivatives { it.copy(ticket = leg, review = null) }
+    }
+    fun derivativeBasket(legs: List<DerivativeLeg>) {
+        if (mutable.value.working || mutable.value.derivatives.uncertain != null) return
+        if (legs.size > 4 || legs.map { it.contract.text("id") }.distinct().size != legs.size ||
+            legs.any { it.action !in listOf("OPEN_LONG", "OPEN_SHORT") } ||
+            legs.map { it.contract.text("underlyingKey") to it.contract.text("expiry") }.distinct().size > 1) {
+            mutable.update { it.copy(error = "Use up to four distinct opening contracts on the same index and expiry.") }; return
+        }
+        updateDerivatives { it.copy(basket = legs, review = null) }
+    }
+    fun derivativeReview(basket: Boolean) = runAction {
+        val d = mutable.value.derivatives
+        require(d.uncertain == null && d.legs(basket).all { it.valid } && d.legs(basket).size in (if (basket) 2..4 else 1..1))
+        updateDerivatives { it.copy(review = null) }
+        val result = api.mutate(if (basket) "derivatives/baskets/preview" else "derivatives/preview", body = d.payload(basket), expectedUserId = mutable.value.user!!.id)
+        updateDerivatives { it.copy(basketReview = basket, review = DerivativeReview(d.signature(basket), result, android.os.SystemClock.elapsedRealtime() + 30_000)) }
+    }
+    fun derivativeAcknowledge(accepted: Boolean) {
+        if (!mutable.value.working) updateDerivatives { it.copy(review = it.review?.copy(accepted = accepted)) }
+    }
+    fun derivativeSubmit(retry: Boolean = false) = runAction {
+        val d = mutable.value.derivatives
+        val owner = mutable.value.user!!.id
+        val submission = if (retry) requireNotNull(d.uncertain) else {
+            val review = requireNotNull(d.review)
+            require(d.uncertain == null && review.accepted && review.valid(d.signature(d.basketReview), android.os.SystemClock.elapsedRealtime()))
+            val key = UUID.randomUUID().toString()
+            DerivativeSubmission(review.signature, key, d.payload(d.basketReview).put("requestKey", key).toString(), d.basketReview)
+        }
+        // Freeze the exact reviewed payload before the network call. Never automatically retry a write.
+        updateDerivatives { it.copy(uncertain = submission) }
+        val result = api.mutate(if (submission.basket) "derivatives/baskets/orders" else "derivatives/orders", body = JSONObject(submission.body), expectedUserId = owner)
+        updateDerivatives { it.copy(uncertain = null, review = null, ticket = null, basket = if (submission.basket) emptyList() else it.basket) }
+        mutable.update { it.copy(notice = if (submission.basket) "Virtual basket filled: ${result.objects("fills").size} legs." else "Virtual order filled.") }
+        loadDerivatives()
+    }
+    fun derivativeDiscardUncertain() {
+        if (!mutable.value.working) updateDerivatives { it.copy(uncertain = null, review = null, ticket = null, basket = emptyList()) }
+    }
+
     fun watch(instrument: Instrument) = runAction {
         putData("watchlist", api.addToWatchlist(instrument))
         mutable.update { it.copy(notice = "Added ${instrument.symbol} to My Watchlist.") }
