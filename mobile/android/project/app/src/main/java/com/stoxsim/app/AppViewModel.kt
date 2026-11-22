@@ -450,17 +450,26 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val enabled = api.objectData("derivatives/capability").optBoolean("enabled")
         updateDerivatives { it.copy(enabled = enabled) }
         if (!enabled) return
-        val current = mutable.value.derivatives
-        val expiries = api.derivativeExpiries(current.underlying)
-        val expiry = current.expiry.takeIf { it in expiries } ?: expiries.firstOrNull().orEmpty()
-        updateDerivatives { it.copy(expiries = expiries, expiry = expiry) }
-        if (expiry.isNotBlank()) {
-            val chain = api.arrayData("derivatives/chain", mapOf("underlying" to current.underlying, "expiry" to expiry, "offset" to current.offset.toString()))
-            updateDerivatives { it.copy(chain = chain) }
-        }
-        val portfolio = api.objectData("derivatives/portfolio")
-        updateDerivatives { it.copy(portfolio = portfolio) }
+        try {
+            val portfolio = api.objectData("derivatives/portfolio")
+            updateDerivatives { it.copy(portfolio = portfolio) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (expired: SessionExpired) { throw expired }
+        catch (_: Exception) { updateDerivatives { it.copy(error = "Wallet and fills could not be loaded. Refresh before placing another order.") } }
+        try {
+            val current = mutable.value.derivatives
+            val expiries = api.derivativeExpiries(current.underlying)
+            val expiry = current.expiry.takeIf { it in expiries } ?: expiries.firstOrNull().orEmpty()
+            updateDerivatives { it.copy(expiries = expiries, expiry = expiry) }
+            if (expiry.isNotBlank()) {
+                val chain = api.arrayData("derivatives/chain", mapOf("underlying" to current.underlying, "expiry" to expiry, "offset" to current.offset.toString()))
+                updateDerivatives { it.copy(chain = chain) }
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (expired: SessionExpired) { throw expired }
+        catch (_: Exception) { updateDerivatives { it.copy(error = listOfNotNull(it.error, "Contract discovery could not be loaded. Wallet and fills are shown separately.").joinToString(" ")) } }
     }
+
     fun derivativeMarket(underlying: String, expiry: String = "", offset: Int = 0) = runAction {
         require(underlying in listOf("NSE_INDEX|Nifty 50", "NSE_INDEX|Nifty Bank") && offset in 0..1000)
         updateDerivatives { it.copy(underlying = underlying, expiry = expiry, offset = offset, ticket = null, review = null) }

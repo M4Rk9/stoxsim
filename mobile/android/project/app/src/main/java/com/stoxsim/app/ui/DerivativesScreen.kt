@@ -34,6 +34,7 @@ import org.json.JSONObject
         Panel { Text(if (d.enabled == false) "F&O practice is unavailable on this server." else "Loading F&O availability…") }
         return
     }
+    d.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Panel(title = "Discover contracts") {
         ChoiceRow(listOf("beginner" to "Beginner", "advanced" to "Advanced"), if (advanced) "advanced" else "beginner") { advanced = it == "advanced" }
         if (!advanced) Text("Calls gain expiry value above their strike; puts below it. Premium is per unit. A lot contains the contract’s stated units. Futures expose you to the full contract value.")
@@ -98,7 +99,8 @@ import org.json.JSONObject
         val p = d.portfolio
         ValueRow("Available cash", money(p?.decimal("cash"), "INR")); ValueRow("Reserved margin", money(p?.decimal("reservedMargin"), "INR"))
         ValueRow("Realized P&L", money(p?.decimal("realizedPnl"), "INR")); ValueRow("Marked equity", money(p?.decimal("totalEquity"), "INR"))
-        if (p?.objects("positions").isNullOrEmpty()) Text("No open positions in the loaded snapshot.")
+        if (p == null) Text("Wallet and position snapshot unavailable.")
+        else if (p.objects("positions").isEmpty()) Text("No open positions in the loaded snapshot.")
         p?.objects("positions")?.forEach { position ->
             val q = position.getJSONObject("market"); val c = q.getJSONObject("contract")
             HorizontalDivider(); ContractDetails(c, advanced)
@@ -119,7 +121,9 @@ import org.json.JSONObject
 private fun actionLabel(action: String) = when (action) { "OPEN_LONG" -> "Open long"; "OPEN_SHORT" -> "Open short"; "CLOSE" -> "Close position"; "EXPIRY" -> "Expiry settlement"; else -> "Virtual fill" }
 @Composable private fun ContractDetails(c: JSONObject, exact: Boolean) {
     Text(c.text("symbol"), style = MaterialTheme.typography.titleSmall)
-    Text("NSE · ${c.text("kind")} · Expiry ${c.text("expiry")} · Lot ${c.optInt("lotSize")}")
+    val kind = when (c.text("kind")) { "CE" -> "Call option"; "PE" -> "Put option"; "FUT" -> "Future"; else -> "Contract" }
+    Text("${c.text("underlyingKey").substringAfter("|").ifBlank { "Index unavailable" }} · NSE · $kind")
+    Text("Expiry ${c.text("expiry")} · Lot ${c.optInt("lotSize")}")
     if (c.decimal("strike") != null) Text("Strike ${number(c.decimal("strike"))}")
     if (exact) Text("Exact contract: ${c.text("providerKey")}")
 }

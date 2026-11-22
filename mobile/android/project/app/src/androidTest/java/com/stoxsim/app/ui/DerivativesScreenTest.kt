@@ -21,7 +21,7 @@ import org.junit.Test
 
 class DerivativesScreenTest {
     @get:Rule val compose = createComposeRule()
-    private fun preview() = JSONObject("""{"legs":[{"contract":{"id":"fixture","symbol":"EXAMPLE CALL","kind":"CE","expiry":"2026-12-29","lotSize":65,"providerKey":"SYNTHETIC","strike":27000},"action":"OPEN_LONG","lots":1,"quantity":65,"price":81,"quoteAt":"2026-11-20T05:30:00Z"}],"requiredFunds":9230,"cashAfter":490770,"payoff":{"maximumLoss":9230,"unlimitedLoss":false,"maximumProfit":null,"unlimitedProfit":true,"breakevens":[26858,27142],"zeroRanges":[],"points":[{"underlying":26000,"pnl":55770},{"underlying":27000,"pnl":-9230},{"underlying":28000,"pnl":55770}]}}""").apply {
+    private fun preview() = JSONObject("""{"legs":[{"contract":{"id":"fixture","underlyingKey":"NSE_INDEX|Nifty 50","symbol":"EXAMPLE CALL","kind":"CE","expiry":"2026-12-29","lotSize":65,"providerKey":"SYNTHETIC","strike":27000},"action":"OPEN_LONG","lots":1,"quantity":65,"price":81,"quoteAt":"2026-11-20T05:30:00Z"}],"requiredFunds":9230,"cashAfter":490770,"payoff":{"maximumLoss":9230,"unlimitedLoss":false,"maximumProfit":null,"unlimitedProfit":true,"breakevens":[26858,27142],"zeroRanges":[],"points":[{"underlying":0,"pnl":1745770},{"underlying":27000,"pnl":-9230},{"underlying":33750,"pnl":429520}]}}""").apply {
         val put = JSONObject(getJSONArray("legs").getJSONObject(0).toString()).put("price", 61)
         put.getJSONObject("contract").put("id", "fixture-put").put("symbol", "EXAMPLE PUT").put("kind", "PE")
         getJSONArray("legs").put(put)
@@ -54,6 +54,20 @@ class DerivativesScreenTest {
         compose.setContent { StoxSimTheme { CompanyNews(JSONObject().put("status", "DISABLED"), null, false) } }
         compose.onNodeWithText("News is not enabled for this market yet.").assertExists()
         compose.onNodeWithText("Read original article ↗").assertDoesNotExist()
+    }
+    @Test fun captureDiscoveryAndNews() {
+        val c = preview().getJSONArray("legs").getJSONObject(0).getJSONObject("contract")
+        val d = DerivativesState(enabled = true, expiry = "2026-12-29", expiries = listOf("2026-12-29"),
+            chain = listOf(JSONObject().put("contract", c).put("last", 80).put("fresh", false).put("lastTradeAt", "2026-11-20T05:30:00Z")))
+        compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text("SYNTHETIC FIXTURE · Not market data")
+            DerivativesScreen(d, false, { _, _, _ -> }, {}, {}, {}, {}, {}, {})
+            CompanyNews(JSONObject("""{"status":"AVAILABLE","provider":"Synthetic fixture","checkedAt":"2026-11-20T05:30:00Z","articles":[{"headline":"Example company publishes results","source":"example.test","url":"https://example.test/news","publishedAt":"2026-11-20T04:00:00Z"}]}"""), null, false)
+        } } }
+        compose.onNodeWithText("Open long EXAMPLE CALL").performScrollTo().assertIsNotEnabled()
+        save("android-fno-discovery.png")
+        compose.onNodeWithText("Read original article ↗").performScrollTo()
+        save("android-company-news.png")
     }
     @Test fun captureLightPayoff() = capture(false)
     @Test fun captureDarkPayoff() = capture(true)
