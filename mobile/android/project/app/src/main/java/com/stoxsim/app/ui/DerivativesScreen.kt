@@ -161,7 +161,7 @@ private fun actionLabel(action: String) = when (action) { "OPEN_LONG" -> "Open l
         Text("Simulated fees ₹0; taxes and additional slippage excluded. Futures reserve 20% margin per leg, with no hedge discount, daily cash mark-to-market or forced liquidation. Loss can exceed margin. Options are buy-only.")
         Text("Quotes can change after review. Execution rechecks data, session, positions and funds. Baskets commit all legs or none; quotes may have different observation times. Positions merge by contract and close individually.")
         Text("Expiry uses verified index-close data; missing data delays per-position cash settlement. No physical delivery or early exercise. This is simulated practice, not real trading.")
-        Row { Checkbox(r.accepted, acknowledge, enabled = !working && valid); Text("I understand the risk and simulation assumptions.", Modifier.weight(1f)) }
+        Row { Checkbox(r.accepted, acknowledge, enabled = !working && valid, modifier = Modifier.semantics { contentDescription = "I understand the risk and simulation assumptions" }); Text("I understand the risk and simulation assumptions.", Modifier.weight(1f)) }
         if (!valid) Text("Review expired or changed. Request a fresh risk review.")
         Button(submit, enabled = !working && valid && r.accepted) { Text(if (basket) "Place virtual basket" else "Place virtual order") }
     }

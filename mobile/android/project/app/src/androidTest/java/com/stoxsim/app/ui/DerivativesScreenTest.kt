@@ -21,7 +21,11 @@ import org.junit.Test
 
 class DerivativesScreenTest {
     @get:Rule val compose = createComposeRule()
-    private fun preview() = JSONObject("""{"legs":[{"contract":{"id":"fixture","symbol":"EXAMPLE CALL","kind":"CE","expiry":"2026-12-29","lotSize":65,"providerKey":"SYNTHETIC","strike":27000},"action":"OPEN_LONG","lots":1,"quantity":65,"price":81,"quoteAt":"2026-11-20T05:30:00Z"}],"requiredFunds":9230,"cashAfter":490770,"payoff":{"maximumLoss":9230,"unlimitedLoss":false,"maximumProfit":null,"unlimitedProfit":true,"breakevens":[26858,27142],"zeroRanges":[],"points":[{"underlying":26000,"pnl":55770},{"underlying":27000,"pnl":-9230},{"underlying":28000,"pnl":55770}]}}""")
+    private fun preview() = JSONObject("""{"legs":[{"contract":{"id":"fixture","symbol":"EXAMPLE CALL","kind":"CE","expiry":"2026-12-29","lotSize":65,"providerKey":"SYNTHETIC","strike":27000},"action":"OPEN_LONG","lots":1,"quantity":65,"price":81,"quoteAt":"2026-11-20T05:30:00Z"}],"requiredFunds":9230,"cashAfter":490770,"payoff":{"maximumLoss":9230,"unlimitedLoss":false,"maximumProfit":null,"unlimitedProfit":true,"breakevens":[26858,27142],"zeroRanges":[],"points":[{"underlying":26000,"pnl":55770},{"underlying":27000,"pnl":-9230},{"underlying":28000,"pnl":55770}]}}""").apply {
+        val put = JSONObject(getJSONArray("legs").getJSONObject(0).toString()).put("price", 61)
+        put.getJSONObject("contract").put("id", "fixture-put").put("symbol", "EXAMPLE PUT").put("kind", "PE")
+        getJSONArray("legs").put(put)
+    }
     @Test fun reviewRequiresAcknowledgementAndMatchingComposition() {
         var submissions = 0
         compose.setContent {

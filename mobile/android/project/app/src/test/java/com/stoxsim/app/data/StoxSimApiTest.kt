@@ -30,6 +30,30 @@ class StoxSimApiTest {
     }
     @After fun teardown() { server.shutdown() }
 
+    @Test fun derivativeRequestsKeepExactKeysAndNeverAutomaticallyReplay() = runBlocking {
+        server.enqueue(session("first")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        val body = JSONObject().put("requestKey", "stable-key").put("legs", org.json.JSONArray()
+            .put(JSONObject().put("contractId", "one").put("action", "OPEN_LONG").put("lots", 1))
+        server.enqueue(MockResponse().setResponseCode(503))
+        try { api.mutate("derivatives/baskets/orders", body = body, expectedUserId = "learner-id"); fail("503 must surface") }
+        catch (_: ApiFailure) { }
+        val first = server.takeRequest()
+        assertEquals("/api/v1/derivatives/baskets/orders", first.path)
+        assertEquals(2, server.requestCount)
+        server.enqueue(MockResponse().setBody("{\"basketId\":\"same-fill\"}"))
+        api.mutate("derivatives/baskets/orders", body = body, expectedUserId = "learner-id")
+        assertEquals(first.body.readUtf8(), server.takeRequest().body.readUtf8())
+    }
+    @Test fun derivativeExpiriesAreStringsAndNewsUsesListingIdentity() = runBlocking {
+        server.enqueue(session("first")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
+        server.enqueue(MockResponse().setBody("[\"2026-12-29\"]"))
+        assertEquals(listOf("2026-12-29"), api.derivativeExpiries("NSE_INDEX|Nifty 50"))
+        assertEquals("NSE_INDEX|Nifty 50", server.takeRequest().requestUrl!!.queryParameter("underlying"))
+        server.enqueue(MockResponse().setBody("{\"status\":\"DISABLED\",\"articles\":[]}"))
+        assertEquals("DISABLED", api.companyNews(Instrument("ACME", "Example", "NASDAQ", "US")).getString("status"))
+        assertEquals("/api/v1/instruments/US/NASDAQ/ACME/news", server.takeRequest().path)
+    }
+
     @Test fun delayedPurchaseCannotBeSubmittedUnderAnotherAccountSession() = runBlocking {
         server.enqueue(session("first")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
         try {
