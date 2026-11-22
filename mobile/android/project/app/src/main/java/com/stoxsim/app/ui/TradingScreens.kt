@@ -187,6 +187,7 @@ import java.math.RoundingMode
     }
 }
 @Composable internal fun MarketsScreen(state: AppState, model: AppViewModel) {
+    OutlinedButton({ model.openScreen("F&O") }, enabled = !state.working) { Text("F&O practice · NSE indices") }
     StockResults(state, model::selectStock)
     if (state.searchQuery.isBlank()) StocksExplore(state, model::openScreen, model::selectStock)
 }
@@ -256,6 +257,7 @@ import java.math.RoundingMode
     }
     OrderTicket(state, model::estimate, model::placeOrder)
     CompanyFundamentals(state, model::financialPeriod)
+    CompanyNews(state.data["companyNews"], state.sectionErrors["companyNews"], state.working)
 }
 
 @Composable internal fun WatchStockButton(state: AppState, instrument: Instrument, add: (Instrument) -> Unit) {

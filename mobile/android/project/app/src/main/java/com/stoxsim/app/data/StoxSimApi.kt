@@ -164,6 +164,13 @@ internal class StoxSimApi(
     suspend fun arrayData(path: String, params: Map<String, String> = emptyMap()): List<JSONObject> = serialized {
         JSONArray(authorizedGet("api/v1/$path", params)).mapObjects { it }
     }
+    suspend fun derivativeExpiries(underlying: String): List<String> = serialized {
+        val values = JSONArray(authorizedGet("api/v1/derivatives/expiries", mapOf("underlying" to underlying)))
+        (0 until values.length()).map { values.getString(it) }
+    }
+    suspend fun companyNews(instrument: Instrument): JSONObject = serialized {
+        JSONObject(authorizedGet(stockPath(instrument, "news")))
+    }
     suspend fun quote(instrument: Instrument): Quote = serialized {
         parseQuote(JSONObject(authorizedGet(stockPath(instrument, "quote"))))
     }
