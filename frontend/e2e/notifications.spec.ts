@@ -48,3 +48,30 @@ test("email unsubscribe needs an explicit action and clears the URL token", asyn
   await expect(page).toHaveURL(/\/notifications\/unsubscribe$/);
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
 });
+
+for (const width of [390, 1440]) test(`journal reminder opens private review on ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: 900 });
+  const user = { id: "review-fixture", displayName: "Synthetic learner", email: "review@example.test", emailVerified: true, passwordLoginEnabled: true, accounts: [] };
+  await page.addInitScript(user => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "fixture", user })), user);
+  await page.route("**/api/v1/**", async route => {
+    const request = route.request(), path = new URL(request.url()).pathname;
+    const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": request.headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization,content-type", "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS" };
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+    const body = path.endsWith("notifications/preferences") ? { learning: true, competitions: true, portfolioEducation: true, productAnnouncements: false, promotionalMessages: false, pushEnabled: false, emailDigest: false }
+      : path.endsWith("notifications") ? { unreadCount: 1, items: [{ id: "synthetic-reminder", category: "PORTFOLIO_EDUCATION", title: "Time to review your strategy", body: "Synthetic fixture: compare your thesis with what happened and what you learned; profit alone does not measure a good decision.", href: "/journal", createdAt: "2026-11-22T00:00:00Z", readAt: null }] }
+      : path.endsWith("auth/me") ? user : path.endsWith("subscription") ? { plan: "FREE", status: "ACTIVE", plans: [], sandboxAccounts: [], sandboxProvisioning: {} }
+      : path.endsWith("preferences") ? { enabled: false, emailEnabled: false, zoneId: "Asia/Kolkata" } : [];
+    return route.fulfill({ status: 200, headers, body: JSON.stringify(body) });
+  });
+  await page.goto("/settings#notifications");
+  const inbox = page.getByRole("region", { name: "Notifications and preferences" });
+  await expect(inbox.getByRole("heading", { name: "Time to review your strategy" })).toBeVisible();
+  await expect(page.getByLabel("Portfolio learning and review reminders", { exact: true })).toBeChecked();
+  await inbox.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath(`review-reminder-${width}.png`), fullPage: true });
+  await inbox.getByRole("link", { name: "View update" }).click();
+  await expect(page).toHaveURL(/\/journal$/);
+  await expect(page.getByText("Form a new strategy", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Inbox reminders use UTC/)).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

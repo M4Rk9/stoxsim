@@ -30,7 +30,7 @@ internal fun learnerDestination(href: String): String? = try {
     }
     else when (uri.path) {
         "/" -> "Home"; "/markets" -> "Markets"; "/portfolio" -> "Portfolio"; "/finwiz" -> "Finwiz"
-        "/learn", "/progress" -> "Learning path"; "/scenario-lab" -> "Scenario Lab"; "/reflections" -> "Reflections"
+        "/learn", "/progress" -> "Learning path"; "/scenario-lab" -> "Scenario Lab"; "/reflections", "/journal" -> "Reflections"
         "/competitions" -> "Competitions"; "/campus" -> "Campus"; "/settings" -> "Profile & security"
         "/account" -> "Account"; "/notifications" -> "Notifications"; "/subscription", "/subscriptions" -> "Subscriptions"
         else -> null

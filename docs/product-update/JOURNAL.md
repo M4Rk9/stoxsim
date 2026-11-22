@@ -4,7 +4,8 @@
 horizon, target, invalidation and ISO calendar `reviewOn`. The pair exchange/symbol
 must be complete or both empty; these are user-authored research labels, not a
 provider claim. Plans do not place stops/targets or submit orders. Dates produce
-an in-app due list in the viewer's local calendar; there is no email/push scheduler.
+an in-app due list in the viewer's local calendar. Scheduled inbox reminders use UTC;
+see [review reminder semantics](../JOURNAL_REVIEW_REMINDERS.md). No review email/push is sent.
 
 Optional `completeReview=true` requires nonblank reflection and records the
 first server completion timestamp. Ordinary saves never imply review completion.

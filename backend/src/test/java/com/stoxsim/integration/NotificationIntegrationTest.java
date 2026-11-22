@@ -47,6 +47,7 @@ class NotificationIntegrationTest {
  @Autowired NotificationTransactions transactions;
  @Autowired NotificationOutbox configuredOutbox;
  @Autowired BillingNotificationMaterializer billingMaterializer;
+ @Autowired ReviewReminderMaterializer reviewMaterializer;
  @Autowired AppUserRepository users;
  @Autowired JdbcTemplate db;
  @Autowired Clock clock;
@@ -59,6 +60,73 @@ class NotificationIntegrationTest {
   a=new AppUser("a-"+UUID.randomUUID()+"@stoxsim.test","hash","Learner A");a.markEmailVerified();users.saveAndFlush(a);
   b=users.saveAndFlush(new AppUser("b-"+UUID.randomUUID()+"@stoxsim.test","hash","Learner B"));
   mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+ }
+
+ private java.time.LocalDate reviewToday(){return java.time.LocalDate.ofInstant(clock.instant(),java.time.ZoneOffset.UTC);}
+ private UUID review(UUID owner,java.time.LocalDate date){
+  UUID id=UUID.randomUUID();
+  db.update("INSERT INTO decision_reflection(id,user_id,reason,created_at,updated_at,review_on) VALUES(?,?,'PRIVATE THESIS',now(),now(),?)",id,owner,date);
+  return id;
+ }
+ @Test void journalRemindersAreGenericPrivateInboxOnlyAndOncePerDay(){
+  service.updatePreferences(a.getId(),optedIn());
+  review(a.getId(),reviewToday());review(a.getId(),reviewToday().minusDays(2));
+  reviewMaterializer.materialize();reviewMaterializer.materialize();
+  var items=service.inbox(a.getId()).items();assertThat(items).hasSize(1);
+  assertThat(items.getFirst().href()).isEqualTo("/journal");
+  assertThat(items.getFirst().category()).isEqualTo(NotificationCategory.PORTFOLIO_EDUCATION);
+  assertThat(items.getFirst().body()).doesNotContain("PRIVATE THESIS");
+  assertThat(service.inbox(b.getId()).items()).isEmpty();
+  assertThat(db.queryForObject("SELECT count(*) FROM notification_outbox",Long.class)).isZero();
+  assertThat(db.queryForObject("SELECT count(*) FROM product_activity",Long.class)).isZero();
+  review(a.getId(),reviewToday());reviewMaterializer.materialize();
+  assertThat(service.inbox(a.getId()).items()).hasSize(1);
+  assertThat(db.queryForObject("SELECT count(*) FROM decision_reflection WHERE review_reminded_on IS DISTINCT FROM review_on",Long.class)).isZero();
+ }
+ @Test void journalRemindersIgnoreFutureOldCompletedClearedAndDeletedReviews(){
+  review(a.getId(),reviewToday().plusDays(1));review(a.getId(),reviewToday().minusDays(30));review(a.getId(),null);
+  UUID completed=review(a.getId(),reviewToday());db.update("UPDATE decision_reflection SET reviewed_at=now() WHERE id=?",completed);
+  UUID deleted=review(a.getId(),reviewToday());db.update("DELETE FROM decision_reflection WHERE id=?",deleted);
+  reviewMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).isEmpty();
+  review(a.getId(),reviewToday().minusDays(29));reviewMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).hasSize(1);
+ }
+ @Test void journalOptOutAndRetentionDoNotReplayAlreadyObservedDates(){
+  service.updatePreferences(a.getId(),new Preferences(true,true,false,false,false,false,false));
+  UUID id=review(a.getId(),reviewToday());reviewMaterializer.materialize();
+  service.updatePreferences(a.getId(),Preferences.defaults());
+  db.update("DELETE FROM notification_source_seen WHERE user_id=?",a.getId());
+  reviewMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).isEmpty();
+  // A different scheduled date is a new intention, not a replay of the old reminder.
+  db.update("UPDATE decision_reflection SET review_on=? WHERE id=?",reviewToday().minusDays(1),id);
+  reviewMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).hasSize(1);
+ }
+ @Test void concurrentJournalScansDoNotDuplicateReminders() throws Exception {
+  review(a.getId(),reviewToday());
+  try(var pool=Executors.newFixedThreadPool(2)){
+   var first=pool.submit(reviewMaterializer::materialize);var second=pool.submit(reviewMaterializer::materialize);
+   first.get(10,TimeUnit.SECONDS);second.get(10,TimeUnit.SECONDS);
+  }
+  reviewMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).hasSize(1);
+ }
+ @Test void journalScanSkipsLockedEditsThenRechecksCompletion() throws Exception {
+  UUID id=review(a.getId(),reviewToday());
+  try(var pool=Executors.newSingleThreadExecutor()){
+   new TransactionTemplate(manager).executeWithoutResult(s->{
+    db.queryForObject("SELECT id FROM decision_reflection WHERE id=? FOR UPDATE",UUID.class,id);
+    try{pool.submit(reviewMaterializer::materialize).get(2,TimeUnit.SECONDS);}
+    catch(Exception e){throw new IllegalStateException(e);}
+    db.update("UPDATE decision_reflection SET reviewed_at=now() WHERE id=?",id);
+   });
+  }
+  reviewMaterializer.materialize();assertThat(service.inbox(a.getId()).items()).isEmpty();
+ }
+ @Test void journalScanUsesUtcCalendarEvenWithDifferentClockZone(){
+  var instant=reviewToday().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().minusSeconds(1);
+  review(a.getId(),reviewToday());
+  new ReviewReminderMaterializer(db,service,Clock.fixed(instant,java.time.ZoneId.of("Asia/Kolkata")),manager).materialize();
+  assertThat(service.inbox(a.getId()).items()).isEmpty();
+  new ReviewReminderMaterializer(db,service,Clock.fixed(instant.plusSeconds(1),java.time.ZoneId.of("America/New_York")),manager).materialize();
+  assertThat(service.inbox(a.getId()).items()).hasSize(1);
  }
 
  @Test void pushSkipsReassignedInstallationsAndPreservesTheirNewBinding(){
@@ -151,7 +219,7 @@ class NotificationIntegrationTest {
   AtomicInteger calls=new AtomicInteger();worker(calls,NotificationTransport.Result.ACCEPTED).dispatch();assertThat(calls.get()).isZero();
  }
  @Test void pollingDoesNotInventHistoricalActivityAndDeduplicatesAchievements(){
-  var scanner=new NotificationScheduler(db,transactions,configuredOutbox,clock,billingMaterializer);
+  var scanner=new NotificationScheduler(db,transactions,configuredOutbox,clock,billingMaterializer,reviewMaterializer);
   db.update("INSERT INTO achievement_unlock(user_id,achievement_code,unlocked_at) VALUES(?,'BEFORE',now()-interval '1 day')",a.getId());
   db.update("INSERT INTO achievement_unlock(user_id,achievement_code,unlocked_at) VALUES(?,'AFTER',now())",a.getId());scanner.materialize();scanner.materialize();
   assertThat(service.inbox(a.getId()).items()).hasSize(1);assertThat(service.inbox(a.getId()).items().getFirst().category()).isEqualTo(NotificationCategory.LEARNING);
