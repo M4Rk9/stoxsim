@@ -33,7 +33,7 @@ class StoxSimApiTest {
     @Test fun derivativeRequestsKeepExactKeysAndNeverAutomaticallyReplay() = runBlocking {
         server.enqueue(session("first")); api.authenticate("learner@example.com", "password1"); server.takeRequest()
         val body = JSONObject().put("requestKey", "stable-key").put("legs", org.json.JSONArray()
-            .put(JSONObject().put("contractId", "one").put("action", "OPEN_LONG").put("lots", 1))
+            .put(JSONObject().put("contractId", "one").put("action", "OPEN_LONG").put("lots", 1)))
         server.enqueue(MockResponse().setResponseCode(503))
         try { api.mutate("derivatives/baskets/orders", body = body, expectedUserId = "learner-id"); fail("503 must surface") }
         catch (_: ApiFailure) { }
