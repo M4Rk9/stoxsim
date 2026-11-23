@@ -67,6 +67,7 @@ export default function DecisionReflections({ journal = false }: { journal?: boo
       <form onSubmit={save}>
         {draft.orderId && <p className={styles.muted}>Linked to your selected practice order.</p>}
         {journal && <fieldset className={styles.planFields}><legend>Research context <small>Optional</small></legend>
+          <p className={styles.muted}>Review dates use your local calendar. Inbox reminders use UTC and cover reviews due in the past 30 days. Manage them under Portfolio learning and review reminders in Notifications. No email or push reminder is sent.</p>
           <div className={styles.fields}>
             <label>Exchange<select disabled={busy} value={draft.plan?.exchange ?? ""} onChange={e => setDraft({ ...draft, plan: { ...(draft.plan ?? emptyPlan), exchange: e.target.value } })}><option value="">Choose exchange</option>{strategyExchanges.map(exchange => <option key={exchange}>{exchange}</option>)}</select></label>
             <label>Symbol<input disabled={busy} maxLength={100} pattern="[A-Z0-9&amp;._\-]+" value={draft.plan?.symbol ?? ""} onChange={e => setDraft({ ...draft, plan: { ...(draft.plan ?? emptyPlan), symbol: e.target.value.toUpperCase() } })} placeholder="e.g. INFY" /></label>

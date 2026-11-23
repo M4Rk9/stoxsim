@@ -87,7 +87,7 @@ import org.json.JSONObject
     if (items.isEmpty()) Muted("No notifications yet.")
     else {
         TextButton(readAll, enabled = !state.working) { Text("Mark all as read") }
-        items.forEach { item -> Panel(item.text("category"), item.text("title")) {
+        items.forEach { item -> Panel(item.text("category").lowercase(java.util.Locale.ROOT).replace('_', ' '), item.text("title")) {
             Text(item.text("body")); Muted(time(item.text("createdAt")))
             if (item.text("readAt").isBlank()) TextButton({ read(item.text("id"), null) }, enabled = !state.working) { Text("Mark as read") }
             if (learnerDestination(item.text("href")) != null) OutlinedButton({ read(item.text("id"), item.text("href")) }, enabled = !state.working) { Text("Open notification") }
@@ -96,7 +96,7 @@ import org.json.JSONObject
     SectionError(state, "notificationPreferences")
     val preferences = state.data["notificationPreferences"]
     if (preferences != null) Panel(title = "Notification preferences") {
-        listOf("learning" to "Learning progress", "competitions" to "Competitions", "portfolioEducation" to "Portfolio education",
+        listOf("learning" to "Learning progress", "competitions" to "Competitions", "portfolioEducation" to "Portfolio learning and review reminders",
             "productAnnouncements" to "Product announcements", "promotionalMessages" to "Promotional messages", "pushEnabled" to "Push notifications", "emailDigest" to "Optional email digest").forEach { (key, label) ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(label, Modifier.weight(1f)); Switch(preferences.optBoolean(key), { enabled ->
@@ -200,6 +200,7 @@ import org.json.JSONObject
     AlertDialog(onDismissRequest = dismiss, title = { Text(if (item == null) "New strategy" else "Review strategy") },
         text = { Column(Modifier.heightIn(max = 400.dp).then(Modifier.verticalScrollForReflection()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Message(error)
+            Muted("Review dates use your local calendar. Inbox reminders use UTC and cover reviews due in the past 30 days. Manage them in Notifications under Portfolio learning and review reminders. No email or push reminder is sent.")
             planFields.forEach { (key, label) -> OutlinedTextField(planValues.getValue(key).value,
                 { planValues.getValue(key).value = (if (key == "exchange" || key == "symbol") it.uppercase(java.util.Locale.ROOT) else it).take(when(key) { "exchange" -> 20; "symbol" -> 100; "horizon" -> 200; "reviewOn" -> 10; else -> 500 }) },
                 label = { Text(label) }, modifier = Modifier.fillMaxWidth(), enabled = !working,

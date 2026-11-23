@@ -13,6 +13,7 @@ class LearnerExperienceTest {
     @Test fun recommendationRoutesPreserveKnownJourneysAndRejectExternalNavigation() {
         assertEquals("Markets", learnerDestination("/#stock-search")); assertEquals("Orders", learnerDestination("/#orders"))
         assertEquals("Reflections", learnerDestination("/progress#reflections")); assertEquals("Learning path", learnerDestination("/progress"))
+        assertEquals("Reflections", learnerDestination("/journal"))
         assertEquals("Subscriptions", learnerDestination("/subscriptions"))
         listOf("https://attacker.test/", "//attacker.test/", "javascript:alert(1)", "/unknown", "/progress#unknown", "/\\attacker.test", "/%2f%2fattacker.test").forEach { assertNull(learnerDestination(it)) }
     }

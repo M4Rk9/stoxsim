@@ -80,7 +80,10 @@ public class NotificationService {
  }
  @Transactional public void removeDevice(UUID user,String token) {requireUser(user,false);db.update("DELETE FROM notification_device WHERE token_hash=? AND user_id=?",hash(token),user);}
  @Transactional public void removeAllDevices(UUID user) {db.update("DELETE FROM notification_device WHERE user_id=?",user);}
- @Transactional public UUID publish(NotificationRequested event) {
+ @Transactional public UUID publish(NotificationRequested event) { return publish(event,true); }
+ /** Private review nudges stay in the inbox, even when external delivery is enabled. */
+ @Transactional public UUID publishInboxOnly(NotificationRequested event) { return publish(event,false); }
+ private UUID publish(NotificationRequested event,boolean externalDelivery) {
   validate(event);requireUser(event.userId(),true);
   if(db.update("INSERT INTO notification_source_seen(user_id,event_key,observed_at) VALUES(?,?,?) ON CONFLICT DO NOTHING",event.userId(),event.eventKey(),Timestamp.from(clock.instant()))==0) return null;
   var p=preferences(event.userId());if(!p.allows(event.category(),event.promotional())) return null;
@@ -89,7 +92,7 @@ public class NotificationService {
   if(optional && count>=10) {meters.counter("stoxsim.notifications.suppressed","reason","daily_limit").increment();return null;}
   UUID id=UUID.randomUUID();
   db.update("INSERT INTO user_notification(id,user_id,event_key,category,title,body,href,promotional,created_at) VALUES(?,?,?,?,?,?,?,?,?)",id,event.userId(),event.eventKey(),event.category().name(),event.title(),event.body(),event.href(),event.promotional(),Timestamp.from(clock.instant()));
-  if(p.emailDigest()) queue(id,"EMAIL");if(p.pushEnabled()) queue(id,"PUSH");
+  if(externalDelivery && p.emailDigest()) queue(id,"EMAIL");if(externalDelivery && p.pushEnabled()) queue(id,"PUSH");
   meters.counter("stoxsim.notifications.created","category",event.category().name()).increment();return id;
  }
  private void queue(UUID id,String channel) {

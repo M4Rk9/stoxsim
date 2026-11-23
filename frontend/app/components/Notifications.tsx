@@ -9,7 +9,7 @@ interface Inbox { items: Notice[]; unreadCount: number }
 interface Preferences { learning: boolean; competitions: boolean; portfolioEducation: boolean; productAnnouncements: boolean; promotionalMessages: boolean; pushEnabled: boolean; emailDigest: boolean }
 const choices: Array<{ key: keyof Preferences; label: string }> = [
   { key: "learning", label: "Learning progress and achievements" }, { key: "competitions", label: "Competition updates" },
-  { key: "portfolioEducation", label: "Portfolio learning insights" }, { key: "productAnnouncements", label: "Product announcements" },
+  { key: "portfolioEducation", label: "Portfolio learning and review reminders" }, { key: "productAnnouncements", label: "Product announcements" },
   { key: "promotionalMessages", label: "Promotional messages and offers" }, { key: "pushEnabled", label: "Android push notifications (also requires app permission)" },
   { key: "emailDigest", label: "Optional email digests" },
 ];

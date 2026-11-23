@@ -13,7 +13,7 @@ export function safeLearningLink(value: string): string | null {
   try {
     const url = new URL(value, "https://stoxsim.com");
     if (url.origin !== "https://stoxsim.com" || url.username || url.password) return null;
-    const allowed = ["/", "/learn", "/progress", "/finwiz", "/scenario-lab", "/competitions", "/campus", "/portfolio", "/settings", "/billing"];
+    const allowed = ["/", "/learn", "/progress", "/finwiz", "/scenario-lab", "/competitions", "/campus", "/portfolio", "/journal", "/settings", "/billing"];
     return allowed.includes(url.pathname) ? url.pathname + url.search + url.hash : null;
   } catch { return null; }
 }

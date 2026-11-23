@@ -251,6 +251,14 @@ jobs:
           path: frontend/test-results/**/home-launcher.png
           retention-days: 14
           if-no-files-found: ignore
+      - name: Upload journal reminder review screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: journal-reminder-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/test-results/**/review-reminder-*.png
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Stop application stack
         if: always()
         run: |

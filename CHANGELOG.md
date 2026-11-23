@@ -1,5 +1,7 @@
 # Changelog
 
+- Journal: bounded scheduled inbox reminders for due strategy reviews, preference controls and web/native journal navigation; no external delivery or private-note analytics.
+
 - Android: native F&O contract discovery, required order/basket risk review, combined expiry payoff, positions/fills and company-news states; same-key explicit retry for uncertain submissions.
 
 ## Research evidence (Milestone 2)
