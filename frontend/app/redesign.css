@@ -78,4 +78,4 @@ main.authRecovery { background: var(--paper); color: var(--ink); }
 
 /* Adapt the supplied terminal reference to opaque, accessible production surfaces. */
 :root { --workspace-rail: #f8fbf9; --workspace-active-border: #badfca; }
-html[data-theme="dark"] { --paper: #050b09; --workspace-rail: #07110e; --input-surface: #0b1815; --workspace-active-border: #2b6549; }
+html[data-theme="dark"] { --workspace-rail: #07110e; --input-surface: #0b1815; --workspace-active-border: #2b6549; }
