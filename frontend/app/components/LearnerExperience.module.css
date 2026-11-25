@@ -32,3 +32,9 @@
 .planSummary p { margin:6px 0; }
 .orderOutcome { border:1px solid var(--line); padding:16px; border-radius:var(--radius-md); margin:16px 0; background:var(--surface-subtle); }
 @media(max-width:650px) { .planSummary { grid-template-columns:1fr; } }
+
+.card { border-radius:var(--radius-md); padding:clamp(14px,2vw,22px); }
+.card :is(input,textarea,select) { background:var(--input-surface); border-radius:var(--radius-sm); }
+.card button,.primary { border-radius:var(--radius-sm); }
+.list > li { overflow-wrap:anywhere; padding:16px 0; }
+.planFields,.orderOutcome { background:var(--surface-subtle); }

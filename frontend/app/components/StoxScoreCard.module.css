@@ -234,3 +234,7 @@
     grid-column: 1;
   }
 }
+
+.card { border-radius:var(--radius-md); box-shadow:none; }
+.scoreValue strong,.metrics strong { font-family:var(--font-numeric); font-variant-numeric:tabular-nums; }
+.track span { background:var(--green); }
