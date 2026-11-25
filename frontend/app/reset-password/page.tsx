@@ -50,16 +50,16 @@ export default function ResetPasswordPage() {
     }
   }
 
-  return <main className={styles.shell} id="main-content" tabIndex={-1}>
+  return <main className={`${styles.shell} authRecovery`} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <Brand />
       <a className={styles.back} href="/">← Back to sign in</a>
     </header>
-    <section className={styles.content}>
+    <section className={`${styles.content} authRecoveryContent`}>
       <span className={styles.eyebrow}>SECURE RECOVERY</span>
       <h1>Choose a new password</h1>
       <p className={styles.lead}>The link can be used once and expires after 30 minutes.</p>
-      <form className={styles.card} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
+      <form className={`${styles.card} authRecoveryCard`} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
         <label>
           New password
           <input

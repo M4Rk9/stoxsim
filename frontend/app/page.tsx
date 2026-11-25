@@ -1288,25 +1288,26 @@ export default function Home() {
         </nav>
         <section className="welcomeGrid">
           <div className="welcomeCopy">
-            <span className="eyebrow">RESEARCH · PRACTISE · REVIEW · LEARN</span>
-            <h1>Understand markets.<br /><span>Test your thinking.</span></h1>
+            <span className="eyebrow">PAPER TRADING · MARKET RESEARCH</span>
+            <h1>Paper Trade Like Never Before.</h1>
+            <p className="welcomeTagline">Research smarter, Practice Better.</p>
             <p>Research Indian and US stocks and ETFs, examine ideas with Finwiz AI, and practise with virtual money. Keep a strategy journal, review your decisions, and learn what to investigate next.</p>
             <div className="featureRow">
-              <span>AI-assisted learning</span><span>Virtual portfolios</span><span>Private strategy journal</span>
+              <span>India &amp; US markets</span><span>Virtual portfolios</span><span>Finwiz AI</span>
             </div>
           </div>
           <form className="authCard" id="get-started" onSubmit={submitAuth}>
             <div className="authTabs">
-              <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>Create account</button>
-              <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
+              <button type="button" aria-pressed={authMode === "register"} className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>Create account</button>
+              <button type="button" aria-pressed={authMode === "login"} className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
             </div>
             <h2>{authMode === "register" ? "Your research and practice space" : "Welcome back"}</h2>
             <p>{authMode === "register" ? "Free, educational and no brokerage account required." : "Return to your research, practice and reviews."}</p>
             {authMode === "register" && (
               <label>Display name<input required minLength={2} value={authForm.displayName} onChange={(event) => setAuthForm({ ...authForm, displayName: event.target.value })} placeholder="Market learner" /></label>
             )}
-            <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
-            <label>Password<input required minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
+            <label>Email<input required autoComplete="email" type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
+            <label>Password<input required autoComplete={authMode === "register" ? "new-password" : "current-password"} minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
             {authMode === "register" && (
               <label className="legalConsent">
                 <input
@@ -1409,6 +1410,7 @@ export default function Home() {
             onClick={() => switchMarket("UNITED_STATES")}
           ><span>🇺🇸</span> US</button>
         </div>
+        <a className="headerSearch" href="/#stock-search" aria-label="Jump to stock and ETF search">⌕ Search stocks, ETFs</a>
         <a className="labLink" href="/scenario-lab" target="_blank" rel="noopener">Scenario Lab ↗</a>
       </header>
 
@@ -1443,7 +1445,6 @@ export default function Home() {
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
-      <ResearchHome userId={session.user.id} />
       {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
       <section className="metricGrid" aria-busy={loading}>
         <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
@@ -1453,6 +1454,7 @@ export default function Home() {
       </section>
 
 
+      <ResearchHome userId={session.user.id} />
       <HomeRecommendation userId={session.user.id} />
       <Notifications compact />
       <FeatureJourney userId={session.user.id} onboarding={onboarding}
