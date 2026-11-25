@@ -47,7 +47,7 @@ export default function WorkspaceSearch() {
     <button type="button" className={styles.trigger} aria-label="Search instruments across StoxSim" onClick={show}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Search instruments</span>
     </button>
-    <dialog ref={dialog} className={styles.dialog} aria-labelledby="workspace-search-title" onClose={() => { setOpen(false); reset(""); }}>
+    <dialog ref={dialog} className={styles.dialog} aria-labelledby="workspace-search-title" onKeyDownCapture={event => { if (event.key === "Escape") { event.preventDefault(); close(); } }} onCancel={event => { event.preventDefault(); close(); }} onClose={() => { setOpen(false); reset(""); }}>
       <div className={styles.heading}><h2 id="workspace-search-title">Search instruments</h2><button type="button" onClick={close} aria-label="Close instrument search">×</button></div>
       <div className={styles.regions} role="group" aria-label="Search market">
         {(["INDIA", "UNITED_STATES"] as const).map(value => <button key={value} type="button" aria-pressed={region === value} onClick={() => { if (region !== value) { reset(query); setRegion(value); } }}>{value === "INDIA" ? "India" : "US"}</button>)}
