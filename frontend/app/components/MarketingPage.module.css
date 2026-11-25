@@ -55,7 +55,7 @@
 .steps { margin-top: 86px; }
 .steps h2 { margin: 10px 0 12px; font-size: clamp(2rem, 4vw, 3.1rem); letter-spacing: -.055em; }
 .stepsIntro { max-width: 680px; margin: 0; color: var(--muted); line-height: 1.7; }
-.stepList { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 32px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel) overflow: hidden; }
+.stepList { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 32px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); overflow: hidden; }
 .step { padding: 26px; border-right: 1px solid var(--line); }
 .step:last-child { border-right: 0; }
 .step strong { display: block; color: var(--green); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; }

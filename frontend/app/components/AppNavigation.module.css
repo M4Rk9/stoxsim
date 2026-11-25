@@ -22,3 +22,14 @@
   .rail[data-collapsed="true"] .nav span { display: none; }
   .rail[data-collapsed="true"] .brandRow { justify-content: center; }
 }
+
+.searchEntry { display: none; }
+@media (min-width:1200px) {
+  .searchEntry { display: block; margin-bottom: 14px; }
+  .rail { background: var(--workspace-rail); }
+  .nav a { border: 1px solid transparent; }
+  .nav a[aria-current] { border-color: var(--workspace-active-border); }
+  .nav a:nth-child(6) { margin-top: 14px; }
+  .rail[data-collapsed="true"] .searchEntry button > span { display: none; }
+  .rail[data-collapsed="true"] .searchEntry button { justify-content: center; padding-inline: 0; }
+}

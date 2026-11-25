@@ -15,8 +15,15 @@ Base main: 80aecef64f2d50dcde7341bb6a4b4774bfc628f9. Reference: supplied written
 ### Verification and limitations
 - Source reviewed; local checkout unavailable because container cannot resolve github.com. Builds, Playwright and visual tests not executed. Review PR CI and run visual QA before merging.
 - Requested font stacks declared, font assets not bundled; fallback fonts apply.
-- Reusable dialogs/tooltips/skeletons, component consolidation, true cross-route global search, final dashboard layout, Google/recovery visual QA, light/dark and responsive route audit pending.
-- Original ZIP mentioned by spec was not attached in this turn; SVG and screenshots used.
+- Reusable dialogs/tooltips/skeletons, component consolidation, mobile/global search parity, final dashboard layout, Google/recovery visual QA, light/dark and responsive route audit pending.
+- Original ZIP received and reviewed in the second implementation batch.
 
 ### Next
 Complete M1 pending items, test and resolve regressions, update journal. No merge or deployment or advancement to M2 without approval. M2 web, M3 Android and M4 QA not started.
+
+### Second implementation batch — archive integration
+- Reviewed archive README, CSS, AppShell, page and manifest. Archive uses hardcoded demo state, simulated fallback orders and local AI responses and removes SEO, analytics, billing, admin, campus and other production routes. Do not copy those modules, demo prices, mock branding or duplicate desktop dock.
+- Adapted archive obsidian canvas (#050b09), terminal sidebar (#07110e), input surface (#0b1815), active navigation treatment and visual grouping; retained original logo and per-user theme.
+- Added reusable desktop workspace search dialog using existing authenticatedRequest and production instruments/search API, explicit India/US market selection, debounce, cancellation, exchange/type filtering, accessible native dialog and truthful states. Existing mobile Markets search remains available; Finwiz full-screen workspace remains separate.
+- Fixed invalid marketing step-list CSS declaration and added search regression test.
+- Verification: source inspection and commit only; tests and visual rendering not yet executed. No production deployment. Fonts still pending: archive uses external Google CSS, not bundled assets; do not loosen production CSP for fonts.

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Brand from "./Brand";
+import WorkspaceSearch from "./WorkspaceSearch";
 import styles from "./AppNavigation.module.css";
 
 const areas = [
@@ -46,6 +47,7 @@ export default function AppNavigation() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
         </button>
       </div>
+      <div className={styles.searchEntry}><WorkspaceSearch /></div>
       <nav className={styles.nav} aria-label="Main navigation">
         {areas.map(area => <a key={area.label} href={area.href} className={"desktop" in area ? styles.desktopOnly : undefined}
           aria-label={area.label} title={area.label} aria-current={current === area.label ? "page" : undefined}
