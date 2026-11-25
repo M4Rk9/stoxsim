@@ -33,3 +33,12 @@
   .rail[data-collapsed="true"] .searchEntry button > span { display: none; }
   .rail[data-collapsed="true"] .searchEntry button { justify-content: center; padding-inline: 0; }
 }
+
+@media (max-width:1199px) {
+  .rail { display:flex; align-items:center; gap:3px; }
+  .searchEntry { display:block; flex:0 0 44px; }
+  .searchEntry > button { min-width:44px; padding:5px; justify-content:center; }
+  .searchEntry > button > span { display:none; }
+  .nav { flex:1; min-width:0; gap:2px; }
+  .nav a { min-width:44px; }
+}

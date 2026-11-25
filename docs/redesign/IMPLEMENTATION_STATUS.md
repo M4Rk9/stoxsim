@@ -33,3 +33,12 @@ Complete M1 pending items, test and resolve regressions, update journal. No merg
 - Concurrent follow-up commits restored the desktop launcher, explicit Escape/cancel handling and breakpoint-aware active navigation. Preserved those changes.
 - Retained reference canvas #050b09 and text #f2f7f5 and aligned exact theme assertions; extended responsive derivatives and dialog dismissal coverage. No test skipped, no trading or auth logic changes.
 - CI results pending verification; earlier follow-up workflow returned action_required and no jobs. No merge or deploy.
+
+### M1 completion candidate
+- Baseline commit 1290a30a860a83baa268fcf788c80db63c79f38f verified successful: CI run 45689126338 (all jobs), CodeQL and dependency review.
+- Vendored licensed Plus Jakarta Sans, Inter, JetBrains Mono, using same-origin font-face and font-display swap. Source SHAs and license files recorded. Full upstream TTF files; compression/subsetting deferred to performance work.
+- Introduced reusable UI card, button, notice, badge, skeleton primitives and adopted in auth, dashboard and search; existing native dialog, form and table behavior retained. Further per-route component migration belongs to M2.
+- Mobile/tablet search entry and Ctrl/Command+K added without removing existing market links. Added dashboard shortcuts for watchlist, portfolio and progress, explicit portfolio region, responsive financial metrics.
+- Reworked Google sign-in card to use original branding and shared UI, password/verification screens use shared accessible notices. Provider and auth logic unchanged.
+- Expanded browser tests across mobile/tablet/desktop; tests attach rendered screenshots of auth, recovery, search and dashboard. Existing CI runs full suite and uploads attached images.
+- Candidate NOT verified until fresh CI and actual rendered screenshot review. Container clone failed due to DNS and no local app dependencies; no claim of local execution or human visual review. Do not merge/deploy until new checks reviewed.

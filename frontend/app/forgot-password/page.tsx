@@ -1,5 +1,6 @@
 "use client";
 import Brand from "../components/Brand";
+import { WorkspaceNotice , WorkspaceButton } from "../components/WorkspaceUI";
 
 import { EMAIL_GUIDANCE } from "../lib/email-guidance";
 
@@ -53,15 +54,16 @@ export default function ForgotPasswordPage() {
           <input
             required
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
         {message && <div className={`${styles.message} ${styles.success}`}>{message}</div>}
-        {error && <div className={`${styles.message} ${styles.error}`}>{error}</div>}
-        <button className={styles.submit} disabled={working}>
+        {error && <WorkspaceNotice tone="error" className={styles.message}>{error}</WorkspaceNotice>}
+        <WorkspaceButton className={styles.submit} disabled={working}>
           {working ? "Sending…" : "Send reset link"}
-        </button>
+        </WorkspaceButton>
       </form>
     </section>
   </main>;

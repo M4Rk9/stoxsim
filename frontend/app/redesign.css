@@ -79,3 +79,30 @@ main.authRecovery { background: var(--paper); color: var(--ink); }
 /* Adapt the supplied terminal reference to opaque, accessible production surfaces. */
 :root { --workspace-rail: #f8fbf9; --workspace-active-border: #badfca; }
 html[data-theme="dark"] { --workspace-rail: #07110e; --input-surface: #0b1815; --workspace-active-border: #2b6549; }
+
+/* Self-hosted open-source fonts: no external font requests or CSP changes. */
+@font-face { font-family: "Plus Jakarta Sans"; src: url("/fonts/plus-jakarta-sans.ttf") format("truetype"); font-weight: 200 800; font-style: normal; font-display: swap; }
+@font-face { font-family: Inter; src: url("/fonts/inter.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("/fonts/jetbrains-mono.ttf") format("truetype"); font-weight: 100 800; font-style: normal; font-display: swap; }
+.workspaceButton { min-height:44px; }
+.workspaceNotice { padding:12px 14px; border:1px solid var(--line); border-radius:var(--radius-sm); color:var(--muted); background:var(--surface-subtle); font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.workspaceNotice-error { color:var(--red); background:var(--red-soft); }
+.workspaceNotice-success { color:var(--green-dark); background:var(--green-soft); }
+.workspaceBadge { display:inline-flex; align-items:center; padding:5px 8px; border-radius:var(--radius-sm); color:var(--green); background:var(--green-soft); font-size:10px; font-weight:700; }
+.workspaceSkeleton { display:inline-block; width:6em; max-width:100%; height:1em; border-radius:4px; background:var(--surface-soft); }
+.workspaceCard { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); min-width:0; }
+.dashboardShortcuts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:0 0 16px; }
+.dashboardShortcuts a { display:flex; align-items:center; justify-content:space-between; gap:6px; min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); color:var(--ink); font-size:13px; font-weight:650; text-decoration:none; }
+.dashboardShortcuts a:hover { color:var(--green); border-color:var(--green); }
+.metricGrid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.metric { min-width:0; padding:16px; }
+.metric strong { overflow-wrap:anywhere; }
+#dashboard-watchlist,#stock-search { scroll-margin-top:16px; }
+.googleAuthCard { width:min(480px,calc(100% - 32px)); margin:32px auto; overflow-wrap:anywhere; }
+.googleAuthCard h1 { font-size:clamp(1.65rem,4vw,2.25rem); line-height:1.2; }
+.googleAuthCard p { color:var(--muted); line-height:1.6; }
+.googleAuthCard a { color:var(--green); }
+.googleAuthCard iframe { max-width:100%; }
+.authRecoveryContent > div[role="status"],.authRecoveryContent > div[role="alert"] { max-width:100%; }
+@media (max-width:760px) { .dashboardShortcuts { grid-template-columns:repeat(2,minmax(0,1fr)); } .metricGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (min-width:761px) and (max-width:1050px), (min-width:1200px) and (max-width:1400px) { .metricGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }

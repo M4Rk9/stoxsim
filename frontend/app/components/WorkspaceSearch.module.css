@@ -15,3 +15,7 @@
 .results span { grid-row:2; color:var(--muted); overflow-wrap:anywhere; font-size:13px; }
 .results small { grid-column:2; grid-row:1; color:var(--muted); }
 .results a:hover { background:var(--surface-soft); }
+
+.dialog { max-width:calc(100vw - 32px); }
+.status { margin:8px 0; }
+.results a { overflow-wrap:anywhere; }

@@ -1,5 +1,6 @@
 "use client";
 import Brand from "../components/Brand";
+import { WorkspaceNotice } from "../components/WorkspaceUI";
 
 import { useEffect, useState } from "react";
 import styles from "../settings/settings.module.css";
@@ -43,9 +44,9 @@ export default function VerifyEmailPage() {
     <section className={`${styles.content} authRecoveryContent`}>
       <span className={styles.eyebrow}>EMAIL VERIFICATION</span>
       <h1>{status === "success" ? "Email verified" : status === "error" ? "Link not accepted" : "One moment"}</h1>
-      <div className={`${styles.message} ${status === "error" ? styles.error : styles.success}`} role={status === "error" ? "alert" : "status"} aria-live="polite">
+      <WorkspaceNotice tone={status === "error" ? "error" : status === "success" ? "success" : "neutral"} className={styles.message} aria-live="polite">
         {message}
-      </div>
+      </WorkspaceNotice>
       {status !== "working" && <a className={styles.back} href="/settings">Open account settings →</a>}
     </section>
   </main>;
