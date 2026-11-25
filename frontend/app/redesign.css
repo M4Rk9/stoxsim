@@ -12,7 +12,7 @@
   --workspace-sidebar: 232px;
 }
 html[data-theme="dark"] {
-  --paper: #07110e; --panel: #10241b; --ink: #f2f7f5; --muted: #a4b8af;
+  --paper: #050b09; --panel: #10241b; --ink: #f2f7f5; --muted: #a4b8af;
   --line: #2c473b; --green: #10e886; --green-dark: #69f1ae; --green-soft: #123e2a;
   --surface-soft: #152b21; --surface-subtle: #0a1511; --surface-elevated: #142a20;
   --surface-hover: #203a30; --input-surface: #0b1815; --on-accent: #07110e;

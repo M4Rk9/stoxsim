@@ -94,9 +94,11 @@ test("virtual options show lots, stale futures, and reuse a request key on retry
   expect(orderKeys).toHaveLength(0);
   await testInfo.attach("fno-risk-review-mobile-synthetic", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Derivatives", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByRole("button", { name: "Advanced view" }).click();
   await testInfo.attach("fno-risk-review-desktop-synthetic", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   await page.setViewportSize({ width: 390, height: 850 });
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Markets", exact: true })).toHaveAttribute("aria-current", "page");
   await submit.click();
   await expect(page.locator("#derivative-order").getByRole("alert")).toHaveText("The quote changed. Try again.");
   await submit.click();

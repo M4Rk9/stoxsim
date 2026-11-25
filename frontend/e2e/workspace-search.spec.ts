@@ -16,4 +16,8 @@ test("desktop workspace search uses real instrument API contract and closes by E
   await expect(dialog.getByRole("link",{name:/TCS/})).toHaveAttribute("href","/stocks/NSE/TCS");
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Search instruments across StoxSim" }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Close instrument search" }).click();
+  await expect(dialog).not.toBeVisible();
 });

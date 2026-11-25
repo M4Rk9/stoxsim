@@ -27,3 +27,9 @@ Complete M1 pending items, test and resolve regressions, update journal. No merg
 - Added reusable desktop workspace search dialog using existing authenticatedRequest and production instruments/search API, explicit India/US market selection, debounce, cancellation, exchange/type filtering, accessible native dialog and truthful states. Existing mobile Markets search remains available; Finwiz full-screen workspace remains separate.
 - Fixed invalid marketing step-list CSS declaration and added search regression test.
 - Verification: source inspection and commit only; tests and visual rendering not yet executed. No production deployment. Fonts still pending: archive uses external Google CSS, not bundled assets; do not loosen production CSP for fonts.
+
+### Browser acceptance follow-up (2026-11-26 IST)
+- Supplied run: 162 passed, 6 failed. Three Finwiz launcher checks, old theme RGB expectations, mobile derivatives active navigation and Escape dismissal.
+- Concurrent follow-up commits restored the desktop launcher, explicit Escape/cancel handling and breakpoint-aware active navigation. Preserved those changes.
+- Retained reference canvas #050b09 and text #f2f7f5 and aligned exact theme assertions; extended responsive derivatives and dialog dismissal coverage. No test skipped, no trading or auth logic changes.
+- CI results pending verification; earlier follow-up workflow returned action_required and no jobs. No merge or deploy.
