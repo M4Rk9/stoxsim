@@ -120,3 +120,14 @@ html[data-theme="dark"] { --workspace-rail: #07110e; --input-surface: #0b1815; -
   .marketBanner { gap:8px; }
   .bannerStatusGroup { gap:6px; }
 }
+
+/* M2A market and paper-order surfaces */
+.moversPanel,.searchPanel,.watchlistPanel,.orderTicket { border-radius:var(--radius-md); box-shadow:none; min-width:0; }
+.moversTable th { background:var(--surface-subtle); color:var(--muted); }
+.moversTable td:nth-child(n+2),.watchlistSelect > span:last-child strong,.estimateBox strong { font-family:var(--font-numeric); font-variant-numeric:tabular-nums; }
+.moversTable tbody tr:hover,.watchlistRow:hover { background:var(--surface-subtle); }
+.stockSearchResult { min-width:0; }
+.stockSearchResult button,.watchlistRemove,.sideToggle button { min-height:44px; }
+.orderTicket .estimateBox { border:1px solid var(--line); border-radius:var(--radius-sm); }
+.orderTicket .orderButton { min-height:44px; }
+.cashExchangeFilter select { min-height:44px; }

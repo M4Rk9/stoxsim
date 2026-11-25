@@ -436,3 +436,33 @@
 .researchChecklist { padding-left: 1.25rem; line-height: 1.75; }
 .researchLink { display: inline-block; color: inherit; padding: .7rem 0; font-weight: 600; text-underline-offset: 4px; }
 .newsList a:focus-visible, .researchLink:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+
+/* M2A research workspace: actual listing, chart and source notices remain intact. */
+.main { padding-top:24px; }
+.hero { align-items:center; gap:20px; padding:20px; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-md); margin-bottom:16px; }
+.hero h1 { font-size:clamp(26px,3.2vw,40px); overflow-wrap:anywhere; }
+.identity,.identity > div,.priceBlock { min-width:0; }
+.monogram { flex:0 0 48px; height:48px; border-radius:var(--radius-sm); background:var(--green-soft); color:var(--green); }
+.priceBlock > strong { font-family:var(--font-numeric); font-size:clamp(22px,3vw,34px); overflow-wrap:anywhere; }
+.sectionNav { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0; }
+.sectionNav a { display:inline-flex; min-height:44px; align-items:center; padding:8px 13px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); color:var(--ink); text-decoration:none; font-size:13px; }
+.sectionNav a:hover,.sectionNav a:focus-visible { border-color:var(--green); color:var(--green); }
+.card { border-radius:var(--radius-md); box-shadow:none; min-width:0; }
+.cardHeader { padding:18px 18px 0; flex-wrap:wrap; }
+.cardHeader h2 { font-size:18px; scroll-margin-top:20px; }
+.grid,.stack { gap:16px; min-width:0; }
+.rangeTabs button { min-height:44px; border-radius:var(--radius-sm); }
+.rangeTabs button.active { background:var(--green-soft); border-color:var(--green); color:var(--green); }
+.stats,.profile,.ratios,.financials { padding-inline:18px; }
+.stats strong,.ratio strong,.financials td:not(:first-child) { font-family:var(--font-numeric); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.financials thead th { background:var(--surface-soft); }
+.financials tbody tr:hover { background:var(--surface-subtle); }
+.newsList { gap:12px; }
+.newsList li { border-color:var(--line); }
+.tradeActions { padding:16px 18px; }
+.tradeActions a { min-height:44px; display:inline-flex; align-items:center; }
+.tradeActions a:first-child { background:var(--panel); color:var(--ink); border-color:var(--line); }
+.tradeActions a:nth-child(2) { background:var(--green); color:var(--on-accent); border-color:var(--green); }
+.tradeActions a:nth-child(3) { color:var(--red); border-color:var(--red); }
+@media(min-width:1200px) and (max-width:1450px) { .grid { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:620px) { .hero { align-items:flex-start; padding:14px; gap:12px; } .cardHeader,.profile,.stats,.ratios,.financials { padding-inline:14px; } .headerActions { flex-wrap:wrap; } }
