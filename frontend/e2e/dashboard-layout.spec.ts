@@ -5,7 +5,7 @@ async function respond(route: Route, body: unknown) {
   const options = route.request().method() === "OPTIONS";
   await route.fulfill({ status: options ? 204 : 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization,content-type", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" }, body: options ? undefined : JSON.stringify(body) });
 }
-for (const width of [390, 1280]) test(`stock search and header stay aligned at ${width}px`, async ({ page }) => {
+for (const width of [320, 390, 768, 1280]) test(`stock search and header stay aligned at ${width}px`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 900 });
   await page.addInitScript(account => sessionStorage.setItem("stoxsim-session", JSON.stringify({ accessToken: "fixture", user: { id: "layout-user", email: "layout@test.local", displayName: "Layout User", accounts: [account] } })), account);
   await page.route("**/api/v1/**", route => {
@@ -21,6 +21,14 @@ for (const width of [390, 1280]) test(`stock search and header stay aligned at $
     return respond(route, body);
   });
   await page.goto("/");
+  await expect(page.getByRole("region", {name:"Portfolio overview"})).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  if (width <= 760) {
+    const avatar = await page.getByRole("button", {name:"Open account menu for Layout User"}).boundingBox();
+    const switcher = await page.getByLabel("Market selection").boundingBox();
+    expect(avatar!.y + avatar!.height).toBeLessThanOrEqual(switcher!.y + 1);
+  }
+  await testInfo.attach(`dashboard-${width}`, {body:await page.screenshot({fullPage:true}),contentType:"image/png"});
   const input = page.getByRole("textbox", { name: "Search stocks" });
   await input.fill("Reliance");
   const search = page.getByRole("search");

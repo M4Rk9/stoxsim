@@ -1,5 +1,6 @@
 "use client";
 import Brand from "../components/Brand";
+import { WorkspaceNotice , WorkspaceButton } from "../components/WorkspaceUI";
 
 import { EMAIL_GUIDANCE } from "../lib/email-guidance";
 
@@ -35,33 +36,34 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  return <main className={styles.shell} id="main-content" tabIndex={-1}>
+  return <main className={`${styles.shell} authRecovery`} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <Brand />
       <a className={styles.back} href="/">← Back to sign in</a>
     </header>
-    <section className={styles.content}>
+    <section className={`${styles.content} authRecoveryContent`}>
       <span className={styles.eyebrow}>ACCOUNT RECOVERY</span>
       <h1>Reset your password</h1>
       <p className={styles.lead}>
         Enter your sign-in email. The response is intentionally the same whether
         or not an account exists.
       </p>
-      <form className={styles.card} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
+      <form className={`${styles.card} authRecoveryCard`} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
         <label>
           Email address
           <input
             required
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
         {message && <div className={`${styles.message} ${styles.success}`}>{message}</div>}
-        {error && <div className={`${styles.message} ${styles.error}`}>{error}</div>}
-        <button className={styles.submit} disabled={working}>
+        {error && <WorkspaceNotice tone="error" className={styles.message}>{error}</WorkspaceNotice>}
+        <WorkspaceButton className={styles.submit} disabled={working}>
           {working ? "Sending…" : "Send reset link"}
-        </button>
+        </WorkspaceButton>
       </form>
     </section>
   </main>;

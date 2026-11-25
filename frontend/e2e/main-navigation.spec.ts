@@ -6,7 +6,12 @@ for (const width of [320, 1280]) test(`core areas and journal remain reachable a
   await page.route("**/api/v1/**", route => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
   await page.goto("/learn");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav.getByRole("link")).toHaveCount(5);
+  await expect(nav.getByRole("link")).toHaveCount(width >= 1200 ? 10 : 5);
+  if (width >= 1200) {
+    await page.getByRole("button", { name: "Collapse sidebar" }).click();
+    await expect(page.getByRole("button", { name: "Expand sidebar" })).toBeVisible();
+    await page.getByRole("button", { name: "Expand sidebar" }).click();
+  }
   for (const label of ["Home", "Markets", "Learn", "Compete", "Account"]) {
     const link = nav.getByRole("link", { name: label, exact: true });
     await expect(link).toBeInViewport();

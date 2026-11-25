@@ -404,3 +404,14 @@
 
 /* Keep Home's account control anchored to the header, clear of the feature cards. */
 .profileMenuHome { position: absolute; }
+
+.finwizCore svg { animation: none; }
+.finwizLauncher { box-shadow: none; background: var(--green-soft); color: var(--green); border-color: var(--line); }
+.menu { box-shadow: 0 8px 24px var(--shadow-color); }
+@media (min-width:1200px) {
+  .profileMenuWrap, .quickActions { right: max(24px, calc((100vw - var(--workspace-sidebar) - 1440px) / 2 + 24px)); }
+  .profileButton { grid-template-columns: 40px 18px; min-width: 0; }
+  .profileText { display: none; }
+  .quickActions { bottom: 24px; }
+  .quickActionsSpace { height: 80px; }
+}

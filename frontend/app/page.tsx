@@ -2,6 +2,7 @@
 import { signupSource } from "./lib/signup-source";
 
 import Brand from "./components/Brand";
+import { WorkspaceButton, WorkspaceBadge, WorkspaceNotice } from "./components/WorkspaceUI";
 import ResearchHome from "./components/ResearchHome";
 
 import PriceHistoryChart from "./components/PriceHistoryChart";
@@ -1288,25 +1289,26 @@ export default function Home() {
         </nav>
         <section className="welcomeGrid">
           <div className="welcomeCopy">
-            <span className="eyebrow">RESEARCH · PRACTISE · REVIEW · LEARN</span>
-            <h1>Understand markets.<br /><span>Test your thinking.</span></h1>
+            <span className="eyebrow">PAPER TRADING · MARKET RESEARCH</span>
+            <h1>Paper Trade Like Never Before.</h1>
+            <p className="welcomeTagline">Research smarter, Practice Better.</p>
             <p>Research Indian and US stocks and ETFs, examine ideas with Finwiz AI, and practise with virtual money. Keep a strategy journal, review your decisions, and learn what to investigate next.</p>
             <div className="featureRow">
-              <span>AI-assisted learning</span><span>Virtual portfolios</span><span>Private strategy journal</span>
+              <span>India &amp; US markets</span><span>Virtual portfolios</span><span>Finwiz AI</span>
             </div>
           </div>
           <form className="authCard" id="get-started" onSubmit={submitAuth}>
             <div className="authTabs">
-              <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>Create account</button>
-              <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
+              <button type="button" aria-pressed={authMode === "register"} className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>Create account</button>
+              <button type="button" aria-pressed={authMode === "login"} className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>Sign in</button>
             </div>
             <h2>{authMode === "register" ? "Your research and practice space" : "Welcome back"}</h2>
             <p>{authMode === "register" ? "Free, educational and no brokerage account required." : "Return to your research, practice and reviews."}</p>
             {authMode === "register" && (
               <label>Display name<input required minLength={2} value={authForm.displayName} onChange={(event) => setAuthForm({ ...authForm, displayName: event.target.value })} placeholder="Market learner" /></label>
             )}
-            <label>Email<input required type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
-            <label>Password<input required minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
+            <label>Email<input required autoComplete="email" type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
+            <label>Password<input required autoComplete={authMode === "register" ? "new-password" : "current-password"} minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
             {authMode === "register" && (
               <label className="legalConsent">
                 <input
@@ -1323,8 +1325,8 @@ export default function Home() {
             )}
             {authMode === "login" && <a className="authHelpLink" href="/forgot-password">Forgot password?</a>}
             <GoogleSignInLink register={authMode === "register"} />
-            {error && <div className="message errorMessage">{error}</div>}
-            <button className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start Now!" : "Open dashboard"}</button>
+            {error && <WorkspaceNotice tone="error" className="message errorMessage">{error}</WorkspaceNotice>}
+            <WorkspaceButton className="primaryButton wide" disabled={working}>{working ? "Setting up…" : authMode === "register" ? "Start Now!" : "Open dashboard"}</WorkspaceButton>
             <small>StoxSim is an educational simulator. No real orders or investment advice.</small>
           </form>
         </section>
@@ -1409,6 +1411,7 @@ export default function Home() {
             onClick={() => switchMarket("UNITED_STATES")}
           ><span>🇺🇸</span> US</button>
         </div>
+        <a className="headerSearch" href="/#stock-search" aria-label="Jump to stock and ETF search">⌕ Search stocks, ETFs</a>
         <a className="labLink" href="/scenario-lab" target="_blank" rel="noopener">Scenario Lab ↗</a>
       </header>
 
@@ -1443,9 +1446,8 @@ export default function Home() {
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
-      <ResearchHome userId={session.user.id} />
       {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
-      <section className="metricGrid" aria-busy={loading}>
+      <section className="metricGrid" aria-label="Portfolio overview" aria-busy={loading}>
         <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
         <Metric label="Available cash" value={displayMoney(portfolio?.availableCash)} sub={`${displayMoney(portfolio?.blockedCash)} blocked`} />
         <Metric label="Unrealized P/L" value={displayMoney(portfolio?.unrealizedProfitLoss)} tone={(portfolio?.unrealizedProfitLoss ?? 0) >= 0 ? "positive" : "negative"} sub="Across current holdings" />
@@ -1453,6 +1455,13 @@ export default function Home() {
       </section>
 
 
+      <nav className="dashboardShortcuts" aria-label="Dashboard shortcuts">
+        <a href="/portfolio">Portfolio details <span aria-hidden="true">↗</span></a>
+        <a href="#dashboard-watchlist">Watchlist <span aria-hidden="true">↓</span></a>
+        <a href="/#stock-search">Research instruments <span aria-hidden="true">↓</span></a>
+        <a href="/progress">Learning progress <span aria-hidden="true">↗</span></a>
+      </nav>
+      <ResearchHome userId={session.user.id} />
       <HomeRecommendation userId={session.user.id} />
       <Notifications compact />
       <FeatureJourney userId={session.user.id} onboarding={onboarding}
@@ -1498,7 +1507,7 @@ export default function Home() {
       <section className="workspaceGrid">
         <div className="leftRail">
           <article className="panel searchPanel" id="stock-search">
-            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut">⌘ K</span></div>
+            <div className="panelHeading"><div><span className="kicker">DISCOVER</span><h2>{marketRegion === "INDIA" ? bseAvailable ? "Find an Indian stock or ETF" : "Find an NSE stock or ETF" : "Find a US stock or ETF"}</h2></div><span className="shortcut" title="Open workspace search with Ctrl or Command + K">Ctrl / ⌘ K</span></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && !selected && <FirstTradeCoach step={1} onDismiss={dismissOnboarding} />}
             <form className="searchBox" role="search" onSubmit={searchInstruments}><span aria-hidden="true">⌕</span><input aria-label="Search stocks" value={search} onChange={(event) => updateSearch(event.target.value)} maxLength={100} aria-controls="stock-search-results" aria-describedby="stock-search-status" placeholder={marketRegion === "INDIA" ? "Search Reliance, TCS, NIFTYBEES…" : "Search Apple, Nvidia, SPY…"} /><button disabled={working || search.trim().length < 2}>Search</button></form>
             {marketRegion === "INDIA" && <label className="cashExchangeFilter">Exchange
@@ -1550,7 +1559,7 @@ export default function Home() {
         </div>
 
         <aside className="rightRail">
-          <article className="panel watchlistPanel">
+          <article className="panel watchlistPanel" id="dashboard-watchlist">
             <div className="panelHeading"><div><span className="kicker">LIVE LIST</span><h2>{watchlist?.name ?? "My Watchlist"}</h2></div><span className="countPill">{visibleWatchlistItems.length}</span></div>
             <div className="watchlistRows">
               {visibleWatchlistItems.map((item) => {
@@ -1565,7 +1574,7 @@ export default function Home() {
           </article>
 
           <form className="panel orderTicket" id="paper-order-ticket" tabIndex={-1} onSubmit={placeOrder}>
-            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><span className="deliveryPill">SIMULATED</span></div>
+            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><WorkspaceBadge className="deliveryPill">SIMULATED</WorkspaceBadge></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
             <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} aria-pressed={side === "BUY"} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} aria-pressed={side === "SELL"} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>

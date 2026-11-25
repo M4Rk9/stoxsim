@@ -1,5 +1,6 @@
 "use client";
 import Brand from "../components/Brand";
+import { WorkspaceNotice , WorkspaceButton } from "../components/WorkspaceUI";
 
 import { FormEvent, useEffect, useState } from "react";
 import styles from "../settings/settings.module.css";
@@ -50,21 +51,22 @@ export default function ResetPasswordPage() {
     }
   }
 
-  return <main className={styles.shell} id="main-content" tabIndex={-1}>
+  return <main className={`${styles.shell} authRecovery`} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <Brand />
       <a className={styles.back} href="/">← Back to sign in</a>
     </header>
-    <section className={styles.content}>
+    <section className={`${styles.content} authRecoveryContent`}>
       <span className={styles.eyebrow}>SECURE RECOVERY</span>
       <h1>Choose a new password</h1>
       <p className={styles.lead}>The link can be used once and expires after 30 minutes.</p>
-      <form className={styles.card} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
+      <form className={`${styles.card} authRecoveryCard`} onSubmit={submit} style={{ marginTop: 34, maxWidth: 520 }}>
         <label>
           New password
           <input
             required
             type="password"
+            autoComplete="new-password"
             minLength={8}
             maxLength={72}
             value={passwords.password}
@@ -76,6 +78,7 @@ export default function ResetPasswordPage() {
           <input
             required
             type="password"
+            autoComplete="new-password"
             minLength={8}
             maxLength={72}
             value={passwords.confirm}
@@ -83,10 +86,10 @@ export default function ResetPasswordPage() {
           />
         </label>
         {message && <div className={`${styles.message} ${styles.success}`}>{message} <a href="/">Sign in</a></div>}
-        {error && <div className={`${styles.message} ${styles.error}`}>{error}</div>}
-        <button className={styles.submit} disabled={working}>
+        {error && <WorkspaceNotice tone="error" className={styles.message}>{error}</WorkspaceNotice>}
+        <WorkspaceButton className={styles.submit} disabled={working}>
           {working ? "Resetting…" : "Reset password"}
-        </button>
+        </WorkspaceButton>
       </form>
     </section>
   </main>;

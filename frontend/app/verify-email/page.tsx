@@ -1,5 +1,6 @@
 "use client";
 import Brand from "../components/Brand";
+import { WorkspaceNotice } from "../components/WorkspaceUI";
 
 import { useEffect, useState } from "react";
 import styles from "../settings/settings.module.css";
@@ -35,17 +36,17 @@ export default function VerifyEmailPage() {
     });
   }, []);
 
-  return <main className={styles.shell} id="main-content" tabIndex={-1}>
+  return <main className={`${styles.shell} authRecovery`} id="main-content" tabIndex={-1}>
     <header className={styles.header}>
       <Brand />
       <a className={styles.back} href="/">← Back to StoxSim</a>
     </header>
-    <section className={styles.content}>
+    <section className={`${styles.content} authRecoveryContent`}>
       <span className={styles.eyebrow}>EMAIL VERIFICATION</span>
       <h1>{status === "success" ? "Email verified" : status === "error" ? "Link not accepted" : "One moment"}</h1>
-      <div className={`${styles.message} ${status === "error" ? styles.error : styles.success}`} role={status === "error" ? "alert" : "status"} aria-live="polite">
+      <WorkspaceNotice tone={status === "error" ? "error" : status === "success" ? "success" : "neutral"} className={styles.message} aria-live="polite">
         {message}
-      </div>
+      </WorkspaceNotice>
       {status !== "working" && <a className={styles.back} href="/settings">Open account settings →</a>}
     </section>
   </main>;

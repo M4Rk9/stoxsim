@@ -2,6 +2,8 @@
 import { signupSource } from "../lib/signup-source";
 
 import Script from "next/script";
+import Brand from "../components/Brand";
+import { WorkspaceCard, WorkspaceButton } from "../components/WorkspaceUI";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { authenticated } from "../campus/client";
 
@@ -116,8 +118,8 @@ export default function GoogleSignIn({ scriptNonce, manage = false, register = f
   }
 
   return <main className="welcomeShell" id="main-content">
-    <nav className="welcomeNav"><a href="/">StoxSim</a><a href="/settings">Account settings</a></nav>
-    <section className="authCard" style={{ maxWidth: 480, margin: "48px auto" }}>
+    <nav className="welcomeNav"><Brand/><a className="authHelpLink" href="/settings">Account settings</a></nav>
+    <WorkspaceCard className="authCard googleAuthCard">
       <h1>{manage ? "Manage Google sign-in" : register ? "Create your account with Google" : "Sign in with Google"}</h1>
       <p>{manage ? passwordEnabled
         ? "Link or disconnect Google using your StoxSim password."
@@ -140,9 +142,9 @@ export default function GoogleSignIn({ scriptNonce, manage = false, register = f
         </>}
         {manage && passwordEnabled && <label>Current StoxSim password<input type="password" autoComplete="current-password" required maxLength={1000}
           value={password} onChange={event => setPassword(event.target.value)} /></label>}
-        <button className="primaryButton wide" disabled={busy || !config || ((!linked || !passwordEnabled) && !ready) || (manage && linked === null)}>
+        <WorkspaceButton className="primaryButton wide" disabled={busy || !config || ((!linked || !passwordEnabled) && !ready) || (manage && linked === null)}>
           {busy ? "Working…" : manage && linked && passwordEnabled ? "Disconnect Google and sign out all devices" : "Continue"}
-        </button>
+        </WorkspaceButton>
       </form>}
       <div ref={button} style={{ marginTop: 16 }} />
       {message && <p role="status">{message}</p>}
@@ -150,6 +152,6 @@ export default function GoogleSignIn({ scriptNonce, manage = false, register = f
       {!manage && <a href={register ? "/google-sign-in" : "/google-sign-in/register"}>{register ? "Already registered? Sign in with Google" : "New here? Create an account with Google"}</a>}
       <p><a href="/">Return to StoxSim</a></p>
       {!manage && <p>Already have a password account? Sign in with it and link Google in Settings.</p>}
-    </section>
+    </WorkspaceCard>
   </main>;
 }

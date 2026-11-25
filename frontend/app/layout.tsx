@@ -13,6 +13,7 @@ import {
 } from "./seo";
 import "./globals.css";
 import "./theme.css";
+import "./redesign.css";
 
 export const metadata: Metadata = {
   metadataBase: SITE_URL,
