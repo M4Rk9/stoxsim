@@ -106,3 +106,17 @@ html[data-theme="dark"] { --workspace-rail: #07110e; --input-surface: #0b1815; -
 .authRecoveryContent > div[role="status"],.authRecoveryContent > div[role="alert"] { max-width:100%; }
 @media (max-width:760px) { .dashboardShortcuts { grid-template-columns:repeat(2,minmax(0,1fr)); } .metricGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (min-width:761px) and (max-width:1050px), (min-width:1200px) and (max-width:1400px) { .metricGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+/* Browser evidence review: reserve the account control's row and keep values readable on narrow phones. */
+@media (max-width:760px) {
+  .appHeader { grid-template-rows:64px auto auto; }
+  .metric { padding:12px; }
+  .metric strong { font-size:clamp(14px,3.9vw,19px); }
+  .metric > span,.metric small { font-size:11px; }
+}
+@media (max-width:360px) {
+  .metric { padding:10px; }
+  .metric strong { font-size:13px; }
+  .marketBanner { gap:8px; }
+  .bannerStatusGroup { gap:6px; }
+}

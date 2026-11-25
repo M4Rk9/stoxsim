@@ -1574,7 +1574,7 @@ export default function Home() {
           </article>
 
           <form className="panel orderTicket" id="paper-order-ticket" tabIndex={-1} onSubmit={placeOrder}>
-            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><WorkspaceBadge>SIMULATED</WorkspaceBadge></div>
+            <div className="panelHeading"><div><span className="kicker">PAPER ORDER</span><h2>Place a practice order</h2></div><WorkspaceBadge className="deliveryPill">SIMULATED</WorkspaceBadge></div>
             {standardAccount && onboarding?.nextStep === "FIRST_TRADE" && selected && <FirstTradeCoach step={2} onDismiss={dismissOnboarding} />}
             <div className="sideToggle"><button type="button" className={side === "BUY" ? "buy active" : ""} aria-pressed={side === "BUY"} onClick={() => setSide("BUY")}>Buy</button><button type="button" className={side === "SELL" ? "sell active" : ""} aria-pressed={side === "SELL"} onClick={() => setSide("SELL")}>Sell</button></div>
             <label>Stock<input value={selected?.tradingSymbol ?? ""} readOnly placeholder="Choose a stock from search" /></label>
