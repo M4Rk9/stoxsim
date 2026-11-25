@@ -122,7 +122,7 @@ test("a learner can register, persist appearance and sign in again", async ({ pa
     await page.goto(themedPage.path);
     await expect(page.getByRole("heading", { name: themedPage.heading })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.locator("main")).toHaveCSS("background-color", "rgb(16, 21, 19)");
+    await expect(page.locator("main")).toHaveCSS("background-color", "rgb(5, 11, 9)");
     await expect(page.locator("main")).toHaveCSS("color", "rgb(238, 243, 239)");
   }
 
