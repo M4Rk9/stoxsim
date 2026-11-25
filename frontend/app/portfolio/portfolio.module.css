@@ -585,6 +585,6 @@
 .marketTabs button.active { background:var(--green-soft); color:var(--green); }
 .tableWrap th { background:var(--surface-subtle); }
 .analytics > figure { padding:12px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface-subtle); }
-#portfolio-overview,#portfolio-history,#portfolio-analytics-title,#portfolio-holdings { scroll-margin-top:16px; }
+.shell :global(#portfolio-overview),.shell :global(#portfolio-history),.shell :global(#portfolio-analytics-title),.shell :global(#portfolio-holdings) { scroll-margin-top:16px; }
 @media(min-width:1200px) and (max-width:1450px) { .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .analyticsGrid { grid-template-columns:1fr; } .allocationCard { border-right:0; border-bottom:1px solid var(--line); } }
 @media(max-width:480px){ .metrics strong { font-size:clamp(13px,3.5vw,18px); } .analytics > figure { margin:12px; } .sectionNav a { flex:1 1 auto; } }

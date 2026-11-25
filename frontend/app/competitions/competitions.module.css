@@ -454,3 +454,17 @@
   .back { display: none; }
   .header { padding-right: 72px; }
 }
+
+.shell { color:var(--ink); background:var(--paper); }
+.heading { padding-top:24px; }
+.heading h1 { font-size:clamp(28px,4vw,40px); }
+.seasonCard,.enrollCard,.board,.leagueArea,.campusArea,.leagueCard { background:var(--panel); border-color:var(--line); border-radius:var(--radius-md); box-shadow:none; }
+.metrics article { border-radius:var(--radius-md); }
+.metrics strong,.tableWrap td:nth-child(n+2) { font-variant-numeric:tabular-nums; }
+.metrics strong,.tableWrap td:nth-child(3) { font-family:var(--font-numeric); }
+.tableWrap th { background:var(--surface-subtle); color:var(--muted); }
+.enrollCard button,.forms button,.leagueActions button,.campusForm button,.moderation button { min-height:44px; border-radius:var(--radius-sm); }
+.sectionNav { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.sectionNav a { display:inline-flex; min-height:44px; align-items:center; padding:8px 12px; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-sm); text-decoration:none; }
+.sectionNav a:hover { color:var(--green); border-color:var(--green); }
+@media(min-width:1200px) and (max-width:1450px) { .campusForm { grid-template-columns:repeat(2,minmax(0,1fr)); } }

@@ -81,12 +81,12 @@ export default function BillingPage() {
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />I have reviewed the monthly renewal terms and want to continue to provider checkout.</label></>}
       {openEntry && <p>You already have an open subscription or checkout. Manage it below before starting another.</p>}
     </div>
-    {catalog && <section className={shell.grid} aria-label="Compare plans">{catalog.plans.map(plan => <article className={`${styles.card} ${styles.planCard}`} key={plan.plan}>
+    {catalog && <section className={shell.grid} id="compare-plans" aria-label="Compare plans">{catalog.plans.map(plan => <article className={`${styles.card} ${styles.planCard}`} key={plan.plan}>
       <h2>{plan.displayName}</h2><strong>{plan.monthlyPriceInr === 0 ? "Free" : `₹${plan.monthlyPriceInr}/month`}</strong>
       <ul><li>{plan.entitlements.finwizDescription ?? `${label(plan.entitlements.finwizTier)} Finwiz explanations`}</li><li>{label(plan.entitlements.analyticsTier)} analytics</li><li>{plan.entitlements.scenarioCredits} Scenario Lab credits{plan.plan !== "FREE" ? " per renewal" : ""}</li></ul>
       {plan.plan === catalog.plan ? <p className={styles.badge}>Current plan</p> : plan.plan !== "FREE" && <button disabled={busy || !ready || !consent || openEntry} onClick={() => void act(() => create(plan.plan))}>Choose {plan.displayName}</button>}
     </article>)}</section>}
-    <section className={styles.card} aria-label="Billing history"><h2>Subscription history</h2>
+    <section className={styles.card} id="billing-history" aria-label="Billing history"><h2>Subscription history</h2>
       {data && !data.entries.length && <p>No subscription records yet.</p>}
       <ul className={styles.list}>{data?.entries.map(item => <li key={item.id}>
         <h3>{item.plan} · {label(item.status)}</h3><p>{item.provider === "GOOGLE_PLAY" ? "Google Play" : "Razorpay"}</p>

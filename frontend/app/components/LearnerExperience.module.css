@@ -38,3 +38,8 @@
 .card button,.primary { border-radius:var(--radius-sm); }
 .list > li { overflow-wrap:anywhere; padding:16px 0; }
 .planFields,.orderOutcome { background:var(--surface-subtle); }
+
+.planCard { display:flex; flex-direction:column; min-width:0; }
+.planCard > strong { font-family:var(--font-numeric); font-size:clamp(18px,3vw,26px); }
+.planCard > button { margin-top:auto; }
+.badge { padding:4px 8px; background:var(--green-soft); color:var(--green); border-radius:var(--radius-sm); }

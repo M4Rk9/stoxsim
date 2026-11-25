@@ -109,6 +109,7 @@ export default function AnalyticsPage() {
 
     {data && <>
       <p className={styles.updated}>Updated {new Date(data.generatedAt).toLocaleString("en-IN", { timeZone: "UTC" })} UTC.</p>
+      <nav className={styles.sectionNav} aria-label="Analytics sections"><a href="#users-title">Accounts</a><a href="#cohort-title">Conversion</a><a href="#trend-title">Registrations</a><a href="#orders-title">Orders</a></nav>
       <section aria-labelledby="users-title">
         <h2 id="users-title">Current learner accounts</h2>
         <div className={styles.cards}>

@@ -92,3 +92,22 @@
   .back { display: none; }
   .header { padding-right: 72px; }
 }
+
+.shell { color:var(--ink); background:var(--paper); }
+.heading { margin:28px auto 20px; }
+.heading h1 { font-size:clamp(28px,4vw,40px); }
+.levelCard,.checkInCard,.challenge,.achievementUnlocked,.achievementLocked { background:var(--panel); border-color:var(--line); border-radius:var(--radius-md); box-shadow:none; }
+.levelBadge,.missionComplete .missionStatus { background:var(--green); color:var(--on-accent); }
+.levelTrack { background:var(--surface-soft); }
+.levelTrack span { background:var(--green); }
+.checkInCard button { background:var(--green); color:var(--on-accent); min-height:44px; }
+.missionComplete { background:var(--green-soft); }
+.missionStatus { color:var(--green); background:var(--surface-soft); }
+.achievementLocked { opacity:1; background:var(--surface-subtle); }
+.achievementLocked > span { color:var(--muted); }
+.sectionHeading h2 { font-size:clamp(20px,3vw,26px); }
+.sectionNav { display:flex; flex-wrap:wrap; gap:8px; max-width:1180px; margin:0 auto 16px; }
+.sectionNav a { display:inline-flex; align-items:center; min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:var(--radius-sm); color:var(--ink); background:var(--panel); text-decoration:none; }
+.sectionNav a:hover { border-color:var(--green); color:var(--green); }
+@media(min-width:1200px) and (max-width:1450px) { .overview { grid-template-columns:1fr; } .missions { grid-template-columns:1fr; } .mission,.missionComplete { min-height:0; border-right:0; border-bottom:1px solid var(--line); } }
+@media(max-width:480px) { .heading { margin-top:24px; } .missionTitle { flex-wrap:wrap; } }

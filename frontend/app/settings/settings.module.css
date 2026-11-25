@@ -742,3 +742,17 @@
 .sandboxProvisioning > div { flex: 1 1 220px; min-width: 0; }
 .sandboxProvisioning > button { flex: 0 1 auto; width: auto; max-width: 100%; white-space: normal; }
 .planGrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+
+.shell { background:var(--paper); color:var(--ink); }
+.content { padding-top:24px; }
+.content h1 { font-size:clamp(28px,4vw,40px); }
+.card { border-radius:var(--radius-md); box-shadow:none!important; min-width:0; padding:clamp(14px,2vw,22px); border-color:var(--line); background:var(--panel); }
+.card input,.card select { min-width:0; border-radius:var(--radius-sm); }
+.quickLinks a,.submit,.secondary,.sessionRow button { min-height:44px; border-radius:var(--radius-sm); }
+.quickLinks a { display:inline-flex; align-items:center; }
+.submit,.submit:hover:not(:disabled) { background:var(--green); color:var(--on-accent); }
+.planCard,.planCardCurrent,.reportPreview,.reportHistory,.toggleRow { border-radius:var(--radius-md); }
+.planCardCurrent { border-color:var(--green); }
+.planCard > strong,.planCardCurrent > strong,.marketReportGrid article > strong { font-family:var(--font-numeric); }
+@media(min-width:1200px) and (max-width:1450px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .content { padding-top:22px; } }

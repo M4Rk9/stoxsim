@@ -64,5 +64,5 @@
 .ticket button[type="submit"]:not(:disabled) { background:var(--green); color:var(--on-accent); border-color:var(--green); }
 .preview { padding-top:16px; }
 .warning { border-color:var(--red); background:var(--red-soft); padding:12px; border-radius:var(--radius-sm); color:var(--ink)!important; }
-#derivative-market-heading,#derivative-positions-heading { scroll-margin-top:16px; }
+.shell :global(#derivative-market-heading),.shell :global(#derivative-positions-heading) { scroll-margin-top:16px; }
 @media(max-width:480px) { .controls label { width:100%; justify-content:space-between; } .controls select { max-width:100%; } .totals { grid-template-columns:repeat(2,minmax(0,1fr)); } .totals > div { padding:9px; } }

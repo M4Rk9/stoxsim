@@ -43,3 +43,12 @@
 .shell summary { cursor:pointer; font-weight:700; padding:12px 0; }
 .shell hr { border:0; border-top:1px solid var(--border-color,#dce3db); margin:22px 0; }
 @media(max-width:600px) { .card { padding:18px; } .heading { align-items:flex-start; } .nav { font-size:.85rem; gap:12px; } .search { align-items:stretch; flex-direction:column; } }
+
+.shell { background:var(--paper); color:var(--ink); padding-inline:clamp(14px,3vw,32px); }
+.hero { padding:24px 0 20px; }
+.hero h1 { font-size:clamp(28px,4vw,40px); }
+.card { background:var(--panel); border-color:var(--line); border-radius:var(--radius-md); padding:clamp(14px,2vw,22px); }
+.shell button { min-height:44px; border-radius:var(--radius-sm); }
+.shell .institution { border-color:var(--line); background:var(--surface-subtle); }
+.metrics strong { font-family:var(--font-numeric); }
+.tableWrap th { background:var(--surface-subtle); }

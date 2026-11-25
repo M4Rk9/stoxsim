@@ -149,3 +149,7 @@
     display: grid;
   }
 }
+
+.document { border-radius:var(--radius-md); box-shadow:none; }
+.document h1 { font-size:clamp(28px,5vw,42px); }
+.content p,.content li { color:var(--muted); }
