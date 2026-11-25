@@ -22,6 +22,14 @@ export default function AppNavigation() {
   const pathname = usePathname();
   const [hash, setHash] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const breakpoint = window.matchMedia("(min-width: 1200px)");
+    const update = () => setDesktop(breakpoint.matches);
+    update();
+    breakpoint.addEventListener("change", update);
+    return () => breakpoint.removeEventListener("change", update);
+  }, []);
   useEffect(() => {
     const update = () => setHash(window.location.hash);
     update(); window.addEventListener("hashchange", update);
@@ -50,7 +58,7 @@ export default function AppNavigation() {
       <div className={styles.searchEntry}><WorkspaceSearch /></div>
       <nav className={styles.nav} aria-label="Main navigation">
         {areas.map(area => <a key={area.label} href={area.href} className={"desktop" in area ? styles.desktopOnly : undefined}
-          aria-label={area.label} title={area.label} aria-current={mobileCurrent === area.label ? "page" : undefined}
+          aria-label={area.label} title={area.label} aria-current={(desktop ? current : mobileCurrent) === area.label ? "page" : undefined}
           data-mobile-current={mobileCurrent === area.label ? "true" : undefined}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d={area.icon}/></svg><span>{area.label}</span>
         </a>)}
