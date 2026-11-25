@@ -37,7 +37,21 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - run: mvn -B test
+      - name: Run backend tests
+        run: |
+          set -o pipefail
+          log="$(mktemp)"
+          trap 'rm -f "$log"' EXIT
+          for attempt in 1 2 3; do
+            if mvn -B test 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            if ! grep -Eq 'status code: 429|Too Many Requests \(429\)' "$log" || [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "::warning::Maven Central rate limited dependency resolution; retrying backend tests (attempt $((attempt + 1))/3)."
+            sleep $((attempt * 10))
+          done
 
   frontend:
     runs-on: ubuntu-latest
