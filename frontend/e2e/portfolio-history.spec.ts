@@ -62,3 +62,25 @@ test("Stox Analysis shows exact sector allocation within portfolio history", asy
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+
+test("transaction history exposes all returned trades with pagination and filters", async ({page},info) => {
+  await setup(page);
+  await page.route("**/api/v1/accounts/*/portfolio/history?*", route=>respond(route,history));
+  await page.route("**/api/v1/accounts/*/trades", route=>respond(route,Array.from({length:26},(_,i)=>({id:`t-${i}`,exchange:"NSE",symbol:i===25?"LAST":"FIRST",name:"Example",side:i===25?"SELL":"BUY",quantity:1,price:100,grossValue:100,charges:1,netCashEffect:i===25?99:-101,executedAt:"2026-09-24T23:40:00Z",chargeScheduleVersion:"internal-test-version"}))));
+  await page.goto("/portfolio");
+  const panel=page.getByRole("region",{name:"Transaction history",exact:true});
+  await expect(panel.getByText("26 of 26 executed trades")).toBeVisible();
+  await panel.getByRole("button",{name:"Next",exact:true}).click();
+  await expect(panel.getByRole("link",{name:"LAST",exact:true})).toBeVisible();
+  await panel.getByLabel("Trade side").selectOption("SELL");
+  await expect(panel.getByText("1 of 26 executed trades")).toBeVisible();
+  await panel.getByLabel("Search transactions").fill("not present");
+  await expect(panel.getByText("No trades match these filters.")).toBeVisible();
+  await panel.getByLabel("Search transactions").fill("");
+  await expect(panel.getByText("internal-test-version")).toHaveCount(0);
+  await page.setViewportSize({width:390,height:844});
+  await panel.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await info.attach("transactions-mobile",{body:await page.screenshot(),contentType:"image/png"});
+});
