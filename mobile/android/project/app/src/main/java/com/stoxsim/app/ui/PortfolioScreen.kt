@@ -1,6 +1,9 @@
 package com.stoxsim.app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,9 +62,19 @@ import com.stoxsim.app.data.*
 }
 @Composable private fun AnalysisSummary(state: AppState) {
     PortfolioPricingNotice(state.portfolio)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge.copy(fontFamily = FinancialFont)) }
-        Column(Modifier.weight(1f)) { Muted("Starting capital"); Text(money(state.portfolio?.capital, state.currency), style = MaterialTheme.typography.titleLarge) }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compact = maxWidth < 400.dp || LocalDensity.current.fontScale > 1.3f
+        val valueStyle = (if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleLarge).copy(fontFamily = FinancialFont)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f)) {
+                Muted("Account value")
+                Text(money(state.portfolio?.total, state.currency), Modifier.horizontalScroll(rememberScrollState()), style = valueStyle, maxLines = 1, softWrap = false)
+            }
+            Column(Modifier.weight(1f)) {
+                Muted("Starting capital")
+                Text(money(state.portfolio?.capital, state.currency), Modifier.horizontalScroll(rememberScrollState()), style = valueStyle, maxLines = 1, softWrap = false)
+            }
+        }
     }
     ValueRow("All-time return", percent(state.portfolio?.returnPercent), state.portfolio?.returnPercent)
     SectionError(state, "portfolio")

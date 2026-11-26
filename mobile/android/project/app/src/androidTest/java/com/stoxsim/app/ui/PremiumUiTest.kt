@@ -170,6 +170,17 @@ class PremiumUiTest {
                 layout.size.height <= bounds.height + 1f &&
                 (0 until layout.lineCount).all { line -> layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f } }) }
     }
+    @Test fun marketTabsKeepFullLabelsAtLargeText() {
+        val selected = androidx.compose.runtime.mutableStateOf("Markets")
+        compose.setContent { StoxSimTheme { CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
+            Box(Modifier.width(320.dp)) { StocksTabs(selected.value) { selected.value = it } }
+        } } }
+        listOf("Explore", "Holdings", "Orders", "Watchlist").forEach { label ->
+            compose.onNodeWithText(label, useUnmergedTree = true).performScrollTo(); assertLabelFits(label)
+        }
+        compose.onNodeWithText("Watchlist").performClick().assertIsSelected()
+        compose.runOnIdle { assertEquals("Watchlist", selected.value) }
+    }
     @Test fun analysisGraphFitsAboveBottomNavigationOnANarrowPhone() {
         val base = state().copy(screen = "Portfolio analysis", data = mapOf("history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-12","equity":10000},{"day":"2026-10-13","equity":10100}]}""")))
         compose.setContent { StoxSimTheme { Box(Modifier.width(320.dp).height(640.dp)) { AppFrame(base, {}, {}) { PortfolioAnalysisScreen(base, {}) } } } }

@@ -95,7 +95,7 @@ internal fun regionLabel(region: String) = if (region == "INDIA") "India" else "
                         val p = point(i, value)
                         if (drawing && connect) path.lineTo(p.x, p.y) else path.moveTo(p.x, p.y)
                         drawing = true
-                        if (!connect || items.size == 1) drawCircle(color, 3.dp.toPx(), p)
+                        if (!connect || items.getOrNull(i - 1) == null && items.getOrNull(i + 1) == null) drawCircle(color, 3.dp.toPx(), p)
                     }
                 }
                 if (connect) drawPath(path, color, style = Stroke(2.dp.toPx()))

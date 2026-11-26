@@ -199,15 +199,16 @@ export default function StockPage() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [instrument, setInstrument] = useState<Instrument | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [candles, setCandles] = useState<Candle[]>([]);
+  const [chartResult, setChartResult] = useState<{ key: string; candles: Candle[]; error: string } | null>(null);
   const [insights, setInsights] = useState<StockInsights | null>(null);
   const [range, setRange] = useState<ChartRange>(12);
   const [period, setPeriod] = useState<FinancialPeriod>("quarterly");
   const [loading, setLoading] = useState(true);
-  const [chartLoading, setChartLoading] = useState(true);
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [chartError, setChartError] = useState("");
+  // Only render a response for the currently selected instrument, range and session.
+  const chartKey = JSON.stringify([exchange, symbol, range, session?.accessToken]);
+  const currentChart = chartResult?.key === chartKey ? chartResult : null;
 
   useEffect(() => {
     let mounted = true;
@@ -268,18 +269,13 @@ export default function StockPage() {
   useEffect(() => {
     if (!session) return;
     let active = true;
-    setChartLoading(true);
-    setChartError("");
+    setChartResult(null);
     authorized<CandleSeries>(
       `/api/v1/instruments/${marketRegion}/${exchange}/${encodeURIComponent(symbol)}/candles?${chartQuery(range, exchange)}`,
     ).then((series) => {
-      if (active) setCandles(visibleCandles(series.candles ?? [], range, exchange));
+      if (active) setChartResult({ key: chartKey, candles: visibleCandles(series.candles ?? [], range, exchange), error: "" });
     }).catch((cause) => {
-      if (!active) return;
-      setCandles([]);
-      setChartError(cause instanceof Error ? cause.message : "Historical prices are unavailable");
-    }).finally(() => {
-      if (active) setChartLoading(false);
+      if (active) setChartResult({ key: chartKey, candles: [], error: cause instanceof Error ? cause.message : "Historical prices are unavailable" });
     });
     return () => {
       active = false;
@@ -370,11 +366,11 @@ export default function StockPage() {
                   key={months}
                   aria-pressed={range === months}
                   className={range === months ? styles.active : ""}
-                  onClick={() => setRange(months)}
+                  onClick={() => { if (months !== range) { setChartResult(null); setRange(months); } }}
                 >{rangeLabel(months)}</button>)}
               </div>
             </div>
-            <PriceHistoryChart interval={intervalLabel(range)} key={`${exchange}/${symbol}`} candles={candles} loading={chartLoading} error={chartError} currency={currency} exchange={exchange} provider={instrument.provider === "ALPACA" ? "Alpaca" : "Upstox"} />
+            <PriceHistoryChart interval={intervalLabel(range)} key={`${exchange}/${symbol}`} candles={currentChart?.candles ?? []} loading={!currentChart} error={currentChart?.error ?? ""} currency={currency} exchange={exchange} provider={instrument.provider === "ALPACA" ? "Alpaca" : "Upstox"} />
           </article>
 
           <article className={styles.card}>

@@ -6,16 +6,17 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
-RUN npm prune --omit=dev
 
 FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 RUN addgroup -S stoxsim && adduser -S stoxsim -G stoxsim
-COPY --from=build /app/package.json ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
+# Next traces the required production modules into standalone.
+COPY --from=build --chown=stoxsim:stoxsim /app/.next/standalone ./
+COPY --from=build --chown=stoxsim:stoxsim /app/.next/static ./.next/static
+COPY --from=build --chown=stoxsim:stoxsim /app/public ./public
 USER stoxsim
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

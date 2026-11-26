@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -238,7 +239,7 @@ internal fun productTab(screen: String) = when (screen) {
         Row(Modifier.fillMaxWidth().navigationBarsPadding().height(IntrinsicSize.Min).selectableGroup()) {
             items.forEach { (route, label, icon) ->
                 val selected = productTab(screen) == route
-                Column(Modifier.weight(1f).fillMaxHeight().heightIn(min = 80.dp)
+                Column(Modifier.weight(when (route) { "Portfolio" -> 1.25f; "Markets" -> 1.1f; "Finwiz" -> 1.1f; "Home" -> 0.8f; else -> 0.75f }).fillMaxHeight().heightIn(min = 80.dp)
                     .selectable(selected = selected, role = Role.Tab, onClick = { navigate(route) })
                     .semantics { contentDescription = "Open $label" }
                     .padding(horizontal = 2.dp, vertical = 6.dp),
@@ -273,13 +274,16 @@ internal fun productTab(screen: String) = when (screen) {
 @Composable internal fun StocksTabs(screen: String, navigate: (String) -> Unit) {
     val items = listOf("Markets" to "Explore", "Portfolio" to "Holdings", "Orders" to "Orders", "Watchlist" to "Watchlist")
     val index = items.indexOfFirst { it.first == screen }.coerceAtLeast(0)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    val largeText = LocalDensity.current.fontScale > 1.3f
+    val rowModifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+    Row(if (largeText) rowModifier.horizontalScroll(rememberScrollState()) else rowModifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         items.forEach { (route, label) ->
             val selected = route == items[index].first
-            Surface(Modifier.weight(1f).clip(RoundedCornerShape(50)).selectable(selected, role = Role.Tab, onClick = { navigate(route) }),
+            val itemModifier = if (largeText) Modifier.widthIn(min = 88.dp) else Modifier.weight(1f)
+            Surface(itemModifier.heightIn(min = 44.dp).clip(RoundedCornerShape(50)).selectable(selected, role = Role.Tab, onClick = { navigate(route) }),
                 shape = RoundedCornerShape(50), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
                 border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f) else MaterialTheme.colorScheme.outlineVariant)) {
-                Text(label, Modifier.padding(horizontal = 2.dp, vertical = 12.dp), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+                Text(label, Modifier.padding(horizontal = if (largeText) 12.dp else 2.dp, vertical = 12.dp), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, softWrap = !largeText)
             }
         }
     }

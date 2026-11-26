@@ -6,6 +6,7 @@ import Brand from "../components/Brand";
 import { useEffect, useMemo, useState } from "react";
 import styles from "./portfolio.module.css";
 import PortfolioHistory from "./PortfolioHistory";
+import TransactionHistory from "./TransactionHistory";
 import { stockHref } from "../lib/stock-links";
 import { marketAccount } from "../lib/portfolio-selection";
 
@@ -307,8 +308,8 @@ export default function PortfolioPage() {
         <article><span>Total P/L</span><strong className={portfolio.totalProfitLoss >= 0 ? styles.positive : styles.negative}>{money(portfolio.totalProfitLoss, portfolio.currency)}</strong><small>{portfolio.totalReturnPercent.toFixed(2)}% total return</small></article>
       </section>
 
-      <nav className={styles.sectionNav} aria-label="Portfolio sections"><a href="#portfolio-overview">Balances</a>{account && <a href="#portfolio-history">Performance and risk</a>}{insights && <a href="#portfolio-analytics-title">Allocation</a>}<a href="#portfolio-holdings">Holdings</a><a href="/#recent-trades">Recent transactions</a></nav>
-      {account && <PortfolioHistory key={account.id} accountId={account.id} />}
+      <nav className={styles.sectionNav} aria-label="Portfolio sections"><a href="#portfolio-overview">Balances</a>{account && <a href="#portfolio-history">Performance and risk</a>}{insights && <a href="#portfolio-analytics-title">Allocation</a>}<a href="#portfolio-holdings">Holdings</a><a href="#portfolio-transactions">Transaction history</a></nav>
+      {account && <PortfolioHistory key={account.id} accountId={account.id} currency={account.currency} />}
 
       {insights && <section className={styles.analytics} aria-labelledby="portfolio-analytics-title">
         <div className={styles.analyticsHeader}>
@@ -399,6 +400,7 @@ export default function PortfolioPage() {
           </table>
         </div>
       </section>
+      {account && <TransactionHistory key={account.id} accountId={account.id} currency={account.currency} accountLabel={account.accountLabel} />}
     </>}
   </main>;
 }

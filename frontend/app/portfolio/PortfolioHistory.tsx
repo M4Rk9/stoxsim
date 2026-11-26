@@ -9,7 +9,7 @@ interface Point { day: string; observedAt: string; equity: number | null; qualit
 interface History { currency: string; tier: string; days: number; benchmark: string; status: string; missingSessions: number; cashFlowBreaks: number; returnPercent: number | null; benchmarkReturnPercent: number | null; maximumDrawdownPercent: number | null; risk: { volatilityPercent: number | null; beta: number | null; correlation: number | null }; points: Point[] }
 const number = (value: number | null | undefined, suffix = "") => value == null ? "—" : `${value.toFixed(2)}${suffix}`;
 
-export default function PortfolioHistory({ accountId }: { accountId: string }) {
+export default function PortfolioHistory({ accountId, currency }: { accountId: string; currency: string }) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<History | null>(null);
   const [error, setError] = useState("");
@@ -72,6 +72,6 @@ export default function PortfolioHistory({ accountId }: { accountId: string }) {
       </table></div></details>}
 
     </>}
-    <StoxAnalysis accountId={accountId} currency={data?.currency ?? "INR"} />
+    <StoxAnalysis accountId={accountId} currency={currency} />
   </section>;
 }

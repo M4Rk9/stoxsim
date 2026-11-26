@@ -2,6 +2,7 @@
 import { signupSource } from "./lib/signup-source";
 
 import Brand from "./components/Brand";
+import SocialLinks from "./components/SocialLinks";
 import { WorkspaceButton, WorkspaceBadge, WorkspaceNotice } from "./components/WorkspaceUI";
 import ResearchHome from "./components/ResearchHome";
 
@@ -1383,6 +1384,7 @@ export default function Home() {
             <a href="/disclaimer">Risk disclaimer</a>
             <a href="/status">Status</a>
           </nav>
+          <SocialLinks />
         </footer>
       </main>
     );
@@ -1554,7 +1556,7 @@ export default function Home() {
 
           <article className="panel">
             <div className="panelHeading"><div><span className="kicker">ACTIVITY</span><h2 id="recent-trades">Recent trades</h2></div><span className="panelMeta">Charges included</span></div>
-            <div className="activityList">{trades.slice(0, 6).map((trade) => <div className="activityRow" key={trade.id}><span className={`sidePill ${trade.side.toLowerCase()}`}>{trade.side}</span><div><strong>{trade.symbol} · {trade.quantity} shares</strong><small>{dateTime(trade.executedAt)} · {trade.chargeScheduleVersion}</small></div><div><strong>{displayMoney(trade.netCashEffect)}</strong><small>{displayMoney(trade.charges)} simulated charges</small></div></div>)}{!trades.length && <div className="emptyState">No executed trades yet.</div>}</div>
+            <div className="activityList">{trades.slice(0, 6).map((trade) => <div className="activityRow" key={trade.id}><span className={`sidePill ${trade.side.toLowerCase()}`}>{trade.side}</span><div><strong>{trade.symbol} · {trade.quantity} shares</strong><small>{dateTime(trade.executedAt)} · Practice trade</small></div><div><strong>{displayMoney(trade.netCashEffect)}</strong><small>{displayMoney(trade.charges)} simulated charges</small></div></div>)}{!trades.length && <div className="emptyState">No executed trades yet.</div>}</div>
           </article>
         </div>
 
@@ -1607,6 +1609,7 @@ export default function Home() {
             <a href="/status">Status</a>
         </nav>
         <a href="/disclaimer">About StoxSim</a>
+        <SocialLinks />
       </footer>
     </main>
   );

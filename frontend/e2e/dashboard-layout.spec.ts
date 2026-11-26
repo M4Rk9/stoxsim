@@ -23,6 +23,11 @@ for (const width of [320, 390, 768, 1280]) test(`stock search and header stay al
   await page.goto("/");
   await expect(page.getByRole("region", {name:"Portfolio overview"})).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
+  const metricFont = await page.getByRole("region",{name:"Portfolio overview"}).locator("strong").first().evaluate(el=>getComputedStyle(el).fontFamily);
+  expect(metricFont).toBe(await page.evaluate(()=>getComputedStyle(document.body).fontFamily));
+  const social=page.getByRole("navigation",{name:"StoxSim social media",exact:true});
+  await expect(social.getByRole("link")).toHaveCount(4);
+  await expect(social.getByRole("link",{name:"Reddit",exact:true})).toHaveAttribute("href","https://www.reddit.com/r/StoxSimOfficial/");
   if (width <= 760) {
     const avatar = await page.getByRole("button", {name:"Open account menu for Layout User"}).boundingBox();
     const switcher = await page.getByLabel("Market selection").boundingBox();
