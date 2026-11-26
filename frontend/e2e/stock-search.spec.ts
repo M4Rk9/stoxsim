@@ -331,8 +331,13 @@ for (const width of [320,768,1440]) test(`stock detail ranges and order card fit
   await page.route("**/api/v1/instruments/INDIA/BSE/ACME",route=>reply(route,{...stock("ACME","BSE"),provider:"UPSTOX"}));
   await page.route("**/api/v1/instruments/INDIA/BSE/ACME/quote",route=>reply(route,{lastPrice:111,open:100,high:112,low:99,previousClose:100,dataStatus:"CLOSED",pricingSource:"EXTERNAL"}));
   const requested:string[]=[];
-  await page.route("**/api/v1/instruments/INDIA/BSE/ACME/candles?*",route=>{
+  let holdFinal = false;
+  let releaseFinal!: () => void;
+  const finalResponse = new Promise<void>(resolve => { releaseFinal = resolve; });
+  await page.route("**/api/v1/instruments/INDIA/BSE/ACME/candles?*",async route=>{
+    if (route.request().method() === "OPTIONS") return reply(route, {});
     requested.push(new URL(route.request().url()).searchParams.get("interval")!);
+    if (holdFinal) await finalResponse;
     return reply(route,{candles:[
       {timestamp:"2026-11-05T03:45:00Z",open:100,high:110,low:98,close:108,volume:100},
       {timestamp:"2026-11-06T03:45:00Z",open:108,high:112,low:106,close:111,volume:400},
@@ -344,10 +349,19 @@ for (const width of [320,768,1440]) test(`stock detail ranges and order card fit
   for(const [label,interval] of [["1D","ONE_MINUTE"],["1W","FIFTEEN_MINUTES"],["1M","ONE_DAY"],["6M","ONE_DAY"],["1Y","ONE_DAY"],["3Y","ONE_WEEK"],["5Y","ONE_WEEK"]]){
     const count=requested.length; await page.getByRole("button",{name:label,exact:true}).click();
     await expect.poll(()=>requested.length).toBeGreaterThan(count); expect(requested.at(-1)).toBe(interval);
+    const chartName = label === "1D" ? "1-minute candlestick chart" : label === "1W" ? "15-minute candlestick chart" : ["3Y","5Y"].includes(label) ? "Weekly candlestick chart" : "Daily candlestick chart";
+    await expect(page.getByRole("img",{name:chartName}).locator("rect")).toHaveCount(label === "1D" ? 3 : 4);
     await expect(page.locator('[aria-label="Selected candle"]')).toBeVisible();
   }
-  await page.getByRole("button",{name:"1M",exact:true}).click();
-  const svg=page.getByRole("img",{name:"Daily candlestick chart"}); await expect(svg).toBeVisible();
+  holdFinal = true;
+  const svg=page.getByRole("img",{name:"Daily candlestick chart"});
+  try {
+    await page.getByRole("button",{name:"1M",exact:true}).click();
+    await expect(page.getByText("Loading historical prices…",{exact:true})).toBeVisible();
+    await expect(svg).toHaveCount(0);
+  } finally { releaseFinal(); }
+  await expect(svg).toBeVisible();
+  await expect(svg.locator("rect")).toHaveCount(4);
   const positions=await svg.locator("rect").evaluateAll(rects=>rects.map(rect=>Number(rect.getAttribute("x"))));
   expect(positions).toHaveLength(4); expect(positions[2]-positions[1]).toBeCloseTo(positions[1]-positions[0]);
   const actions=page.locator('[aria-label="Virtual trading"]');

@@ -42,3 +42,11 @@
   .nav { flex:1; min-width:0; gap:2px; }
   .nav a { min-width:44px; }
 }
+
+/* Allow the original system font to fit five complete labels plus search at 320px. */
+@media (max-width:360px) {
+  .rail { width:calc(100% - 12px); padding:3px; gap:2px; }
+  .nav { gap:1px; }
+  .nav a { padding-inline:1px; }
+  .nav a span { max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; text-align:center; line-height:1.2; }
+}

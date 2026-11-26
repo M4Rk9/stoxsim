@@ -35,3 +35,6 @@ CI run 45830318415 failed at stack readiness; the frontend log reported Ready, b
 
 ### Owner-requested pre-merge web polish
 The prior ca632ad candidate passed CI and Android checks. The final web-only typography restoration, official social footer links and independently scrollable Finwiz history are in a subsequent commit and must pass fresh CI and visual review before release. Android fonts and existing redesign colours/layout retained.
+
+### Browser regression follow-up
+Run 45836779173 had 185 passes, one repeatable narrow-navigation failure and one flaky chart test. The compact navigation and range-specific chart response handling have been corrected in this PR without reverting the original font or removing test assertions. Require fresh browser acceptance before merge.
