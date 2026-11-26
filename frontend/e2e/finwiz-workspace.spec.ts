@@ -91,6 +91,9 @@ test("saved fallback lessons are labelled unavailable and do not offer looping s
 
 test("Finwiz history and footer remain separate at short zoomed desktop height", async ({page}) => {
   await setup(page); await page.setViewportSize({width:768,height:500}); await page.goto("/finwiz");
+  await page.getByLabel("Your question").fill("How do I begin learning about stocks?");
+  await page.getByRole("button",{name:"Ask Finwiz",exact:true}).click();
+  await expect(page.getByText("A share represents ownership.")).toBeVisible();
   await page.evaluate(()=>document.documentElement.style.fontSize="200%");
   const sidebar=page.getByRole("complementary",{name:"Chat history"});
   await expect(sidebar).toBeVisible();

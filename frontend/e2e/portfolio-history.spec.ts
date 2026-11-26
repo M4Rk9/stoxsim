@@ -92,12 +92,15 @@ test("transaction records stay account-scoped and US currency survives unavailab
   await page.route("**/api/v1/accounts",route=>respond(route,[account,us]));
   await page.route("**/api/v1/accounts/*/portfolio",route=>{const selected=route.request().url().includes(us.id)?us:account;return respond(route,{...selected,investedValue:0,marketValue:0,unrealizedProfitLoss:0,totalProfitLoss:0,totalAccountValue:selected.startingCapital,totalReturnPercent:0,dataStatus:"CLOSED",valuedAt:"2026-09-24T23:40:00Z",holdings:[]});});
   await page.route("**/api/v1/accounts/*/portfolio/history?*",route=>respond(route,{message:"History temporarily unavailable"},503));
+  await page.route("**/api/v1/accounts/*/portfolio/sectors",route=>respond(route,[{name:"Technology",value:1234,percent:100}]));
   await page.route("**/api/v1/accounts/*/trades",route=>{const isUs=route.request().url().includes(us.id);return respond(route,[{id:isUs?"us-trade":"india-trade",exchange:isUs?"NASDAQ":"NSE",symbol:isUs?"AAPL":"RELIANCE",name:"Example",side:"BUY",quantity:1,price:100,grossValue:100,charges:1,netCashEffect:-101,executedAt:"2026-09-24T23:40:00Z"}]);});
   await page.goto("/portfolio");
   const transactions=page.getByRole("region",{name:"Transaction history",exact:true});
   await expect(transactions.getByRole("link",{name:"RELIANCE",exact:true})).toBeVisible();
+  await page.getByText("Other portfolios",{exact:true}).click();
   await page.getByLabel("Portfolio account").selectOption(us.id);
   await expect(transactions.getByRole("link",{name:"AAPL",exact:true})).toBeVisible();
   await expect(transactions.getByRole("link",{name:"RELIANCE",exact:true})).toHaveCount(0);
   await expect(transactions.getByRole("cell",{name:"$100.00",exact:true}).first()).toBeVisible();
+  await expect(page.getByRole("region",{name:"Stox Analysis",exact:true}).getByText("$1,234.00",{exact:true})).toBeVisible();
 });
