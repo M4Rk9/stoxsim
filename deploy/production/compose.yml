@@ -157,7 +157,7 @@ services:
     networks:
       - edge
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 | grep -q StoxSim"]
+      test: ["CMD-SHELL", "wget -O- http://127.0.0.1:3000 | grep -q StoxSim"]
       interval: 10s
       timeout: 5s
       retries: 12

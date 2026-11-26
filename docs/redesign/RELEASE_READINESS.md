@@ -29,3 +29,6 @@ Only the owner may authorize merge/deploy. Use existing production workflow with
 ## Decision
 
 **HOLD for fresh candidate CI and operational evidence.** This is a reviewable implementation candidate, not a production or Play release approval. Record final candidate SHA, workflow URLs, visual review findings, signed build evidence and operator sign-off here or in a private release ticket before declaring M4 complete. Do not publish credentials or user data.
+
+### Startup regression follow-up
+CI run 45830318415 failed at stack readiness; the frontend log reported Ready, but the original localhost health probe did not pass. Explicit IPv4 probes now match the standalone listener in CI, staging and production. New health diagnostics will capture probe output if the failure recurs. Do not approve the standalone runtime until fresh browser CI confirms readiness and acceptance.
