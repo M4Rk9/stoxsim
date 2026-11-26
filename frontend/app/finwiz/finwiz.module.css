@@ -38,3 +38,9 @@
 .questionInput { background:transparent!important; }
 .composerHint { flex-wrap:wrap; }
 @media(max-width:700px) { .welcome { margin-top:20px; } .welcomeMark { width:44px; height:44px; } .historyToggle { min-height:44px; } }
+
+/* Keep short/zoomed chat-history panels scrollable instead of compressing overlapping rows. */
+.sidebar > * { flex-shrink:0; min-width:0; }
+.sidebar .historyList { flex:1 0 auto; min-height:80px; }
+.historyList button { white-space:normal; overflow-wrap:anywhere; }
+@media(max-height:600px) { .sidebar { gap:10px; padding-block:12px; } .sidebar h2 { margin-top:6px; } }

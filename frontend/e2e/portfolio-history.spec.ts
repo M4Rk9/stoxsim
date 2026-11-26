@@ -84,3 +84,20 @@ test("transaction history exposes all returned trades with pagination and filter
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await info.attach("transactions-mobile",{body:await page.screenshot(),contentType:"image/png"});
 });
+
+
+test("transaction records stay account-scoped and US currency survives unavailable performance history", async ({page}) => {
+  await setup(page);
+  const us={...account,id:"22222222-2222-4333-8444-555555555555",marketRegion:"UNITED_STATES",accountLabel:"Standard US",currency:"USD",startingCapital:10000,availableCash:10000};
+  await page.route("**/api/v1/accounts",route=>respond(route,[account,us]));
+  await page.route("**/api/v1/accounts/*/portfolio",route=>{const selected=route.request().url().includes(us.id)?us:account;return respond(route,{...selected,investedValue:0,marketValue:0,unrealizedProfitLoss:0,totalProfitLoss:0,totalAccountValue:selected.startingCapital,totalReturnPercent:0,dataStatus:"CLOSED",valuedAt:"2026-09-24T23:40:00Z",holdings:[]});});
+  await page.route("**/api/v1/accounts/*/portfolio/history?*",route=>respond(route,{message:"History temporarily unavailable"},503));
+  await page.route("**/api/v1/accounts/*/trades",route=>{const isUs=route.request().url().includes(us.id);return respond(route,[{id:isUs?"us-trade":"india-trade",exchange:isUs?"NASDAQ":"NSE",symbol:isUs?"AAPL":"RELIANCE",name:"Example",side:"BUY",quantity:1,price:100,grossValue:100,charges:1,netCashEffect:-101,executedAt:"2026-09-24T23:40:00Z"}]);});
+  await page.goto("/portfolio");
+  const transactions=page.getByRole("region",{name:"Transaction history",exact:true});
+  await expect(transactions.getByRole("link",{name:"RELIANCE",exact:true})).toBeVisible();
+  await page.getByLabel("Portfolio account").selectOption(us.id);
+  await expect(transactions.getByRole("link",{name:"AAPL",exact:true})).toBeVisible();
+  await expect(transactions.getByRole("link",{name:"RELIANCE",exact:true})).toHaveCount(0);
+  await expect(transactions.getByRole("cell",{name:"$100.00",exact:true}).first()).toBeVisible();
+});

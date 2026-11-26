@@ -87,3 +87,17 @@ test("saved fallback lessons are labelled unavailable and do not offer looping s
   await expect(page.getByRole("button", {name:"Why can RSI stay high or low for a long time?"})).toHaveCount(0);
   await expect(page.getByText("General learning mode",{exact:true})).toHaveCount(0);
 });
+
+
+test("Finwiz history and footer remain separate at short zoomed desktop height", async ({page}) => {
+  await setup(page); await page.setViewportSize({width:768,height:500}); await page.goto("/finwiz");
+  await page.evaluate(()=>document.documentElement.style.fontSize="200%");
+  const sidebar=page.getByRole("complementary",{name:"Chat history"});
+  await expect(sidebar).toBeVisible();
+  const learning=sidebar.getByRole("link",{name:"Learning map",exact:false});
+  await learning.scrollIntoViewIfNeeded();
+  const bounds=await sidebar.evaluate(el=>{const heading=Array.from(el.querySelectorAll("h2")).find(n=>n.textContent==="Recent chats");const list=heading?.nextElementSibling; const footer=el.querySelector('a[href="/learn#learning-map"]');return {listBottom:list?.getBoundingClientRect().bottom,footerTop:footer?.getBoundingClientRect().top};});
+  expect(bounds.listBottom).toBeDefined(); expect(bounds.footerTop).toBeDefined();
+  expect(bounds.listBottom!).toBeLessThanOrEqual(bounds.footerTop!);
+  await expect(page.getByRole("button",{name:"Ask Finwiz",exact:true})).toBeInViewport();
+});

@@ -28,7 +28,8 @@ export default function TransactionHistory({ accountId, currency, accountLabel }
     return trades.filter(t => (side==="ALL" || t.side===side) && (!q || `${t.symbol} ${t.name} ${t.exchange}`.toLowerCase().includes(q)));
   },[trades,query,side]);
   const count=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
-  const money=(n:number)=>new Intl.NumberFormat(currency==="INR"?"en-IN":"en-US",{style:"currency",currency}).format(n);
+  const formatter=useMemo(()=>new Intl.NumberFormat(currency==="INR"?"en-IN":"en-US",{style:"currency",currency}),[currency]);
+  const money=(n:number)=>formatter.format(n);
   return <section className={styles.holdings} id="portfolio-transactions" aria-labelledby="transactions-title">
     <div className={styles.sectionHeader}><div><span>EXECUTED PRACTICE TRADES</span><h2 id="transactions-title">Transaction history</h2><small>{accountLabel} · {currency}</small></div><button className={styles.historyButton} type="button" onClick={()=>setReload(n=>n+1)} disabled={status==="loading"}>Refresh transactions</button></div>
     <div className={styles.transactionFilters}><label>Search transactions<input type="search" value={query} maxLength={100} placeholder="Symbol, company or exchange" onChange={e=>{setQuery(e.target.value);setPage(0);}}/></label>
