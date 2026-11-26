@@ -104,3 +104,25 @@ test("Finwiz history and footer remain separate at short zoomed desktop height",
   expect(bounds.listBottom!).toBeLessThanOrEqual(bounds.footerTop!);
   await expect(page.getByRole("button",{name:"Ask Finwiz",exact:true})).toBeInViewport();
 });
+
+for (const width of [390,1280]) test(`Finwiz independently scrolls 30 long history titles at ${width}px`,async ({page},info)=>{
+  await setup(page); await page.setViewportSize({width,height:844});
+  const chats=Array.from({length:30},(_,i)=>({id:`long-${i}`,title:`Conversation ${i+1}: Explain the fundamentals, valuation, cash-flow quality and key risks of a company in detail`,turns:[{question:`Question ${i+1}`,answer:{answer:"Saved educational answer.",provider:"GEMINI",groundedInStoxSimData:false,suggestedQuestions:[],disclaimer:"Educational only."}}]}));
+  await page.addInitScript(chats=>localStorage.setItem("stoxsim-finwiz:learner@example.test",JSON.stringify(chats)),chats);
+  await page.goto("/finwiz");
+  if(width<700) await page.getByRole("button",{name:"Chat history",exact:true}).click();
+  const sidebar=page.getByRole("complementary",{name:"Chat history"});
+  const list=sidebar.getByRole("region",{name:"Recent conversations"});
+  await expect(list.getByRole("button")).toHaveCount(30);
+  const footer=sidebar.getByRole("link",{name:"Learning map",exact:false});
+  await expect(footer).toBeVisible();
+  const check=async()=>list.evaluate(el=>({scrollable:el.scrollHeight>el.clientHeight,top:el.scrollTop,bottom:el.getBoundingClientRect().bottom,footerTop:el.nextElementSibling!.getBoundingClientRect().top}));
+  const before=await check(); expect(before.scrollable).toBe(true); expect(before.bottom).toBeLessThanOrEqual(before.footerTop);
+  await list.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+  await expect.poll(async()=>(await check()).top).toBeGreaterThan(0);
+  await expect(list.getByRole("button").last()).toBeInViewport();
+  const after=await check(); expect(after.bottom).toBeLessThanOrEqual(after.footerTop);
+  await info.attach(`finwiz-long-history-${width}`,{body:await page.screenshot(),contentType:"image/png"});
+  await list.getByRole("button").last().click();
+  await expect(page.getByText("Saved educational answer.",{exact:true})).toBeVisible();
+});

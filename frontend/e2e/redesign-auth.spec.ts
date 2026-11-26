@@ -5,10 +5,16 @@ for (const width of [320, 768, 1280]) test(`approved authentication positioning 
   await expect(page.getByRole("heading", { name: "Paper Trade Like Never Before.", exact: true })).toBeVisible();
   await expect(page.getByText("Research smarter, Practice Better.", { exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
-  expect(await page.evaluate(async () => {
-    const faces = await Promise.all([document.fonts.load('700 24px "Plus Jakarta Sans"'), document.fonts.load('400 14px Inter'), document.fonts.load('700 16px "JetBrains Mono"')]);
-    return faces.every(group => group.length > 0 && group.every(face => face.status === "loaded"));
-  })).toBe(true);
+  const fonts = await page.evaluate(() => ({
+    body: getComputedStyle(document.body).fontFamily,
+    heading: getComputedStyle(document.querySelector("h1")!).fontFamily,
+    loaded: Array.from(document.fonts).map(face => face.family),
+  }));
+  expect(fonts.body).toContain("Inter");
+  expect(fonts.body).toContain("system-ui");
+  expect(fonts.heading).toBe(fonts.body);
+  expect(fonts.loaded).not.toContain("Plus Jakarta Sans");
+  expect(fonts.loaded).not.toContain("JetBrains Mono");
   await testInfo.attach(`registration-${width}`, {body:await page.screenshot({fullPage:true}),contentType:"image/png"});
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("link", { name: "Forgot password?" })).toBeVisible();
@@ -17,4 +23,17 @@ for (const width of [320, 768, 1280]) test(`approved authentication positioning 
   await page.getByRole("button", { name: "Create account", exact: true }).click();
   await expect(page.getByLabel("Display name")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const path of ["/", "/paper-trading", "/privacy"]) test(`official social links in footer at ${path}`, async ({page}) => {
+  await page.setViewportSize({width:390,height:844}); await page.goto(path);
+  const nav=page.getByRole("navigation",{name:"StoxSim social media",exact:true});
+  for (const [name,url] of [["Instagram","https://www.instagram.com/stoxsim/"],["X","https://x.com/stoxsim"],["Reddit","https://www.reddit.com/r/StoxSimOfficial/"],["LinkedIn","https://www.linkedin.com/company/stoxsim"]]) {
+    const link=nav.getByRole("link",{name,exact:true});
+    await expect(link).toHaveAttribute("href",url);
+    await expect(link).toHaveAttribute("target","_blank");
+    await expect(link).toHaveAttribute("rel","noopener noreferrer");
+  }
+  await nav.scrollIntoViewIfNeeded(); await expect(nav).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

@@ -2,6 +2,7 @@
 import { signupSource } from "./lib/signup-source";
 
 import Brand from "./components/Brand";
+import SocialLinks from "./components/SocialLinks";
 import { WorkspaceButton, WorkspaceBadge, WorkspaceNotice } from "./components/WorkspaceUI";
 import ResearchHome from "./components/ResearchHome";
 
@@ -1383,6 +1384,7 @@ export default function Home() {
             <a href="/disclaimer">Risk disclaimer</a>
             <a href="/status">Status</a>
           </nav>
+          <SocialLinks />
         </footer>
       </main>
     );
@@ -1607,6 +1609,7 @@ export default function Home() {
             <a href="/status">Status</a>
         </nav>
         <a href="/disclaimer">About StoxSim</a>
+        <SocialLinks />
       </footer>
     </main>
   );

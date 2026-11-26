@@ -244,13 +244,15 @@ export default function FinwizPage() {
     <aside ref={historyPanel} id="chat-history" className={`${styles.sidebar} ${historyOpen ? styles.open : ""}`} aria-label="Chat history">
       <Brand />
       <button className={styles.newChat} disabled={loading} onClick={newChat}>+ New chat</button><h2>Recent chats</h2>
-      <div className={styles.historyList}>{!chats.length && <p>Your conversations will appear here.</p>}{chats.map(chat => <button key={chat.id} disabled={loading} aria-current={activeId === chat.id ? "page" : undefined} onClick={() => {
+      <div className={styles.historyList} role="region" aria-label="Recent conversations">{!chats.length && <p>Your conversations will appear here.</p>}{chats.map(chat => <button key={chat.id} disabled={loading} aria-current={activeId === chat.id ? "page" : undefined} onClick={() => {
         setActiveId(chat.id); setSubmittedQuestion(""); setError(""); setQuestion(""); setHistoryOpen(false); requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());
       }}>{chat.title}</button>)}</div>
+      <div className={styles.historyFooter}>
       <a href="/learn#learning-map">Learning map ↗</a><a href="/">← Dashboard</a>
       <p>Last 30 chats saved on this device for your account.</p>
       <button disabled={loading || !chats.length} onClick={() => { if (!clearPending) { setClearPending(true); return; } persist([]); newChat(); setClearPending(false); }}>{clearPending ? "Confirm clear history" : "Clear history"}</button>
       {clearPending && <button onClick={() => setClearPending(false)}>Cancel</button>}
+      </div>
     </aside><div className={styles.workspace}>
     <header className={styles.header}>
       <a className={styles.backLink} href="/" aria-label="Back to dashboard">

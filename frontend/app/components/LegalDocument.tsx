@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Brand from "./Brand";
+import SocialLinks from "./SocialLinks";
 import type { ReactNode } from "react";
 import styles from "./LegalDocument.module.css";
 
@@ -38,6 +39,7 @@ export default function LegalDocument({
           <Link href="/disclaimer">Risk disclaimer</Link>
         </nav>
         <span>Educational paper trading only.</span>
+        <SocialLinks />
       </footer>
     </main>
   );

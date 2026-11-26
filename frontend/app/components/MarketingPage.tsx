@@ -1,4 +1,5 @@
 import Brand from "./Brand";
+import SocialLinks from "./SocialLinks";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -89,6 +90,7 @@ export default function MarketingPage({
           <Link href="/disclaimer">Risk disclaimer</Link>
           <Link href="/status">Status</Link>
         </nav>
+        <SocialLinks />
       </footer>
     </div>
   );

@@ -32,3 +32,6 @@ Only the owner may authorize merge/deploy. Use existing production workflow with
 
 ### Startup regression follow-up
 CI run 45830318415 failed at stack readiness; the frontend log reported Ready, but the original localhost health probe did not pass. Explicit IPv4 probes now match the standalone listener in CI, staging and production. New health diagnostics will capture probe output if the failure recurs. Do not approve the standalone runtime until fresh browser CI confirms readiness and acceptance.
+
+### Owner-requested pre-merge web polish
+The prior ca632ad candidate passed CI and Android checks. The final web-only typography restoration, official social footer links and independently scrollable Finwiz history are in a subsequent commit and must pass fresh CI and visual review before release. Android fonts and existing redesign colours/layout retained.
