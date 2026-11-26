@@ -35,8 +35,8 @@ import com.stoxsim.app.data.*
 
 @Composable internal fun FinwizHub(state: AppState, lesson: (String) -> Unit, newChat: (String, String, String) -> Unit,
     openChat: (String) -> Unit, deleteChat: (String) -> Unit, navigate: (String) -> Unit,
-    startChat: (String, String) -> Unit = { _, _ -> }) {
-    var tab by rememberSaveable { mutableStateOf("Modules") }
+    startChat: (String, String) -> Unit = { _, _ -> }, initialTab: String = "Modules") {
+    var tab by rememberSaveable(initialTab) { mutableStateOf(initialTab) }
     var selected by rememberSaveable { mutableStateOf("LEARN") }
     var draft by remember { mutableStateOf("") }
     var configure by remember { mutableStateOf(false) }
@@ -75,11 +75,11 @@ import com.stoxsim.app.data.*
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(draft, { draft = it.take(2000) }, placeholder = { Text("What would you like to learn?") },
                     modifier = Modifier.weight(1f).semantics { contentDescription = "Finwiz question" }, minLines = 1, maxLines = 4,
-                    enabled = !state.working, shape = RoundedCornerShape(18.dp), textStyle = MaterialTheme.typography.bodyMedium,
+                    enabled = !state.working, shape = MaterialTheme.shapes.medium, textStyle = MaterialTheme.typography.bodyMedium,
                     colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
                 FilledIconButton({ val question = draft.trim(); draft = ""; focus.clearFocus(); startChat(selected, question) },
                     enabled = draft.isNotBlank() && !state.working && (inlineChat?.messages?.size ?: 0) < 40, modifier = Modifier.size(48.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.onSurface, contentColor = MaterialTheme.colorScheme.surface)) {
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
                     Icon(Icons.Default.Send, "Send Finwiz question")
                 }
             }
@@ -87,6 +87,21 @@ import com.stoxsim.app.data.*
         }
         TextButton({ navigate("Learning path") }, Modifier.fillMaxWidth()) { Text("Your challenges & achievements →") }
     } else {
+        Panel {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(56.dp)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(androidx.compose.ui.res.painterResource(com.stoxsim.app.R.drawable.ic_nav_finwiz), null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary) }
+                }
+            }
+            Text("How can I help?", style = MaterialTheme.typography.headlineSmall)
+            listOf("Help me analyse a company", "Help me understand portfolio risk", "Explain a market concept").forEach { prompt ->
+                OutlinedButton({ draft = prompt }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !state.working) { Text(prompt) }
+            }
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(draft, { draft = it.take(2000) }, placeholder = { Text("Ask Finwiz…") }, modifier = Modifier.weight(1f), minLines = 1, maxLines = 4, enabled = !state.working)
+                FilledIconButton({ val question = draft.trim(); draft = ""; focus.clearFocus(); tab = "Modules"; startChat(selected, question) }, enabled = draft.isNotBlank() && !state.working && (inlineChat?.messages?.size ?: 0) < 40, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Send, "Send starting question") }
+            }
+        }
         Text("Your conversations", style = MaterialTheme.typography.titleLarge)
         Muted("Conversations stay in memory for this sign-in session.")
         val chats = state.chats.filter { it.region == state.region }
@@ -181,7 +196,7 @@ import com.stoxsim.app.data.*
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.role == "user") Arrangement.End else Arrangement.Start) {
                     Surface(Modifier.widthIn(max = 520.dp).fillMaxWidth(if (message.role == "user") 0.88f else 1f),
                         color = when (message.role) { "user" -> MaterialTheme.colorScheme.surfaceContainerHighest; "error" -> MaterialTheme.colorScheme.errorContainer; else -> MaterialTheme.colorScheme.surface },
-                        shape = RoundedCornerShape(22.dp), border = if (message.role == "assistant") BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
+                        shape = MaterialTheme.shapes.medium, border = if (message.role == "assistant") BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Kicker(when (message.role) { "user" -> "You"; "error" -> "Could not get an answer"; else -> "Finwiz" })
                             SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
@@ -200,7 +215,7 @@ import com.stoxsim.app.data.*
         if (chat.messages.size >= 40) Muted("This conversation is full. Start a new chat to continue.")
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(draft, { draft = it.take(2000) }, label = { Text("Ask Finwiz") }, placeholder = { Text("Type your question…") },
-                modifier = Modifier.weight(1f), minLines = 1, maxLines = 4, shape = RoundedCornerShape(18.dp), enabled = !state.working,
+                modifier = Modifier.weight(1f), minLines = 1, maxLines = 4, shape = MaterialTheme.shapes.medium, enabled = !state.working,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default))
             FilledIconButton({ val question = draft.trim(); draft = ""; send(question) }, enabled = draft.isNotBlank() && !state.working && chat.messages.size < 40,
                 modifier = Modifier.padding(bottom = 6.dp).size(48.dp)) { Icon(Icons.Default.Send, "Send question") }

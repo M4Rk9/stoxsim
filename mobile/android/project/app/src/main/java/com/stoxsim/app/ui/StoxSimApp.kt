@@ -116,7 +116,7 @@ import com.stoxsim.app.R
                 "Learning path" -> LearningScreen(state, model)
                 "Competitions" -> { CompetitionScreen(state, model); TextButton({ model.openScreen("Campus") }) { Text("Campus competitions") } }
                 "Campus" -> CampusScreen(state, model)
-                "Finwiz" -> FinwizHub(state, model::openLesson, model::newChat, model::openChat, model::deleteChat, model::openScreen, model::startChatWithQuestion)
+                "Finwiz" -> FinwizHub(state, model::openLesson, model::newChat, model::openChat, model::deleteChat, model::openScreen, model::startChatWithQuestion, initialTab = "Chats")
                 "Finwiz lesson" -> FinwizLesson(state, model::markLessonRead, { model.newChat(it) })
                 "Finwiz chat" -> FinwizChatScreen(state, model::askChat, { model.newChat() })
                 "Account" -> AccountHub(state, model::openScreen, model::changeRegion, model::selectAccount, model::setDark, model::logout)
@@ -137,17 +137,19 @@ import com.stoxsim.app.R
 internal fun parentScreen(screen: String) = when (screen) {
     "Portfolio analysis" -> "Portfolio"
     "Finwiz lesson", "Finwiz chat" -> "Finwiz"
-    "Finwiz", "Learning path", "Scenario Lab", "Reflections" -> "Learn"
-    "F&O", "Stock", "Portfolio", "Orders", "Watchlist" -> "Markets"
+    "Finwiz" -> "Home"
+    "Learning path", "Scenario Lab", "Reflections", "Learn", "Competitions", "Explore" -> "Account"
+    "F&O", "Stock", "Watchlist" -> "Markets"
+    "Orders" -> "Portfolio"
     "Campus" -> "Competitions"
     "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 internal fun productTab(screen: String) = when (screen) {
-    "Markets", "F&O", "Stock", "Portfolio", "Orders", "Watchlist", "Portfolio analysis" -> "Markets"
-    "Learn", "Finwiz", "Finwiz lesson", "Finwiz chat", "Learning path", "Scenario Lab", "Reflections" -> "Learn"
-    "Competitions", "Campus" -> "Competitions"
-    "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
+    "Markets", "F&O", "Stock", "Watchlist" -> "Markets"
+    "Portfolio", "Orders", "Portfolio analysis" -> "Portfolio"
+    "Finwiz", "Finwiz chat" -> "Finwiz"
+    "Learn", "Finwiz lesson", "Learning path", "Scenario Lab", "Reflections", "Explore", "Competitions", "Campus", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 
@@ -157,18 +159,23 @@ internal fun productTab(screen: String) = when (screen) {
     val focus = LocalFocusManager.current
     var query by rememberSaveable(state.region, state.user?.email, state.accountId) { mutableStateOf(state.searchQuery) }
     val stockPages = listOf("Markets", "Portfolio", "Orders", "Watchlist")
-    val main = stockPages + listOf("Home", "Learn", "Competitions", "Account")
+    val main = stockPages + listOf("Home", "Account")
     val chat = state.screen == "Finwiz chat"
+    val finwiz = state.screen in listOf("Finwiz", "Finwiz chat")
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         Column(Modifier.statusBarsPadding().fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (signedIn && state.screen == "Portfolio analysis") {
+                if (signedIn && finwiz) {
+                    IconButton({ navigate(parentScreen(state.screen)) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    Text(if (chat) "Conversation" else "StoxSim", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    if (chat) TextButton({ navigate("Finwiz") }) { Text("History") }
+                } else if (signedIn && state.screen == "Portfolio analysis") {
                     IconButton({ navigate("Portfolio") }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                     Text("Portfolio analysis", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
                     IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh portfolio analysis") }
                 } else if (signedIn) {
-                    if (state.screen !in main) IconButton({ navigate(parentScreen(state.screen)) }, Modifier.size(32.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    if (state.screen !in main) IconButton({ navigate(parentScreen(state.screen)) }, Modifier.size(48.dp)) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                     OutlinedTextField(query, { query = it.take(100); search(query) }, placeholder = { Text("Search stocks & ETFs", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         singleLine = true, enabled = !state.working, shape = RoundedCornerShape(28.dp), textStyle = MaterialTheme.typography.bodyMedium,
                         colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
@@ -179,7 +186,7 @@ internal fun productTab(screen: String) = when (screen) {
                             if (!state.working && query.isNotBlank()) { focus.clearFocus(); search(query) }
                         }))
                     Surface(onClick = { focus.clearFocus(); navigate("Account") }, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.size(42.dp).semantics { contentDescription = "Account settings" }, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        modifier = Modifier.size(48.dp).semantics { contentDescription = "Account settings" }, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                         Box(contentAlignment = Alignment.Center) { Text(state.user?.displayName?.trim()?.take(1)?.uppercase().orEmpty(), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) }
                     }
                 } else {
@@ -191,23 +198,25 @@ internal fun productTab(screen: String) = when (screen) {
             if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
         }
     }, bottomBar = {
-        if (signedIn) Surface(shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        if (signedIn && !finwiz) Surface(shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
             val items = listOf(
                 Triple("Home", "Home", Icons.Default.Home),
                 Triple("Markets", "Markets", Icons.Default.Search),
-                Triple("Learn", "Learn", Icons.AutoMirrored.Filled.List),
-                Triple("Competitions", "Compete", Icons.Default.Star),
-                Triple("Account", "Account", Icons.Default.Person)
+                Triple("Finwiz", "Finwiz AI", Icons.Default.Star),
+                Triple("Portfolio", "Portfolio", Icons.AutoMirrored.Filled.List),
+                Triple("Account", "More", Icons.Default.MoreHoriz)
             )
             items.forEach { (route, label, icon) -> NavigationBarItem(selected = productTab(state.screen) == route,
                 onClick = { focus.clearFocus(); navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" },
-                icon = { Icon(icon, null, Modifier.size(24.dp)) },
-                colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.onSurface,
-                    selectedTextColor = MaterialTheme.colorScheme.onSurface, indicatorColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+                icon = { if (route == "Finwiz") Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.ic_nav_finwiz), null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.onPrimary) }
+                } else Icon(icon, null, Modifier.size(23.dp)) },
+                colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer),
                 label = { Text(label,
-                    style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center) }) }
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified), textAlign = TextAlign.Center) }) }
             }
         }
     }) { padding ->
@@ -217,7 +226,7 @@ internal fun productTab(screen: String) = when (screen) {
                 .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen == "Home") 8.dp else if (state.screen == "Finwiz") 12.dp else 16.dp)) {
                 if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab", "Portfolio analysis", "Reflections")) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                        Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else if (state.screen == "Account") "More" else if (state.screen == "Home") "Overview" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
                         IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh ${state.screen}") }
                     }
                 }
@@ -234,7 +243,7 @@ internal fun productTab(screen: String) = when (screen) {
         items.forEach { (route, label) ->
             val selected = route == items[index].first
             Surface(Modifier.weight(1f).clip(RoundedCornerShape(50)).selectable(selected, role = Role.Tab, onClick = { navigate(route) }),
-                shape = RoundedCornerShape(50), color = if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.background,
+                shape = RoundedCornerShape(50), color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
                 border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f) else MaterialTheme.colorScheme.outlineVariant)) {
                 Text(label, Modifier.padding(horizontal = 2.dp, vertical = 12.dp), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
             }

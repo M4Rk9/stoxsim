@@ -79,7 +79,7 @@ class VisualSmokeTest {
                     assertTrue("First mover price must fit above navigation", priceBottom <= navigationTop)
                 }
                 if (route == "Finwiz") compose.onNodeWithContentDescription("Select module Stock fundamentals").assertIsDisplayed()
-                capture("$filename-$appearance.png")
+                capture("$filename-$appearance.png", navigation = route !in listOf("Finwiz", "Finwiz chat"))
             }
         }
     }
@@ -107,10 +107,10 @@ class VisualSmokeTest {
                 }
             }
         } }
-        compose.waitForIdle(); capture("finwiz-compact-large-text.png")
+        compose.waitForIdle(); capture("finwiz-compact-large-text.png", navigation = false)
     }
     private fun capture(name: String, navigation: Boolean = true) {
-        if (navigation) listOf("Home", "Markets", "Learn", "Compete", "Account").forEach { label ->
+        if (navigation) listOf("Home", "Markets", "Finwiz AI", "Portfolio", "More").forEach { label ->
             compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
         }
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()

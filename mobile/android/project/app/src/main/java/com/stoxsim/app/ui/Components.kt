@@ -30,7 +30,7 @@ import java.util.Locale
 @Composable internal fun Panel(kicker: String = "", title: String = "", content: @Composable ColumnScope.() -> Unit) {
     Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (kicker.isNotBlank()) Kicker(kicker)
             if (title.isNotBlank()) Text(title, style = MaterialTheme.typography.titleLarge)
             content()
@@ -55,7 +55,7 @@ import java.util.Locale
 @Composable internal fun ValueRow(label: String, value: String, amount: BigDecimal? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-        Text(value, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontWeight = FontWeight.SemiBold, color = if (amount == null) MaterialTheme.colorScheme.onSurface else tone(amount))
+        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontWeight = FontWeight.SemiBold, color = if (amount == null) MaterialTheme.colorScheme.onSurface else tone(amount))
     }
 }
 @Composable internal fun tone(amount: BigDecimal) = if (amount.signum() >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -83,7 +83,7 @@ internal fun regionLabel(region: String) = if (region == "INDIA") "India" else "
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Muted(number(marks.maxOrNull())); Muted(number(marks.minOrNull())) }
         Canvas(Modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = title }
-            .pointerInput(values) { detectTapGestures { point -> selected = ((point.x / size.width) * (values.size - 1)).toInt().coerceIn(0, values.lastIndex) } }) {
+            .pointerInput(values) { detectTapGestures { point -> if (values.isNotEmpty()) selected = ((point.x / size.width) * (values.size - 1)).toInt().coerceIn(0, values.lastIndex) } }) {
             val inset = 8.dp.toPx()
             fun point(index: Int, value: BigDecimal) = Offset(inset + index.toFloat() / (values.size - 1).coerceAtLeast(1) * (size.width - inset * 2),
                 size.height - inset - ((value.toDouble() - low) / span).toFloat() * (size.height - inset * 2))
@@ -113,12 +113,12 @@ internal fun regionLabel(region: String) = if (region == "INDIA") "India" else "
     if (weights.isEmpty()) return
     val colors = listOf(0xFF7C6EE6, 0xFF00B386, 0xFFF2B85B, 0xFF5F9DE8, 0xFFE889A5, 0xFF8EB68A).map { androidx.compose.ui.graphics.Color(it) }
     Canvas(Modifier.fillMaxWidth().height(180.dp).semantics { contentDescription = "Sector allocation as a share of invested value" }) {
-        val diameter = size.height - 32.dp.toPx()
+        val diameter = (minOf(size.height, size.width) - 32.dp.toPx()).coerceAtLeast(1f)
         val left = (size.width - diameter) / 2
         var start = -90f
         weights.forEachIndexed { index, value ->
             val sweep = value.toFloat().coerceIn(0f, 100f) * 3.6f
-            drawArc(colors[index % colors.size], start, sweep, false, Offset(left, 16.dp.toPx()), androidx.compose.ui.geometry.Size(diameter, diameter), style = Stroke(24.dp.toPx()))
+            drawArc(colors[index % colors.size], start, sweep, false, Offset(left, (size.height - diameter) / 2), androidx.compose.ui.geometry.Size(diameter, diameter), style = Stroke(24.dp.toPx()))
             start += sweep
         }
     }

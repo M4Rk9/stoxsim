@@ -35,7 +35,7 @@ import com.stoxsim.app.data.*
     AccountLink("Notifications", "Your updates and communication preferences", navigate)
     AccountLink("Profile & security", "Profile, passwords, sessions and your data", navigate)
     Panel(title = "More from StoxSim") {
-        listOf("Learning path" to "Challenges & achievements", "Competitions" to "Leaderboard & private leagues", "Campus" to "Your institution & competitions", "Weekly reports" to "Reports & email preferences").forEach { (route, label) ->
+        listOf("Learn" to "Learning tools", "Reflections" to "Strategy journal", "Scenario Lab" to "Scenario Lab", "Learning path" to "Challenges & achievements", "Competitions" to "Leaderboard & private leagues", "Campus" to "Your institution & competitions", "Weekly reports" to "Reports & email preferences").forEach { (route, label) ->
             TextButton({ navigate(route) }, modifier = Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(label); Text("→") } }
         }
     }

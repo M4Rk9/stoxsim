@@ -20,7 +20,15 @@ import com.stoxsim.app.data.*
 import org.json.JSONObject
 
 @Composable internal fun LearnerHome(state: AppState, model: AppViewModel) {
-    Panel("RESEARCH · PRACTISE · REVIEW", "Test your thinking.") {
+    PortfolioMetrics(state)
+    Panel(title = "Your workspace") {
+        listOf("Watchlist" to "Watchlist", "Scenario Lab" to "Scenario Lab", "Learning path" to "Learning Path", "Reflections" to "Strategy Journal").forEach { (route, label) ->
+            OutlinedButton({ model.openScreen(route) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(label); Text("→") }
+            }
+        }
+    }
+    Panel(title = "Research and review") {
         Text("Research a company, form a view and practise with virtual money. Review the evidence, not just the return.")
         Button({ model.openScreen("Markets") }) { Text("Explore a company") }
         OutlinedButton({ model.openScreen("Reflections") }) { Text("Open strategy journal") }
@@ -30,7 +38,6 @@ import org.json.JSONObject
         }
         if (due > 0) Muted("$due review${if (due == 1) "" else "s"} due in your journal")
     }
-    PortfolioMetrics(state)
     val recommendation = state.data["learnerHome"]?.optJSONObject("recommendation")
     if (recommendation != null) Panel("YOUR NEXT LEARNING STEP", recommendation.text("title")) {
         Text(recommendation.text("description"))

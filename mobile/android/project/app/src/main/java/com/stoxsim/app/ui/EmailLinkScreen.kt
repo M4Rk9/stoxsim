@@ -23,7 +23,7 @@ import com.stoxsim.app.data.EmailAction
     var browserError by remember { mutableStateOf<String?>(null) }
     val reset = action == EmailAction.RESET_PASSWORD
     val valid = !reset || (password.length in 8..72 && password.toByteArray(Charsets.UTF_8).size <= 72 && password == repeated)
-    Surface(Modifier.fillMaxSize()) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Text(if (reset) "Choose a new password" else "Verify your email", style = MaterialTheme.typography.headlineLarge)
@@ -36,7 +36,7 @@ import com.stoxsim.app.data.EmailAction
             }
             Message(error ?: browserError, null)
             Button({ confirm(if (reset) password else null); password = ""; repeated = "" }, enabled = !working && valid,
-                modifier = Modifier.fillMaxWidth()) { Text(if (working) "Please wait…" else if (reset) "Reset password" else "Verify email") }
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(if (working) "Please wait…" else if (reset) "Reset password" else "Verify email") }
             TextButton({
                 browserUrl()?.let { url ->
                     try {

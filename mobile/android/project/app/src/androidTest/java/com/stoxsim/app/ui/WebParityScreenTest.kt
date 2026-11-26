@@ -69,7 +69,7 @@ class WebParityScreenTest {
         compose.onNodeWithContentDescription("Open Markets").assertIsSelected()
         compose.onNodeWithContentDescription("Account settings").performClick()
         compose.runOnIdle { assertEquals("Account", destination) }
-        compose.onNodeWithContentDescription("Open Account").assertIsSelected()
+        compose.onNodeWithContentDescription("Open More").assertIsSelected()
     }
     @Test fun darkThemeUsesWebsiteColours() {
         var background = 0L; var primary = 0L; var selected = 0L

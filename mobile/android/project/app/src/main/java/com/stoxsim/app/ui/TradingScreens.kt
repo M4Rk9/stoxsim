@@ -50,14 +50,15 @@ import java.math.RoundingMode
 
 @Composable internal fun PortfolioMetrics(state: AppState) {
     val p = state.portfolio
-    Panel(kicker = "${state.account?.kind ?: "STANDARD"} · ${regionLabel(state.region)} PORTFOLIO") {
-        Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge)
-        Muted("Account value · Started with ${money(p?.capital ?: state.account?.capital, state.currency)}")
+    Panel(kicker = "${regionLabel(state.region)} · PRACTICE PORTFOLIO") {
+        Muted("Portfolio value")
+        Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
+        p?.returnPercent?.let { Text(percent(it), color = tone(it)) }
+        Muted("Started with ${money(p?.capital ?: state.account?.capital, state.currency)}")
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         ValueRow("Available cash", money(p?.cash ?: state.account?.cash, state.currency))
         ValueRow("Reserved cash", money(p?.blocked ?: state.account?.blocked, state.currency))
         ValueRow("Unrealized P/L", money(p?.unrealized, state.currency), p?.unrealized)
-        ValueRow("Total return", percent(p?.returnPercent), p?.returnPercent)
         ValueRow("All-time P/L", money(p?.profitLoss, state.currency), p?.profitLoss)
         PortfolioPricingNotice(p)
         p?.let { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Status(it.status); Muted("Valued ${time(it.valuedAt)}") } }
@@ -355,7 +356,7 @@ import java.math.RoundingMode
             Text("${trade.text("side")} ${trade.text("quantity")} × ${trade.text("symbol")}", fontWeight = FontWeight.Bold)
             ValueRow("Execution price", money(trade.decimal("price"), state.currency))
             ValueRow("Charges", money(trade.decimal("charges"), state.currency)); ValueRow("Net cash effect", money(trade.decimal("netCashEffect"), state.currency))
-            Muted("${time(trade.text("executedAt"))} · Simulated charges · ${trade.text("chargeScheduleVersion")}")
+            Muted("${time(trade.text("executedAt"))} · Simulated charges")
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }

@@ -49,8 +49,8 @@ import com.stoxsim.app.R
                 Text("StoxSim", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Your edge starts\nwith practice.", style = MaterialTheme.typography.headlineLarge)
-                Text("Stocks. Finwiz AI. Scenario Lab.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Paper Trade Like Never Before.", style = MaterialTheme.typography.headlineLarge)
+                Text("Research smarter, Practice Better.", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
             }
             Panel { AuthScreen(state, authenticate, forgot, clearMessage, google) }
         }
