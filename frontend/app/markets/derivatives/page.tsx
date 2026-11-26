@@ -210,7 +210,8 @@ export default function DerivativesPage() {
     {enabled === undefined && <p role="status">Checking virtual derivatives access…</p>}
     {enabled === false && <section className={styles.card}><h2>Availability</h2><p role="status">{catalogError || "Virtual derivatives are currently unavailable."}</p><p>{catalogError ? "Please retry when your connection is available." : "This server has not enabled virtual F&O trading. Contract selection, quotes and orders will appear here when it is enabled."}</p><a href="/markets/derivatives">Check again</a></section>}
     {enabled && <>
-      <section className={styles.card} aria-label="Practice guide">
+      <nav className={styles.sectionNav} aria-label="Derivatives sections"><a href="#derivative-market-heading">Contracts</a><a href="#derivative-positions-heading">Wallet and positions</a>{ticket && <a href="#derivative-order">Order review</a>}</nav>
+      <section className={`${styles.card} ${styles.guide}`} aria-label="Practice guide">
         <div className={styles.controls}>
           <button type="button" aria-pressed={!advanced} onClick={() => setAdvanced(false)}>Beginner view</button>
           <button type="button" aria-pressed={advanced} onClick={() => setAdvanced(true)}>Advanced view</button>
@@ -220,7 +221,7 @@ export default function DerivativesPage() {
           one lot contains the contract’s stated number of units. Futures expose you to the full contract value.</p>}
         <p>Contract prices and option premiums are not the index spot price. Spot, Greeks and open interest are unavailable in this workspace.</p>
       </section>
-      <section className={styles.card} aria-labelledby="derivative-market-heading">
+      <section className={`${styles.card} ${styles.chainCard}`} aria-labelledby="derivative-market-heading">
         <h2 id="derivative-market-heading">NSE index contracts</h2>
         <div className={styles.controls}>
           <label>Underlying <select value={index} disabled={working} onChange={event => { setIndex(event.target.value as typeof index); setTicket(undefined); setPreview(undefined); }}>
@@ -252,8 +253,8 @@ export default function DerivativesPage() {
             <button type="button" disabled={!market.fresh || working} onClick={() => start(market, "OPEN_SHORT")}>Open short</button>
           </div>
         </div>)}
-        {strikes.size > 0 && <div className={styles.table}>
-          <table aria-label="Index option chain">
+        {strikes.size > 0 && <div className={styles.table} role="region" aria-label="Scrollable option chain" tabIndex={0}>
+          <table aria-label="Index option chain" className={styles.chain}>
             <thead><tr><th scope="col">Call</th><th scope="col">Strike</th><th scope="col">Put</th></tr></thead>
             <tbody>{[...strikes].map(([strike, row]) => <tr key={strike}>
               <td>{row.call && <><MarketQuote market={row.call} />{advanced && <small>{row.call.contract.symbol} · {row.call.contract.providerKey ?? row.call.contract.id}</small>}<button type="button" disabled={!row.call.fresh || working} onClick={() => row.call && start(row.call, "OPEN_LONG")} aria-label={`Buy ${strike} call`}>Buy call</button></>}</td>
@@ -269,7 +270,7 @@ export default function DerivativesPage() {
         <p>Source: Upstox · Times in IST · A fresh provider quote is required for a virtual fill.</p>
       </section>
 
-      {ticket && <form className={styles.card} onSubmit={submit} id="derivative-order" tabIndex={-1}>
+      {ticket && <form className={`${styles.card} ${styles.ticket}`} onSubmit={submit} id="derivative-order" tabIndex={-1}>
         <h2>{actions[ticket.action]}</h2>
         <p>{ticket.market.contract.symbol} · NSE · {ticket.market.contract.expiry} · {ticket.market.contract.lotSize} units per lot</p>
         <div className={styles.controls}>
@@ -318,7 +319,7 @@ export default function DerivativesPage() {
         onFilled={message => { setNotice(message); setTicket(undefined); setPreview(undefined); setRevision(value => value + 1); }} />
       {notice && <p role="status">{notice}</p>}
 
-      <section className={styles.card} aria-labelledby="derivative-positions-heading">
+      <section className={`${styles.card} ${styles.wallet}`} aria-labelledby="derivative-positions-heading">
         <h2 id="derivative-positions-heading">Virtual positions and wallet</h2>
         {portfolioError && <p role="alert">{portfolioError}</p>}
         {portfolio && <>

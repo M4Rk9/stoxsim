@@ -243,7 +243,7 @@ export default function FinwizPage() {
   return <main className={styles.shell} id="main-content" tabIndex={-1}>
     <aside ref={historyPanel} id="chat-history" className={`${styles.sidebar} ${historyOpen ? styles.open : ""}`} aria-label="Chat history">
       <Brand />
-      <button disabled={loading} onClick={newChat}>+ New chat</button><h2>Recent chats</h2>
+      <button className={styles.newChat} disabled={loading} onClick={newChat}>+ New chat</button><h2>Recent chats</h2>
       <div className={styles.historyList}>{!chats.length && <p>Your conversations will appear here.</p>}{chats.map(chat => <button key={chat.id} disabled={loading} aria-current={activeId === chat.id ? "page" : undefined} onClick={() => {
         setActiveId(chat.id); setSubmittedQuestion(""); setError(""); setQuestion(""); setHistoryOpen(false); requestAnimationFrame(() => document.getElementById("finwiz-question")?.focus());
       }}>{chat.title}</button>)}</div>
@@ -262,7 +262,7 @@ export default function FinwizPage() {
     </header>
 
     <section className={styles.conversation} id="finwiz-response" aria-live="polite">
-      {!current && !submittedQuestion && <div className={styles.welcome}><span>YOUR LEARNING COMPANION</span><h2>What would you like to understand?</h2><p>Explore markets, make sense of a company, or learn from your paper trades.</p><a href="/learn#learning-map">Find a topic in your learning map →</a></div>}
+      {!current && !submittedQuestion && <div className={styles.welcome}><div className={styles.welcomeMark} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9Z" fill="currentColor"/></svg></div><span>YOUR LEARNING COMPANION</span><h2>What would you like to understand?</h2><p>Explore markets, make sense of a company, or learn from your paper trades.</p><div className={styles.starters} aria-label="Suggested starting questions">{["Explain a company’s financial statements","Help me understand portfolio risk","Review a virtual trading decision"].map(prompt => <button key={prompt} type="button" disabled={loading} onClick={() => {setQuestion(prompt); document.getElementById("finwiz-question")?.focus();}}>{prompt}</button>)}</div><a href="/learn#learning-map">Find a topic in your learning map →</a></div>}
       {current?.turns.map((turn, index) => <article key={index}>
         <div className={styles.userMessage}><div>{turn.question}</div></div>
         <div className={styles.assistantMessage}><div className={styles.assistantMark}>F</div><div className={styles.assistantBody}>

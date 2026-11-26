@@ -356,15 +356,19 @@ export default function StockPage() {
       </section>
 
       <PricingNotice source={quote.pricingSource} />
+      <nav className={styles.sectionNav} aria-label="Company research sections">
+        <a href="#price-history">Chart</a><a href="#fundamentals">Fundamentals</a><a href="#financial-statements">Financials</a><a href="#company-news-heading">News</a><a href="#practice-trade">Practice order</a>
+      </nav>
       <section className={styles.grid}>
         <div className={styles.stack}>
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Price history</h2><p>{`${intervalLabel(range)} prices · inspect the chart to explore`}</p></div>
+              <div><h2 id="price-history">Price history</h2><p>{`${intervalLabel(range)} prices · inspect the chart to explore`}</p></div>
               <div className={styles.rangeTabs}>
                 {chartRanges.map((months) => <button
                   type="button"
                   key={months}
+                  aria-pressed={range === months}
                   className={range === months ? styles.active : ""}
                   onClick={() => setRange(months)}
                 >{rangeLabel(months)}</button>)}
@@ -375,7 +379,7 @@ export default function StockPage() {
 
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Company fundamentals</h2><p>Business profile and valuation context</p></div>
+              <div><h2 id="fundamentals">Company fundamentals</h2><p>Business profile and valuation context</p></div>
               {insights && <span className={styles.status}>{insights.status}</span>}
             </div>
             {insightsLoading && !insights && <div className={styles.empty} role="status" aria-live="polite">Loading company fundamentals…</div>}
@@ -402,10 +406,10 @@ export default function StockPage() {
 
           <article className={styles.card}>
             <div className={styles.cardHeader}>
-              <div><h2>Financial performance</h2><p>{insights?.financials?.unitsIn ? `Figures in ${insights.financials.unitsIn}` : "Financial units unavailable"}{insights?.financials?.statementType ? ` · ${insights.financials.statementType}` : ""}</p></div>
+              <div><h2 id="financial-statements">Financial performance</h2><p>{insights?.financials?.unitsIn ? `Figures in ${insights.financials.unitsIn}` : "Financial units unavailable"}{insights?.financials?.statementType ? ` · ${insights.financials.statementType}` : ""}</p></div>
               <div className={styles.rangeTabs}>
-                <button type="button" className={period === "quarterly" ? styles.active : ""} onClick={() => setPeriod("quarterly")}>Quarterly</button>
-                <button type="button" className={period === "yearly" ? styles.active : ""} onClick={() => setPeriod("yearly")}>Yearly</button>
+                <button type="button" aria-pressed={period === "quarterly"} className={period === "quarterly" ? styles.active : ""} onClick={() => setPeriod("quarterly")}>Quarterly</button>
+                <button type="button" aria-pressed={period === "yearly"} className={period === "yearly" ? styles.active : ""} onClick={() => setPeriod("yearly")}>Yearly</button>
               </div>
             </div>
             <FinancialTable financials={insights?.financials} loading={insightsLoading} />
@@ -438,7 +442,7 @@ export default function StockPage() {
             </div>
           </article>
           <article className={styles.card}>
-            <div className={styles.cardHeader}><div><h2>Practise a trade</h2><p>Open a ticket for this exact listing</p></div></div>
+            <div className={styles.cardHeader}><div><h2 id="practice-trade">Practise a trade</h2><p>Open a ticket for this exact listing</p></div></div>
       <div className={styles.tradeActions} aria-label="Virtual trading">
         {["EQUITY", "ETF"].includes(instrument.instrumentType) ? <>
           <a href={`/journal?${new URLSearchParams({ exchange: instrument.exchange, symbol: instrument.tradingSymbol })}`}>Plan a strategy</a>

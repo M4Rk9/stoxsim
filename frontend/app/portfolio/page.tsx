@@ -300,13 +300,14 @@ export default function PortfolioPage() {
     {portfolio && <>
       <PortfolioPricingNotice holdings={portfolio.holdings} />
 
-      <section className={styles.metrics}>
+      <section className={styles.metrics} id="portfolio-overview" aria-label="Portfolio balances">
         <article><span>Account value</span><strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong><small>Started with {money(portfolio.startingCapital, portfolio.currency)}</small></article>
         <article><span>Available cash</span><strong>{money(portfolio.availableCash, portfolio.currency)}</strong><small>{money(portfolio.blockedCash, portfolio.currency)} blocked</small></article>
         <article><span>Invested value</span><strong>{money(portfolio.investedValue, portfolio.currency)}</strong><small>Market value {money(portfolio.marketValue, portfolio.currency)}</small></article>
         <article><span>Total P/L</span><strong className={portfolio.totalProfitLoss >= 0 ? styles.positive : styles.negative}>{money(portfolio.totalProfitLoss, portfolio.currency)}</strong><small>{portfolio.totalReturnPercent.toFixed(2)}% total return</small></article>
       </section>
 
+      <nav className={styles.sectionNav} aria-label="Portfolio sections"><a href="#portfolio-overview">Balances</a>{account && <a href="#portfolio-history">Performance and risk</a>}{insights && <a href="#portfolio-analytics-title">Allocation</a>}<a href="#portfolio-holdings">Holdings</a><a href="/#recent-trades">Recent transactions</a></nav>
       {account && <PortfolioHistory key={account.id} accountId={account.id} />}
 
       {insights && <section className={styles.analytics} aria-labelledby="portfolio-analytics-title">
@@ -376,12 +377,12 @@ export default function PortfolioPage() {
 
       </section>}
 
-      <section className={styles.holdings}>
+      <section className={styles.holdings} id="portfolio-holdings">
         <div className={styles.sectionHeader}>
           <div><span>{region === "INDIA" ? "INDIA" : "UNITED STATES"}</span><h2>{region === "INDIA" ? "India holdings" : "United States holdings"}</h2></div>
           <small>{portfolio.holdings.length} current {portfolio.holdings.length === 1 ? "position" : "positions"} · {dateTime(portfolio.valuedAt)}</small>
         </div>
-        <div className={styles.tableWrap}>
+        <div className={styles.tableWrap} role="region" aria-label="Scrollable holdings" tabIndex={0}>
           <table>
             <thead><tr><th>Stock</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Market value</th><th>Unrealized P/L</th></tr></thead>
             <tbody>

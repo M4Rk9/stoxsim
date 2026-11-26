@@ -8,7 +8,7 @@ export default function JournalPage() {
       <h1>Strategy journal</h1><p>Write the view. Test it with virtual money. Return to the evidence.</p>
     </div>
     <nav className={styles.tools} aria-label="Research and practice tools"><a href="/#stock-search">Explore markets →</a><a href="/finwiz">Examine an idea with Finwiz</a><a href="/portfolio">Review portfolio</a><a href="/scenario-lab">Scenario Lab</a><a href="/competitions">Competitions</a></nav>
-    <DecisionReflections journal />
+    <div className={styles.journalWorkspace}><DecisionReflections journal /></div>
     <p className={styles.note}>A profitable result does not prove a sound decision. Review your evidence, assumptions and risk choices separately from the outcome.</p>
   </main>;
 }

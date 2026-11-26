@@ -16,3 +16,9 @@
 .crosshair { stroke: var(--muted); stroke-dasharray: 4 3; }
 .point, .marker { fill: var(--ink); stroke: var(--panel); }
 .empty { padding: 28px 12px; color: var(--muted); }
+
+.chart { background:var(--panel); border-radius:var(--radius-md); padding:14px; }
+.controls button { min-height:44px; border-radius:var(--radius-sm); }
+.readout strong,.axisDates { font-family:var(--font-numeric); font-variant-numeric:tabular-nums; }
+.chart svg { height:clamp(190px,28vw,330px); }
+@media(max-width:480px){ .chart { padding:8px; } .readout { gap:6px 10px; } }

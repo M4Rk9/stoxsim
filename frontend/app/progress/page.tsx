@@ -160,6 +160,7 @@ export default function ProgressPage() {
     {error && <div className={styles.error} role="alert">{error} <a href="/">Return to dashboard</a></div>}
 
     {progression && <>
+      <nav className={styles.sectionNav} aria-label="Learning progress sections"><a href="#challenges-title">Missions</a><a href="#achievements-title">Achievements</a><a href="/learn#learning-map">Learning map</a></nav>
       <section className={styles.overview} aria-label="Level progress">
         <article className={styles.levelCard}>
           <div className={styles.levelBadge} aria-hidden="true">{progression.level}</div>

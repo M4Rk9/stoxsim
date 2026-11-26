@@ -45,3 +45,21 @@ Complete M1 pending items, test and resolve regressions, update journal. No merg
 
 ### Rendered baseline evidence review
 Inspected all six real Chromium Home screenshots from the successful prior candidate 1290a30 (artifact 15059565230): 320, 390 and 1280px in light and dark. Desktop sidebar, header, typography hierarchy and portfolio surfaces were visually coherent; mobile header avatar overlapped market selector at 320/390, and long account figures wrapped mid-number at 320. Reserved first header row and reduced narrow metric font size/padding; added responsive test to assert avatar and switcher separation. Prior screenshots use synthetic API fixtures, not live market prices. Expanded font check to require actual loaded FontFace records. Latest candidate screenshot inspection and final CI still pending; previous render is not evidence for the new commit.
+
+## Milestone 2 — Complete web redesign
+M1 PR #200 merged into main at 76f64e1cb45f41652fe285b3d7bfcab64e0f9287. Final M1 CI run 45691884176 passed; production smoke tests not independently verified. Original approved spec and frontend ZIP reviewed, no demo data or logic copied.
+
+### Batch 2A — Markets, research and trading (candidate)
+- Updated existing market, filter, watchlist and equity ticket surfaces; stock detail gets a real section navigation, prominent exact-listing price, accessible chart range/period selections, consistent charts, statements, news and virtual trade action hierarchy.
+- Redesigned F&O terminal with contract/position navigation, distinct chain and risk-review surfaces, scrollable accessible option table, numeric typography, explicit risk and wallet styling. No changes to providers, freshness, order preview, expiry, fees, margin, acknowledgment, idempotency or execution rules.
+- Existing regression suite retained; expanded derivatives navigation assertion. Static replacement preconditions and CSS brace checks performed. Local clone blocked by DNS; runtime verification via PR CI pending. Do not claim M2 release readiness.
+
+### Batch 2B — Portfolio and intelligence (candidate)
+- Added portfolio section shortcuts for actual balances, performance/risk, allocation, holdings and existing dashboard recent transactions; responsive numeric tables and analytics, benchmark chart palette, StoxScore component styling. No new transaction feed or invented history; existing entitlement and calculations retained.
+- Refined Finwiz full-screen chat/sidebar, active history, messages and composer; added three editable starter prompts (never auto-submit). Account-scoped device history, provider calls, context controls, safety notices and subscription enforcement untouched.
+- Refined journal and shared decision/reflection components. Added portfolio shortcut regression assertion. Static source preconditions and CSS brace checks passed. M2A CI started (45694934846); local runtime blocked by DNS, so per-batch browser results are not yet verified. All batches require full CI before merge.
+
+### Batch 2C — Learning, engagement and administration (candidate)
+- Refined Scenario Lab builder and result surfaces, learning map and progress, emerald mission/achievement states, competition and campus screens, settings, billing plans, notification/list components, owner analytics, public status and legal-document presentation. Added anchor navigation for learning, competitions and analytics. Existing actions and permission checks remain unchanged.
+- Existing Home updates remain the feed surface; no new backend or feed route created. Billing pricing and provider rules unchanged. Status page uses semantic theme colours; legal copy unchanged. Added responsive status screenshots/test.
+- Source replacement preconditions and CSS brace validation completed for each batch. All changes are candidates pending fresh GitHub CI and actual rendered review; per-batch runtime gating could not be completed locally (DNS). Do not mark all assigned tasks verified: comprehensive route-level visual review, existing transaction history scope and StoxScore integration should be checked, along with M2 cross-screen consistency. No merge, deploy, or Android changes.

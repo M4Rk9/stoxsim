@@ -355,6 +355,7 @@ export default function CompetitionsPage() {
     {error && <div className={styles.error} role="alert">{error}</div>}
 
     {board && <>
+      <nav className={styles.sectionNav} aria-label="Competition sections"><a href="#global-standings">Standard standings</a><a href="#premium-standings">Pro standings</a>{campus && <a href="#campus-title">Campus verification</a>}</nav>
       <section className={styles.seasonCard}>
         <div><span>CURRENT SEASON</span><h2>{board.season.title}</h2><p>{timestamp(board.season.startsAt)} – {timestamp(board.season.endsAt)}</p></div>
         <div className={styles.seasonFacts}><span>{board.participantCount} learners</span><span>{board.season.scoringVersion}</span></div>
@@ -370,13 +371,13 @@ export default function CompetitionsPage() {
       </section>}
 
       <section className={styles.board}>
-        <div className={styles.sectionHeading}><div><span>GLOBAL SEASON</span><h2>Standard leaderboard</h2></div><small>Top 50</small></div>
+        <div className={styles.sectionHeading}><div><span>GLOBAL SEASON</span><h2 id="global-standings">Standard leaderboard</h2></div><small>Top 50</small></div>
         <Standings standings={board.standings} />
         <p className={styles.note}>{board.comparisonNote}</p>
       </section>
 
       <section className={styles.board} aria-label="Pro competition">
-        <h2>Pro leaderboard</h2>
+        <h2 id="premium-standings">Pro leaderboard</h2>
         <p>A separate quarterly roster for eligible Pro learners, using the standard ₹5 lakh India portfolio. Paid sandbox capital is excluded. Test subscriptions are not eligible.</p>
         <button type="button" disabled={Boolean(busy)} onClick={() => void act("premium", async () => { setPremium(await authorized<Board>("/api/v1/competitions/premium")); })}>Open Pro leaderboard</button>
         {premium && <>

@@ -18,6 +18,7 @@ test("new history collects without fabricating past performance", async ({ page 
   await page.route("**/api/v1/accounts/*/portfolio/history?*", route => respond(route, history));
   await page.goto("/portfolio");
   await expect(page.getByRole("heading", { name: "Portfolio history", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Portfolio sections" }).getByRole("link", { name: "Performance and risk" })).toHaveAttribute("href", "#portfolio-history");
   await expect(page.getByText(/Your performance chart will appear/)).toBeVisible();
   await expect(page.getByRole("img", { name: /Portfolio and benchmark growth/ })).toHaveCount(0);
 });

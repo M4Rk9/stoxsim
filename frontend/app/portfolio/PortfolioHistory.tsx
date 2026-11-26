@@ -59,10 +59,10 @@ export default function PortfolioHistory({ accountId }: { accountId: string }) {
         <svg viewBox="0 0 700 195" role="img" aria-label={normalized ? "Portfolio and benchmark growth, starting at 100" : `Observed portfolio value in ${data.currency}`} style={{ width: "100%", maxHeight: 250 }}>
           <line x1="20" x2="680" y1="175" y2="175" stroke="currentColor" opacity="0.25" />
           {data.missingSessions === 0 && data.cashFlowBreaks === 0 && <>
-            <polyline points={line(false)} fill="none" stroke="#8876e5" strokeWidth="3" />
-            {normalized && <polyline points={line(true)} fill="none" stroke="#a6acb8" strokeWidth="2" strokeDasharray="5 4" />}
+            <polyline points={line(false)} fill="none" stroke="var(--green)" strokeWidth="3" />
+            {normalized && <polyline points={line(true)} fill="none" stroke="var(--muted)" strokeWidth="2" strokeDasharray="5 4" />}
           </>}
-          {data.points.map((p, i) => { const v = normalized ? p.portfolioIndex : p.equity; return v == null ? null : <circle key={p.day} cx={x(i)} cy={y(v)} r="3" fill="#8876e5"><title>{p.day}: {number(v)}</title></circle>; })}
+          {data.points.map((p, i) => { const v = normalized ? p.portfolioIndex : p.equity; return v == null ? null : <circle key={p.day} cx={x(i)} cy={y(v)} r="3" fill="var(--green)"><title>{p.day}: {number(v)}</title></circle>; })}
         </svg>
         <figcaption>{normalized ? "Portfolio · Dashed: benchmark · Starting value indexed to 100." : `Portfolio value (${data.currency}).`}</figcaption>
       </figure>}

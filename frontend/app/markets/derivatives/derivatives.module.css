@@ -39,3 +39,30 @@
 .future { overflow-wrap: anywhere; }
 
 @media (max-width: 600px) { .payoff svg text { font-size: 25px; } }
+
+/* M2A derivatives terminal: keep risk review, freshness and execution guards unchanged. */
+.shell { width:min(1320px,100%); padding-inline:clamp(12px,2vw,24px); }
+.header h1 { font-size:clamp(24px,3vw,36px); letter-spacing:-.04em; }
+.sectionNav { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
+.sectionNav a { display:inline-flex; align-items:center; min-height:44px; padding:8px 12px; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); text-decoration:none; }
+.sectionNav a:hover { color:var(--green); border-color:var(--green); }
+.card { min-width:0; border-radius:var(--radius-md); padding:clamp(14px,2vw,22px); }
+.guide { background:var(--surface-subtle); }
+.controls { align-items:flex-end; }
+.controls label { min-width:0; flex-wrap:wrap; color:var(--muted); font-size:13px; }
+.controls :is(button,select,input) { background:var(--input-surface); border-radius:var(--radius-sm); }
+.controls button[aria-pressed="true"] { background:var(--green-soft); color:var(--green); }
+.chain { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.chain thead th { background:var(--surface-soft); color:var(--muted); font-size:12px; }
+.chain th[scope="row"] { text-align:center; background:var(--surface-subtle); font-family:var(--font-numeric); white-space:nowrap; }
+.chain td { width:42%; }
+.chain td,.chain th { border-bottom:1px solid var(--line); vertical-align:top; }
+.chain td button:not(:disabled) { color:var(--green); background:var(--green-soft); border-color:var(--green); }
+.quote strong,.totals dd { font-family:var(--font-numeric); overflow-wrap:anywhere; }
+.totals > div { min-width:0; border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; background:var(--surface-subtle); }
+.ticket { border-color:var(--green); scroll-margin-top:16px; }
+.ticket button[type="submit"]:not(:disabled) { background:var(--green); color:var(--on-accent); border-color:var(--green); }
+.preview { padding-top:16px; }
+.warning { border-color:var(--red); background:var(--red-soft); padding:12px; border-radius:var(--radius-sm); color:var(--ink)!important; }
+.shell :global(#derivative-market-heading),.shell :global(#derivative-positions-heading) { scroll-margin-top:16px; }
+@media(max-width:480px) { .controls label { width:100%; justify-content:space-between; } .controls select { max-width:100%; } .totals { grid-template-columns:repeat(2,minmax(0,1fr)); } .totals > div { padding:9px; } }

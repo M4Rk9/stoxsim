@@ -67,6 +67,7 @@ test("virtual options show lots, stale futures, and reuse a request key on retry
     return reply(route, { id: "fill", symbol: contract.symbol, action: "OPEN_LONG", lots: 2, price: 81, realizedPnl: 0 });
   });
   await page.goto("/markets/derivatives");
+  await expect(page.getByRole("navigation", { name: "Derivatives sections" }).getByRole("link", { name: "Contracts" })).toHaveAttribute("href", "#derivative-market-heading");
   await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Markets" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Open short" })).toBeDisabled();
   await page.getByRole("searchbox", { name: "Find in loaded contracts" }).fill("99999");
