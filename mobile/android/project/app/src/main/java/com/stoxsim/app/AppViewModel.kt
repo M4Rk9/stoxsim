@@ -407,7 +407,10 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         when (mutable.value.screen) {
             "Home" -> {
                 portfolio(); read("onboarding", "onboarding"); read("journey", "onboarding/journey"); read("learnerHome", "learner/home"); read("notifications", "notifications"); list("reflections", "reflections")
-                if (id.isNotBlank()) list("trades", "accounts/$id/trades")
+                if (id.isNotBlank()) {
+                    list("trades", "accounts/$id/trades")
+                    read("homeHistory", "accounts/$id/portfolio/history", mapOf("days" to "30"))
+                }
             }
             "F&O" -> loadDerivatives()
             "Markets" -> { market(); portfolio(); read("watchlist", "watchlists/default") }

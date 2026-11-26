@@ -99,7 +99,7 @@ import com.stoxsim.app.data.*
             }
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(draft, { draft = it.take(2000) }, placeholder = { Text("Ask Finwiz…") }, modifier = Modifier.weight(1f), minLines = 1, maxLines = 4, enabled = !state.working)
-                FilledIconButton({ val question = draft.trim(); draft = ""; focus.clearFocus(); tab = "Modules"; startChat(selected, question) }, enabled = draft.isNotBlank() && !state.working && (inlineChat?.messages?.size ?: 0) < 40, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Send, "Send starting question") }
+                FilledIconButton({ val question = draft.trim(); draft = ""; focus.clearFocus(); startChat(selected, question); navigate("Finwiz chat") }, enabled = draft.isNotBlank() && !state.working && (inlineChat?.messages?.size ?: 0) < 40, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Send, "Send starting question") }
             }
         }
         Text("Your conversations", style = MaterialTheme.typography.titleLarge)
@@ -202,7 +202,7 @@ import com.stoxsim.app.data.*
                             SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                             if (message.role == "assistant") {
                                 if (message.tier.isNotBlank()) Muted("${message.tier.lowercase().replaceFirstChar { it.uppercase() }} depth")
-                                if (message.provider.isNotBlank()) Muted("${message.provider} · ${time(message.generatedAt)}")
+                                if (message.provider.isNotBlank()) Muted("Source: ${message.provider.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }} · ${time(message.generatedAt)}")
                                 if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
                                 message.suggestions.take(4).forEach { suggestion -> TextButton({ draft = suggestion.take(2000) }, enabled = !state.working) { Text(suggestion) } }
                             }

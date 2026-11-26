@@ -52,9 +52,15 @@ import java.math.RoundingMode
     val p = state.portfolio
     Panel(kicker = "${regionLabel(state.region)} · PRACTICE PORTFOLIO") {
         Muted("Portfolio value")
-        Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
+        Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FinancialFont))
         p?.returnPercent?.let { Text(percent(it), color = tone(it)) }
         Muted("Started with ${money(p?.capital ?: state.account?.capital, state.currency)}")
+        val history = state.data["homeHistory"]
+        val points = history?.objects("points").orEmpty()
+        if (points.any { it.decimal("equity") != null }) {
+            Muted("Recent observed portfolio value")
+            LineChart(points.map { it.decimal("equity") }, points.map { it.text("day") }, "Observed portfolio value", connect = history?.optInt("missingSessions") == 0 && history?.optInt("cashFlowBreaks") == 0)
+        }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         ValueRow("Available cash", money(p?.cash ?: state.account?.cash, state.currency))
         ValueRow("Reserved cash", money(p?.blocked ?: state.account?.blocked, state.currency))
@@ -241,7 +247,7 @@ import java.math.RoundingMode
         quote.price.subtract(quote.previous).multiply(BigDecimal(100)).divide(quote.previous, 4, RoundingMode.HALF_UP) else null
     Panel("${instrument.exchange} · ${regionLabel(instrument.region)}", instrument.symbol) {
         Text(instrument.name)
-        Text(money(quote?.price, instrument.currency), style = MaterialTheme.typography.headlineLarge)
+        Text(money(quote?.price, instrument.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FinancialFont))
         if (delta != null) Text(percent(delta), color = tone(delta))
         PricingNotice(quote?.pricingSource ?: "UNKNOWN")
         Status(quote?.status ?: "UNAVAILABLE"); Muted("Quote ${time(quote?.at.orEmpty())}")

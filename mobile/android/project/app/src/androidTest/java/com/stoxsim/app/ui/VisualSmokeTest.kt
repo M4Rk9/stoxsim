@@ -38,7 +38,7 @@ import java.math.BigDecimal
 class VisualSmokeTest {
     @get:Rule val compose = createComposeRule()
     @Test @SdkSuppress(minSdkVersion = 29) fun captureProductScreensInBothAppearances() {
-        val dark = mutableStateOf(false); val page = mutableStateOf("Markets")
+        val dark = mutableStateOf(false); val page = mutableStateOf("Markets"); val showLanding = mutableStateOf(false)
         val account = Account("INDIA", "Standard India", "STANDARD", "INR", BigDecimal("481725"), BigDecimal.ZERO, true, "synthetic", BigDecimal("500000"))
         val position = Position("EXAMPLE", "Example Company", 25, BigDecimal("20625"), "CLOSED", average = BigDecimal("731"), price = BigDecimal("825"), profit = BigDecimal("2350"), returnPercent = BigDecimal("12.86"))
         val portfolio = Portfolio("INR", BigDecimal("502350"), account.cash, BigDecimal("18275"), BigDecimal("2350"), "CLOSED", "2026-10-10T10:00:00Z", listOf(position), account.capital, unrealized = BigDecimal("2350"), returnPercent = BigDecimal("0.47"))
@@ -52,7 +52,7 @@ class VisualSmokeTest {
         compose.setContent { StoxSimTheme(dark.value) { AppFrame(base.copy(screen = page.value, dark = dark.value), {}, {}) {
             when (page.value) {
                 "Markets" -> StocksExplore(base, {}, {})
-                "Finwiz" -> FinwizHub(base, {}, { _, _, _ -> }, {}, {}, {})
+                "Finwiz" -> FinwizHub(base, {}, { _, _, _ -> }, {}, {}, {}, initialTab = if (showLanding.value) "Chats" else "Modules")
                 "Finwiz lesson" -> FinwizLesson(base, {}, {})
                 "Finwiz chat" -> FinwizChatScreen(base, {}, {})
                 "Account" -> AccountHub(base, {}, {}, {}, {}, {})
@@ -80,6 +80,11 @@ class VisualSmokeTest {
                 }
                 if (route == "Finwiz") compose.onNodeWithContentDescription("Select module Stock fundamentals").assertIsDisplayed()
                 capture("$filename-$appearance.png", navigation = route !in listOf("Finwiz", "Finwiz chat"))
+                if (route == "Finwiz") {
+                    compose.runOnIdle { showLanding.value = true }; compose.waitForIdle()
+                    capture("finwiz-landing-$appearance.png", navigation = false)
+                    compose.runOnIdle { showLanding.value = false }
+                }
             }
         }
     }

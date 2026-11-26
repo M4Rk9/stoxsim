@@ -101,6 +101,14 @@ class ProductNavigationTest {
         compose.onNodeWithContentDescription("Send question").performClick()
         compose.runOnIdle { assertEquals("How does it trade?", sent) }
     }
+    @Test fun finwizStarterDoesNotSendUntilExplicitAction() {
+        var sent = ""; var route = ""
+        compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { FinwizHub(state(), {}, { _, _, _ -> }, {}, {}, { route = it }, { _, question -> sent = question }, initialTab = "Chats") } } }
+        compose.onNodeWithText("Help me understand portfolio risk").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("", sent) }
+        compose.onNodeWithContentDescription("Send starting question").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("Help me understand portfolio risk", sent); assertEquals("Finwiz chat", route) }
+    }
     @Test fun newStockChatPreservesTopicAndSymbol() {
         var symbol = ""; var topic = ""
         compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { FinwizHub(state(), {}, { t, s, _ -> topic = t; symbol = s }, {}, {}, {}) } } }

@@ -71,3 +71,9 @@ M1 PR #200 merged into main at 76f64e1cb45f41652fe285b3d7bfcab64e0f9287. Final M
 - Preserved native Kotlin/Compose, API clients, ViewModel, auth, encrypted storage, deep links, feature entitlements, notifications, activity tracking and all order safeguards. No fake market data or AI responses added. Removed raw charge schedule version from trade display only.
 - Updated navigation and screenshot instrumentation assertions for approved navigation. Static source checks only so far. Android native workflow executes Gradle debug/release builds, unit tests, lint and emulator device tests; actual results and screenshots require verification. No merge, deploy or store release.
 - Remaining before M3 completion: explicit per-screen refinement beyond shared theme, cross-screen visual review, responsive and large-text verification, font asset integration if needed, and final native CI.
+
+### M3 typography and portfolio refinement
+- First Android native run 45799446838 failed compiling the unavailable MoreHoriz icon; replaced with supported MoreVert. Emulator was skipped, not passed.
+- Bundled existing licensed Plus Jakarta Sans, Inter and JetBrains Mono fonts into Android resources; use default variable axes and Compose weight synthesis. Glyph coverage and metrics need rendered verification.
+- Home displays real account-scoped observed history via the existing 30-day history endpoint. No invented graph; line connections suppressed across reported data gaps. Added portfolio transaction-history entry, improved Finwiz starter flow and extended tests.
+- Local Gradle execution blocked by unavailable Android SDK/Gradle and GitHub DNS. Native CI remains required; extra Home read should be measured in M4.
