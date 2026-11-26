@@ -85,3 +85,8 @@ M1 PR #200 merged into main at 76f64e1cb45f41652fe285b3d7bfcab64e0f9287. Final M
 ### M3 compact Home and screenshot coverage
 - Reduced Home chart height to 100dp; balance details remain available via an explicit disclosure. Secondary links use reusable native touch targets. Added light/dark Home fixture renders using the same production overview and links, with visible portfolio and chart assertions. These are synthetic test data, not live quotes.
 - Latest native workflow reruns on this head. Prior run was cancelled by workflow concurrency; no successful build or screenshot review claimed yet. No merge/deploy/store distribution.
+
+### M3 native emulator regression follow-up
+- Android native run 45800168642: build passed (debug/release, unit tests, lint and test APK); emulator ran 71 instrumentation tests, 68 passed and 3 failed. Logs identify outdated expectations in PremiumUiTest and WebParityScreenTest: full-screen Finwiz intentionally has no bottom nav, Orders belongs to Portfolio, and redesigned dark tokens are #050B09/#10E886/#123E2A.
+- Reworked the 320dp / 1.6x font-scale regression to assert the absence of navigation in Finwiz, navigate back to Home, verify all five actual labels and their rendered bounds, and confirm Portfolio selection. Added adaptive vertically growing bottom navigation at font scales above 1.3x; retain default Material 3 navigation otherwise. No test disabled, and exact theme assertions retained with approved values.
+- Changes are pending fresh Android workflow verification. Prior screenshots were collected by the failed emulator run; visual inspection remains outstanding. No merge, deploy or release.

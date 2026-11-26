@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -200,24 +203,8 @@ internal fun productTab(screen: String) = when (screen) {
     }, bottomBar = {
         if (signedIn && !finwiz) Surface(shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-            val items = listOf(
-                Triple("Home", "Home", Icons.Default.Home),
-                Triple("Markets", "Markets", Icons.Default.Search),
-                Triple("Finwiz", "Finwiz AI", Icons.Default.Star),
-                Triple("Portfolio", "Portfolio", Icons.AutoMirrored.Filled.List),
-                Triple("Account", "More", Icons.Default.MoreVert)
-            )
-            items.forEach { (route, label, icon) -> NavigationBarItem(selected = productTab(state.screen) == route,
-                onClick = { focus.clearFocus(); navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" },
-                icon = { if (route == "Finwiz") Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.ic_nav_finwiz), null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.onPrimary) }
-                } else Icon(icon, null, Modifier.size(23.dp)) },
-                colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer),
-                label = { Text(label,
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified), textAlign = TextAlign.Center) }) }
-            }
+            ProductNavigation(state.screen) { route -> focus.clearFocus(); navigate(route) }
+
         }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
@@ -237,6 +224,52 @@ internal fun productTab(screen: String) = when (screen) {
         }
     }
 }
+/** Let the navigation grow vertically for accessibility font sizes instead of clipping wrapped labels. */
+@Composable private fun ProductNavigation(screen: String, navigate: (String) -> Unit) {
+    val items = listOf(
+        Triple("Home", "Home", Icons.Default.Home),
+        Triple("Markets", "Markets", Icons.Default.Search),
+        Triple("Finwiz", "Finwiz AI", Icons.Default.Star),
+        Triple("Portfolio", "Portfolio", Icons.AutoMirrored.Filled.List),
+        Triple("Account", "More", Icons.Default.MoreVert)
+    )
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp)
+    if (LocalDensity.current.fontScale > 1.3f) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().height(IntrinsicSize.Min).selectableGroup()) {
+            items.forEach { (route, label, icon) ->
+                val selected = productTab(screen) == route
+                Column(Modifier.weight(1f).fillMaxHeight().heightIn(min = 80.dp)
+                    .selectable(selected = selected, role = Role.Tab, onClick = { navigate(route) })
+                    .semantics { contentDescription = "Open $label" }
+                    .padding(horizontal = 2.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Top)) {
+                    if (route == "Finwiz") Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(painterResource(R.drawable.ic_nav_finwiz), null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    } else Surface(shape = CircleShape, color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, modifier = Modifier.size(36.dp)) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(icon, null, Modifier.size(23.dp), tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Text(label, style = labelStyle, textAlign = TextAlign.Center, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    } else NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+        items.forEach { (route, label, icon) -> NavigationBarItem(selected = productTab(screen) == route,
+            onClick = { navigate(route) }, modifier = Modifier.semantics { contentDescription = "Open $label" },
+            icon = { if (route == "Finwiz") Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp)) {
+                Box(contentAlignment = Alignment.Center) { Icon(painterResource(R.drawable.ic_nav_finwiz), null, Modifier.size(23.dp), tint = MaterialTheme.colorScheme.onPrimary) }
+            } else Icon(icon, null, Modifier.size(23.dp)) },
+            colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary,
+                selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer),
+            label = { Text(label, style = labelStyle, textAlign = TextAlign.Center) })
+        }
+    }
+}
+
 @Composable internal fun StocksTabs(screen: String, navigate: (String) -> Unit) {
     val items = listOf("Markets" to "Explore", "Portfolio" to "Holdings", "Orders" to "Orders", "Watchlist" to "Watchlist")
     val index = items.indexOfFirst { it.first == screen }.coerceAtLeast(0)
