@@ -81,3 +81,7 @@ M1 PR #200 merged into main at 76f64e1cb45f41652fe285b3d7bfcab64e0f9287. Final M
 ### M3 screen-specific refinement
 - Refined derivative quote freshness presentation while retaining the exact contract, preview, acknowledgment and execution logic. Company financial chart colours, scenario builder and result surfaces, progress indicators, campus and account presentation now use shared tokens. All other existing Compose screens continue to inherit the new Material 3 theme and Panel design; no route removed.
 - M3 implementation candidate now contains native navigation, typography, authentication, portfolio-first Home, Markets, company/trading surfaces, derivatives, portfolio history, full-screen Finwiz and More. Device screenshots and full native build/lint/unit/instrumentation results remain mandatory before marking M3 complete. M4 includes comprehensive route, parity, accessibility and visual inspection. No merge or release.
+
+### M3 compact Home and screenshot coverage
+- Reduced Home chart height to 100dp; balance details remain available via an explicit disclosure. Secondary links use reusable native touch targets. Added light/dark Home fixture renders using the same production overview and links, with visible portfolio and chart assertions. These are synthetic test data, not live quotes.
+- Latest native workflow reruns on this head. Prior run was cancelled by workflow concurrency; no successful build or screenshot review claimed yet. No merge/deploy/store distribution.

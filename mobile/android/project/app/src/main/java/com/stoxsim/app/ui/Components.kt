@@ -70,7 +70,7 @@ internal fun regionLabel(region: String) = if (region == "INDIA") "India" else "
 /** Null marks and explicit history breaks leave gaps instead of implying unobserved returns. */
 @Composable internal fun LineChart(values: List<BigDecimal?>, labels: List<String>, title: String,
     benchmark: List<BigDecimal?> = emptyList(), connect: Boolean = true,
-    lineColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary) {
+    lineColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary, chartHeight: androidx.compose.ui.unit.Dp = 170.dp) {
     var selected by remember(values) { mutableIntStateOf(-1) }
     val primary = lineColor
     val grid = MaterialTheme.colorScheme.outlineVariant
@@ -82,7 +82,7 @@ internal fun regionLabel(region: String) = if (region == "INDIA") "India" else "
     val span = (high - low).coerceAtLeast(1.0)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Muted(number(marks.maxOrNull())); Muted(number(marks.minOrNull())) }
-        Canvas(Modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = title }
+        Canvas(Modifier.fillMaxWidth().height(chartHeight).semantics { contentDescription = title }
             .pointerInput(values) { detectTapGestures { point -> if (values.isNotEmpty()) selected = ((point.x / size.width) * (values.size - 1)).toInt().coerceIn(0, values.lastIndex) } }) {
             val inset = 8.dp.toPx()
             fun point(index: Int, value: BigDecimal) = Offset(inset + index.toFloat() / (values.size - 1).coerceAtLeast(1) * (size.width - inset * 2),

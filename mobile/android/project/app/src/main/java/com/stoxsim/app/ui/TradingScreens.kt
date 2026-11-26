@@ -59,13 +59,17 @@ import java.math.RoundingMode
         val points = history?.objects("points").orEmpty()
         if (points.any { it.decimal("equity") != null }) {
             Muted("Recent observed portfolio value")
-            LineChart(points.map { it.decimal("equity") }, points.map { it.text("day") }, "Observed portfolio value", connect = history?.optInt("missingSessions") == 0 && history?.optInt("cashFlowBreaks") == 0)
+            LineChart(points.map { it.decimal("equity") }, points.map { it.text("day") }, "Observed portfolio value", connect = history?.optInt("missingSessions") == 0 && history?.optInt("cashFlowBreaks") == 0, chartHeight = 100.dp)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         ValueRow("Available cash", money(p?.cash ?: state.account?.cash, state.currency))
-        ValueRow("Reserved cash", money(p?.blocked ?: state.account?.blocked, state.currency))
-        ValueRow("Unrealized P/L", money(p?.unrealized, state.currency), p?.unrealized)
-        ValueRow("All-time P/L", money(p?.profitLoss, state.currency), p?.profitLoss)
+        var details by rememberSaveable(state.accountId) { mutableStateOf(false) }
+        TextButton({ details = !details }) { Text(if (details) "Hide balance details" else "Show balance details") }
+        if (details) {
+            ValueRow("Reserved cash", money(p?.blocked ?: state.account?.blocked, state.currency))
+            ValueRow("Unrealized P/L", money(p?.unrealized, state.currency), p?.unrealized)
+            ValueRow("All-time P/L", money(p?.profitLoss, state.currency), p?.profitLoss)
+        }
         PortfolioPricingNotice(p)
         p?.let { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Status(it.status); Muted("Valued ${time(it.valuedAt)}") } }
         SectionError(state, "portfolio")
