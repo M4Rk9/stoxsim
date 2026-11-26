@@ -226,7 +226,7 @@ internal fun productTab(screen: String) = when (screen) {
                 .padding(horizontal = 16.dp, vertical = if (chat) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(if (chat || state.screen == "Home") 8.dp else if (state.screen == "Finwiz") 12.dp else 16.dp)) {
                 if (signedIn && state.screen !in stockPages && !chat && state.screen !in listOf("Finwiz", "Scenario Lab", "Portfolio analysis", "Reflections")) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        if (state.screen == "Home") Image(painterResource(R.drawable.stoxsim_logo), null, Modifier.size(28.dp).padding(end = 4.dp))
+                        if (state.screen == "Home") Image(painterResource(R.drawable.stoxsim_logo), "StoxSim", Modifier.size(28.dp).padding(end = 4.dp))
                         Text(if (state.screen == "Finwiz lesson") "Learn with Finwiz" else if (state.screen == "Account") "More" else if (state.screen == "Home") "Overview" else state.screen, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
                         IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh ${state.screen}") }
                     }

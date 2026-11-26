@@ -77,3 +77,7 @@ M1 PR #200 merged into main at 76f64e1cb45f41652fe285b3d7bfcab64e0f9287. Final M
 - Bundled existing licensed Plus Jakarta Sans, Inter and JetBrains Mono fonts into Android resources; use default variable axes and Compose weight synthesis. Glyph coverage and metrics need rendered verification.
 - Home displays real account-scoped observed history via the existing 30-day history endpoint. No invented graph; line connections suppressed across reported data gaps. Added portfolio transaction-history entry, improved Finwiz starter flow and extended tests.
 - Local Gradle execution blocked by unavailable Android SDK/Gradle and GitHub DNS. Native CI remains required; extra Home read should be measured in M4.
+
+### M3 screen-specific refinement
+- Refined derivative quote freshness presentation while retaining the exact contract, preview, acknowledgment and execution logic. Company financial chart colours, scenario builder and result surfaces, progress indicators, campus and account presentation now use shared tokens. All other existing Compose screens continue to inherit the new Material 3 theme and Panel design; no route removed.
+- M3 implementation candidate now contains native navigation, typography, authentication, portfolio-first Home, Markets, company/trading surfaces, derivatives, portfolio history, full-screen Finwiz and More. Device screenshots and full native build/lint/unit/instrumentation results remain mandatory before marking M3 complete. M4 includes comprehensive route, parity, accessibility and visual inspection. No merge or release.

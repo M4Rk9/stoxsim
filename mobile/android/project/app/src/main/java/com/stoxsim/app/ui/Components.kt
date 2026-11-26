@@ -55,7 +55,7 @@ import java.util.Locale
 @Composable internal fun ValueRow(label: String, value: String, amount: BigDecimal? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-        Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FinancialFont), textAlign = androidx.compose.ui.text.style.TextAlign.End, fontWeight = FontWeight.SemiBold, color = if (amount == null) MaterialTheme.colorScheme.onSurface else tone(amount))
+        Text(value, Modifier.weight(1f), style = if (value.any { it.isDigit() }) MaterialTheme.typography.bodyMedium.copy(fontFamily = FinancialFont) else MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.End, fontWeight = FontWeight.SemiBold, color = if (amount == null) MaterialTheme.colorScheme.onSurface else tone(amount))
     }
 }
 @Composable internal fun tone(amount: BigDecimal) = if (amount.signum() >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
