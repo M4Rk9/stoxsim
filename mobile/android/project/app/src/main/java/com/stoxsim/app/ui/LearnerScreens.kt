@@ -20,7 +20,9 @@ import com.stoxsim.app.data.*
 import org.json.JSONObject
 
 @Composable internal fun LearnerHome(state: AppState, model: AppViewModel) {
-    Panel("RESEARCH · PRACTISE · REVIEW", "Test your thinking.") {
+    PortfolioMetrics(state)
+    HomeWorkspaceLinks(model::openScreen)
+    Panel(title = "Research and review") {
         Text("Research a company, form a view and practise with virtual money. Review the evidence, not just the return.")
         Button({ model.openScreen("Markets") }) { Text("Explore a company") }
         OutlinedButton({ model.openScreen("Reflections") }) { Text("Open strategy journal") }
@@ -30,7 +32,6 @@ import org.json.JSONObject
         }
         if (due > 0) Muted("$due review${if (due == 1) "" else "s"} due in your journal")
     }
-    PortfolioMetrics(state)
     val recommendation = state.data["learnerHome"]?.optJSONObject("recommendation")
     if (recommendation != null) Panel("YOUR NEXT LEARNING STEP", recommendation.text("title")) {
         Text(recommendation.text("description"))
@@ -49,6 +50,21 @@ import org.json.JSONObject
         TextButton({ model.openScreen("Notifications") }) { Text("Notifications (${state.data["notifications"]?.optInt("unreadCount") ?: 0})") }
     }
     TextButton({ model.openScreen("Learner profile") }) { Text("Personalize learning") }
+}
+
+@Composable internal fun HomeWorkspaceLinks(navigate: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("Watchlist" to "Watchlist", "Scenario Lab" to "Scenario Lab", "Learning path" to "Learning Path", "Reflections" to "Strategy Journal").forEach { (route, label) ->
+            Surface(onClick = { navigate(route) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                    Text("→", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
 }
 
 @Composable internal fun LearnHub(state: AppState, navigate: (String) -> Unit) {

@@ -19,7 +19,7 @@ import com.stoxsim.app.data.*
     if (section == "StoxScore") Panel("PORTFOLIO STRUCTURE", "StoxScore") {
         SectionError(state, "analytics")
         state.data["analytics"]?.let { data ->
-            Text(data.decimal("stoxScore")?.let { "${number(it)} / 100" } ?: "Not enough data", style = MaterialTheme.typography.headlineMedium)
+            Text(data.decimal("stoxScore")?.let { "${number(it)} / 100" } ?: "Not enough data", style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FinancialFont))
             Status(data.text("structureBand")); Status(data.text("status"))
             ValueRow("Coverage", percent(data.decimal("dataCoveragePercent")))
             ValueRow("Largest position", percent(data.decimal("largestPositionWeightPercent")))
@@ -60,7 +60,7 @@ import com.stoxsim.app.data.*
 @Composable private fun AnalysisSummary(state: AppState) {
     PortfolioPricingNotice(state.portfolio)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge) }
+        Column(Modifier.weight(1f)) { Muted("Account value"); Text(money(state.portfolio?.total, state.currency), style = MaterialTheme.typography.titleLarge.copy(fontFamily = FinancialFont)) }
         Column(Modifier.weight(1f)) { Muted("Starting capital"); Text(money(state.portfolio?.capital, state.currency), style = MaterialTheme.typography.titleLarge) }
     }
     ValueRow("All-time return", percent(state.portfolio?.returnPercent), state.portfolio?.returnPercent)

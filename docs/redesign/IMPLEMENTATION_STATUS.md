@@ -63,3 +63,30 @@ M1 PR #200 merged into main at 76f64e1cb45f41652fe285b3d7bfcab64e0f9287. Final M
 - Refined Scenario Lab builder and result surfaces, learning map and progress, emerald mission/achievement states, competition and campus screens, settings, billing plans, notification/list components, owner analytics, public status and legal-document presentation. Added anchor navigation for learning, competitions and analytics. Existing actions and permission checks remain unchanged.
 - Existing Home updates remain the feed surface; no new backend or feed route created. Billing pricing and provider rules unchanged. Status page uses semantic theme colours; legal copy unchanged. Added responsive status screenshots/test.
 - Source replacement preconditions and CSS brace validation completed for each batch. All changes are candidates pending fresh GitHub CI and actual rendered review; per-batch runtime gating could not be completed locally (DNS). Do not mark all assigned tasks verified: comprehensive route-level visual review, existing transaction history scope and StoxScore integration should be checked, along with M2 cross-screen consistency. No merge, deploy, or Android changes.
+
+## Milestone 3 — Native Android redesign (candidate)
+- PR #202 merged; base main c2e6f1c910e0e1247bc80567ce85889d403ef73f. M2 latest CI 45701199975 passed. Web full transaction history and internal-label cleanup remain M4 follow-up; complete web visual audit remains outstanding.
+- Adopted native Material 3 obsidian/emerald light/dark palette, shared card/control shapes, financial numerical styling and existing logo; refreshed authentication, email action, dashboard overview, market/portfolio and all Panel-based secondary surfaces.
+- Primary destinations now Home, Markets, Finwiz AI, Portfolio, More; prominent circular Finwiz entry, full-screen hub and chat without bottom navigation, back/history access, preserved modules and session conversations. More links to learning, journal, scenarios, competitions, campus, account and billing. Existing stock subnavigation retained.
+- Preserved native Kotlin/Compose, API clients, ViewModel, auth, encrypted storage, deep links, feature entitlements, notifications, activity tracking and all order safeguards. No fake market data or AI responses added. Removed raw charge schedule version from trade display only.
+- Updated navigation and screenshot instrumentation assertions for approved navigation. Static source checks only so far. Android native workflow executes Gradle debug/release builds, unit tests, lint and emulator device tests; actual results and screenshots require verification. No merge, deploy or store release.
+- Remaining before M3 completion: explicit per-screen refinement beyond shared theme, cross-screen visual review, responsive and large-text verification, font asset integration if needed, and final native CI.
+
+### M3 typography and portfolio refinement
+- First Android native run 45799446838 failed compiling the unavailable MoreHoriz icon; replaced with supported MoreVert. Emulator was skipped, not passed.
+- Bundled existing licensed Plus Jakarta Sans, Inter and JetBrains Mono fonts into Android resources; use default variable axes and Compose weight synthesis. Glyph coverage and metrics need rendered verification.
+- Home displays real account-scoped observed history via the existing 30-day history endpoint. No invented graph; line connections suppressed across reported data gaps. Added portfolio transaction-history entry, improved Finwiz starter flow and extended tests.
+- Local Gradle execution blocked by unavailable Android SDK/Gradle and GitHub DNS. Native CI remains required; extra Home read should be measured in M4.
+
+### M3 screen-specific refinement
+- Refined derivative quote freshness presentation while retaining the exact contract, preview, acknowledgment and execution logic. Company financial chart colours, scenario builder and result surfaces, progress indicators, campus and account presentation now use shared tokens. All other existing Compose screens continue to inherit the new Material 3 theme and Panel design; no route removed.
+- M3 implementation candidate now contains native navigation, typography, authentication, portfolio-first Home, Markets, company/trading surfaces, derivatives, portfolio history, full-screen Finwiz and More. Device screenshots and full native build/lint/unit/instrumentation results remain mandatory before marking M3 complete. M4 includes comprehensive route, parity, accessibility and visual inspection. No merge or release.
+
+### M3 compact Home and screenshot coverage
+- Reduced Home chart height to 100dp; balance details remain available via an explicit disclosure. Secondary links use reusable native touch targets. Added light/dark Home fixture renders using the same production overview and links, with visible portfolio and chart assertions. These are synthetic test data, not live quotes.
+- Latest native workflow reruns on this head. Prior run was cancelled by workflow concurrency; no successful build or screenshot review claimed yet. No merge/deploy/store distribution.
+
+### M3 native emulator regression follow-up
+- Android native run 45800168642: build passed (debug/release, unit tests, lint and test APK); emulator ran 71 instrumentation tests, 68 passed and 3 failed. Logs identify outdated expectations in PremiumUiTest and WebParityScreenTest: full-screen Finwiz intentionally has no bottom nav, Orders belongs to Portfolio, and redesigned dark tokens are #050B09/#10E886/#123E2A.
+- Reworked the 320dp / 1.6x font-scale regression to assert the absence of navigation in Finwiz, navigate back to Home, verify all five actual labels and their rendered bounds, and confirm Portfolio selection. Added adaptive vertically growing bottom navigation at font scales above 1.3x; retain default Material 3 navigation otherwise. No test disabled, and exact theme assertions retained with approved values.
+- Changes are pending fresh Android workflow verification. Prior screenshots were collected by the failed emulator run; visual inspection remains outstanding. No merge, deploy or release.

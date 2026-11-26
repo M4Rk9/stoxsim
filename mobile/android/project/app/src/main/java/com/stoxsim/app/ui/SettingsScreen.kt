@@ -28,7 +28,7 @@ import org.json.JSONObject
     var confirmation by remember { mutableStateOf("") }
     var deletingPassword by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
-    Panel("YOUR ACCOUNT", user.displayName) {
+    Panel("PROFILE DETAILS", user.displayName) {
         Text(user.email)
         Status(if (user.verified) "Email verified" else "Email not verified")
         if (!user.verified) {

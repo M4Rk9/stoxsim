@@ -42,6 +42,8 @@ import java.math.BigDecimal
     }
     data.objects("challenges").forEach { challenge -> Panel("${challenge.text("completedMissions")} / ${challenge.text("totalMissions")} MISSIONS", challenge.text("title")) {
         Text(challenge.text("description"))
+        val total = challenge.optInt("totalMissions")
+        if (total > 0) LinearProgressIndicator(progress = { (challenge.optInt("completedMissions").toFloat() / total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
         challenge.objects("missions").forEach { mission -> Text("${if (mission.optBoolean("completed")) "✓" else "○"} ${mission.text("title")}"); Muted(mission.text("description")) }
     } }
     Panel(title = "Achievements") { data.objects("achievements").forEach { Text("${if (it.optBoolean("unlocked")) "✓" else "○"} ${it.text("title")}", fontWeight = FontWeight.Bold); Muted(it.text("description")) }; Muted(data.text("disclaimer")) }

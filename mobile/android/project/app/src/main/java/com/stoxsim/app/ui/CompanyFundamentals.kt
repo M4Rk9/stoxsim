@@ -94,7 +94,7 @@ import java.math.BigDecimal
     val point = points[selected.coerceIn(points.indices)]
     val units = financials.text("unitsIn")
     val revenueColor = MaterialTheme.colorScheme.primary
-    val profitColor = Color(0xFF7986CB)
+    val profitColor = MaterialTheme.colorScheme.secondary
     val lossColor = MaterialTheme.colorScheme.error
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val scale = remember(points) { financialScale(points) }

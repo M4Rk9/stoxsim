@@ -50,15 +50,26 @@ import java.math.RoundingMode
 
 @Composable internal fun PortfolioMetrics(state: AppState) {
     val p = state.portfolio
-    Panel(kicker = "${state.account?.kind ?: "STANDARD"} · ${regionLabel(state.region)} PORTFOLIO") {
-        Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge)
-        Muted("Account value · Started with ${money(p?.capital ?: state.account?.capital, state.currency)}")
+    Panel(kicker = "${regionLabel(state.region)} · PRACTICE PORTFOLIO") {
+        Muted("Portfolio value")
+        Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FinancialFont))
+        p?.returnPercent?.let { Text(percent(it), color = tone(it)) }
+        Muted("Started with ${money(p?.capital ?: state.account?.capital, state.currency)}")
+        val history = state.data["homeHistory"]
+        val points = history?.objects("points").orEmpty()
+        if (points.any { it.decimal("equity") != null }) {
+            Muted("Recent observed portfolio value")
+            LineChart(points.map { it.decimal("equity") }, points.map { it.text("day") }, "Observed portfolio value", connect = history?.optInt("missingSessions") == 0 && history?.optInt("cashFlowBreaks") == 0, chartHeight = 100.dp)
+        }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         ValueRow("Available cash", money(p?.cash ?: state.account?.cash, state.currency))
-        ValueRow("Reserved cash", money(p?.blocked ?: state.account?.blocked, state.currency))
-        ValueRow("Unrealized P/L", money(p?.unrealized, state.currency), p?.unrealized)
-        ValueRow("Total return", percent(p?.returnPercent), p?.returnPercent)
-        ValueRow("All-time P/L", money(p?.profitLoss, state.currency), p?.profitLoss)
+        var details by rememberSaveable(state.accountId) { mutableStateOf(false) }
+        TextButton({ details = !details }) { Text(if (details) "Hide balance details" else "Show balance details") }
+        if (details) {
+            ValueRow("Reserved cash", money(p?.blocked ?: state.account?.blocked, state.currency))
+            ValueRow("Unrealized P/L", money(p?.unrealized, state.currency), p?.unrealized)
+            ValueRow("All-time P/L", money(p?.profitLoss, state.currency), p?.profitLoss)
+        }
         PortfolioPricingNotice(p)
         p?.let { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Status(it.status); Muted("Valued ${time(it.valuedAt)}") } }
         SectionError(state, "portfolio")
@@ -240,7 +251,7 @@ import java.math.RoundingMode
         quote.price.subtract(quote.previous).multiply(BigDecimal(100)).divide(quote.previous, 4, RoundingMode.HALF_UP) else null
     Panel("${instrument.exchange} · ${regionLabel(instrument.region)}", instrument.symbol) {
         Text(instrument.name)
-        Text(money(quote?.price, instrument.currency), style = MaterialTheme.typography.headlineLarge)
+        Text(money(quote?.price, instrument.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FinancialFont))
         if (delta != null) Text(percent(delta), color = tone(delta))
         PricingNotice(quote?.pricingSource ?: "UNKNOWN")
         Status(quote?.status ?: "UNAVAILABLE"); Muted("Quote ${time(quote?.at.orEmpty())}")
@@ -355,7 +366,7 @@ import java.math.RoundingMode
             Text("${trade.text("side")} ${trade.text("quantity")} × ${trade.text("symbol")}", fontWeight = FontWeight.Bold)
             ValueRow("Execution price", money(trade.decimal("price"), state.currency))
             ValueRow("Charges", money(trade.decimal("charges"), state.currency)); ValueRow("Net cash effect", money(trade.decimal("netCashEffect"), state.currency))
-            Muted("${time(trade.text("executedAt"))} · Simulated charges · ${trade.text("chargeScheduleVersion")}")
+            Muted("${time(trade.text("executedAt"))} · Simulated charges")
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }

@@ -27,6 +27,7 @@ import java.math.RoundingMode
 
 @Composable internal fun PortfolioScreen(state: AppState, model: AppViewModel) {
     AccountSelector(state, model::changeRegion, model::selectAccount)
+    OutlinedButton({ model.openScreen("Orders") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Orders and transaction history") }
     HoldingsWorkspace(state, model::selectStock) { model.openScreen("Portfolio analysis") }
 }
 
@@ -40,7 +41,7 @@ import java.math.RoundingMode
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Kicker("HOLDINGS${p?.let { " (${it.positions.size})" }.orEmpty()}")
-                Text(money(value, state.currency), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(top = 8.dp))
+                Text(money(value, state.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FinancialFont), modifier = Modifier.padding(top = 8.dp))
                 Muted("Current value")
             }
             OutlinedIconButton(analysis, modifier = Modifier.size(48.dp)) {
@@ -65,7 +66,7 @@ import java.math.RoundingMode
 @Composable private fun HoldingMetric(label: String, value: String, modifier: Modifier, amount: BigDecimal? = null) {
     Surface(modifier, shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Muted(label); Text(value, fontWeight = FontWeight.SemiBold, color = amount?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurface)
+            Muted(label); Text(value, fontFamily = FinancialFont, fontWeight = FontWeight.SemiBold, color = amount?.let { tone(it) } ?: MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -99,7 +100,7 @@ import java.math.RoundingMode
         }
         if (state.portfolio?.positions?.isNotEmpty() == true) OutlinedTextField(query, { query = it.take(100) }, singleLine = true,
             placeholder = { Text("Search holdings") }, leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(20.dp)) },
-            shape = RoundedCornerShape(28.dp), textStyle = MaterialTheme.typography.bodyMedium,
+            shape = MaterialTheme.shapes.medium, textStyle = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search holdings" },
             colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant))
         if (sorted.isEmpty()) Panel {

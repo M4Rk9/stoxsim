@@ -127,28 +127,48 @@ class PremiumUiTest {
         compose.runOnIdle { assertTrue(retried) }
     }
     @Test fun largeTextHeaderAndNavigationLabelsDoNotOverflow() {
+        val screen = androidx.compose.runtime.mutableStateOf("Finwiz")
         compose.setContent { StoxSimTheme {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, 1.6f)) {
                 Box(Modifier.width(320.dp).height(640.dp)) {
-                    AppFrame(state().copy(screen = "Finwiz"), {}, {}) { FinwizHub(state(), {}, { _, _, _ -> }, {}, {}, {}) }
+                    AppFrame(state().copy(screen = screen.value), { screen.value = it }, {}) {
+                        if (screen.value == "Finwiz") FinwizHub(state(), {}, { _, _, _ -> }, {}, {}, {})
+                        else androidx.compose.material3.Text("Workspace content")
+                    }
                 }
             }
         } }
-        val contentLabels = listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read")
-        val navigationLabels = listOf("Home", "Markets", "Learn", "Compete", "Account")
-        (contentLabels + navigationLabels).forEach { label ->
-            val results = mutableListOf<TextLayoutResult>()
-            val node = compose.onNodeWithText(label, useUnmergedTree = true)
-            if (label in contentLabels) node.performScrollTo()
-            else compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
-            node.assertIsDisplayed()
-                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
-            // Semantics can expose a paragraph's wrapping width, larger than the
-            // painted text. Check glyph-line widths and truncation, allowing 1 px rounding.
-            compose.runOnIdle { assertTrue("$label must fit its text box: ${results.map { "size=${it.size}, lines=${it.lineCount}" }}",
-                results.isNotEmpty() && results.all { layout -> !layout.multiParagraph.didExceedMaxLines &&
-                    (0 until layout.lineCount).all { line -> layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f } }) }
+        val navigationLabels = listOf("Home", "Markets", "Finwiz AI", "Portfolio", "More")
+        // Finwiz is a dedicated workspace, including at accessibility font sizes.
+        navigationLabels.forEach { compose.onNodeWithContentDescription("Open $it").assertDoesNotExist() }
+        listOf("Finwiz AI", "LEARNING MAP", "0 of 8 modules read").forEach { label ->
+            compose.onNodeWithText(label, useUnmergedTree = true).performScrollTo()
+            assertLabelFits(label)
         }
+        // Return to the main shell and verify the actual five destinations.
+        compose.onNodeWithContentDescription("Back").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals("Home", screen.value) }
+        navigationLabels.forEach { label ->
+            val tab = compose.onNodeWithContentDescription("Open $label").assertIsDisplayed().assertHasClickAction()
+            assertLabelFits(label)
+            val bounds = tab.fetchSemanticsNode().boundsInRoot
+            val textBounds = compose.onNodeWithText(label, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("$label must remain inside its tab", textBounds.left >= bounds.left - 1f &&
+                textBounds.right <= bounds.right + 1f && textBounds.top >= bounds.top - 1f && textBounds.bottom <= bounds.bottom + 1f)
+        }
+        compose.onNodeWithContentDescription("Open Home").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Portfolio").performClick().assertIsSelected()
+        compose.runOnIdle { assertEquals("Portfolio", screen.value) }
+    }
+    private fun assertLabelFits(label: String) {
+        val results = mutableListOf<TextLayoutResult>()
+        val node = compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
+        node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
+        val bounds = node.fetchSemanticsNode().boundsInRoot
+        compose.runOnIdle { assertTrue("$label must fit its text box: ${results.map { "size=${it.size}, lines=${it.lineCount}" }}",
+            results.isNotEmpty() && results.all { layout -> !layout.multiParagraph.didExceedMaxLines &&
+                layout.size.height <= bounds.height + 1f &&
+                (0 until layout.lineCount).all { line -> layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f } }) }
     }
     @Test fun analysisGraphFitsAboveBottomNavigationOnANarrowPhone() {
         val base = state().copy(screen = "Portfolio analysis", data = mapOf("history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-12","equity":10000},{"day":"2026-10-13","equity":10100}]}""")))

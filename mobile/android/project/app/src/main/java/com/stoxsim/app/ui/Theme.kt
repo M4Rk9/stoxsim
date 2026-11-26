@@ -6,51 +6,56 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
+import com.stoxsim.app.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Shared web brand colours, with neutral native surfaces and a restrained type scale.
 private val Light = lightColorScheme(
-    primary = Color(0xFF087A4B), onPrimary = Color.White,
-    primaryContainer = Color(0xFFE8F7EE), onPrimaryContainer = Color(0xFF087143),
-    secondary = Color(0xFF596A62), onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE8F7EE), onSecondaryContainer = Color(0xFF087143),
-    background = Color(0xFFF7F8FA), surfaceTint = Color(0xFF087A4B),
+    primary = Color(0xFF087649), onPrimary = Color.White,
+    primaryContainer = Color(0xFFE5F5EC), onPrimaryContainer = Color(0xFF065D39),
+    secondary = Color(0xFF52685D), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE5F5EC), onSecondaryContainer = Color(0xFF065D39),
+    background = Color(0xFFF4F7F5), surfaceTint = Color(0xFF087649),
     surface = Color(0xFFFFFFFF), surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF7F8FA),
-    surfaceContainerHigh = Color.White, surfaceContainerHighest = Color(0xFFF0F2F5), surfaceVariant = Color(0xFFF0F2F5),
-    onSurface = Color(0xFF17211D), onBackground = Color(0xFF17211D), onSurfaceVariant = Color(0xFF596A62),
-    outline = Color(0xFF596A62), outlineVariant = Color(0xFFDFE5DE),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF4F7F5),
+    surfaceContainerHigh = Color.White, surfaceContainerHighest = Color(0xFFEDF3EF), surfaceVariant = Color(0xFFEDF3EF),
+    onSurface = Color(0xFF14251E), onBackground = Color(0xFF14251E), onSurfaceVariant = Color(0xFF52685D),
+    outline = Color(0xFF52685D), outlineVariant = Color(0xFFDCE6DF),
     error = Color(0xFFC33C3C), errorContainer = Color(0xFFFFF0EF), onErrorContainer = Color(0xFFC33C3C)
 )
 private val Dark = darkColorScheme(
-    primary = Color(0xFF5BD6A2), onPrimary = Color(0xFF0C2418),
-    primaryContainer = Color(0xFF17332B), onPrimaryContainer = Color(0xFF5BD6A2),
-    secondary = Color(0xFFA9B8AE), onSecondary = Color(0xFF101513),
-    secondaryContainer = Color(0xFF17332B), onSecondaryContainer = Color(0xFF5BD6A2),
-    background = Color(0xFF101513), surfaceTint = Color(0xFF5BD6A2),
-    surface = Color(0xFF18201C), surfaceContainer = Color(0xFF18201C),
-    surfaceContainerLowest = Color(0xFF101513), surfaceContainerLow = Color(0xFF181818),
-    surfaceContainerHigh = Color(0xFF222222), surfaceContainerHighest = Color(0xFF262626), surfaceVariant = Color(0xFF222222),
-    onSurface = Color(0xFFEEF3EF), onBackground = Color(0xFFEEF3EF), onSurfaceVariant = Color(0xFFA9B8AE),
-    outline = Color(0xFFA9B8AE), outlineVariant = Color(0xFF303E36),
-    error = Color(0xFFEF6464), errorContainer = Color(0xFF331F1F), onErrorContainer = Color(0xFFFFAAAA)
+    primary = Color(0xFF10E886), onPrimary = Color(0xFF07110E),
+    primaryContainer = Color(0xFF123E2A), onPrimaryContainer = Color(0xFF10E886),
+    secondary = Color(0xFFA4B8AF), onSecondary = Color(0xFF050B09),
+    secondaryContainer = Color(0xFF123E2A), onSecondaryContainer = Color(0xFF10E886),
+    background = Color(0xFF050B09), surfaceTint = Color(0xFF10E886),
+    surface = Color(0xFF10241B), surfaceContainer = Color(0xFF10241B),
+    surfaceContainerLowest = Color(0xFF050B09), surfaceContainerLow = Color(0xFF0A1511),
+    surfaceContainerHigh = Color(0xFF142A20), surfaceContainerHighest = Color(0xFF203A30), surfaceVariant = Color(0xFF142A20),
+    onSurface = Color(0xFFF2F7F5), onBackground = Color(0xFFF2F7F5), onSurfaceVariant = Color(0xFFA4B8AF),
+    outline = Color(0xFFA4B8AF), outlineVariant = Color(0xFF2C473B),
+    error = Color(0xFFFF758B), errorContainer = Color(0xFF331F1F), onErrorContainer = Color(0xFFFFAAAA)
 )
+private val DisplayFont = FontFamily(Font(R.font.plus_jakarta_sans))
+private val InterfaceFont = FontFamily(Font(R.font.inter))
+internal val FinancialFont = FontFamily(Font(R.font.jetbrains_mono))
 private val Type = Typography(
-    headlineLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-1).sp),
-    headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.7).sp),
-    headlineSmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.4).sp),
-    titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp, letterSpacing = (-0.3).sp),
-    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 23.sp),
-    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
-    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 21.sp),
-    bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp),
-    labelLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
-    labelMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 17.sp, letterSpacing = 0.sp),
-    labelSmall = TextStyle(fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 15.sp, letterSpacing = 1.sp)
+    headlineLarge = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-1).sp),
+    headlineMedium = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.7).sp),
+    headlineSmall = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.4).sp),
+    titleLarge = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp, letterSpacing = (-0.3).sp),
+    titleMedium = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 23.sp),
+    bodyLarge = TextStyle(fontFamily = InterfaceFont, fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontFamily = InterfaceFont, fontSize = 14.sp, lineHeight = 21.sp),
+    bodySmall = TextStyle(fontFamily = InterfaceFont, fontSize = 12.sp, lineHeight = 18.sp),
+    labelLarge = TextStyle(fontFamily = InterfaceFont, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp),
+    labelMedium = TextStyle(fontFamily = InterfaceFont, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 17.sp, letterSpacing = 0.sp),
+    labelSmall = TextStyle(fontFamily = InterfaceFont, fontWeight = FontWeight.Bold, fontSize = 10.sp, lineHeight = 15.sp, letterSpacing = 1.sp)
 )
 @Composable internal fun StoxSimTheme(dark: Boolean = false, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (dark) Dark else Light, typography = Type,
-        shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(22.dp), large = RoundedCornerShape(28.dp)), content = content)
+        shapes = Shapes(small = RoundedCornerShape(9.dp), medium = RoundedCornerShape(14.dp), large = RoundedCornerShape(20.dp)), content = content)
 }

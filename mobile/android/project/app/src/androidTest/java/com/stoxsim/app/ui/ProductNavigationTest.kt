@@ -23,18 +23,23 @@ class ProductNavigationTest {
     @Test fun fiveProductTabsAndTopSearchAreFunctional() {
         var route = ""; var query = ""
         val screen = mutableStateOf("Home")
-        val tabs = listOf("Home" to "Home", "Markets" to "Markets", "Learn" to "Learn", "Compete" to "Competitions", "Account" to "Account")
+        val tabs = listOf("Home" to "Home", "Markets" to "Markets", "Finwiz AI" to "Finwiz", "Portfolio" to "Portfolio", "More" to "Account")
         compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = screen.value), { route = it; screen.value = it }, {}, { query = it }) { androidx.compose.material3.Text("Product content") } } }
         tabs.forEach { (label, destination) ->
             compose.onNodeWithContentDescription("Open $label").assertIsDisplayed().performClick()
             compose.runOnIdle { assertEquals(destination, route) }
+            if (destination == "Finwiz") {
+                tabs.forEach { (name, _) -> compose.onNodeWithContentDescription("Open $name").assertDoesNotExist() }
+                compose.onNodeWithContentDescription("Back").performClick()
+                return@forEach
+            }
             compose.onNodeWithContentDescription("Open $label").assertIsSelected()
             tabs.filter { it.first != label }.forEach { (other, _) ->
                 compose.onNodeWithContentDescription("Open $other").assertIsNotSelected()
             }
             compose.onNodeWithContentDescription("Back").assertDoesNotExist()
         }
-        compose.runOnIdle { assertEquals("Home", parentScreen("Competitions")) }
+        compose.runOnIdle { assertEquals("Account", parentScreen("Competitions")) }
         compose.onNodeWithContentDescription("Open Home").performClick()
         compose.onNodeWithContentDescription("Stock and ETF search").performTextInput("AAPL")
         compose.runOnIdle { assertEquals("AAPL", query) } // Suggestions start without submitting.
@@ -45,12 +50,12 @@ class ProductNavigationTest {
     }
     @Test fun finwizLessonsKeepTheFinwizTabSelected() {
         compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = "Finwiz lesson"), {}, {}) {} } }
-        compose.onNodeWithContentDescription("Open Learn").assertIsSelected()
-        compose.onNodeWithContentDescription("Open Compete").assertIsNotSelected()
+        compose.onNodeWithContentDescription("Open More").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Finwiz AI").assertIsNotSelected()
     }
     @Test fun signedOutUsersDoNotSeeProductNavigation() {
         compose.setContent { StoxSimTheme { AppFrame(AppState(restoring = false), {}, {}) {} } }
-        listOf("Home", "Markets", "Learn", "Compete", "Account").forEach { label ->
+        listOf("Home", "Markets", "Finwiz AI", "Portfolio", "More").forEach { label ->
             compose.onNodeWithContentDescription("Open $label").assertDoesNotExist()
         }
     }
@@ -87,12 +92,22 @@ class ProductNavigationTest {
         var sent = ""
         val chat = FinwizConversation("chat", "Example", "INDIA", messages = listOf(FinwizMessage("q", "user", "What is an ETF?"), FinwizMessage("a", "assistant", "A fund traded on an exchange.")))
         compose.setContent { StoxSimTheme { AppFrame(state().copy(screen = "Finwiz chat", chats = listOf(chat), activeChatId = chat.id), {}, {}) { FinwizChatScreen(state().copy(chats = listOf(chat), activeChatId = chat.id), { sent = it }, {}) } } }
+        compose.onNodeWithContentDescription("Open Home").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Open Finwiz AI").assertDoesNotExist()
         compose.onNodeWithText("A fund traded on an exchange.").assertIsDisplayed()
         compose.onNodeWithContentDescription("Send question").assertIsNotEnabled()
         compose.onNodeWithText("Ask Finwiz").performTextInput("How does it trade?")
         compose.runOnIdle { assertEquals("", sent) }
         compose.onNodeWithContentDescription("Send question").performClick()
         compose.runOnIdle { assertEquals("How does it trade?", sent) }
+    }
+    @Test fun finwizStarterDoesNotSendUntilExplicitAction() {
+        var sent = ""; var route = ""
+        compose.setContent { StoxSimTheme { Column(Modifier.verticalScroll(rememberScrollState())) { FinwizHub(state(), {}, { _, _, _ -> }, {}, {}, { route = it }, { _, question -> sent = question }, initialTab = "Chats") } } }
+        compose.onNodeWithText("Help me understand portfolio risk").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("", sent) }
+        compose.onNodeWithContentDescription("Send starting question").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals("Help me understand portfolio risk", sent); assertEquals("Finwiz chat", route) }
     }
     @Test fun newStockChatPreservesTopicAndSymbol() {
         var symbol = ""; var topic = ""

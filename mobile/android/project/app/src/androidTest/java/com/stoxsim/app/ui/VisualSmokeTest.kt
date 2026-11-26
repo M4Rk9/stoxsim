@@ -38,7 +38,7 @@ import java.math.BigDecimal
 class VisualSmokeTest {
     @get:Rule val compose = createComposeRule()
     @Test @SdkSuppress(minSdkVersion = 29) fun captureProductScreensInBothAppearances() {
-        val dark = mutableStateOf(false); val page = mutableStateOf("Markets")
+        val dark = mutableStateOf(false); val page = mutableStateOf("Markets"); val showLanding = mutableStateOf(false)
         val account = Account("INDIA", "Standard India", "STANDARD", "INR", BigDecimal("481725"), BigDecimal.ZERO, true, "synthetic", BigDecimal("500000"))
         val position = Position("EXAMPLE", "Example Company", 25, BigDecimal("20625"), "CLOSED", average = BigDecimal("731"), price = BigDecimal("825"), profit = BigDecimal("2350"), returnPercent = BigDecimal("12.86"))
         val portfolio = Portfolio("INR", BigDecimal("502350"), account.cash, BigDecimal("18275"), BigDecimal("2350"), "CLOSED", "2026-10-10T10:00:00Z", listOf(position), account.capital, unrealized = BigDecimal("2350"), returnPercent = BigDecimal("0.47"))
@@ -51,8 +51,9 @@ class VisualSmokeTest {
             lists = mapOf("indices" to indices), data = mapOf("movers" to movers, "history" to JSONObject("""{"tier":"FREE","currency":"INR","status":"OBSERVED","missingSessions":0,"cashFlowBreaks":0,"points":[{"day":"2026-10-06","equity":500000,"quality":"OBSERVED"},{"day":"2026-10-07","equity":500650,"quality":"OBSERVED"},{"day":"2026-10-08","equity":500200,"quality":"OBSERVED"},{"day":"2026-10-09","equity":501450,"quality":"OBSERVED"},{"day":"2026-10-10","equity":502350,"quality":"OBSERVED"}]}""")), chats = listOf(chat), activeChatId = chat.id)
         compose.setContent { StoxSimTheme(dark.value) { AppFrame(base.copy(screen = page.value, dark = dark.value), {}, {}) {
             when (page.value) {
+                "Home" -> { PortfolioMetrics(base.copy(data = base.data + ("homeHistory" to base.data.getValue("history")))); HomeWorkspaceLinks({}) }
                 "Markets" -> StocksExplore(base, {}, {})
-                "Finwiz" -> FinwizHub(base, {}, { _, _, _ -> }, {}, {}, {})
+                "Finwiz" -> FinwizHub(base, {}, { _, _, _ -> }, {}, {}, {}, initialTab = if (showLanding.value) "Chats" else "Modules")
                 "Finwiz lesson" -> FinwizLesson(base, {}, {})
                 "Finwiz chat" -> FinwizChatScreen(base, {}, {})
                 "Account" -> AccountHub(base, {}, {}, {}, {}, {})
@@ -69,8 +70,12 @@ class VisualSmokeTest {
         } } }
         for (appearance in listOf("light", "dark")) {
             compose.runOnIdle { dark.value = appearance == "dark" }
-            for ((route, filename) in listOf("Markets" to "stocks", "Portfolio" to "holdings", "Portfolio analysis" to "portfolio-analysis", "Scenario Lab" to "scenario-lab", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
+            for ((route, filename) in listOf("Home" to "home", "Markets" to "stocks", "Portfolio" to "holdings", "Portfolio analysis" to "portfolio-analysis", "Scenario Lab" to "scenario-lab", "Finwiz" to "finwiz-modules", "Finwiz lesson" to "finwiz-lesson", "Finwiz chat" to "finwiz-chat", "Account" to "account", "Wallet" to "wallet")) {
                 compose.runOnIdle { page.value = route }; compose.waitForIdle()
+                if (route == "Home") {
+                    compose.onNodeWithText("Portfolio value").assertIsDisplayed()
+                    compose.onNodeWithContentDescription("Observed portfolio value").assertIsDisplayed()
+                }
                 if (route == "Markets") {
                     compose.onNode(hasText("Watchlist") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)).assertIsDisplayed()
                     compose.onNodeWithText("Example Company").assertIsDisplayed()
@@ -79,7 +84,12 @@ class VisualSmokeTest {
                     assertTrue("First mover price must fit above navigation", priceBottom <= navigationTop)
                 }
                 if (route == "Finwiz") compose.onNodeWithContentDescription("Select module Stock fundamentals").assertIsDisplayed()
-                capture("$filename-$appearance.png")
+                capture("$filename-$appearance.png", navigation = route !in listOf("Finwiz", "Finwiz chat"))
+                if (route == "Finwiz") {
+                    compose.runOnIdle { showLanding.value = true }; compose.waitForIdle()
+                    capture("finwiz-landing-$appearance.png", navigation = false)
+                    compose.runOnIdle { showLanding.value = false }
+                }
             }
         }
     }
@@ -107,10 +117,10 @@ class VisualSmokeTest {
                 }
             }
         } }
-        compose.waitForIdle(); capture("finwiz-compact-large-text.png")
+        compose.waitForIdle(); capture("finwiz-compact-large-text.png", navigation = false)
     }
     private fun capture(name: String, navigation: Boolean = true) {
-        if (navigation) listOf("Home", "Markets", "Learn", "Compete", "Account").forEach { label ->
+        if (navigation) listOf("Home", "Markets", "Finwiz AI", "Portfolio", "More").forEach { label ->
             compose.onNodeWithContentDescription("Open $label").assertIsDisplayed()
         }
         val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()

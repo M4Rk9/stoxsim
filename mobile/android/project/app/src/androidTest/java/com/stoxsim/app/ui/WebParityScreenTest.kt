@@ -66,10 +66,11 @@ class WebParityScreenTest {
         compose.onNodeWithText("Orders").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals("Orders", destination) }
         compose.onNodeWithText("Orders").assertIsSelected()
-        compose.onNodeWithContentDescription("Open Markets").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Portfolio").assertIsSelected()
+        compose.onNodeWithContentDescription("Open Markets").assertIsNotSelected()
         compose.onNodeWithContentDescription("Account settings").performClick()
         compose.runOnIdle { assertEquals("Account", destination) }
-        compose.onNodeWithContentDescription("Open Account").assertIsSelected()
+        compose.onNodeWithContentDescription("Open More").assertIsSelected()
     }
     @Test fun darkThemeUsesWebsiteColours() {
         var background = 0L; var primary = 0L; var selected = 0L
@@ -79,6 +80,6 @@ class WebParityScreenTest {
             selected = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer.value.toLong()
             Column { androidx.compose.material3.Text("Shared StoxSim theme") }
         } }
-        compose.runOnIdle { assertEquals(androidx.compose.ui.graphics.Color(0xFF101513).value.toLong(), background); assertEquals(androidx.compose.ui.graphics.Color(0xFF5BD6A2).value.toLong(), primary); assertEquals(androidx.compose.ui.graphics.Color(0xFF17332B).value.toLong(), selected) }
+        compose.runOnIdle { assertEquals(androidx.compose.ui.graphics.Color(0xFF050B09).value.toLong(), background); assertEquals(androidx.compose.ui.graphics.Color(0xFF10E886).value.toLong(), primary); assertEquals(androidx.compose.ui.graphics.Color(0xFF123E2A).value.toLong(), selected) }
     }
 }

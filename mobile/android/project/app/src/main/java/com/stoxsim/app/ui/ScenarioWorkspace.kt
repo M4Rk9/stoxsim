@@ -43,7 +43,7 @@ import java.math.RoundingMode
     val pathValid = shocks.size in 1..12 && shocks.all { it != null && it >= BigDecimal("-100") && it <= BigDecimal("100") && it.stripTrailingZeros().scale() <= 2 }
     val valid = selected != "custom" || (title.trim().isNotEmpty() && title.length <= 80 && pathValid)
     val remaining = state.data["credits"]?.decimal("remaining")
-    val purple = if (state.dark) Color(0xFFB5A5FF) else Color(0xFF6E56BB)
+    val purple = MaterialTheme.colorScheme.primary
     val preview = if (selected == "custom") if (pathValid) shocks.filterNotNull() else emptyList()
         else definition?.optJSONArray("shocks")?.let { a -> (0 until a.length()).mapNotNull { a.opt(it)?.toString()?.toBigDecimalOrNull() } }.orEmpty()
 
@@ -117,7 +117,7 @@ import java.math.RoundingMode
         Muted("Each move is relative to the starting price, not the previous step. This preview does not spend credits.")
         Button({ definition?.let { run(it, title, shocks.filterNotNull()) } },
             enabled = !state.working && definition != null && valid && (remaining?.signum() ?: 0) > 0 && state.accountId.isNotBlank(),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(18.dp)) {
+            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = MaterialTheme.shapes.medium) {
             Icon(painterResource(R.drawable.ic_nav_scenario), null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
             Text(if (state.working) "Running experiment…" else "Run scenario · 1 credit")
         }
@@ -129,17 +129,17 @@ import java.math.RoundingMode
 @Composable private fun ScenarioHero(state: AppState, refresh: () -> Unit) {
     val credits = state.data["credits"]
     Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
-        .background(Brush.linearGradient(listOf(Color(0xFF103E35), Color(0xFF25203F)))).padding(20.dp),
+        .background(MaterialTheme.colorScheme.surface).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(painterResource(R.drawable.ic_nav_scenario), null, Modifier.size(24.dp), tint = Color(0xFF8CE3C2))
-            Text("Scenario Lab", Modifier.weight(1f), color = Color.White, style = MaterialTheme.typography.titleLarge)
-            IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh Scenario Lab", tint = Color.White) }
+            Icon(painterResource(R.drawable.ic_nav_scenario), null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            Text("Scenario Lab", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleLarge)
+            IconButton(refresh, enabled = !state.working) { Icon(Icons.Default.Refresh, "Refresh Scenario Lab", tint = MaterialTheme.colorScheme.onSurface) }
         }
-        Text("Try a market path. See its impact.", color = Color(0xFFD1D9D8), style = MaterialTheme.typography.bodyMedium)
-        Surface(color = Color.White.copy(alpha = 0.09f), shape = RoundedCornerShape(50)) {
+        Text("Try a market path. See its impact.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(50)) {
             Text(credits?.let { "${it.text("remaining")} / ${it.text("allowance")} credits · ${it.text("plan")}" } ?: "Credits unavailable",
-                Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = Color(0xFFCFC4FF), style = MaterialTheme.typography.labelMedium)
+                Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelMedium)
         }
     }
 }

@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter
     var decision by remember { mutableStateOf<CampusDecision?>(null) }
     decision?.let { action -> CampusDecisionDialog(action.title, action.details, action.email, !state.working, { decision = null }) { note, email -> decision = null; action.submit(note, email) } }
     SectionError(state, "campus")
-    Text("Learn with your campus.", style = MaterialTheme.typography.headlineMedium)
+    Text("Your institution", style = MaterialTheme.typography.headlineSmall)
     Muted("Practise with your standard India portfolio and compare progress with fellow learners.")
     if (profile?.optBoolean("emailVerified") == false) Message(null, "Verify your email before requesting membership or enrolling.")
     profile?.optJSONObject("membership")?.let { membership -> Panel(title = "Your membership") { Text("${membership.text("institutionName")} · ${membership.text("role")}");

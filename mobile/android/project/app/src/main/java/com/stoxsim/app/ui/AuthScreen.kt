@@ -44,7 +44,7 @@ import java.util.Locale
     val recovering = mode == "forgot"
     BackHandler(mode != "login" && !state.working) { mode = "login"; password = ""; clearMessage() }
     Text(when (mode) { "register" -> "Start practising."; "forgot" -> "Reset your password."; else -> "Welcome back." },
-        style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     Text("Research markets, practise with virtual money, and review what you learn.", style = MaterialTheme.typography.bodyLarge)
     Message(state.error, state.notice)
     if (register) OutlinedTextField(name, { name = it }, label = { Text("Display name") },

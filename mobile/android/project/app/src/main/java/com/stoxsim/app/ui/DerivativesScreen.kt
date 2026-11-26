@@ -28,7 +28,7 @@ import org.json.JSONObject
     var confirmDiscard by remember { mutableStateOf(false) }
     val editable = !working && d.uncertain == null
     Text("F&O practice", style = MaterialTheme.typography.headlineMedium)
-    Text("NSE index contracts · Separate INR virtual wallet")
+    Muted("NSE index contracts · Separate INR virtual wallet")
     if (working) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (d.enabled != true) {
         Panel { Text(if (d.enabled == false) "F&O practice is unavailable on this server." else "Loading F&O availability…") }
@@ -51,7 +51,8 @@ import org.json.JSONObject
             HorizontalDivider()
             ContractDetails(c, advanced)
             ValueRow("Contract price / premium", money(quote.decimal("last"), "INR"))
-            Text("Quote ${time(quote.text("lastTradeAt"))} · ${if (quote.optBoolean("fresh")) "Fresh" else "Stale or unavailable"}")
+            Status(if (quote.optBoolean("fresh")) "Fresh quote" else "Stale or unavailable")
+            Muted("Quote ${time(quote.text("lastTradeAt"))}")
             if (advanced) { ValueRow("Bid / ask", "${money(quote.decimal("bid"), "INR")} / ${money(quote.decimal("ask"), "INR")}"); ValueRow("Volume", number(quote.decimal("volume"))) }
             OutlinedButton({ ticket(DerivativeLeg(c, "OPEN_LONG", 1)) }, enabled = editable && quote.optBoolean("fresh")) { Text("Open long ${c.text("symbol")}") }
             if (c.text("kind") == "FUT") OutlinedButton({ ticket(DerivativeLeg(c, "OPEN_SHORT", 1)) }, enabled = editable && quote.optBoolean("fresh")) { Text("Open short ${c.text("symbol")}") }
