@@ -36,6 +36,7 @@ internal data class AppState(
     val sectionErrors: Map<String, String> = emptyMap(), val export: String? = null,
     val searchQuery: String = "", val recentStocks: List<Instrument> = emptyList(),
     val chats: List<FinwizConversation> = emptyList(), val activeChatId: String? = null,
+    val finwizWaiting: Boolean = false,
     val learningModule: String = "LEARN", val readModules: Set<String> = emptySet(),
     val billing: PlayBillingState = PlayBillingState(),
     val error: String? = null, val notice: String? = null
@@ -61,6 +62,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private fun closeBilling() { playBilling?.close(); playBilling = null; billingVerifications.toList().forEach { it.cancel() }; billingVerifications.clear() }
     private var pagePending = false
     private var journeyJob: Job? = null
+    private var finwizJob: Job? = null
     private var foreground = false
     private var streamJob: Job? = null
     private var streakJob: Job? = null
@@ -716,28 +718,50 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             activeChatId = if (it.activeChatId == id) null else it.activeChatId,
             screen = if (it.activeChatId == id) "Finwiz" else it.screen) }
     }
-    fun askChat(question: String) = runAction {
-        val chat = mutable.value.activeChat ?: return@runAction
+    fun askChat(question: String) {
+        if (!mutable.value.working) finwizJob = launchAction {
+            submitFinwizQuestion(question)
+        }
+    }
+
+    fun stopFinwiz() { finwizJob?.cancel() }
+
+    private suspend fun submitFinwizQuestion(question: String) {
+        val chat = mutable.value.activeChat ?: return
         require(chat.region == mutable.value.region && question.trim().length in 1..2000)
         require(chat.messages.size < 40)
         val message = FinwizMessage(UUID.randomUUID().toString(), "user", question.trim())
         val messages = chat.messages + message
-        mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(
+        mutable.update { it.copy(finwizWaiting = true, chats = it.chats.map { item -> if (item.id == chat.id) item.copy(
             title = if (item.messages.isEmpty()) question.trim().take(60) else item.title, messages = messages) else item }) }
-        val body = JSONObject().put("requestId", message.id).put("question", finwizQuestion(question, chat.messages)).put("topic", chat.topic).put("experienceLevel", chat.experience)
+        val body = JSONObject().put("requestId", message.id).put("question", question.trim()).put("topic", chat.topic).put("experienceLevel", chat.experience)
             .put("marketRegion", chat.region)
+        finwizLearningReference(chat.messages)?.let { body.put("learningReference", it) }
         if (chat.symbol.isNotBlank()) body.put("symbol", chat.symbol).put("exchange", if (chat.region == "INDIA") "NSE" else "NASDAQ")
         try {
             val result = api.mutate("finwiz/ask", body = body)
             val answer = FinwizMessage(UUID.randomUUID().toString(), "assistant", result.text("answer").take(24000),
-                result.text("provider"), result.text("generatedAt"), result.text("disclaimer"), result.strings("suggestedQuestions"), result.text("finwizTier"))
+                result.text("provider"), result.text("generatedAt"), result.text("disclaimer"), result.strings("suggestedQuestions"), result.text("finwizTier"),
+                result.text("learningReference"), result.text("answerKind"), result.text("dataAsOf"),
+                result.objects("sources").mapNotNull { source ->
+                    val url = source.text("url")
+                    val title = source.text("title")
+                    if (title.isNotBlank() && safeFinwizReference(url)) FinwizReference(title, url) else null
+                }, result.optJSONObject("aiAllowance")?.let { FinwizAllowance(it.optInt("dailyLimit"), it.optInt("remaining")) })
             mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + answer) else item }) }
             read("journey", "onboarding/journey")
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (expired: SessionExpired) { throw expired }
+        } catch (cancelled: CancellationException) {
+            val updated = FinwizMessage(UUID.randomUUID().toString(), "error", "Stopped waiting for this answer.")
+            mutable.update { it.copy(chats = it.chats.map { item ->
+                if (item.id == chat.id && item.messages == messages) item.copy(messages = messages + updated) else item
+            }) }
+            throw cancelled
+        } catch (expired: SessionExpired) { throw expired }
         catch (failure: Exception) {
             val error = FinwizMessage(UUID.randomUUID().toString(), "error", failureMessage(failure))
             mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(messages = messages + error) else item }) }
+        } finally {
+            mutable.update { it.copy(finwizWaiting = false) }
         }
     }
     fun saveLearnerProfile(level: String, objective: String, market: String) = runAction {
@@ -890,9 +914,13 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         else -> "Could not load this information. Please try again."
     }
     private fun runAction(action: suspend () -> Unit) {
-        if (mutable.value.working) return
+        launchAction(action)
+    }
+
+    private fun launchAction(action: suspend () -> Unit): Job? {
+        if (mutable.value.working) return null
         mutable.update { it.copy(working = true, error = null, notice = null) }
-        viewModelScope.launch {
+        return viewModelScope.launch {
             try { action() }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: SessionExpired) { cancelSearch(); mutable.value = AppState(restoring = false, working = true, error = "Your session has expired. Please sign in again.") }

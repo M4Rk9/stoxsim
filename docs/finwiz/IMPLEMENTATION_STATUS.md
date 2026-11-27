@@ -18,10 +18,13 @@ Base main b8e9897. PR #206.
 | Paid inference controls | Implemented in candidate, disabled by default | Separate optional Gemini project, spend ledger, alerts, admin report, V142 | Mock usage and transactional budget tests. Pricing and ceilings await owner approval |
 | Tier-specific educational functionality | F2 context and output limits implemented | Backend entitlements and context selection | Versioned verified knowledge base and evaluation remain F3 |
 
-F2 starts from `b2e937f`. [PR #207](https://github.com/M4Rk9/stoxsim/pull/207) carries the current test evidence. Production rollout and provider, billing and price verification are pending.
+F2 starts from `b2e937f`. [PR #207](https://github.com/M4Rk9/stoxsim/pull/207) carries the current test evidence. The owner confirmed successful production rollout. Account-specific provider capacity and live billing verification remain separate.
+
+## F3 — Finwiz intelligence
+
+The candidate adds the source-checked lesson catalog (V143), deterministic research routes, tiered public-only Redis caching, bounded follow-up context, financial output checks and web/Android answer metadata. [Evaluation](F3_EVALUATION.md) records coverage and remaining benchmark work.
 
 ## Later milestones (not started)
-- F3: knowledge base, cache, context and financial validation.
 - F4: referrals, ₹100000 INR and $1000 USD virtual capital ledger.
 - F5: monitoring, billing, Google Play candidate.
 - F6: post-publication advertising only; each qualifying ad earns same virtual rewards. No ad SDK before launch.

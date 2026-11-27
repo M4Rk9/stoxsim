@@ -35,7 +35,7 @@ import com.stoxsim.app.data.*
 
 @Composable internal fun FinwizHub(state: AppState, lesson: (String) -> Unit, newChat: (String, String, String) -> Unit,
     openChat: (String) -> Unit, deleteChat: (String) -> Unit, navigate: (String) -> Unit,
-    startChat: (String, String) -> Unit = { _, _ -> }, initialTab: String = "Modules") {
+    startChat: (String, String) -> Unit = { _, _ -> }, initialTab: String = "Modules", stop: () -> Unit = {}) {
     var tab by rememberSaveable(initialTab) { mutableStateOf(initialTab) }
     var selected by rememberSaveable { mutableStateOf("LEARN") }
     var draft by remember { mutableStateOf("") }
@@ -68,7 +68,7 @@ import com.stoxsim.app.data.*
                     colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest, contentColor = MaterialTheme.colorScheme.onSurface)) { Text("Read module →") }
             }
         }
-        inlineChat?.let { InlineFinwizConversation(it, state.working, { draft = it.take(2000) }) { openChat(inlineChat.id) } }
+        inlineChat?.let { InlineFinwizConversation(it, state.working, state.finwizWaiting, { draft = it.take(2000) }, stop) { openChat(inlineChat.id) } }
         Panel {
             Text("Ask. Understand. Practise.", style = MaterialTheme.typography.titleLarge)
             Muted("Ask Finwiz about ${module.title.lowercase()}.")
@@ -128,7 +128,7 @@ import com.stoxsim.app.data.*
         dismissButton = { TextButton({ deleting = null }) { Text("Keep chat") } }) }
 }
 
-@Composable private fun InlineFinwizConversation(chat: FinwizConversation, working: Boolean, suggestion: (String) -> Unit, open: () -> Unit) {
+@Composable private fun InlineFinwizConversation(chat: FinwizConversation, working: Boolean, waiting: Boolean, suggestion: (String) -> Unit, stop: () -> Unit, open: () -> Unit) {
     val response = remember(chat.id) { BringIntoViewRequester() }
     LaunchedEffect(chat.id, chat.messages.size) { if (chat.messages.isNotEmpty()) response.bringIntoView() }
     Column(Modifier.fillMaxWidth().bringIntoViewRequester(response), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -142,15 +142,15 @@ import com.stoxsim.app.data.*
                     Kicker(if (message.role == "user") "You" else if (message.role == "error") "Could not get an answer" else "Finwiz")
                     SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                     if (message.role == "assistant") {
-                        if (message.tier.isNotBlank()) Muted("${message.tier.lowercase().replaceFirstChar { it.uppercase() }} depth")
+                        FinwizMetadata(message)
                         if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
                         message.suggestions.take(2).forEach { TextButton({ suggestion(it) }, enabled = !working) { Text(it) } }
                     }
                 }
             }
         }
-        if (working) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…")
+        if (waiting) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…"); TextButton(stop) { Text("Stop waiting") }
         }
         TextButton(open, enabled = !working) { Text("View full conversation →") }
     }
@@ -168,7 +168,7 @@ import com.stoxsim.app.data.*
     Muted("Educational concepts and hypothetical examples. Read status is local and does not award server XP.")
 }
 
-@Composable internal fun FinwizChatScreen(state: AppState, send: (String) -> Unit, newChat: () -> Unit) {
+@Composable internal fun FinwizChatScreen(state: AppState, send: (String) -> Unit, newChat: () -> Unit, stop: () -> Unit = {}) {
     val chat = state.activeChat ?: return
     var draft by remember(chat.id) { mutableStateOf("") }
     val list = rememberLazyListState()
@@ -201,16 +201,21 @@ import com.stoxsim.app.data.*
                             Kicker(when (message.role) { "user" -> "You"; "error" -> "Could not get an answer"; else -> "Finwiz" })
                             SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                             if (message.role == "assistant") {
-                                if (message.tier.isNotBlank()) Muted("${message.tier.lowercase().replaceFirstChar { it.uppercase() }} depth")
-                                if (message.provider.isNotBlank()) Muted("Source: ${message.provider.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }} · ${time(message.generatedAt)}")
+                                FinwizMetadata(message)
                                 if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
                                 message.suggestions.take(4).forEach { suggestion -> TextButton({ draft = suggestion.take(2000) }, enabled = !state.working) { Text(suggestion) } }
+                            }
+                            if (message.id == chat.messages.lastOrNull()?.id &&
+                                (message.role == "error" || message.provider == "STOXSIM_EDUCATIONAL_FALLBACK")) {
+                                chat.messages.lastOrNull { it.role == "user" }?.let { question ->
+                                    TextButton({ draft = question.text }, enabled = !state.working) { Text("Retry question") }
+                                }
                             }
                         }
                     }
                 }
             }
-            if (state.working) item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…") } }
+            if (state.finwizWaiting) item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…"); TextButton(stop) { Text("Stop waiting") } } }
         }
         if (chat.messages.size >= 40) Muted("This conversation is full. Start a new chat to continue.")
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -220,6 +225,24 @@ import com.stoxsim.app.data.*
             FilledIconButton({ val question = draft.trim(); draft = ""; send(question) }, enabled = draft.isNotBlank() && !state.working && chat.messages.size < 40,
                 modifier = Modifier.padding(bottom = 6.dp).size(48.dp)) { Icon(Icons.Default.Send, "Send question") }
         }
+    }
+}
+
+@Composable private fun FinwizMetadata(message: FinwizMessage) {
+    val uri = LocalUriHandler.current
+    val label = when (message.answerKind) {
+        "lesson" -> "Source-checked lesson"
+        "market_data", "portfolio" -> "StoxSim data"
+        "calculation" -> "Worked calculation"
+        "unavailable" -> "Question unanswered"
+        else -> if (message.provider == "STOXSIM_EDUCATIONAL_FALLBACK") "Question unanswered" else "Finwiz"
+    }
+    val depth = message.tier.takeIf { it.isNotBlank() }?.lowercase()?.let { " · $it depth" }.orEmpty()
+    Muted(label + depth)
+    message.aiAllowance?.let { Muted("Daily AI allowance · ${it.remaining} of ${it.dailyLimit} remaining (UTC)") }
+    if (message.dataAsOf.isNotBlank()) Muted("Data as of ${time(message.dataAsOf)}")
+    message.sources.forEach { source ->
+        TextButton({ uri.openUri(source.url) }) { Text(source.title) }
     }
 }
 

@@ -49,19 +49,21 @@ internal val learningModules = listOf(
         "Explain portfolio concentration, diversification and drawdown with a simple example.", DIVERSIFICATION)
 )
 internal data class FinwizMessage(val id: String, val role: String, val text: String,
-    val provider: String = "", val generatedAt: String = "", val disclaimer: String = "", val suggestions: List<String> = emptyList(), val tier: String = "")
+    val provider: String = "", val generatedAt: String = "", val disclaimer: String = "", val suggestions: List<String> = emptyList(), val tier: String = "",
+    val learningReference: String = "", val answerKind: String = "", val dataAsOf: String = "",
+    val sources: List<FinwizReference> = emptyList(), val aiAllowance: FinwizAllowance? = null)
 internal data class FinwizConversation(val id: String, val title: String, val region: String, val topic: String = "LEARN",
     val symbol: String = "", val experience: String = "BEGINNER", val messages: List<FinwizMessage> = emptyList())
 
-/** Keep the latest question intact and stay inside the server's 2,000-character contract. */
-internal fun finwizQuestion(question: String, history: List<FinwizMessage>): String {
-    val current = question.trim()
-    require(current.length in 1..2000)
-    val previous = history.filter { it.role in setOf("user", "assistant") }.takeLast(4)
-    val prefix = "Recent conversation, for context:\n"
-    val suffix = "\n\nAnswer the latest question:\n$current"
-    val room = 2000 - prefix.length - suffix.length
-    if (previous.isEmpty() || room < 160) return current
-    val context = previous.joinToString("\n") { "${if (it.role == "user") "User" else "Finwiz"}: ${it.text.take(400)}" }.takeLast(room)
-    return prefix + context + suffix
-}
+internal data class FinwizAllowance(val dailyLimit: Int, val remaining: Int)
+internal data class FinwizReference(val title: String, val url: String)
+
+internal fun finwizLearningReference(history: List<FinwizMessage>): String? =
+    history.lastOrNull { it.role == "assistant" }?.learningReference
+        ?.takeIf { it.matches(Regex("[a-z0-9-]{1,64}")) }
+
+internal fun safeFinwizReference(raw: String): Boolean = runCatching {
+    val uri = java.net.URI(raw)
+    uri.scheme == "https" && uri.userInfo == null &&
+        uri.host in setOf("www.sec.gov", "www.investor.gov", "www.bls.gov", "www.fidelity.com")
+}.getOrDefault(false)

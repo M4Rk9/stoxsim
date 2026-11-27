@@ -18,10 +18,15 @@ public record FinwizRequest(
     MarketExchange exchange,
     @Size(max = 32)
     String symbol,
-    java.util.UUID requestId
+    java.util.UUID requestId,
+    @Size(max = 64) String learningReference
 ) {
     public FinwizRequest(String question, Topic topic, ExperienceLevel experienceLevel, MarketRegion marketRegion, MarketExchange exchange, String symbol) {
-        this(question,topic,experienceLevel,marketRegion,exchange,symbol,null);
+        this(question,topic,experienceLevel,marketRegion,exchange,symbol,null,null);
+    }
+    public FinwizRequest(String question, Topic topic, ExperienceLevel experienceLevel, MarketRegion marketRegion,
+                         MarketExchange exchange, String symbol, java.util.UUID requestId) {
+        this(question,topic,experienceLevel,marketRegion,exchange,symbol,requestId,null);
     }
     public enum Topic {
         LEARN,

@@ -120,9 +120,9 @@ import com.stoxsim.app.R
                 "Learning path" -> LearningScreen(state, model)
                 "Competitions" -> { CompetitionScreen(state, model); TextButton({ model.openScreen("Campus") }) { Text("Campus competitions") } }
                 "Campus" -> CampusScreen(state, model)
-                "Finwiz" -> FinwizHub(state, model::openLesson, model::newChat, model::openChat, model::deleteChat, model::openScreen, model::startChatWithQuestion, initialTab = "Chats")
+                "Finwiz" -> FinwizHub(state, model::openLesson, model::newChat, model::openChat, model::deleteChat, model::openScreen, model::startChatWithQuestion, initialTab = "Chats", stop = model::stopFinwiz)
                 "Finwiz lesson" -> FinwizLesson(state, model::markLessonRead, { model.newChat(it) })
-                "Finwiz chat" -> FinwizChatScreen(state, model::askChat, { model.newChat() })
+                "Finwiz chat" -> FinwizChatScreen(state, model::askChat, { model.newChat() }, model::stopFinwiz)
                 "Account" -> AccountHub(state, model::openScreen, model::changeRegion, model::selectAccount, model::setDark, model::logout)
                 "Profile & security" -> SettingsScreen(state, model)
                 "Subscriptions" -> SubscriptionScreen(state, model::createSandbox, model::purchase, model::restorePurchases)
