@@ -380,6 +380,92 @@ class FinwizServiceTest {
         }
     }
 
+    private void configure(FinwizProperties.Provider provider, String base, String model) {
+        provider.setEnabled(true);
+        provider.setFreeCapacityConfirmed(true);
+        provider.setApiKey("synthetic-test-key");
+        provider.setBaseUrl(base);
+        provider.setModel(model);
+    }
+
+    private void mockReply(String path, int status, String payload, AtomicInteger calls, AtomicReference<String> body) {
+        server.createContext(path, exchange -> {
+            calls.incrementAndGet();
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            if(status==429) exchange.getResponseHeaders().set("Retry-After","120");
+            exchange.getResponseHeaders().set("Content-Type","application/json");
+            byte[] bytes=payload.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(status,bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+    }
+
+    @Test
+    void fourProviderChainUsesOneSuccessfulAllowanceAndSkipsCoolingProviders() throws IOException {
+        var groq=new AtomicInteger(); var gemini=new AtomicInteger(); var cf=new AtomicInteger(); var router=new AtomicInteger();
+        var body=new AtomicReference<String>();
+        server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        mockReply("/groq/chat/completions",429,"{}",groq,new AtomicReference<>());
+        mockReply("/v1beta/models/gemini-3.6-flash:generateContent",503,"{}",gemini,new AtomicReference<>());
+        mockReply("/accounts/test-account/ai/v1/chat/completions",503,"{}",cf,new AtomicReference<>());
+        mockReply("/router/chat/completions",200,"""
+            {"choices":[{"finish_reason":"stop","message":{"content":"Operating cash flow measures business cash movements.","reasoning":"not visible"}}],"usage":{"total_tokens":123}}
+            """,router,body);
+        server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var p=new FinwizProperties();
+        p.setApiKey("test-gemini"); p.setBaseUrl(base);
+        configure(p.getGroq(),base+"/groq","openai/gpt-oss-20b");
+        configure(p.getCloudflare(),base,"@cf/openai/gpt-oss-20b"); p.setCloudflareAccountId("test-account");
+        configure(p.getOpenrouter(),base+"/router","example/model:free"); p.setOpenrouterUpstream("independent-test");
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        var service=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget);
+        var result=service.ask(USER,req);
+        assertThat(result.provider()).isEqualTo("OPENROUTER");
+        assertThat(result.answer()).contains("cash movements").doesNotContain("not visible");
+        assertThat(body.get()).contains("max_price","independent-test","Server-selected depth: BASIC");
+        assertThat(groq.get()).isEqualTo(1); assertThat(gemini.get()).isEqualTo(1);
+        assertThat(cf.get()).isEqualTo(1); assertThat(router.get()).isEqualTo(1);
+        org.mockito.Mockito.verify(budget).finishRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(true));
+        org.mockito.Mockito.verify(budget).recordReportedTokens(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("OPENROUTER"),org.mockito.ArgumentMatchers.eq(123L));
+        assertThat(service.ask(USER,req).provider()).isEqualTo("OPENROUTER");
+        assertThat(groq.get()).isEqualTo(1); assertThat(gemini.get()).isEqualTo(1);
+        assertThat(cf.get()).isEqualTo(1); assertThat(router.get()).isEqualTo(2);
+    }
+
+    @Test
+    void safetyRefusalCannotTriggerAnotherProvider() throws IOException {
+        var first=new AtomicInteger(); var backup=new AtomicInteger();
+        server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        mockReply("/groq/chat/completions",200,"""
+            {"choices":[{"finish_reason":"content_filter","message":{"content":"Do not display this"}}]}
+            """,first,new AtomicReference<>());
+        mockReply("/v1beta/models/gemini-3.6-flash:generateContent",200,"{}",backup,new AtomicReference<>());
+        server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var p=new FinwizProperties(); p.setApiKey("test-gemini"); p.setBaseUrl(base);
+        configure(p.getGroq(),base+"/groq","openai/gpt-oss-20b");
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        var result=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req);
+        assertThat(result.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        assertThat(result.answer()).doesNotContain("Do not display this");
+        assertThat(first.get()).isEqualTo(1); assertThat(backup.get()).isZero();
+        org.mockito.Mockito.verify(budget).finishRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false));
+    }
+
+    @Test
+    void newProviderRequiresExplicitFreeCapacityConfirmation() {
+        var p=new FinwizProperties();
+        p.getGroq().setEnabled(true); p.getGroq().setApiKey("synthetic-test-key");
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        assertThat(new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req).provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        org.mockito.Mockito.verify(budget,org.mockito.Mockito.never()).reserveRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+    }
+
     @Test
     void rejectsQuestionsAboveTheConfiguredLimit() {
         FinwizProperties properties = new FinwizProperties();

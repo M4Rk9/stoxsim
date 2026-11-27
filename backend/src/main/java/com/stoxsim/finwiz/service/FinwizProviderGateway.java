@@ -112,7 +112,7 @@ final class FinwizProviderGateway {
                 boolean gemini=p.name().equals("GEMINI");
                 if (gemini) root=client.post().uri("/v1beta/models/{model}:generateContent",p.model())
                     .header("x-goog-api-key",p.key()).header("Content-Type","application/json").body(geminiBody).retrieve().body(JsonNode.class);
-                else root=client.post().uri("/chat/completions").header("Authorization","Bearer "+p.key())
+                else root=client.post().uri(URI.create(p.base().replaceAll("/+$","") + "/chat/completions")).header("Authorization","Bearer "+p.key())
                     .header("Content-Type","application/json").body(chatBody(p,geminiBody)).retrieve().body(JsonNode.class);
                 JsonNode tokens=root==null?null:gemini?root.path("usageMetadata").path("totalTokenCount"):root.path("usage").path("total_tokens");
                 if (tokens!=null && tokens.isIntegralNumber()) {
@@ -172,7 +172,7 @@ final class FinwizProviderGateway {
         var body=new java.util.LinkedHashMap<String,Object>();
         body.put("model",p.model());
         body.put("messages",List.of(Map.of("role","system","content",systemPart.get("text")),Map.of("role","user","content",userPart.get("text"))));
-        body.put("max_tokens",config.get("maxOutputTokens"));
+        body.put(p.name().equals("GROQ") ? "max_completion_tokens" : "max_tokens",config.get("maxOutputTokens"));
         body.put("stream",false);
         if (p.name().equals("GROQ") && p.model().startsWith("openai/gpt-oss")) body.put("reasoning_effort","low");
         if (p.name().equals("OPENROUTER")) body.put("provider",Map.of("only",List.of(properties.getOpenrouterUpstream()),"allow_fallbacks",false,"data_collection","deny","max_price",Map.of("prompt",0,"completion",0)));

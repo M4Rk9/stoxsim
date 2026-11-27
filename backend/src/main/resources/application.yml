@@ -92,6 +92,10 @@ stoxsim:
     max-question-characters: ${FINWIZ_MAX_QUESTION_CHARACTERS:2000}
     max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
     thinking-level: ${FINWIZ_THINKING_LEVEL:minimal}
+    basic-daily-provider-requests: ${FINWIZ_BASIC_DAILY_REQUESTS:10}
+    expanded-daily-provider-requests: ${FINWIZ_EXPANDED_DAILY_REQUESTS:30}
+    full-daily-provider-requests: ${FINWIZ_FULL_DAILY_REQUESTS:60}
+    global-daily-provider-requests: ${FINWIZ_GLOBAL_DAILY_ATTEMPTS:500}
     attempt-timeout-seconds: ${FINWIZ_ATTEMPT_TIMEOUT_SECONDS:8}
     deadline-seconds: ${FINWIZ_DEADLINE_SECONDS:25}
     provider-concurrency: ${FINWIZ_PROVIDER_CONCURRENCY:4}

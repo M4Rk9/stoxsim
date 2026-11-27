@@ -1,0 +1,2 @@
+# F1 release readiness
+HOLD — candidate pending fresh CI, model/credential acceptance, actual provider quota and privacy validation, and remaining F1 implementation gates listed in IMPLEMENTATION_STATUS.md. No paid inference, production rollout, subscription-price change, referral rewards, billing or advertising enabled. Obtain explicit owner approval before rollout. Final launch remains F5 and ads F6 post-launch.

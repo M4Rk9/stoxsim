@@ -50,7 +50,6 @@ public class FinwizService {
     private final MeterRegistry meterRegistry;
     private final FinwizProviderGateway gateway;
     private final FinwizAccess access;
-    private final FinwizUsageBudget budget;
 
     public FinwizService(
         FinwizProperties properties,
@@ -60,7 +59,6 @@ public class FinwizService {
         FinwizUsageBudget budget
     ) {
         this.access = access;
-        this.budget = budget;
         this.properties = properties;
         this.contexts = contexts;
         this.meterRegistry = meterRegistry;

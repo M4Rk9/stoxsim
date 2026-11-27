@@ -71,7 +71,7 @@ FINWIZ_BODY=$(jq -nc '{
   topic: "CASH_FLOW",
   experienceLevel: "BEGINNER"
 }')
-echo "Checking Gemini-backed Finwiz response"
+echo "Checking Finwiz provider response"
 FINWIZ=""
 FINWIZ_OK=false
 for attempt in 1 2 3; do
@@ -82,23 +82,23 @@ for attempt in 1 2 3; do
     "${API_URL}/api/v1/finwiz/ask")
 
   if jq -e '
-    .provider == "GEMINI"
-    and (.model | startswith("gemini-"))
+    (.provider == "GEMINI" or .provider == "GROQ" or .provider == "CLOUDFLARE" or .provider == "OPENROUTER")
+    and (.model | type == "string" and length > 0)
     and (.answer | type == "string" and length > 40)
   ' <<<"$FINWIZ" >/dev/null; then
     FINWIZ_OK=true
     break
   fi
 
-  echo "Finwiz attempt ${attempt} did not use Gemini: provider=$(jq -r '.provider // "missing"' <<<"$FINWIZ"), model=$(jq -r '.model // "missing"' <<<"$FINWIZ")"
+  echo "Finwiz attempt ${attempt} did not return a complete provider response: provider=$(jq -r '.provider // "missing"' <<<"$FINWIZ"), model=$(jq -r '.model // "missing"' <<<"$FINWIZ")"
   if [[ "$attempt" -lt 3 ]]; then
     sleep 10
   fi
 done
 
 if [[ "$FINWIZ_OK" != true ]]; then
-  echo "::error::Finwiz returned a fallback or unusable Gemini response after three attempts. Expand 'Capture backend provider diagnostics' for the exact Gemini HTTP error."
-  jq '{provider, model, groundedInStoxSimData, generatedAt, answerPreview: (.answer // "" | .[0:160])}' <<<"$FINWIZ"
+  echo "::error::Finwiz returned a fallback or unusable AI response after three attempts. Check sanitized provider diagnostics."
+  jq '{provider, model, groundedInStoxSimData, generatedAt}' <<<"$FINWIZ"
   exit 1
 fi
 
