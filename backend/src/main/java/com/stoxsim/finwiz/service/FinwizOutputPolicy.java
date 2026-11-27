@@ -9,8 +9,8 @@ final class FinwizOutputPolicy {
     private static final Pattern LINKS = Pattern.compile("(?i)(?:https?://|www\\.)");
     private static final Pattern ADVICE = Pattern.compile(
         "(?im)(?:\\byou\\s+(?:should|must|need to)\\s+(?:buy|sell|hold|short)\\b"
-        + "|^\\s*(?:\\*\\*|[-*]\\s+)?(?:buy|sell|hold|short)\\s+(?:[A-Z][A-Z.]{1,9}\\b|the stock\\b|the shares\\b)"
-        + "|\\bguaranteed\\s+(?:(?:positive|annual|monthly)\\s+)?(?:returns?|profits?|gains?)\\b"
+        + "|^\\s*(?:\\*\\*|[-*]\\s+)?(?:buy|sell|hold|short)\\s+(?:(?-i:[A-Z][A-Z.]{1,9})\\b|the stock\\b|the shares\\b)"
+        + "|(?<!no )(?<!not )(?<!without )\\bguaranteed\\s+(?:(?:positive|annual|monthly)\\s+)?(?:returns?|profits?|gains?)\\b"
         + "|\\b(?:my |a )?(?:price target|target price)\\s*(?:is|of|:)\\s*(?:[₹$]|INR|USD|\\d))");
     private static final String NUMBER = "[+-]?(?:\\d{1,3}(?:,\\d{3})+|\\d{1,20})(?:\\.\\d{1,16})?";
     private static final Pattern EVIDENCE_NUMBERS = Pattern.compile("(?<![\\w.])" + NUMBER + "(?![\\w.])");

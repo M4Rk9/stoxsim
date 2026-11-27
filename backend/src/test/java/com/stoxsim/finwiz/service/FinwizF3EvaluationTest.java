@@ -40,6 +40,8 @@ class FinwizF3EvaluationTest {
         assertThat(FinwizOutputPolicy.allows("The company earned INR 500.", quote)).isFalse();
         assertThat(FinwizOutputPolicy.allows("Its return was 15%.", quote)).isFalse();
         assertThat(FinwizOutputPolicy.allows("You should buy the stock.", null)).isFalse();
+        assertThat(FinwizOutputPolicy.allows("Buy AAPL today.", null)).isFalse();
+        assertThat(FinwizOutputPolicy.allows("Buy orders can remain unfilled. There are no guaranteed returns.", null)).isTrue();
         assertThat(FinwizOutputPolicy.allows("See https://unverified.example for evidence.", quote)).isFalse();
     }
 }

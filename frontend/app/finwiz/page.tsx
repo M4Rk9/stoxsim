@@ -295,9 +295,11 @@ export default function FinwizPage() {
         <div className={styles.assistantMessage}><div className={styles.assistantMark}>F</div><div className={styles.assistantBody}>
           <div className={styles.answerMeta}>
             <strong>{turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? "Finwiz unavailable" : "Finwiz"}{turn.answer.finwizTier ? ` · ${turn.answer.finwizTier.toLowerCase()} depth` : ""}</strong>
-            <small>{turn.answer.answerKind === "lesson" ? "Source-checked lesson" : turn.answer.answerKind === "calculation" ? "Worked calculation" : turn.answer.groundedInStoxSimData ? "StoxSim data" : turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? "Question unanswered" : "General learning"}</small>
+            <small>{turn.answer.answerKind === "lesson" ? "Source-checked lesson" : turn.answer.answerKind === "calculation" ? "Worked calculation" : turn.answer.groundedInStoxSimData ? "StoxSim data" : turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? (turn.answer.answerKind ? "Question unanswered" : "No AI answer received") : "General learning"}</small>
           </div>
-          {turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" && <p role="status">This question is still unanswered.</p>}
+          {turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" && !turn.answer.answerKind && (
+            <p role="status">This is an availability notice or a saved general lesson, not an AI answer to your question.</p>
+          )}
           <FinwizAnswer answer={turn.answer.answer} />
           {turn.answer.dataAsOf && Number.isFinite(Date.parse(turn.answer.dataAsOf)) && (
             <p className={styles.disclaimer}>Data as of <time dateTime={turn.answer.dataAsOf}>{new Date(turn.answer.dataAsOf).toLocaleString()}</time></p>
