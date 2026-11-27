@@ -32,6 +32,10 @@ interface FinwizResponse {
   suggestedQuestions: string[];
   disclaimer: string;
   finwizTier?: string;
+  answerKind?: string;
+  aiAllowance?: { dailyLimit: number; remaining: number };
+  learningReference?: string;
+  sources?: { title: string; url: string; revision: number; reviewedOn: string }[];
 }
 
 interface Chat { id: string; title: string; turns: { question: string; answer: FinwizResponse }[]; }
@@ -56,6 +60,15 @@ async function parseError(response: Response) {
   return payload?.message ?? `Request failed with status ${response.status}`;
 }
 
+const FINWIZ_REFERENCE_HOSTS = new Set(["www.sec.gov", "www.investor.gov", "www.bls.gov", "www.fidelity.com"]);
+
+function isReference(url: string) {
+  try {
+    const source = new URL(url);
+    return source.protocol === "https:" && !source.username && !source.password && FINWIZ_REFERENCE_HOSTS.has(source.hostname);
+  } catch { return false; }
+}
+
 export default function FinwizPage() {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [topic, setTopic] = useState<Topic>("LEARN");
@@ -71,6 +84,7 @@ export default function FinwizPage() {
   const [storageError, setStorageError] = useState("");
   const [clearPending, setClearPending] = useState(false);
   const busy = useRef(false);
+  const activeRequest = useRef<AbortController | null>(null);
   const historyToggle = useRef<HTMLButtonElement>(null);
   const historyPanel = useRef<HTMLElement>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -116,6 +130,7 @@ export default function FinwizPage() {
     resize(); view?.addEventListener("resize", resize);
     return () => view?.removeEventListener("resize", resize);
   }, []);
+  useEffect(() => () => activeRequest.current?.abort(), []);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [chats, activeId, loading]);
   useEffect(() => {
     if (!historyOpen) return;
@@ -192,6 +207,8 @@ export default function FinwizPage() {
     const nextQuestion = question.trim();
     if (!nextQuestion || busy.current) return;
     busy.current = true;
+    const request = new AbortController();
+    activeRequest.current = request;
 
     setLoading(true);
     setError("");
@@ -201,13 +218,16 @@ export default function FinwizPage() {
       const stockSymbol = symbol.trim().toUpperCase();
       const response = await authorized("/api/v1/finwiz/ask", {
         method: "POST",
+        signal: request.signal,
         body: JSON.stringify({
           requestId: crypto.randomUUID(),
           question: nextQuestion,
           topic,
           experienceLevel,
+          marketRegion,
+          ...(!stockSymbol && current?.turns.at(-1)?.answer.learningReference
+            ? { learningReference: current.turns.at(-1)?.answer.learningReference } : {}),
           ...(stockSymbol ? {
-            marketRegion,
             exchange,
             symbol: stockSymbol,
           } : {}),
@@ -216,6 +236,7 @@ export default function FinwizPage() {
       if (!response.ok) throw new ApiError(await parseError(response), response.status);
 
       const result = await response.json() as FinwizResponse;
+      if (request.signal.aborted) return;
       const chat = current ?? { id: crypto.randomUUID(), title: nextQuestion.slice(0, 80), turns: [] };
       persist([{ ...chat, turns: [...chat.turns, { question: nextQuestion, answer: result }].slice(-50) }, ...chats.filter(item => item.id !== chat.id)].slice(0, 30));
       setActiveId(chat.id); setSubmittedQuestion(""); setQuestion(draft => draft.trim() === nextQuestion ? "" : draft);
@@ -226,9 +247,12 @@ export default function FinwizPage() {
         });
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Finwiz could not answer right now.");
+      if (!request.signal.aborted) setError(cause instanceof Error ? cause.message : "Finwiz could not answer right now.");
     } finally {
-      setLoading(false); busy.current = false;
+      setSubmittedQuestion("");
+      setLoading(false);
+      activeRequest.current = null;
+      busy.current = false;
     }
   }
 
@@ -269,9 +293,21 @@ export default function FinwizPage() {
       {current?.turns.map((turn, index) => <article key={index}>
         <div className={styles.userMessage}><div>{turn.question}</div></div>
         <div className={styles.assistantMessage}><div className={styles.assistantMark}>F</div><div className={styles.assistantBody}>
-          <div className={styles.answerMeta}><strong>{turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? "Finwiz unavailable" : "Finwiz"}{turn.answer.finwizTier ? ` · ${turn.answer.finwizTier.toLowerCase()} depth` : ""}</strong><small>{turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? "No AI answer received" : turn.answer.groundedInStoxSimData ? "StoxSim data linked" : "General learning mode"}</small></div>
-          {turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" && <p role="status">This is an availability notice or a saved general lesson, not an AI answer to your question.</p>}
+          <div className={styles.answerMeta}>
+            <strong>{turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? "Finwiz unavailable" : "Finwiz"}{turn.answer.finwizTier ? ` · ${turn.answer.finwizTier.toLowerCase()} depth` : ""}</strong>
+            <small>{turn.answer.answerKind === "lesson" ? "Source-checked lesson" : turn.answer.answerKind === "calculation" ? "Worked calculation" : turn.answer.groundedInStoxSimData ? "StoxSim data" : turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" ? "Question unanswered" : "General learning"}</small>
+          </div>
+          {turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" && <p role="status">This question is still unanswered.</p>}
           <FinwizAnswer answer={turn.answer.answer} />
+          {turn.answer.dataAsOf && Number.isFinite(Date.parse(turn.answer.dataAsOf)) && (
+            <p className={styles.disclaimer}>Data as of <time dateTime={turn.answer.dataAsOf}>{new Date(turn.answer.dataAsOf).toLocaleString()}</time></p>
+          )}
+          {Array.isArray(turn.answer.sources) && turn.answer.sources.filter(source => source && typeof source.title === "string" && isReference(source.url)).map(source => (
+            <p className={styles.disclaimer} key={source.url}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></p>
+          ))}
+          {index === current.turns.length - 1 && turn.answer.provider === "STOXSIM_EDUCATIONAL_FALLBACK" && (
+            <div className={styles.suggestions}><button type="button" disabled={loading} onClick={() => { setQuestion(turn.question); document.getElementById("finwiz-question")?.focus(); }}>Retry question</button></div>
+          )}
           <p className={styles.disclaimer}>{turn.answer.disclaimer}</p>
           {index === current.turns.length - 1 && turn.answer.provider !== "STOXSIM_EDUCATIONAL_FALLBACK" && <div className={styles.suggestions}>{turn.answer.suggestedQuestions.map(item => <button key={item} onClick={() => { setQuestion(item); document.getElementById("finwiz-question")?.focus(); }}>{item} ↗</button>)}</div>}
         </div></div>
@@ -372,7 +408,8 @@ export default function FinwizPage() {
         </div>
 
         <div className={styles.composerHint}>
-          <span>Enter to send · Shift + Enter for a new line</span>
+          {loading ? <button type="button" onClick={() => activeRequest.current?.abort()}>Stop waiting</button> : <span>Enter to send · Shift + Enter for a new line</span>}
+          {current?.turns.at(-1)?.answer.aiAllowance && <span>{current.turns.at(-1)?.answer.aiAllowance?.remaining} of {current.turns.at(-1)?.answer.aiAllowance?.dailyLimit} AI answers available today (UTC)</span>}
           <span>{question.length}/2000</span>
         </div>
       </form>

@@ -44,14 +44,7 @@ public class FinwizContextService {
         if (!request.requestsStockContext()) {
             return ContextSnapshot.empty();
         }
-        if (request.marketRegion() == null || request.exchange() == null) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "marketRegion and exchange are required when a stock symbol is supplied"
-            );
-        }
-
-        String symbol = request.symbol().trim().toUpperCase();
+        String symbol = requiredSymbol(request);
         QuoteResponse quote = safelyQuote(request, symbol);
         CandleSeriesResponse candles = safelyCandles(request, symbol);
         StockInsightsResponse insights = safelyInsights(request, symbol);
@@ -157,6 +150,18 @@ public class FinwizContextService {
 
         context.append("The response dataAsOf is the latest observation across sources, not proof that every input is fresh. Quote each source timestamp separately and disclose unavailable or stale inputs.\n");
         return new ContextSnapshot(true, symbol, dataAsOf, context.toString());
+    }
+
+    QuoteResponse quote(FinwizRequest request) {
+        return safelyQuote(request, requiredSymbol(request));
+    }
+
+    private static String requiredSymbol(FinwizRequest request) {
+        if (request.marketRegion() == null || request.exchange() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "marketRegion and exchange are required when a stock symbol is supplied");
+        }
+        return request.symbol().trim().toUpperCase(java.util.Locale.ROOT);
     }
 
     private QuoteResponse safelyQuote(FinwizRequest request, String symbol) {

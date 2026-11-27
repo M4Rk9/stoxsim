@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import java.util.UUID;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,7 +23,7 @@ import com.stoxsim.subscription.domain.UserSubscription;
 import com.stoxsim.subscription.repository.UserSubscriptionRepository;
 
 @Testcontainers
-@SpringBootTest(properties = {"stoxsim.finwiz.enabled=false", "stoxsim.market-data.upstox.stream-enabled=false",
+@SpringBootTest(properties = {"stoxsim.finwiz.enabled=true", "stoxsim.finwiz.api-key=", "stoxsim.market-data.upstox.stream-enabled=false",
     "stoxsim.market-data.upstox.instrument-sync-on-startup=false", "stoxsim.market-data.alpaca.instrument-sync-on-startup=false"})
 class FinwizTierIntegrationTest {
     @Container @ServiceConnection static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
@@ -30,6 +31,7 @@ class FinwizTierIntegrationTest {
     @Autowired AppUserRepository users;
     @Autowired UserSubscriptionRepository subscriptions;
     @Autowired JdbcTemplate jdbc;
+    @Autowired StringRedisTemplate redis;
     @Autowired WebApplicationContext context;
     MockMvc mvc;
     UUID user;
@@ -55,5 +57,49 @@ class FinwizTierIntegrationTest {
         ask("").andExpect(status().isOk()).andExpect(jsonPath("$.finwizTier").value("BASIC"));
         mvc.perform(get("/api/v1/subscription").with(jwt().jwt(token -> token.subject(user.toString()).claim("plan", "PRO"))))
             .andExpect(status().isOk()).andExpect(jsonPath("$.entitlements.finwizTier").value("BASIC"));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions question(String question, String extra) throws Exception {
+        return mvc.perform(post("/api/v1/finwiz/ask").with(jwt().jwt(token -> token.subject(user.toString())))
+            .contentType("application/json").content("{\"question\":\"" + question + "\",\"topic\":\"LEARN\"" + extra + "}"));
+    }
+
+    @Test void verifiedLessonsAreTierSpecificAndDoNotConsumeExternalAllowance() throws Exception {
+        question("What is P/E?", "")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.answerKind").value("lesson"))
+            .andExpect(jsonPath("$.learningReference").value("price-earnings"))
+            .andExpect(jsonPath("$.sources[0].revision").value(1))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("12×")))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("15×"))));
+        Integer before = jdbc.queryForObject("SELECT count(*) FROM finwiz_request_reservation WHERE user_id=?",
+            Integer.class, user);
+        org.assertj.core.api.Assertions.assertThat(before).isZero();
+
+        jdbc.update("UPDATE user_subscription SET plan='PRO',current_period_end=now()+interval '1 day' WHERE user_id=?", user);
+        question("Explain that again", ",\"learningReference\":\"price-earnings\"")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.finwizTier").value("FULL"))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("15×")));
+        question("Calculate simple return from 100 to 80", "")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.answerKind").value("calculation"))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("-20%")));
+    }
+
+    @Test void cacheRejectsPoisonedTextAndOnlyContainsVerifiedPublicAnswers() throws Exception {
+        question("What is a market order?", "").andExpect(jsonPath("$.answerKind").value("lesson"));
+        String key = redis.keys("finwiz:lesson:v1:market-order:1:BASIC:*").iterator().next();
+        redis.opsForValue().set(key, "untrusted cached content");
+        question("What is a market order?", "")
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("seeks immediate execution")))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("untrusted cached"))));
+        org.assertj.core.api.Assertions.assertThat(redis.opsForValue().get(key)).contains("seeks immediate execution");
+    }
+
+    @Test void specificFinancialFactsRequireAStockAndPrivatePortfolioQueriesStayLocal() throws Exception {
+        question("What is the latest revenue?", "")
+            .andExpect(jsonPath("$.answerKind").value("unavailable"))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("Choose a stock and market")));
+        question("Explain my portfolio risk", "")
+            .andExpect(jsonPath("$.answerKind").value("unavailable"))
+            .andExpect(jsonPath("$.answer").value(org.hamcrest.Matchers.containsString("Choose a market")));
     }
 }

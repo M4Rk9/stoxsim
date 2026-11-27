@@ -75,7 +75,8 @@ final class FinwizProviderGateway {
     private void add(List<Candidate> list, String name, FinwizProperties.Provider p, String base) {
         if (p.configured()) list.add(new Candidate(name, base, p.getModel(), p.getApiKey(), p.getDailyLimit(), p.getRequestsPerMinute(), p.getTokensPerMinute(), p.getTokensPerDay()));
     }
-    Result generate(UUID user, FinwizDepth depth, UUID requestId, Map<String,Object> geminiBody) {
+    Result generate(UUID user, FinwizDepth depth, UUID requestId, Map<String,Object> geminiBody,
+        java.util.function.Predicate<String> validate) {
         FinwizUsageBudget.RequestReservation request;
         try { request=requestId==null?budget.reserveRequest(user,depth):budget.reserveRequest(user,depth,requestId); }
         catch(org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice"); return Result.failure("budget_limited"); }
@@ -83,6 +84,7 @@ final class FinwizProviderGateway {
         boolean settled=false;
         try {
             Result result=dispatch(request,depth,geminiBody);
+            if (result.answer()!=null && !validate.test(result.answer())) result=Result.failure("output_rejected");
             settled=budget.finishRequest(request,result.answer()!=null);
             return settled?result:Result.failure("budget_limited");
         } catch(org.springframework.dao.DataAccessException e) {

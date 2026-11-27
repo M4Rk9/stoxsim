@@ -30,6 +30,22 @@ public class FinwizUsageBudget {
             case FULL -> properties.getFullDailyProviderRequests();
         }));
     }
+    com.stoxsim.finwiz.api.FinwizResponse.AiAllowance allowance(UUID user, FinwizDepth depth) {
+        int limit = userLimit(depth);
+        Date day = Date.valueOf(LocalDate.now(clock.withZone(ZoneOffset.UTC)));
+        try {
+            int used = db.queryForObject("""
+                SELECT coalesce((SELECT successful_requests FROM finwiz_usage_daily
+                                 WHERE user_id=? AND usage_day=?), 0)
+                     + (SELECT count(*) FROM finwiz_request_reservation
+                        WHERE user_id=? AND usage_day=? AND state='PENDING' AND expires_at>now())
+                """, Integer.class, user, day, user, day);
+            return new com.stoxsim.finwiz.api.FinwizResponse.AiAllowance(limit, Math.max(0, limit - used));
+        } catch (org.springframework.dao.DataAccessException e) {
+            return null;
+        }
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
     public RequestReservation reserveRequest(UUID user, FinwizDepth depth) {
         return reserveRequestInternal(user,depth,null);
