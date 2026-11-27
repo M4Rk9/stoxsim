@@ -77,6 +77,30 @@ class FinwizUsageBudgetIntegrationTest {
         assertThat(db.queryForObject("SELECT provider_attempts FROM finwiz_provider_usage_daily WHERE provider='GROQ'",Integer.class)).isEqualTo(3);
         assertThat(budget.finishRequest(request,true)).isTrue();
     }
+    @Test void duplicateClientKeyIsRejectedDuringAndAfterSettlementButScopedToUser() {
+        UUID key=UUID.randomUUID();
+        var first=budget.reserveRequest(user.getId(),FinwizDepth.BASIC,key);
+        assertThat(first).isNotNull();
+        assertThatThrownBy(()->budget.reserveRequest(user.getId(),FinwizDepth.BASIC,key))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("409");
+        assertThat(budget.finishRequest(first,false)).isTrue();
+        assertThatThrownBy(()->budget.reserveRequest(user.getId(),FinwizDepth.BASIC,key))
+            .isInstanceOf(org.springframework.web.server.ResponseStatusException.class).hasMessageContaining("409");
+        var other=users.saveAndFlush(new AppUser(UUID.randomUUID()+"@budget.test","hash","Other"));
+        assertThat(budget.reserveRequest(other.getId(),FinwizDepth.BASIC,key)).isNotNull();
+        assertThat(budget.reserveRequest(user.getId(),FinwizDepth.BASIC,UUID.randomUUID())).isNotNull();
+    }
+    @Test void concurrentDuplicateClientKeysReserveOnlyOnce() throws Exception {
+        UUID key=UUID.randomUUID();
+        try(var pool=Executors.newFixedThreadPool(6)) {
+            List<Callable<Boolean>> tasks=IntStream.range(0,12).mapToObj(i->(Callable<Boolean>)()->{
+                try { return budget.reserveRequest(user.getId(),FinwizDepth.FULL,key)!=null; }
+                catch(org.springframework.web.server.ResponseStatusException e) { return false; }
+            }).toList();
+            int accepted=0; for(var future:pool.invokeAll(tasks)) if(future.get()) accepted++;
+            assertThat(accepted).isEqualTo(1);
+        }
+    }
     @Test void adminUsageReportsArePrivateAndExplicitAboutIncompleteCoverage() throws Exception {
         var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(context)
             .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity()).build();

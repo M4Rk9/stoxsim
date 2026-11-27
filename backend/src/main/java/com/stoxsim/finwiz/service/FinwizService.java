@@ -94,7 +94,7 @@ public class FinwizService {
             return fallback(request, context, question, depth);
         }
 
-        var result = gateway.generate(userId, depth, requestBody(request, context, question, depth));
+        var result = gateway.generate(userId, depth, request.requestId(), requestBody(request, context, question, depth));
         if (result.answer() != null) {
             meterRegistry.counter("stoxsim.finwiz.responses", "provider", result.provider().toLowerCase(java.util.Locale.ROOT), "result", "success").increment();
             return response(result.answer().trim(), result.provider(), result.model(), context, suggestions(request.topic()), depth);

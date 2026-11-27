@@ -63,9 +63,9 @@ final class FinwizProviderGateway {
     private void add(List<Candidate> list, String name, FinwizProperties.Provider p, String base) {
         if (p.configured()) list.add(new Candidate(name, base, p.getModel(), p.getApiKey(), p.getDailyLimit(), p.getRequestsPerMinute(), p.getTokensPerMinute(), p.getTokensPerDay()));
     }
-    Result generate(UUID user, FinwizDepth depth, Map<String,Object> geminiBody) {
+    Result generate(UUID user, FinwizDepth depth, UUID requestId, Map<String,Object> geminiBody) {
         FinwizUsageBudget.RequestReservation request;
-        try { request=budget.reserveRequest(user,depth); }
+        try { request=requestId==null?budget.reserveRequest(user,depth):budget.reserveRequest(user,depth,requestId); }
         catch(org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice"); return Result.failure("budget_limited"); }
         if(request==null) return Result.failure("budget_limited");
         boolean settled=false;
@@ -133,6 +133,7 @@ final class FinwizProviderGateway {
                     LOGGER.warn("Finwiz provider {} request failed with HTTP {}",p.name(),status);
                     if(status==429) cool(p.name(),retryAfter(reply.headers().firstValue("Retry-After").orElse(null)));
                     else if(status>=500 || status==408) cool(p.name(),15);
+                    else if(status==401 || status==404) cool(p.name(),300);
                     else { cool(p.name(),300); return Result.failure(reason); }
                     continue;
                 }

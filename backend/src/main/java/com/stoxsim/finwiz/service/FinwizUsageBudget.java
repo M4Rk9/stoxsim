@@ -32,6 +32,15 @@ public class FinwizUsageBudget {
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
     public RequestReservation reserveRequest(UUID user, FinwizDepth depth) {
+        return reserveRequestInternal(user,depth,null);
+    }
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
+    public RequestReservation reserveRequest(UUID user, FinwizDepth depth, UUID clientRequestId) {
+        return reserveRequestInternal(user,depth,clientRequestId);
+    }
+    private RequestReservation reserveRequestInternal(UUID user, FinwizDepth depth, UUID clientRequestId) {
+        if(clientRequestId!=null && db.queryForObject("SELECT count(*) FROM finwiz_request_reservation WHERE user_id=? AND client_request_id=?",Integer.class,user,clientRequestId)>0)
+            throw duplicateRequest();
         int limit=userLimit(depth);
         if(limit==0 || properties.getGlobalDailyProviderRequests()<=0) return null;
         Date day=Date.valueOf(clock.instant().atZone(ZoneOffset.UTC).toLocalDate());
@@ -40,8 +49,13 @@ public class FinwizUsageBudget {
         int pending=db.queryForObject("SELECT count(*) FROM finwiz_request_reservation WHERE user_id=? AND usage_day=? AND state='PENDING' AND expires_at>now()",Integer.class,user,day);
         if(successes+pending>=limit) return null;
         UUID id=UUID.randomUUID();
-        db.update("INSERT INTO finwiz_request_reservation(id,user_id,usage_day,state,expires_at) VALUES(?,?,?,'PENDING',now()+interval '120 seconds')",id,user,day);
+        int inserted=db.update("INSERT INTO finwiz_request_reservation(id,user_id,usage_day,state,expires_at,client_request_id) VALUES(?,?,?,'PENDING',now()+interval '120 seconds',?) ON CONFLICT(user_id,client_request_id) DO NOTHING",id,user,day,clientRequestId);
+        if(inserted!=1) throw duplicateRequest();
         return new RequestReservation(id,user,day.toLocalDate());
+    }
+    private org.springframework.web.server.ResponseStatusException duplicateRequest() {
+        return new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+            "This Finwiz request has already been submitted. Check your conversation, or submit a new question.");
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
     public Reservation reserveAttempt(RequestReservation request, FinwizDepth depth, String provider, int providerLimit, int rpm, int tpm, int tpd, int estimatedTokens) {

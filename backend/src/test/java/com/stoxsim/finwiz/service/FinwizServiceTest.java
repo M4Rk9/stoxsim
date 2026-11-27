@@ -467,6 +467,54 @@ class FinwizServiceTest {
     }
 
     @Test
+    void slowResponseBodyTriggersBoundedFailoverRatherThanWaitingForTheBody() throws Exception {
+        var slow=new AtomicInteger(); var backup=new AtomicInteger();
+        server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.setExecutor(java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor());
+        server.createContext("/groq/chat/completions", exchange -> {
+            slow.incrementAndGet();
+            exchange.getRequestBody().readAllBytes();
+            exchange.getResponseHeaders().set("Content-Type","application/json");
+            exchange.sendResponseHeaders(200,0);
+            try {
+                exchange.getResponseBody().write("{".getBytes(StandardCharsets.UTF_8));
+                exchange.getResponseBody().flush();
+                Thread.sleep(6000);
+                exchange.getResponseBody().write("}".getBytes(StandardCharsets.UTF_8));
+            } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            catch (IOException ignored) { /* cancelled by gateway */ }
+            finally { exchange.close(); }
+        });
+        mockReply("/v1beta/models/gemini-3.6-flash:generateContent",200,"""
+            {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"Cash flow describes money moving through a business."}]}}]}
+            """,backup,new AtomicReference<>());
+        server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var p=new FinwizProperties(); p.setApiKey("test-gemini"); p.setBaseUrl(base);
+        configure(p.getGroq(),base+"/groq","openai/gpt-oss-20b");
+        p.setAttemptTimeoutSeconds(1); p.setDeadlineSeconds(4);
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        long start=System.nanoTime();
+        var answer=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req);
+        assertThat(answer.provider()).isEqualTo("GEMINI");
+        assertThat(slow.get()).isEqualTo(1); assertThat(backup.get()).isEqualTo(1);
+        assertThat(java.time.Duration.ofNanos(System.nanoTime()-start)).isLessThan(java.time.Duration.ofSeconds(5));
+    }
+
+    @Test
+    void clientRequestIdIsPassedToTheDurableReservation() {
+        var p=new FinwizProperties(); p.setApiKey("synthetic-test-key");
+        var id=java.util.UUID.randomUUID();
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null,id);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        when(budget.reserveRequest(USER,FinwizDepth.BASIC,id)).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"Duplicate"));
+        assertThatThrownBy(()->new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        org.mockito.Mockito.verify(budget,org.mockito.Mockito.never()).reserveAttempt(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
     void rejectsQuestionsAboveTheConfiguredLimit() {
         FinwizProperties properties = new FinwizProperties();
         properties.setMaxQuestionCharacters(10);

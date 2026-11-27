@@ -17,8 +17,12 @@ public record FinwizRequest(
     MarketRegion marketRegion,
     MarketExchange exchange,
     @Size(max = 32)
-    String symbol
+    String symbol,
+    java.util.UUID requestId
 ) {
+    public FinwizRequest(String question, Topic topic, ExperienceLevel experienceLevel, MarketRegion marketRegion, MarketExchange exchange, String symbol) {
+        this(question,topic,experienceLevel,marketRegion,exchange,symbol,null);
+    }
     public enum Topic {
         LEARN,
         STOCK_FUNDAMENTALS,
