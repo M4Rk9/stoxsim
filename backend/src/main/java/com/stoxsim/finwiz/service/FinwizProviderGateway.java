@@ -30,7 +30,7 @@ final class FinwizProviderGateway {
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
     private final Map<String, Long> cooldown = new ConcurrentHashMap<>();
     private final Map<String, Semaphore> slots = new ConcurrentHashMap<>();
-    record Candidate(String name, String base, String model, String key, int dailyLimit) {}
+    record Candidate(String name, String base, String model, String key, int dailyLimit) { @Override public String toString() { return name; } }
     record Result(String answer, String provider, String model, String reason) {
         static Result failure(String reason) { return new Result(null, null, null, reason); }
     }
@@ -58,6 +58,26 @@ final class FinwizProviderGateway {
         if (p.configured()) list.add(new Candidate(name, base, p.getModel(), p.getApiKey(), p.getDailyLimit()));
     }
     Result generate(UUID user, FinwizDepth depth, Map<String,Object> geminiBody) {
+        FinwizUsageBudget.RequestReservation request;
+        try { request=budget.reserveRequest(user,depth); }
+        catch(org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice"); return Result.failure("budget_limited"); }
+        if(request==null) return Result.failure("budget_limited");
+        boolean settled=false;
+        try {
+            Result result=dispatch(request,depth,geminiBody);
+            settled=budget.finishRequest(request,result.answer()!=null);
+            return settled?result:Result.failure("budget_limited");
+        } catch(org.springframework.dao.DataAccessException e) {
+            LOGGER.warn("Finwiz request settlement unavailable");
+            return Result.failure("budget_limited");
+        } finally {
+            if(!settled) {
+                try { budget.finishRequest(request,false); }
+                catch(org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz request lease will expire"); }
+            }
+        }
+    }
+    private Result dispatch(FinwizUsageBudget.RequestReservation request, FinwizDepth depth, Map<String,Object> geminiBody) {
         long deadline = System.nanoTime() + Duration.ofSeconds(Math.max(1, Math.min(30,properties.getDeadlineSeconds()))).toNanos();
         String reason = "provider_error";
         for (Candidate p : candidates()) {
@@ -69,7 +89,7 @@ final class FinwizProviderGateway {
             try {
                 if (cooldown.getOrDefault(p.name(),0L)>System.currentTimeMillis()) continue;
                 FinwizUsageBudget.Reservation allowance;
-                try { allowance=budget.reserve(user,depth,p.name(),p.dailyLimit()); }
+                try { allowance=budget.reserveAttempt(request,depth,p.name(),p.dailyLimit()); }
                 catch (org.springframework.dao.DataAccessException e) {
                     LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice");
                     return Result.failure("budget_limited");
@@ -96,7 +116,7 @@ final class FinwizProviderGateway {
                     .header("Content-Type","application/json").body(chatBody(p,geminiBody)).retrieve().body(JsonNode.class);
                 JsonNode tokens=root==null?null:gemini?root.path("usageMetadata").path("totalTokenCount"):root.path("usage").path("total_tokens");
                 if (tokens!=null && tokens.isIntegralNumber()) {
-                    try { budget.recordReportedTokens(allowance.day(),tokens.asLong()); }
+                    try { budget.recordReportedTokens(allowance.day(),p.name(),tokens.asLong()); }
                     catch (org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz aggregate token usage could not be recorded"); }
                 }
                 String answer=gemini?extractAnswer(root):extractChat(root);
