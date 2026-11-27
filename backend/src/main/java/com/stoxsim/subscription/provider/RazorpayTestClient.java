@@ -1,5 +1,6 @@
 package com.stoxsim.subscription.provider;
 
+import com.stoxsim.subscription.domain.SubscriptionPlan;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -28,9 +29,9 @@ public class RazorpayTestClient {
     }
     public void validatePlan(String plan) {
         var price=request("GET","/plans/"+id(config.planId(plan),"plan"),null);
-        if (!price.path("period").asText().equals("monthly") || price.path("interval").asInt()!=1
+        if (!price.path("id").asText().equals(config.planId(plan)) || !price.path("period").asText().equals("monthly") || price.path("interval").asInt()!=1
             || !price.path("item").path("currency").asText().equals("INR")
-            || price.path("item").path("amount").asInt()!=(plan.equals("PLUS")?9900:19900))
+            || price.path("item").path("amount").asInt()!=SubscriptionPlan.valueOf(plan).monthlyPricePaise())
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Configured test plan must match the monthly INR catalog");
     }
     public JsonNode create(String plan,UUID reference) {

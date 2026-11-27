@@ -6,7 +6,7 @@ public enum SubscriptionPlan {
     FREE("Free", new BigDecimal("0.00"), 0, null, "BASIC", "BASIC", true, false, false),
     PLUS(
         "Plus",
-        new BigDecimal("99.00"),
+        new BigDecimal("199.00"),
         1,
         new BigDecimal("2500000.0000"),
         "EXPANDED",
@@ -17,7 +17,7 @@ public enum SubscriptionPlan {
     ),
     PRO(
         "Pro",
-        new BigDecimal("199.00"),
+        new BigDecimal("499.00"),
         5,
         new BigDecimal("10000000.0000"),
         "FULL",
@@ -68,6 +68,10 @@ public enum SubscriptionPlan {
 
     public BigDecimal monthlyPriceInr() {
         return monthlyPriceInr;
+    }
+
+    public int monthlyPricePaise() {
+        return monthlyPriceInr.movePointRight(2).intValueExact();
     }
 
     public int maximumSandboxPortfolios() {

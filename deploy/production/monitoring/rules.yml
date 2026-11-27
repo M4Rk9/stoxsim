@@ -98,7 +98,23 @@ groups:
           severity: warning
         annotations:
           summary: "Finwiz provider fallbacks are elevated"
-          description: "Gemini failures caused more than five educational fallbacks in fifteen minutes."
+          description: "Finwiz recorded more than five provider-related unanswered requests in fifteen minutes."
+
+      - alert: FinwizPaidSpendLimit
+        expr: sum by (scope) (increase(stoxsim_finwiz_spend_rejected_total{scope!="user"}[15m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Finwiz paid inference budget reached"
+          description: "The application declined paid inference because an aggregate budget is exhausted."
+
+      - alert: FinwizPaidSpendEstimateOverrun
+        expr: increase(stoxsim_finwiz_spend_estimate_overrun_total[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Finwiz paid inference exceeded a reservation"
+          description: "Review reported usage and provider pricing before enabling further paid requests."
 
   - name: stoxsim-host
     rules:

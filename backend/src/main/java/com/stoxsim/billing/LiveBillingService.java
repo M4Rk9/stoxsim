@@ -24,9 +24,9 @@ import tools.jackson.databind.ObjectMapper;
 public class LiveBillingService {
     public record Entry(UUID id,String provider,String plan,String status,Instant currentPeriodEnd,Instant accessUntil,String cancellationStatus,String providerReference,String managementUrl) {}
     public record Overview(boolean enabled,boolean razorpayEnabled,boolean googlePlayEnabled,String keyId,List<Entry> entries,String historyCoverage) {}
-    public record PlayProduct(String plan,String productId,String basePlanId) {}
+    public record PlayProduct(String plan,String productId,String basePlanId,int monthlyPricePaise) {}
     public record PlayConfig(boolean enabled,String packageName,String obfuscatedAccountId,List<PlayProduct> products) {}
-    private record Row(UUID id,UUID userId,String provider,String plan,String reference,String product,String encryptedToken,String status,Instant paidThrough,Instant accessUntil,int paidCount,String cancellation,Instant cancelAt,Integer remaining,boolean revoked) {}
+    private record Row(UUID id,UUID userId,String provider,String plan,String reference,String product,Integer agreedAmountPaise,String playBasePlan,String encryptedToken,String status,Instant paidThrough,Instant accessUntil,int paidCount,String cancellation,Instant cancelAt,Integer remaining,boolean revoked) {}
     private final JdbcTemplate db;private final AppUserRepository users;private final BillingConfig config;
     private final RazorpayLiveClient razorpay;private final GooglePlayClient play;private final PurchaseTokenVault vault;
     private final ObjectMapper json;private final TransactionTemplate tx;private final SubscriptionService subscriptions;
@@ -38,19 +38,29 @@ public class LiveBillingService {
     public PlayConfig playConfig(UUID actor){
         if(!config.playEnabled)return new PlayConfig(false,config.packageName,null,List.of());learner(actor);
         String reference=tx.execute(s->{users.findByIdForUpdate(actor).orElseThrow();return accountReference(actor);});
-        return new PlayConfig(true,config.packageName,reference,List.of(new PlayProduct("PLUS",config.plusProduct,config.plusBasePlan),new PlayProduct("PRO",config.proProduct,config.proBasePlan)));}
+        return new PlayConfig(true,config.packageName,reference,List.of(new PlayProduct("PLUS",config.plusProduct,config.plusBasePlan,SubscriptionPlan.PLUS.monthlyPricePaise()),new PlayProduct("PRO",config.proProduct,config.proBasePlan,SubscriptionPlan.PRO.monthlyPricePaise())));}
     private String accountReference(UUID actor){db.update("INSERT INTO billing_customer(user_id,account_reference) VALUES (?,?) ON CONFLICT(user_id) DO NOTHING",actor,UUID.randomUUID());return db.queryForObject("SELECT account_reference::text FROM billing_customer WHERE user_id=?",String.class,actor);}
     public Entry create(UUID actor,String plan,UUID key){
-        learner(actor);requireRazorpay();if(!Set.of("PLUS","PRO").contains(plan))throw error(HttpStatus.BAD_REQUEST,"Choose Plus or Pro");razorpay.validatePlan(plan);
+        learner(actor);requireRazorpay();if(!Set.of("PLUS","PRO").contains(plan))throw error(HttpStatus.BAD_REQUEST,"Choose Plus or Pro");
+        Row previous=previousCheckout(actor,plan,key);
+        if(previous!=null)return view(previous);
+        razorpay.validatePlan(plan);
         record Reservation(Row row,boolean fresh) {}
         var reservation=tx.execute(s->{users.findByIdForUpdate(actor).orElseThrow();
-            var prior=db.query("SELECT * FROM billing_purchase WHERE user_id=? AND request_key=?",this::map,actor,key);
-            if(!prior.isEmpty()){Row item=prior.getFirst();if(!item.plan.equals(plan)||!item.provider.equals("RAZORPAY"))throw error(HttpStatus.CONFLICT,"Retry key belongs to another purchase");return new Reservation(item,false);}
-            noOtherPurchase(actor,null);UUID id=UUID.randomUUID();db.update("INSERT INTO billing_purchase(id,user_id,provider,plan,request_key,provider_product) VALUES (?,?,'RAZORPAY',?,?,?)",id,actor,plan,key,config.razorpayPlan(plan));accountReference(actor);return new Reservation(row(id),true);});
+            Row prior=previousCheckout(actor,plan,key);
+            if(prior!=null)return new Reservation(prior,false);
+            noOtherPurchase(actor,null);UUID id=UUID.randomUUID();db.update("INSERT INTO billing_purchase(id,user_id,provider,plan,request_key,provider_product,agreed_amount_paise) VALUES (?,?,'RAZORPAY',?,?,?,?)",id,actor,plan,key,config.razorpayPlan(plan),SubscriptionPlan.valueOf(plan).monthlyPricePaise());accountReference(actor);return new Reservation(row(id),true);});
         if(!reservation.fresh())return view(reservation.row());
         // Persist first: a timeout never triggers an automatic duplicate creation.
         JsonNode created=razorpay.create(plan,reservation.row().id);
         return tx.execute(s->applyRazorpay(lock(reservation.row().id),razorpay.fetch(created.path("id").asText())));}
+    private Row previousCheckout(UUID actor,String plan,UUID key){
+        var rows=db.query("SELECT * FROM billing_purchase WHERE user_id=? AND request_key=?",this::map,actor,key);
+        if(rows.isEmpty())return null;
+        Row item=rows.getFirst();
+        if(!item.plan.equals(plan)||!item.provider.equals("RAZORPAY"))throw error(HttpStatus.CONFLICT,"Retry key belongs to another purchase");
+        return item;
+    }
     public Entry refresh(UUID actor,UUID id){return tx.execute(s->refreshLocked(owned(actor,id)));}
     public Entry reconcile(UUID actor,UUID id,String reference){learner(actor);requireRazorpay();return tx.execute(s->{Row item=owned(actor,id);if(!item.provider.equals("RAZORPAY"))throw error(HttpStatus.CONFLICT,"Wrong provider");return applyRazorpay(item,razorpay.fetch(reference));});}
     public Entry cancel(UUID actor,UUID id){
@@ -64,22 +74,33 @@ public class LiveBillingService {
             db.update("UPDATE billing_purchase SET cancellation_status='CONFIRMED' WHERE id=?",id);return applyRazorpay(row(id),acknowledged);});}
     public Entry verifyPlay(UUID actor,String token,String product){
         learner(actor);requirePlay();String hash=vault.hash(token);
-        return tx.execute(s->{users.findByIdForUpdate(actor).orElseThrow();JsonNode remote=play.fetch(token);String plan=validatePlay(actor,product,remote);
+        return tx.execute(s->{users.findByIdForUpdate(actor).orElseThrow();JsonNode remote=play.fetch(token);
             var found=db.query("SELECT * FROM billing_purchase WHERE token_hash=? FOR UPDATE",this::map,hash);Row item;
-            if(!found.isEmpty()){item=found.getFirst();if(!item.userId.equals(actor))throw error(HttpStatus.NOT_FOUND,"Purchase not found");if(!item.plan.equals(plan)||!item.product.equals(product))throw error(HttpStatus.CONFLICT,"Purchase product changed");}
-            else{noOtherPurchase(actor,null);if(!remote.path("linkedPurchaseToken").asText().isBlank())throw error(HttpStatus.CONFLICT,"Linked subscription changes require support reconciliation");
-                UUID id=UUID.randomUUID();db.update("INSERT INTO billing_purchase(id,user_id,provider,plan,request_key,provider_product,provider_reference,token_hash,encrypted_token) VALUES (?,?,'GOOGLE_PLAY',?,?,?,?,?,?)",id,actor,plan,UUID.randomUUID(),product,"play_"+hash,hash,vault.encrypt(token));item=row(id);}
+            if(!found.isEmpty()){
+                item=found.getFirst();
+                validatePlay(actor,product,item.playBasePlan,remote);
+                if(!item.userId.equals(actor))throw error(HttpStatus.NOT_FOUND,"Purchase not found");
+                if(!item.product.equals(product))throw error(HttpStatus.CONFLICT,"Purchase product changed");
+            }
+            else{
+                String plan=product.equals(config.plusProduct)?"PLUS":product.equals(config.proProduct)?"PRO":null;
+                if(plan==null)throw error(HttpStatus.FORBIDDEN,"Purchase belongs to another account or product");
+                validatePlay(actor,product,config.playBasePlan(plan),remote);
+                noOtherPurchase(actor,null);if(!remote.path("linkedPurchaseToken").asText().isBlank())throw error(HttpStatus.CONFLICT,"Linked subscription changes require support reconciliation");
+                UUID id=UUID.randomUUID();db.update("INSERT INTO billing_purchase(id,user_id,provider,plan,request_key,provider_product,provider_reference,token_hash,encrypted_token,play_base_plan) VALUES (?,?,'GOOGLE_PLAY',?,?,?,?,?,?,?)",id,actor,plan,UUID.randomUUID(),product,"play_"+hash,hash,vault.encrypt(token),config.playBasePlan(plan));item=row(id);}
             if(Set.of("SUBSCRIPTION_STATE_ACTIVE","SUBSCRIPTION_STATE_IN_GRACE_PERIOD","SUBSCRIPTION_STATE_CANCELED").contains(remote.path("subscriptionState").asText())&&remote.path("acknowledgementState").asText().equals("ACKNOWLEDGEMENT_STATE_PENDING")){
-                play.acknowledge(product,token);remote=play.fetch(token);validatePlay(actor,product,remote);}
+                play.acknowledge(product,token);remote=play.fetch(token);}
             return applyPlay(item,remote);});}
-    private String validatePlay(UUID actor,String product,JsonNode remote){
-        String plan=product.equals(config.plusProduct)?"PLUS":product.equals(config.proProduct)?"PRO":null;
-        if(plan==null||!remote.path("externalAccountIdentifiers").path("obfuscatedExternalAccountId").asText().equals(accountReference(actor)))throw error(HttpStatus.FORBIDDEN,"Purchase belongs to another account or product");
+    private String validatePlay(UUID actor,String product,String expectedBasePlan,JsonNode remote){
+        if(!remote.path("externalAccountIdentifiers").path("obfuscatedExternalAccountId").asText().equals(accountReference(actor)))throw error(HttpStatus.FORBIDDEN,"Purchase belongs to another account or product");
         if(remote.has("testPurchase"))throw error(HttpStatus.CONFLICT,"License test purchases cannot grant production entitlements");
         JsonNode lines=remote.path("lineItems");if(!lines.isArray()||lines.size()!=1)throw error(HttpStatus.CONFLICT,"Purchase must contain one supported subscription");
-        JsonNode line=lines.get(0);if(!line.path("productId").asText().equals(product)||!line.path("offerDetails").path("basePlanId").asText().equals(config.playBasePlan(plan))||!line.path("autoRenewingPlan").isObject()||line.path("autoRenewingPlan").has("installmentDetails"))throw error(HttpStatus.CONFLICT,"Purchase does not match the server catalog");return plan;}
+        JsonNode line=lines.get(0);String actualBasePlan=line.path("offerDetails").path("basePlanId").asText();
+        if(!line.path("productId").asText().equals(product)||!actualBasePlan.matches("[a-z0-9][a-z0-9_.-]{0,149}")||(expectedBasePlan!=null&&!expectedBasePlan.equals(actualBasePlan))||!line.path("autoRenewingPlan").isObject()||line.path("autoRenewingPlan").has("installmentDetails"))throw error(HttpStatus.CONFLICT,"Purchase does not match the server catalog");return actualBasePlan;}
     private Entry applyPlay(Row item,JsonNode remote){
-        validatePlay(item.userId,item.product,remote);JsonNode line=remote.path("lineItems").get(0);Instant end=parseInstant(line.path("expiryTime").asText());String state=remote.path("subscriptionState").asText();
+        String basePlan=validatePlay(item.userId,item.product,item.playBasePlan,remote);
+        if(item.playBasePlan==null)db.update("UPDATE billing_purchase SET play_base_plan=? WHERE id=?",basePlan,item.id);
+        JsonNode line=remote.path("lineItems").get(0);Instant end=parseInstant(line.path("expiryTime").asText());String state=remote.path("subscriptionState").asText();
         String status=switch(state){case "SUBSCRIPTION_STATE_ACTIVE"->"ACTIVE";case "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"->"GRACE";case "SUBSCRIPTION_STATE_CANCELED"->"ENDING";case "SUBSCRIPTION_STATE_EXPIRED","SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED"->"EXPIRED";case "SUBSCRIPTION_STATE_PENDING"->"PENDING";case "SUBSCRIPTION_STATE_PAUSED","SUBSCRIPTION_STATE_ON_HOLD"->"PAST_DUE";default->throw error(HttpStatus.BAD_GATEWAY,"Unknown subscription state");};
         boolean acknowledged=remote.path("acknowledgementState").asText().equals("ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");Instant access=null;
         if(Set.of("ACTIVE","GRACE","ENDING").contains(status)&&acknowledged&&end!=null&&end.isAfter(clock.instant()))access=end;
@@ -93,6 +114,11 @@ public class LiveBillingService {
         // acknowledgment must never survive authoritative resumed renewal.
         db.update("UPDATE billing_purchase SET status=?,paid_through=?,access_until=?,cancellation_status=?,renewal_stopped=?,updated_at=now() WHERE id=?",status,ts(paid),ts(access),state.equals("SUBSCRIPTION_STATE_CANCELED")?"CONFIRMED":"NONE",stopped,item.id);
         project(item.id);return view(row(item.id));}
+    private int agreedRazorpayAmount(Row item) {
+        if (item.agreedAmountPaise != null) return item.agreedAmountPaise;
+        // A checkout created by a rollback version still has the old catalog.
+        return "PLUS".equals(item.plan) ? 9900 : 19900;
+    }
     private void validateRazorpayIdentity(Row item,JsonNode remote){String reference=remote.path("id").asText();
         if(!reference.matches("sub_[A-Za-z0-9]+")||(item.reference!=null&&!item.reference.equals(reference))||!remote.path("plan_id").asText().equals(item.product)||remote.path("quantity").asInt()!=1||!remote.path("notes").path("stoxsim_billing_reference").asText().equals(item.id.toString()))throw error(HttpStatus.BAD_GATEWAY,"Provider subscription does not match checkout");}
     private Entry applyRazorpay(Row item,JsonNode remote){
@@ -117,7 +143,7 @@ public class LiveBillingService {
     private boolean verifyCharge(Row item,String reference,JsonNode latest,JsonNode payment){
         String paymentId=latest.path("payment_id").asText();
         if(!latest.path("subscription_id").asText().equals(reference)||!latest.path("status").asText().equals("paid"))throw error(HttpStatus.BAD_GATEWAY,"Invoice ownership mismatch");
-        if(!payment.path("id").asText().equals(paymentId)||!payment.path("invoice_id").asText().equals(latest.path("id").asText())||!payment.path("currency").asText().equals("INR")||payment.path("amount").asLong()!=RazorpayLiveClient.amount(item.plan))throw error(HttpStatus.BAD_GATEWAY,"Payment does not match catalog invoice");
+        if(!payment.path("id").asText().equals(paymentId)||!payment.path("invoice_id").asText().equals(latest.path("id").asText())||!payment.path("currency").asText().equals("INR")||payment.path("amount").asLong()!=agreedRazorpayAmount(item))throw error(HttpStatus.BAD_GATEWAY,"Payment does not match catalog invoice");
         long amount=payment.path("amount").asLong(),refunded=payment.path("amount_refunded").asLong(0);if(refunded<0||refunded>amount)throw error(HttpStatus.BAD_GATEWAY,"Invalid refund amount");String state=payment.path("status").asText();
         db.update("INSERT INTO billing_charge(provider,charge_id,purchase_id,amount_minor,refunded_minor,currency,status,paid_at) VALUES ('RAZORPAY',?,?,?,?,?,?,?) ON CONFLICT(provider,charge_id) DO UPDATE SET refunded_minor=excluded.refunded_minor,status=excluded.status,updated_at=now()",paymentId,item.id,amount,refunded,"INR",state,ts(epoch(latest.path("paid_at").asLong(0))));
         if(refunded>0||state.equals("refunded"))db.update("UPDATE billing_purchase SET revoked=true WHERE id=?",item.id);return state.equals("captured")&&refunded==0;}
@@ -197,7 +223,7 @@ public class LiveBillingService {
     private Row owned(UUID actor,UUID id){if(db.queryForObject("SELECT count(*) FROM billing_purchase WHERE id=? AND user_id=?",Integer.class,id,actor)==0)throw error(HttpStatus.NOT_FOUND,"Purchase not found");return lock(id);}
     private Row lock(UUID id){Row item=row(id);users.findByIdForUpdate(item.userId).orElseThrow();return db.query("SELECT * FROM billing_purchase WHERE id=? FOR UPDATE",this::map,id).getFirst();}
     private Row row(UUID id){return db.query("SELECT * FROM billing_purchase WHERE id=?",this::map,id).stream().findFirst().orElseThrow(()->error(HttpStatus.NOT_FOUND,"Purchase not found"));}
-    private Row map(ResultSet r,int index)throws SQLException{return new Row(r.getObject("id",UUID.class),r.getObject("user_id",UUID.class),r.getString("provider"),r.getString("plan"),r.getString("provider_reference"),r.getString("provider_product"),r.getString("encrypted_token"),r.getString("status"),instant(r.getTimestamp("paid_through")),instant(r.getTimestamp("access_until")),r.getInt("verified_paid_count"),r.getString("cancellation_status"),instant(r.getTimestamp("cancel_at")),r.getObject("remaining_cycles",Integer.class),r.getBoolean("revoked"));}
+    private Row map(ResultSet r,int index)throws SQLException{return new Row(r.getObject("id",UUID.class),r.getObject("user_id",UUID.class),r.getString("provider"),r.getString("plan"),r.getString("provider_reference"),r.getString("provider_product"),r.getObject("agreed_amount_paise",Integer.class),r.getString("play_base_plan"),r.getString("encrypted_token"),r.getString("status"),instant(r.getTimestamp("paid_through")),instant(r.getTimestamp("access_until")),r.getInt("verified_paid_count"),r.getString("cancellation_status"),instant(r.getTimestamp("cancel_at")),r.getObject("remaining_cycles",Integer.class),r.getBoolean("revoked"));}
     private Entry view(Row r){return new Entry(r.id,r.provider,r.plan,r.status,r.paidThrough,r.accessUntil,r.cancellation,r.provider.equals("RAZORPAY")?r.reference:null,r.provider.equals("GOOGLE_PLAY")?"https://play.google.com/store/account/subscriptions?package="+config.packageName+"&sku="+r.product:null);}
     private JsonNode parseJson(byte[] raw){try{JsonNode value=json.readTree(raw);if(value==null||!value.isObject())throw new IllegalArgumentException();return value;}catch(RuntimeException ex){throw error(HttpStatus.BAD_REQUEST,"Invalid provider notification");}}
     private void requireEventId(String id){if(id==null||!id.matches("[A-Za-z0-9_-]{1,160}"))throw error(HttpStatus.BAD_REQUEST,"Invalid event ID");}

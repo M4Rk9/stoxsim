@@ -49,7 +49,7 @@ Do not simply expose the website's Razorpay checkout inside the Play app or link
 users to another checkout. An eligible alternative-billing program would need
 separate enrollment and compliant implementation; no such enrollment is assumed.
 
-The existing catalog has Free, Plus (₹99/month) and Pro (₹199/month). Treat these
+The existing catalog has Free, Plus (₹199/month) and Pro (₹499/month). Treat these
 as draft price intentions, not Play-configured prices. The owner must configure
 products/base plans, availability, taxes and billing terms in Play Console.
 Candidate product IDs are `stoxsim_plus` and `stoxsim_pro`, each with a monthly

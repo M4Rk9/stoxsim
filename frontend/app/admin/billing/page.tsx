@@ -6,6 +6,7 @@ import styles from "../../campus/campus.module.css";
 
 interface Entry { id: string; plan: string; providerId: string | null; status: string; currentPeriodEnd: string | null; paidCount: number; benefitsEnabled: boolean; benefitStatus: string; accessUntil: string | null; cancellationStatus: string; cancelAt: string | null }
 interface Overview { enabled: boolean; mode: string; keyId: string | null; entries: Entry[] }
+interface Catalog { plans: Array<{ plan: string; displayName: string; monthlyPriceInr: number }> }
 interface CheckoutInstance { open(): void; on(event: string, callback: () => void): void }
 declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => CheckoutInstance } }
 let checkoutScript: Promise<void> | null = null;
@@ -23,11 +24,16 @@ function loadCheckout() {
 }
 export default function BillingTestPage() {
   const [data, setData] = useState<Overview | null>(null);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [consent, setConsent] = useState(false);
-  async function load() { setData(await authenticated<Overview>("billing/test")); }
+  async function load() {
+    const [overview, plans] = await Promise.all([authenticated<Overview>("billing/test"), authenticated<Catalog>("subscription")]);
+    setData(overview);
+    setCatalog(plans);
+  }
   async function act(action: () => Promise<void>) {
     setBusy(true); setError(""); setNotice("");
     try { await action(); } catch (cause) {
@@ -73,7 +79,7 @@ export default function BillingTestPage() {
     {data && !data.enabled && <section className={styles.card}><h2>Test checkout is disabled</h2><p>Complete the test billing setup before starting a checkout.</p></section>}
     {data?.enabled && <>
       <section className={styles.card}><h2>Start a test</h2>
-        <p>Monthly plans: Plus ₹99, Pro ₹199. Test subscriptions run for up to 12 billing cycles. No real money is charged.</p>
+        <p>{catalog?.plans.filter(plan => plan.monthlyPriceInr > 0).map(plan => `${plan.displayName} ₹${plan.monthlyPriceInr}/month`).join(" · ")}. Test subscriptions run for up to 12 billing cycles. No real money is charged.</p>
         <p>Subscription policy: purchases are non-refundable. Cancel renewal to keep benefits until the paid period ends. An unpaid checkout can be cancelled immediately.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />I understand this is a simulated checkout and will use test payment details.</label>
         <div className={styles.actions}>{["PLUS", "PRO"].map(plan => <button key={plan} disabled={busy || !consent || openEntry} onClick={() => void act(() => create(plan))}>Test {plan === "PLUS" ? "Plus" : "Pro"}</button>)}</div>

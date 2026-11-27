@@ -49,7 +49,7 @@ public class FinwizUsageBudget {
         int pending=db.queryForObject("SELECT count(*) FROM finwiz_request_reservation WHERE user_id=? AND usage_day=? AND state='PENDING' AND expires_at>now()",Integer.class,user,day);
         if(successes+pending>=limit) return null;
         UUID id=UUID.randomUUID();
-        int inserted=db.update("INSERT INTO finwiz_request_reservation(id,user_id,usage_day,state,expires_at,client_request_id) VALUES(?,?,?,'PENDING',now()+interval '120 seconds',?) ON CONFLICT(user_id,client_request_id) DO NOTHING",id,user,day,clientRequestId);
+        int inserted=db.update("INSERT INTO finwiz_request_reservation(id,user_id,usage_day,state,expires_at,client_request_id,depth) VALUES(?,?,?,'PENDING',now()+interval '120 seconds',?,?) ON CONFLICT(user_id,client_request_id) DO NOTHING",id,user,day,clientRequestId,depth.name());
         if(inserted!=1) throw duplicateRequest();
         return new RequestReservation(id,user,day.toLocalDate());
     }
@@ -59,7 +59,9 @@ public class FinwizUsageBudget {
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
     public Reservation reserveAttempt(RequestReservation request, FinwizDepth depth, String provider, int providerLimit, int rpm, int tpm, int tpd, int estimatedTokens) {
-        if (!java.util.Set.of("GEMINI","GROQ","CLOUDFLARE","OPENROUTER").contains(provider)) throw new IllegalArgumentException("Unknown provider");
+        if (!java.util.Set.of("GEMINI","GROQ","CLOUDFLARE","OPENROUTER","GEMINI_PAID").contains(provider)) throw new IllegalArgumentException("Unknown provider");
+        boolean paid = provider.equals("GEMINI_PAID");
+        if (paid && depth == FinwizDepth.BASIC) return null;
         int globalLimit=Math.max(0,Math.min(100000,properties.getGlobalDailyProviderRequests()));
         providerLimit=Math.max(0,Math.min(100000,providerLimit));
         int userAttemptLimit=userLimit(depth)*4;
@@ -68,25 +70,53 @@ public class FinwizUsageBudget {
         if(!request.day().equals(clock.instant().atZone(ZoneOffset.UTC).toLocalDate())) return null;
         db.update("INSERT INTO finwiz_global_usage_daily(usage_day) VALUES(?) ON CONFLICT DO NOTHING",day);
         int global=db.queryForObject("SELECT provider_attempts FROM finwiz_global_usage_daily WHERE usage_day=? FOR UPDATE",Integer.class,day);
-        if(global>=globalLimit) return null;
+        if(global>=globalLimit || attemptsInPool(day, depth)>=FinwizCapacity.share(properties, globalLimit, depth)) return null;
         var used=db.query("SELECT provider_attempts FROM finwiz_usage_daily WHERE user_id=? AND usage_day=? FOR UPDATE",(rs,n)->rs.getInt(1),request.user(),day);
         if(used.isEmpty()||used.getFirst()>=userAttemptLimit) return null;
-        if(db.queryForObject("SELECT count(*) FROM finwiz_request_reservation WHERE id=? AND user_id=? AND usage_day=? AND state='PENDING' AND expires_at>now()",Integer.class,request.id(),request.user(),day)!=1) return null;
+        if(db.queryForObject("SELECT count(*) FROM finwiz_request_reservation WHERE id=? AND user_id=? AND usage_day=? AND depth=? AND state='PENDING' AND expires_at>now()",Integer.class,request.id(),request.user(),day,depth.name())!=1) return null;
+        // Serialise this rolling provider window across the UTC daily boundary.
+        db.query("SELECT pg_advisory_xact_lock(224113,hashtext(?))", (rs,n) -> n, provider);
         db.update("INSERT INTO finwiz_provider_usage_daily(provider,usage_day) VALUES(?,?) ON CONFLICT DO NOTHING",provider,day);
         int providerUsed=db.queryForObject("SELECT provider_attempts FROM finwiz_provider_usage_daily WHERE provider=? AND usage_day=? FOR UPDATE",Integer.class,provider,day);
         if(providerUsed>=providerLimit) return null;
         long dailyTokens=db.queryForObject("SELECT reserved_tokens FROM finwiz_provider_usage_daily WHERE provider=? AND usage_day=?",Long.class,provider,day);
         if(dailyTokens+estimatedTokens>tpd) return null;
+        var pool = db.queryForMap("""
+            SELECT coalesce(sum(provider_attempts),0) AS attempts, coalesce(sum(reserved_tokens),0) AS tokens
+            FROM finwiz_pool_usage_daily WHERE usage_day=? AND depth=? AND provider=?
+            """, day, depth.name(), provider);
+        if (number(pool, "attempts") >= FinwizCapacity.providerShare(properties, providerLimit, depth, paid)
+            || number(pool, "tokens") + estimatedTokens > FinwizCapacity.providerShare(properties, tpd, depth, paid)) return null;
         // Global-day lock serialises admission; rolling database-time window avoids minute-boundary bursts.
         // Previous-day events are included in this query at UTC midnight.
         var recent=db.queryForMap("SELECT count(*) AS attempts, coalesce(sum(estimated_tokens),0) AS tokens FROM finwiz_provider_admission WHERE provider=? AND admitted_at>now()-interval '60 seconds'",provider);
-        if(((Number)recent.get("attempts")).longValue()>=rpm || ((Number)recent.get("tokens")).longValue()+estimatedTokens>tpm) return null;
-        db.update("INSERT INTO finwiz_provider_admission(provider,estimated_tokens) VALUES(?,?)",provider,estimatedTokens);
+        if(number(recent,"attempts")>=rpm || number(recent,"tokens")+estimatedTokens>tpm) return null;
+        var poolRecent = db.queryForMap("""
+            SELECT count(*) AS attempts, coalesce(sum(estimated_tokens),0) AS tokens
+            FROM finwiz_provider_admission WHERE provider=? AND depth=? AND admitted_at>now()-interval '60 seconds'
+            """, provider, depth.name());
+        if (number(poolRecent,"attempts") >= FinwizCapacity.providerShare(properties, rpm, depth, paid)
+            || number(poolRecent,"tokens") + estimatedTokens > FinwizCapacity.providerShare(properties, tpm, depth, paid)) return null;
+        db.update("INSERT INTO finwiz_provider_admission(provider,estimated_tokens,depth) VALUES(?,?,?)",provider,estimatedTokens,depth.name());
+        db.update("""
+            INSERT INTO finwiz_pool_usage_daily(usage_day,depth,provider,provider_attempts,reserved_tokens)
+            VALUES (?,?,?,1,?) ON CONFLICT (usage_day,depth,provider) DO UPDATE
+            SET provider_attempts=finwiz_pool_usage_daily.provider_attempts+1,
+                reserved_tokens=finwiz_pool_usage_daily.reserved_tokens+excluded.reserved_tokens
+            """, day, depth.name(), provider, estimatedTokens);
         db.update("UPDATE finwiz_provider_usage_daily SET provider_attempts=provider_attempts+1,reserved_tokens=reserved_tokens+? WHERE provider=? AND usage_day=?",estimatedTokens,provider,day);
         db.update("UPDATE finwiz_usage_daily SET provider_attempts=provider_attempts+1 WHERE user_id=? AND usage_day=?",request.user(),day);
         db.update("UPDATE finwiz_global_usage_daily SET provider_attempts=provider_attempts+1 WHERE usage_day=?",day);
         return new Reservation(request.day());
     }
+    private long attemptsInPool(Date day, FinwizDepth depth) {
+        return db.queryForObject("SELECT coalesce(sum(provider_attempts),0) FROM finwiz_pool_usage_daily WHERE usage_day=? AND depth=?",Long.class,day,depth.name());
+    }
+
+    private static long number(java.util.Map<String,Object> row, String key) {
+        return ((Number) row.get(key)).longValue();
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
     public boolean finishRequest(RequestReservation request, boolean success) {
         Date day=Date.valueOf(request.day());
@@ -113,5 +143,6 @@ public class FinwizUsageBudget {
         db.update("DELETE FROM finwiz_usage_daily WHERE ctid IN(SELECT ctid FROM finwiz_usage_daily WHERE usage_day<? LIMIT 5000)", cutoff);
         db.update("DELETE FROM finwiz_global_usage_daily WHERE usage_day<?", cutoff);
         db.update("DELETE FROM finwiz_provider_usage_daily WHERE usage_day<?", cutoff);
+        db.update("DELETE FROM finwiz_pool_usage_daily WHERE usage_day<?", cutoff);
     }
 }

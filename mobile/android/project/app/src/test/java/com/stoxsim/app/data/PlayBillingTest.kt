@@ -31,4 +31,11 @@ class PlayBillingTest {
         assertEquals("month", playRenewalPeriod("P1M")); assertEquals("year", playRenewalPeriod("P1Y"))
         assertNull(playRenewalPeriod("P7D")); assertNull(playRenewalPeriod("unknown"))
     }
+    @Test fun indianCheckoutRequiresTheMonthlyCatalogPrice() {
+        val plus = PlayProduct("PLUS", "stoxsim_plus", "monthly", 19900)
+        assertTrue(matchesCatalogPrice(plus, "P1M", "INR", 199_000_000))
+        assertTrue(matchesCatalogPrice(plus, "P1M", "USD", 3_000_000))
+        assertFalse(matchesCatalogPrice(plus, "P1M", "INR", 99_000_000))
+        assertFalse(matchesCatalogPrice(plus, "P1Y", "INR", 199_000_000))
+    }
 }

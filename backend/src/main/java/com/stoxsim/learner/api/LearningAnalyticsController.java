@@ -6,7 +6,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
+import com.stoxsim.finwiz.service.FinwizSpendBudget;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,14 +27,15 @@ public class LearningAnalyticsController {
     private final AppUserRepository users;
     private final JdbcTemplate db;
     private final Clock clock;
-    public LearningAnalyticsController(AppUserRepository users, JdbcTemplate db, Clock clock) {
-        this.users = users; this.db = db; this.clock = clock;
+    private final FinwizSpendBudget spend;
+    public LearningAnalyticsController(AppUserRepository users, JdbcTemplate db, Clock clock, FinwizSpendBudget spend) {
+        this.users = users; this.db = db; this.clock = clock; this.spend = spend;
     }
     public record Overview(String version, LocalDate from, LocalDate to, String timeZone,
         Instant learningTrackingStartedAt, Instant aiTrackingStartedAt, Instant retainedFrom,
         boolean fullLearningWindowObserved, boolean fullAiWindowObserved,
         Long recommendationLearners, Long reflectionLearners, long providerAttempts,
-        long providerReportedTotalTokens, long responsesWithTokenUsage, String costStatus) { }
+        long providerReportedTotalTokens, long responsesWithTokenUsage, String costStatus, List<FinwizSpendBudget.SpendLine> paidInference) { }
 
     @GetMapping
     @Transactional(readOnly = true, timeout = 10)
@@ -54,7 +57,8 @@ public class LearningAnalyticsController {
         return new Overview("learning-usage-v1", period.from(), period.to(), "UTC", coverage, aiCoverage, retained,
             learningComplete, aiComplete, learningComplete ? count("RECOMMENDATION_USED", period) : null,
             learningComplete ? count("REFLECTION_SAVED", period) : null, ai[0], ai[1], ai[2],
-            "Observed usage only, including failed attempts. Provider pricing, free quota and invoices must be verified separately. Check coverage flags for incomplete windows.");
+            "Observed usage only, including failed attempts. Provider pricing, free quota and invoices must be verified separately. Check coverage flags for incomplete windows.",
+            spend.report(period.from(),period.to()));
     }
     private long count(String event, AnalyticsPeriod period) {
         return db.queryForObject("""

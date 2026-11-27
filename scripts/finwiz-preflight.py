@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import ssl
 import urllib.request
 import urllib.error
 from urllib.parse import urlsplit
@@ -35,6 +36,30 @@ def required(env, key):
         raise ConfigError("Missing or invalid setting: " + key)
     return value
 
+def validate_settings(env):
+    for name in ("PLUS", "PRO"):
+        value = env.get("FINWIZ_" + name + "_CAPACITY_PERCENT", "25")
+        if not re.fullmatch(r"[0-9]{1,3}", value):
+            raise ConfigError("Invalid tier capacity share: " + name)
+    if sum(int(env.get("FINWIZ_" + tier + "_CAPACITY_PERCENT","25")) for tier in ("PLUS","PRO")) > 100:
+        raise ConfigError("Plus and Pro capacity shares exceed 100 percent")
+    if flag(env,"FINWIZ_PAID_ENABLED"):
+        if not flag(env,"FINWIZ_PAID_APPROVED"):
+            raise ConfigError("Paid Finwiz approval required")
+        if required(env,"FINWIZ_PAID_GEMINI_API_KEY") == env.get("GEMINI_API_KEY","").strip():
+            raise ConfigError("Paid Gemini requires a separate provider key")
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", required(env,"FINWIZ_PAID_GEMINI_MODEL")):
+            raise ConfigError("Invalid paid Gemini model")
+        for suffix in ("INPUT_MICROS_PER_MILLION","OUTPUT_MICROS_PER_MILLION","REASONING_MICROS_PER_MILLION",
+                       "DAILY_MICROS","MONTHLY_MICROS","PLUS_MONTHLY_MICROS","PRO_MONTHLY_MICROS","USER_DAILY_MICROS",
+                       "REQUESTS_PER_MINUTE","TOKENS_PER_MINUTE","TOKENS_PER_DAY","DAILY_ATTEMPTS"):
+            if not re.fullmatch(r"[0-9]{1,15}", required(env,"FINWIZ_PAID_" + suffix)) or int(env["FINWIZ_PAID_" + suffix]) == 0:
+                raise ConfigError("Invalid paid Finwiz setting: " + suffix)
+        if int(env["FINWIZ_PAID_DAILY_MICROS"]) > int(env["FINWIZ_PAID_MONTHLY_MICROS"]):
+            raise ConfigError("Paid daily budget exceeds monthly budget")
+        if int(env["FINWIZ_PAID_TOKENS_PER_MINUTE"]) > int(env["FINWIZ_PAID_TOKENS_PER_DAY"]):
+            raise ConfigError("Paid minute token limit exceeds daily limit")
+
 def candidates(env):
     if not flag(env, "FINWIZ_AI_ENABLED", "true"):
         return []
@@ -44,13 +69,18 @@ def candidates(env):
         if name == "GEMINI":
             if not env.get("GEMINI_API_KEY", "").strip() or not positive(env, prefix+"_DAILY_LIMIT", 500):
                 continue
+            if not flag(env, prefix+"_FREE_CAPACITY_CONFIRMED"):
+                raise ConfigError("Free capacity not confirmed: GEMINI")
+            for suffix, default in (("_REQUESTS_PER_MINUTE",10),("_TOKENS_PER_MINUTE",40000),("_TOKENS_PER_DAY",1000000)):
+                if not positive(env,prefix+suffix,default):
+                    raise ConfigError("Enabled provider has zero admission capacity: GEMINI")
             key = required(env, "GEMINI_API_KEY")
             model = env.get("GEMINI_MODEL", "gemini-3.6-flash")
             if not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", model):
                 raise ConfigError("Invalid Gemini model")
             base = env.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com")
             parts = urlsplit(base)
-            if parts.scheme != "https" or not parts.hostname or parts.username or parts.password or parts.query or parts.fragment:
+            if parts.scheme != "https" or parts.netloc != "generativelanguage.googleapis.com" or parts.path not in ("","/") or parts.query or parts.fragment:
                 raise ConfigError("Invalid Gemini base URL")
             thinking = env.get("FINWIZ_THINKING_LEVEL", "minimal")
             if thinking not in ("minimal", "low", "medium", "high"):
@@ -84,8 +114,8 @@ def candidates(env):
             if not model.endswith(":free") or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", upstream) or upstream.lower() in {"groq","google","google-ai-studio","google-vertex","cloudflare"}:
                 raise ConfigError("OpenRouter requires a free model and independent upstream")
             url = "https://openrouter.ai/api/v1/chat/completions"
-        if not model.strip():
-            raise ConfigError("Missing model: " + name)
+        if not re.fullmatch(r"[A-Za-z0-9@._:/-]{1,128}",model):
+            raise ConfigError("Invalid model: " + name)
         body = {"model":model,"messages":[{"role":"user","content":PROMPT}],
                 "stream":False, "max_completion_tokens" if name=="GROQ" else "max_tokens":256}
         if name=="GROQ" and model.startswith("openai/gpt-oss"):
@@ -111,34 +141,53 @@ def probe(candidate, opener):
         with opener.open(request,timeout=12) as response:
             raw=response.read(262145)
             if len(raw)>262144:
-                return False,"oversize"
-            return complete(name,json.loads(raw)), "response"
+                return "invalid","oversize response"
+            return ("healthy","complete response") if complete(name,json.loads(raw)) else ("invalid","incomplete or rejected response")
     except urllib.error.HTTPError as e:
-        return False,"HTTP "+str(e.code)
+        if e.code in (401,403,404):
+            return "permission",f"provider authentication, model or permission rejection (HTTP {e.code})"
+        if e.code in (408,429) or 500 <= e.code <= 599:
+            return "transient",f"temporary provider error (HTTP {e.code})"
+        return "invalid",f"unexpected HTTP {e.code}"
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, ssl.SSLError):
+            return "invalid","TLS verification failed"
+        return "transient","transport failure"
+    except TimeoutError:
+        return "transient","request timed out"
     except Exception:
-        return False,"transport or invalid response"
+        return "invalid","invalid response"
 
 def run(env, opener=None):
     try:
+        validate_settings(env)
         configured=candidates(env)
-    except ConfigError as e:
-        print("Finwiz configuration rejected: "+str(e))
+    except (ConfigError, ValueError) as e:
+        message = str(e) if isinstance(e, ConfigError) else "Invalid Finwiz configuration value"
+        print("Finwiz configuration rejected: "+message)
         return 1
     if not configured:
         print("Finwiz explicitly disabled")
         return 0
     opener=opener or urllib.request.build_opener(NoRedirect())
-    # One small probe per enabled provider, no retries. At least one must produce a complete response.
-    healthy=0
+    outcomes=[]
     for candidate in configured:
-        ok,reason=probe(candidate,opener)
-        print(candidate[0]+": "+("passed" if ok else "unavailable ("+reason+")"))
-        healthy+=int(ok)
-    if not healthy:
-        print("Finwiz preflight failed: no enabled provider returned a complete response")
-        return 1
-    print("Finwiz preflight passed: "+str(healthy)+"/"+str(len(configured))+" configured providers")
-    return 0
+        outcome,reason=probe(candidate,opener)
+        print(candidate[0]+": "+outcome+" ("+reason+")")
+        outcomes.append(outcome)
+    healthy=outcomes.count("healthy")
+    if healthy:
+        print(f"Finwiz preflight passed: {healthy}/{len(configured)} configured providers")
+        return 0
+    if all(outcome == "transient" for outcome in outcomes) and env.get("FINWIZ_DEGRADED_ACK") == "ACCEPT_FINWIZ_DEGRADED":
+        message = "Finwiz degraded deployment acknowledged: all free providers reported temporary failures"
+        print(message)
+        if summary := env.get("GITHUB_STEP_SUMMARY"):
+            with open(summary,"a",encoding="utf-8") as output:
+                print(message,file=output)
+        return 0
+    print("Finwiz preflight failed: no configured provider returned a complete response")
+    return 1
 
 if __name__=="__main__":
     raise SystemExit(run(os.environ))
