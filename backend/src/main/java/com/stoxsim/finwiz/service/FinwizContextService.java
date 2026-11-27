@@ -28,6 +28,10 @@ import com.stoxsim.market.service.StockInsightsService;
 public class FinwizContextService {
 
     private static final MathContext MATH = MathContext.DECIMAL64;
+    private static final java.util.regex.Pattern PRICE_HISTORY = java.util.regex.Pattern.compile(
+        "(?i)\\b(?:rsi|sma|candles?|moving averages?|price history|technical analysis)\\b");
+    private static final java.util.regex.Pattern FUNDAMENTALS = java.util.regex.Pattern.compile(
+        "(?i)\\b(?:fundamentals?|valuation|earnings|revenue|financial statements?|cash flow|balance sheet|income statement|dividends?)\\b");
 
     private final MarketDataService marketData;
     private final StockInsightsService stockInsights;
@@ -46,8 +50,11 @@ public class FinwizContextService {
         }
         String symbol = requiredSymbol(request);
         QuoteResponse quote = safelyQuote(request, symbol);
-        CandleSeriesResponse candles = safelyCandles(request, symbol);
-        StockInsightsResponse insights = safelyInsights(request, symbol);
+        String question = FinwizService.currentQuestion(request.question());
+        boolean priceHistory = PRICE_HISTORY.matcher(question).find();
+        boolean fundamentals = FUNDAMENTALS.matcher(question).find();
+        CandleSeriesResponse candles = fundamentals && !priceHistory ? null : safelyCandles(request, symbol);
+        StockInsightsResponse insights = priceHistory && !fundamentals ? null : safelyInsights(request, symbol);
 
         boolean grounded = quote != null || (candles != null && !candles.candles().isEmpty())
             || (insights != null && insights.status() != StockInsightsResponse.FundamentalsStatus.UNAVAILABLE);

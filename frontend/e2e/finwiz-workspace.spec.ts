@@ -126,3 +126,41 @@ for (const width of [390,1280]) test(`Finwiz independently scrolls 30 long histo
   await list.getByRole("button").last().click();
   await expect(page.getByText("Saved educational answer.",{exact:true})).toBeVisible();
 });
+
+test("source-checked answers link verified sources and follow-ups send only a lesson reference", async ({ page }) => {
+  await setup(page);
+  const requests: Record<string, unknown>[] = [];
+  await page.route("**/api/v1/finwiz/ask", route => {
+    const request = route.request();
+    const options = request.method() === "OPTIONS";
+    if (!options) requests.push(request.postDataJSON());
+    return route.fulfill({
+      status: options ? 204 : 200, contentType: "application/json",
+      headers: {
+        "Access-Control-Allow-Origin": request.headers().origin ?? "http://localhost:3000",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Headers": "authorization,content-type",
+        "Access-Control-Allow-Methods": "POST,OPTIONS",
+      },
+      body: options ? undefined : JSON.stringify({
+        answer: "A P/E ratio divides share price by earnings per share.",
+        provider: "STOXSIM_LEARNING", answerKind: "lesson", learningReference: "price-earnings",
+        suggestedQuestions: [], disclaimer: "Educational only.",
+        sources: [{ title: "SEC P/E glossary", url: "https://www.investor.gov/education", revision: 1 },
+          { title: "Unsafe source", url: "https://www.investor.gov@unsafe.example/path", revision: 1 }],
+      }),
+    });
+  });
+  await page.goto("/finwiz");
+  const input = page.getByRole("textbox", { name: "Your question" });
+  await input.fill("What is P/E?");
+  await page.getByRole("button", { name: "Ask Finwiz" }).click();
+  await expect(page.getByText("Source-checked lesson")).toBeVisible();
+  await expect(page.getByRole("link", { name: "SEC P/E glossary" })).toHaveAttribute("href", "https://www.investor.gov/education");
+  await expect(page.getByRole("link", { name: "Unsafe source" })).toHaveCount(0);
+  await input.fill("Give me an example.");
+  await page.getByRole("button", { name: "Ask Finwiz" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({ question: "Give me an example.", learningReference: "price-earnings" });
+  expect(JSON.stringify(requests[1])).not.toContain("What is P/E?");
+});

@@ -62,6 +62,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private fun closeBilling() { playBilling?.close(); playBilling = null; billingVerifications.toList().forEach { it.cancel() }; billingVerifications.clear() }
     private var pagePending = false
     private var journeyJob: Job? = null
+    private var finwizJob: Job? = null
     private var foreground = false
     private var streamJob: Job? = null
     private var streakJob: Job? = null

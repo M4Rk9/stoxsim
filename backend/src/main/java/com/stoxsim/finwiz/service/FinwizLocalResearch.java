@@ -143,7 +143,7 @@ public class FinwizLocalResearch {
         if (depth == FinwizDepth.FULL) {
             answer += "\n\nCompare sector weights and common economic exposures as well. Several positions can still depend on the same source of risk.";
         }
-        if (!"AVAILABLE".equals(result.status())) answer += "\n\nPricing coverage is limited. Treat the weights as approximate.";
+        if (!"HIGH".equals(result.confidence())) answer += "\n\nPricing may be stale or incomplete. Treat the weights as approximate.";
         return new Answer(answer, "portfolio", result.valuedAt());
     }
 
