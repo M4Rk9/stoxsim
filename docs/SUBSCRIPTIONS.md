@@ -6,11 +6,11 @@ verification and operating procedures are approved.
 
 ## Product tiers
 
-| Plan | India capital | US capital | FinWiz | Scenario credits |
-| --- | ---: | ---: | --- | ---: |
-| Free | ₹5 lakh | $10,000 | Basic | 2 starter credits |
-| Plus | ₹25 lakh | $50,000 | Expanded | 10 per paid month |
-| Pro | ₹1 crore | $100,000 | Full | 50 per paid month |
+| Plan | Monthly catalog (INR) | India capital | US capital | Finwiz | Scenario credits |
+| --- | ---: | ---: | ---: | --- | ---: |
+| Free | ₹0 | ₹5 lakh | $10,000 | Basic | 2 starter credits |
+| Plus | ₹199 | ₹25 lakh | $50,000 | Expanded | 10 per paid month |
+| Pro | ₹499 | ₹1 crore | $100,000 | Full | 50 per paid month |
 
 Paid primary portfolios are provisioned in both markets. Pro retains up to four
 additional India portfolios. Existing standard portfolios and their holdings are
@@ -20,6 +20,8 @@ failed renewals and grace periods do not refill them. See [Scenario Lab](SCENARI
 The plan catalog describes the roadmap entitlement contract. Features are
 enabled separately as their production batches ship; the catalog is not a claim
 that paid checkout or every premium feature is live.
+
+New purchase prices apply to new agreements. Existing Razorpay agreements retain their original monthly amount. Google Play manages localized prices and existing price cohorts. See [live billing setup](LIVE_SUBSCRIPTIONS.md).
 
 ## Leaderboard integrity
 

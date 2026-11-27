@@ -5,7 +5,7 @@ import android.content.Context
 import com.android.billingclient.api.*
 import org.json.JSONObject
 
-internal data class PlayProduct(val plan: String, val productId: String, val basePlanId: String)
+internal data class PlayProduct(val plan: String, val productId: String, val basePlanId: String, val monthlyPricePaise: Int = 0)
 internal data class PlayConfiguration(val enabled: Boolean, val packageName: String, val accountId: String, val products: List<PlayProduct>)
 internal data class PlayOffer(val plan: String, val productId: String, val price: String, val renewal: String)
 internal data class PlayBillingState(val available: Boolean = false, val loading: Boolean = false,
@@ -17,7 +17,7 @@ internal fun parsePlayConfiguration(json: JSONObject, expectedPackage: String): 
     val account = json.getString("obfuscatedAccountId")
     require(account.length in 1..64 && account.all { it.isLetterOrDigit() || it in "-_" })
     val products = json.getJSONArray("products").mapObjects { item ->
-        PlayProduct(item.getString("plan"), item.getString("productId"), item.getString("basePlanId")).also {
+        PlayProduct(item.getString("plan"), item.getString("productId"), item.getString("basePlanId"), item.optInt("monthlyPricePaise")).also {
             require(it.plan in setOf("PLUS", "PRO") && it.productId.matches(Regex("[a-z0-9_.]{1,150}"))
                 && it.basePlanId.matches(Regex("[a-z0-9-]{1,63}")))
         }
@@ -35,6 +35,10 @@ internal fun maySubmitPlayPurchase(config: PlayConfiguration, packageName: Strin
 internal fun playRenewalPeriod(period: String): String? = when (period) {
     "P1W" -> "week"; "P1M" -> "month"; "P3M" -> "3 months"; "P6M" -> "6 months"; "P1Y" -> "year"; else -> null
 }
+
+internal fun matchesCatalogPrice(product: PlayProduct, period: String, currency: String, amountMicros: Long): Boolean =
+    product.monthlyPricePaise == 0 || period == "P1M" &&
+        (currency != "INR" || product.monthlyPricePaise.toLong() * 10_000 == amountMicros)
 
 /** No purchase token is persisted or logged. No client path grants or acknowledges entitlements. */
 internal class PlayBilling(context: Context, private val owner: String, private val config: PlayConfiguration,
@@ -83,6 +87,8 @@ internal class PlayBilling(context: Context, private val owner: String, private 
                     ?: return@mapNotNull null
                 val phase = offer.pricingPhases.pricingPhaseList.singleOrNull() ?: return@mapNotNull null
                 val period = playRenewalPeriod(phase.billingPeriod) ?: return@mapNotNull null
+                if (!matchesCatalogPrice(configured, phase.billingPeriod, phase.priceCurrencyCode, phase.priceAmountMicros))
+                    return@mapNotNull null
                 if (phase.recurrenceMode != ProductDetails.RecurrenceMode.INFINITE_RECURRING) return@mapNotNull null
                 details[product.productId] = product to offer.offerToken
                 PlayOffer(configured.plan, product.productId, phase.formattedPrice,

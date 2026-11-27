@@ -1,12 +1,12 @@
 # Verified subscription billing
 
-Live billing is implemented behind disabled-by-default provider flags. Local tests use mocked provider responses and PostgreSQL; they do not establish merchant, mandate, settlement, or Google Play acceptance. Prices remain Plus ₹99/month and Pro ₹199/month. No live transaction, provider activation, or publication has been performed.
+Live billing is implemented behind disabled-by-default provider flags. Local tests use mocked provider responses and PostgreSQL; they do not establish merchant, mandate, settlement, or Google Play acceptance. New monthly catalog prices are Plus ₹199/month and Pro ₹499/month. No live transaction, provider activation, or publication has been performed.
 
 ## Activation configuration
 
 All providers require `STOXSIM_LIVE_PAYMENTS_APPROVED=true`, set only after the owner approves activation and external acceptance is complete. Enabling a provider without this approval causes startup to fail.
 
-Website billing requires `STOXSIM_BILLING_LIVE_ENABLED`, live key ID/secret, a webhook secret of at least 32 characters, and distinct Plus/Pro plan IDs (`STOXSIM_BILLING_LIVE_KEY_ID`, `STOXSIM_BILLING_LIVE_KEY_SECRET`, `STOXSIM_BILLING_LIVE_WEBHOOK_SECRET`, `STOXSIM_BILLING_LIVE_PLUS_PLAN`, `STOXSIM_BILLING_LIVE_PRO_PLAN`). The server fetches each plan and checks a monthly interval, INR currency and exact 9900/19900 minor-unit amount. Current checkout creates 12 recurring cycles; review and disclose that finite duration before activation.
+Website billing requires `STOXSIM_BILLING_LIVE_ENABLED`, live key ID/secret, a webhook secret of at least 32 characters, and distinct Plus/Pro plan IDs (`STOXSIM_BILLING_LIVE_KEY_ID`, `STOXSIM_BILLING_LIVE_KEY_SECRET`, `STOXSIM_BILLING_LIVE_WEBHOOK_SECRET`, `STOXSIM_BILLING_LIVE_PLUS_PLAN`, `STOXSIM_BILLING_LIVE_PRO_PLAN`). The server fetches each plan and checks a monthly interval, INR currency and exact 19900/49900 paise for new Plus/Pro plans. Current checkout creates 12 recurring cycles; review and disclose that finite duration before activation.
 
 Google Play requires `STOXSIM_PLAY_BILLING_ENABLED`, distinct product IDs and monthly base-plan IDs (`STOXSIM_PLAY_PLUS_PRODUCT`, `STOXSIM_PLAY_PRO_PRODUCT`, `STOXSIM_PLAY_PLUS_BASE_PLAN`, `STOXSIM_PLAY_PRO_BASE_PLAN`), a least-privilege service-account credential file at `STOXSIM_PLAY_CREDENTIALS_FILE`, a stable 32-byte hex encryption key at `STOXSIM_PLAY_TOKEN_ENCRYPTION_KEY`, and authenticated RTDN audience/service identity (`STOXSIM_PLAY_NOTIFICATION_AUDIENCE`, `STOXSIM_PLAY_NOTIFICATION_EMAIL`). Store credentials outside Git and Android resources. Losing the encryption key prevents reconciliation of existing purchases; retain it in the approved secret-backup process. No key rotation migration is implemented yet.
 
@@ -29,3 +29,5 @@ V130 is additive after V127–V129. One reconciliation worker considers at most 
 Revenue at `GET /api/v1/billing/admin/revenue` requires a verified platform administrator. It reports observed active subscriptions, captured/refunded website charges, failures and cancellations. Historical invoice coverage is incomplete; Play settlements, taxes, fees and net revenue remain unknown. Do not multiply entitlements by list price and label the result cash revenue.
 
 External acceptance still requires real catalog and provider permissions, staging lifecycle evidence (renewal, cancellation, refund/dispute, webhook retries, outage and recovery), tax/invoice/legal review, authenticated RTDN delivery, signed Play device tests, current official policy checks and owner activation approval. See [release readiness](STOXSIM_RELEASE_READINESS.md) and [native billing](ANDROID_PLAY_BILLING.md).
+
+F2 uses new Razorpay monthly plan IDs for new checkouts. Keep the exact provider plan IDs and prices on existing agreements. The purchase ledger validates renewals and historic charges against the agreed amount saved per purchase. The old backend assumes legacy prices, so once new-priced live subscriptions exist, roll back to a build that also reads the agreement price.

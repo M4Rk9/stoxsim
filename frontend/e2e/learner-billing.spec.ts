@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 const entry = { id: "21212121-2121-4121-8121-212121212121", provider: "RAZORPAY", plan: "PLUS", providerReference: "sub_fixture", status: "CREATED", currentPeriodEnd: null, accessUntil: null, cancellationStatus: "NONE", managementUrl: null };
-const catalog = { plan: "FREE", plans: ["FREE", "PLUS", "PRO"].map((plan, i) => ({ plan, displayName: ["Free", "Plus", "Pro"][i], monthlyPriceInr: [0, 99, 199][i], entitlements: { finwizTier: "BASIC", analyticsTier: "BASIC", scenarioCredits: 3 } })) };
+const catalog = { plan: "FREE", plans: ["FREE", "PLUS", "PRO"].map((plan, i) => ({ plan, displayName: ["Free", "Plus", "Pro"][i], monthlyPriceInr: [0, 199, 499][i], entitlements: { finwizTier: "BASIC", analyticsTier: "BASIC", scenarioCredits: 3 } })) };
 async function respond(route: Route, body: unknown, status = 200) {
   const preflight = route.request().method() === "OPTIONS";
   await route.fulfill({ status: preflight ? 204 : status, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": route.request().headers().origin ?? "http://localhost:3000", "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "authorization,content-type", "Access-Control-Allow-Methods": "GET,POST,OPTIONS" }, body: preflight ? undefined : JSON.stringify(body) });
@@ -17,7 +17,7 @@ test("disabled billing never opens provider checkout", async ({ page }) => {
   await page.goto("/billing");
   await expect(page.getByRole("button", { name: "Choose Plus", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Choose Pro", exact: true })).toBeDisabled();
-  await expect(page.getByText("₹99/month")).toBeVisible(); await expect(page.getByText("₹199/month")).toBeVisible();
+  await expect(page.getByText("₹199/month")).toBeVisible(); await expect(page.getByText("₹499/month")).toBeVisible();
   expect(checkoutCalls).toBe(0);
 });
 

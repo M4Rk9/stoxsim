@@ -56,13 +56,14 @@ public class FinwizService {
         FinwizContextService contexts,
         MeterRegistry meterRegistry,
         FinwizAccess access,
-        FinwizUsageBudget budget
+        FinwizUsageBudget budget,
+        FinwizSpendBudget spend
     ) {
         this.access = access;
         this.properties = properties;
         this.contexts = contexts;
         this.meterRegistry = meterRegistry;
-        this.gateway = new FinwizProviderGateway(properties, budget, meterRegistry);
+        this.gateway = new FinwizProviderGateway(properties, budget, meterRegistry, spend);
     }
 
     public FinwizResponse ask(UUID userId, FinwizRequest request) {
@@ -131,7 +132,7 @@ public class FinwizService {
                 request.topic(),
                 request.resolvedExperienceLevel(),
                 context.symbol() == null ? "none" : context.symbol(),
-                context.text(),
+                depth.boundContext(context.text()),
                 question
             );
 

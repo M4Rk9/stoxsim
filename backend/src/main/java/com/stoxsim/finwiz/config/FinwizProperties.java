@@ -21,6 +21,23 @@ public class FinwizProperties {
     private int attemptTimeoutSeconds = 8;
     private int deadlineSeconds = 25;
     private int providerConcurrency = 4;
+    private int plusCapacityPercent = 25;
+    private int proCapacityPercent = 25;
+    public int getPlusCapacityPercent() { return plusCapacityPercent; }
+    public void setPlusCapacityPercent(int value) { plusCapacityPercent = value; }
+    public int getProCapacityPercent() { return proCapacityPercent; }
+    public void setProCapacityPercent(int value) { proCapacityPercent = value; }
+
+    private boolean geminiFreeCapacityConfirmed;
+    public boolean isGeminiFreeCapacityConfirmed() { return geminiFreeCapacityConfirmed; }
+    public void setGeminiFreeCapacityConfirmed(boolean confirmed) { geminiFreeCapacityConfirmed = confirmed; }
+
+    @jakarta.annotation.PostConstruct
+    void validateCapacity() {
+        if (plusCapacityPercent < 0 || proCapacityPercent < 0 || (long) plusCapacityPercent + proCapacityPercent > 100)
+            throw new IllegalStateException("Finwiz capacity shares must be nonnegative and total at most 100");
+    }
+
     private int geminiDailyLimit = 500;
     private int geminiRequestsPerMinute = 10;
     private int geminiTokensPerMinute = 40000;

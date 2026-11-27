@@ -98,7 +98,10 @@ stoxsim:
     global-daily-provider-requests: ${FINWIZ_GLOBAL_DAILY_ATTEMPTS:500}
     attempt-timeout-seconds: ${FINWIZ_ATTEMPT_TIMEOUT_SECONDS:8}
     deadline-seconds: ${FINWIZ_DEADLINE_SECONDS:25}
+    plus-capacity-percent: ${FINWIZ_PLUS_CAPACITY_PERCENT:25}
+    pro-capacity-percent: ${FINWIZ_PRO_CAPACITY_PERCENT:25}
     provider-concurrency: ${FINWIZ_PROVIDER_CONCURRENCY:4}
+    gemini-free-capacity-confirmed: ${FINWIZ_GEMINI_FREE_CAPACITY_CONFIRMED:false}
     gemini-daily-limit: ${FINWIZ_GEMINI_DAILY_LIMIT:500}
     gemini-requests-per-minute: ${FINWIZ_GEMINI_REQUESTS_PER_MINUTE:10}
     gemini-tokens-per-minute: ${FINWIZ_GEMINI_TOKENS_PER_MINUTE:40000}
@@ -135,6 +138,23 @@ stoxsim:
       requests-per-minute: ${FINWIZ_OPENROUTER_REQUESTS_PER_MINUTE:5}
       tokens-per-minute: ${FINWIZ_OPENROUTER_TOKENS_PER_MINUTE:8000}
       tokens-per-day: ${FINWIZ_OPENROUTER_TOKENS_PER_DAY:180000}
+    spend:
+      enabled: ${FINWIZ_PAID_ENABLED:false}
+      approved: ${FINWIZ_PAID_APPROVED:false}
+      api-key: ${FINWIZ_PAID_GEMINI_API_KEY:}
+      model: ${FINWIZ_PAID_GEMINI_MODEL:}
+      input-micros-per-million: ${FINWIZ_PAID_INPUT_MICROS_PER_MILLION:0}
+      output-micros-per-million: ${FINWIZ_PAID_OUTPUT_MICROS_PER_MILLION:0}
+      reasoning-micros-per-million: ${FINWIZ_PAID_REASONING_MICROS_PER_MILLION:0}
+      daily-micros: ${FINWIZ_PAID_DAILY_MICROS:0}
+      monthly-micros: ${FINWIZ_PAID_MONTHLY_MICROS:0}
+      plus-monthly-micros: ${FINWIZ_PAID_PLUS_MONTHLY_MICROS:0}
+      pro-monthly-micros: ${FINWIZ_PAID_PRO_MONTHLY_MICROS:0}
+      user-daily-micros: ${FINWIZ_PAID_USER_DAILY_MICROS:0}
+      requests-per-minute: ${FINWIZ_PAID_REQUESTS_PER_MINUTE:0}
+      tokens-per-minute: ${FINWIZ_PAID_TOKENS_PER_MINUTE:0}
+      tokens-per-day: ${FINWIZ_PAID_TOKENS_PER_DAY:0}
+      daily-attempts: ${FINWIZ_PAID_DAILY_ATTEMPTS:0}
   news:
     upstox-enabled: ${UPSTOX_NEWS_ENABLED:false}
     alpaca-enabled: ${ALPACA_NEWS_ENABLED:false}

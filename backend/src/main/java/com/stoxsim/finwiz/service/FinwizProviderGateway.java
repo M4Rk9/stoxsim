@@ -34,20 +34,24 @@ final class FinwizProviderGateway {
     private final MeterRegistry metrics;
     private final JsonMapper json=JsonMapper.builder().build();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
-    private final Map<String, Long> cooldown = new ConcurrentHashMap<>();
+    private final Map<String, FinwizCircuit> circuits = new ConcurrentHashMap<>();
+    private final FinwizSpendBudget spend;
     private final Map<String, Semaphore> slots = new ConcurrentHashMap<>();
-    record Candidate(String name, String base, String model, String key, int dailyLimit, int rpm, int tpm, int tpd) { @Override public String toString() { return name; } }
+    record Candidate(String name, String base, String model, String key, int dailyLimit, int rpm, int tpm, int tpd) {
+        boolean paid() { return name.equals("GEMINI_PAID"); }
+        boolean gemini() { return paid() || name.equals("GEMINI"); }
+        @Override public String toString() { return name; } }
     record Result(String answer, String provider, String model, String reason) {
         static Result failure(String reason) { return new Result(null, null, null, reason); }
     }
-    FinwizProviderGateway(FinwizProperties properties, FinwizUsageBudget budget, MeterRegistry metrics) {
-        this.properties=properties; this.budget=budget; this.metrics=metrics;
+    FinwizProviderGateway(FinwizProperties properties, FinwizUsageBudget budget, MeterRegistry metrics, FinwizSpendBudget spend) {
+        this.properties=properties; this.budget=budget; this.metrics=metrics; this.spend=spend;
     }
-    boolean configured() { return !candidates().isEmpty(); }
-    private List<Candidate> candidates() {
+    boolean configured() { return !candidates(FinwizDepth.FULL).isEmpty(); }
+    private List<Candidate> candidates(FinwizDepth depth) {
         List<Candidate> result = new ArrayList<>();
         add(result, "GROQ", properties.getGroq(), properties.getGroq().getBaseUrl());
-        if (properties.hasApiKey() && properties.getGeminiDailyLimit() > 0)
+        if (properties.hasApiKey() && properties.isGeminiFreeCapacityConfirmed() && properties.getGeminiDailyLimit() > 0)
             result.add(new Candidate("GEMINI", properties.getBaseUrl(), properties.getModel(), properties.getApiKey(), properties.getGeminiDailyLimit(), properties.getGeminiRequestsPerMinute(), properties.getGeminiTokensPerMinute(), properties.getGeminiTokensPerDay()));
         String account = properties.getCloudflareAccountId();
         if (account != null && account.matches("[A-Za-z0-9_-]{1,128}"))
@@ -58,6 +62,14 @@ final class FinwizProviderGateway {
         if (router.getModel() != null && router.getModel().endsWith(":free") && upstream != null
             && upstream.matches("[A-Za-z0-9_-]{1,80}") && !List.of("groq","google","google-ai-studio","google-vertex","cloudflare").contains(upstream.toLowerCase(java.util.Locale.ROOT)))
             add(result, "OPENROUTER", router, router.getBaseUrl());
+        if (depth != FinwizDepth.BASIC) {
+            result.sort(java.util.Comparator.comparingInt(Candidate::tpm).reversed());
+            var paid = spend.settings();
+            if (paid.enabled()) {
+                result.add(new Candidate("GEMINI_PAID", "https://generativelanguage.googleapis.com", paid.model(), paid.apiKey(),
+                    paid.dailyAttempts(), paid.requestsPerMinute(), paid.tokensPerMinute(), paid.tokensPerDay()));
+            }
+        }
         return result;
     }
     private void add(List<Candidate> list, String name, FinwizProperties.Provider p, String base) {
@@ -86,18 +98,40 @@ final class FinwizProviderGateway {
     private Result dispatch(FinwizUsageBudget.RequestReservation request, FinwizDepth depth, Map<String,Object> geminiBody) {
         long deadline = System.nanoTime() + Duration.ofSeconds(Math.max(1, Math.min(30,properties.getDeadlineSeconds()))).toNanos();
         String reason = "provider_error";
-        for (Candidate p : candidates()) {
+        for (Candidate p : candidates(depth)) {
             long remaining = deadline-System.nanoTime();
             if (remaining <= 0) break;
-            if (cooldown.getOrDefault(p.name(),0L)>System.currentTimeMillis()) continue;
-            Semaphore slot = slots.computeIfAbsent(p.name(), ignored -> new Semaphore(Math.max(1,Math.min(32,properties.getProviderConcurrency()))));
-            if (!slot.tryAcquire()) continue;
+            var circuit = circuits.computeIfAbsent(p.name(), name -> {
+                var entry = new FinwizCircuit(System::nanoTime);
+                metrics.gauge("stoxsim.finwiz.provider.circuit", List.of(io.micrometer.core.instrument.Tag.of("provider",name)),
+                    entry, FinwizCircuit::state);
+                return entry;
+            });
+            int concurrency = FinwizCapacity.providerShare(properties, Math.clamp(properties.getProviderConcurrency(),1,32), depth, p.paid());
+            if (concurrency == 0) { reason = "budget_limited"; continue; }
+            Semaphore slot = slots.computeIfAbsent(p.name() + ":" + depth, ignored -> new Semaphore(concurrency,true));
             try {
-                if (cooldown.getOrDefault(p.name(),0L)>System.currentTimeMillis()) continue;
-                boolean gemini=p.name().equals("GEMINI");
+                if (!slot.tryAcquire(Math.min(remaining,TimeUnit.MILLISECONDS.toNanos(100)),TimeUnit.NANOSECONDS)) {
+                    record(p,"concurrency_limited");
+                    reason = "budget_limited";
+                    continue;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return Result.failure("provider_error");
+            }
+            int permit = circuit.enter();
+            if (permit < 0) {
+                slot.release();
+                continue;
+            }
+            UUID spendId = null;
+            JsonNode paidUsage = null;
+            try {
+                boolean gemini=p.gemini();
                 URI base=URI.create(p.base());
                 if (!"https".equals(base.getScheme()) && !("http".equals(base.getScheme()) && "127.0.0.1".equals(base.getHost()))) {
-                    LOGGER.warn("Finwiz provider configuration rejected"); cool(p.name(),300); continue;
+                    LOGGER.warn("Finwiz provider configuration rejected"); circuit.open(300); continue;
                 }
                 if (base.getUserInfo()!=null || base.getQuery()!=null || base.getFragment()!=null || base.getHost()==null) continue;
                 if(gemini && !p.model().matches("[A-Za-z0-9._-]{1,128}")) continue;
@@ -112,7 +146,11 @@ final class FinwizProviderGateway {
                     LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice");
                     return Result.failure("budget_limited");
                 }
-                if (allowance==null) { reason="budget_limited"; continue; }
+                if (allowance==null) { record(p,"admission_limited"); reason="budget_limited"; continue; }
+                if (p.paid()) {
+                    spendId = spend.reserve(request, depth, payload.length + 256, output);
+                    if (spendId == null) { reason = "budget_limited"; continue; }
+                }
                 remaining=deadline-System.nanoTime();
                 if (remaining<=0) break;
                 long nanos=Math.max(1,Math.min(remaining,Duration.ofSeconds(Math.max(1,Math.min(20,properties.getAttemptTimeoutSeconds()))).toNanos()));
@@ -128,16 +166,20 @@ final class FinwizProviderGateway {
                 catch (InterruptedException e) { pending.cancel(true); Thread.currentThread().interrupt(); return Result.failure("provider_error"); }
                 int status=reply.statusCode();
                 if(status<200||status>=300) {
-                    reason="provider_http_error";
-                    metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result",status==429?"rate_limited":"http_error").increment();
-                    LOGGER.warn("Finwiz provider {} request failed with HTTP {}",p.name(),status);
-                    if(status==429) cool(p.name(),retryAfter(reply.headers().firstValue("Retry-After").orElse(null)));
-                    else if(status>=500 || status==408) cool(p.name(),15);
-                    else if(status==401 || status==404) cool(p.name(),300);
-                    else { cool(p.name(),300); return Result.failure(reason); }
+                    String category = httpFailure(p, status);
+                    reason = "provider_http_error";
+                    record(p, category);
+                    LOGGER.warn("Finwiz provider {} failed: {} (HTTP {})",p.name(),category,status);
+                    switch (category) {
+                        case "rate_limited" -> circuit.open(retryAfter(reply.headers().firstValue("Retry-After").orElse(null)));
+                        case "transient" -> circuit.open(15);
+                        case "authentication", "permission" -> circuit.open(300);
+                        default -> { circuit.healthy(permit); return Result.failure(reason); }
+                    }
                     continue;
                 }
                 JsonNode root=json.readTree(reply.body());
+                if (p.paid()) paidUsage = root == null ? null : root.path("usageMetadata");
                 JsonNode tokens=root==null?null:gemini?root.path("usageMetadata").path("totalTokenCount"):root.path("usage").path("total_tokens");
                 if (tokens!=null && tokens.isIntegralNumber()) {
                     try { budget.recordReportedTokens(allowance.day(),p.name(),tokens.asLong()); }
@@ -145,11 +187,12 @@ final class FinwizProviderGateway {
                 }
                 String answer=gemini?extractAnswer(root):extractChat(root);
                 if (answer!=null && !answer.isBlank() && !refused(p,root)) {
-                    metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result","success").increment();
-                    return new Result(answer,p.name(),p.model(),"success");
+                    circuit.healthy(permit);
+                    record(p, "success");
+                    return new Result(answer,gemini?"GEMINI":p.name(),p.model(),"success");
                 }
                 reason="provider_incomplete";
-                metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result","incomplete").increment();
+                record(p, "incomplete");
                 if (gemini) {
                     JsonNode candidates=root==null?null:root.get("candidates");
                     JsonNode first=candidates!=null&&candidates.isArray()&&!candidates.isEmpty()?candidates.get(0):null;
@@ -157,19 +200,39 @@ final class FinwizProviderGateway {
                         diagnosticReason(first==null?null:first.get("finishReason")),diagnosticReason(root==null?null:root.path("promptFeedback").get("blockReason")));
                 } else LOGGER.warn("Finwiz provider {} returned no complete answer",p.name());
                 // Explicit refusals are terminal. Only known truncation or missing output can fail over.
-                if (refused(p,root) || !retryableIncomplete(p,root)) return Result.failure(reason);
-                cool(p.name(),15);
+                if (refused(p,root) || !retryableIncomplete(p,root)) { circuit.healthy(permit); return Result.failure(reason); }
+                circuit.open(15);
+            } catch (org.springframework.dao.DataAccessException e) {
+                LOGGER.warn("Finwiz spending admission unavailable");
+                return Result.failure("budget_limited");
             } catch (RuntimeException e) {
-                reason="provider_error"; cool(p.name(),15);
-                metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result","error").increment();
+                reason="provider_error"; circuit.open(15);
+                record(p, "error");
                 LOGGER.warn("Finwiz provider {} request failed ({})",p.name(),e.getClass().getSimpleName());
-            } finally { slot.release(); }
+            } finally {
+                circuit.release(permit);
+                slot.release();
+                if (spendId != null) {
+                    try { spend.settle(spendId, paidUsage); }
+                    catch (org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz paid usage reconciliation deferred"); }
+                }
+            }
         }
         return Result.failure(reason);
     }
-    private void cool(String provider,long seconds) {
-        cooldown.merge(provider,System.currentTimeMillis()+Math.max(1,Math.min(86400,seconds))*1000,Math::max);
+    private void record(Candidate provider, String category) {
+        metrics.counter("stoxsim.finwiz.provider.attempts","provider",provider.name(),"result",category).increment();
     }
+
+    private String httpFailure(Candidate provider, int status) {
+        if (status == 429) return "rate_limited";
+        if (status >= 500 || status == 408) return "transient";
+        if (status == 401) return "authentication";
+        if (status == 404 || (status == 403 && !provider.name().equals("OPENROUTER"))) return "permission";
+        // A router/guardrail denial and unclassified client errors are terminal.
+        return "request_rejected";
+    }
+
     private long retryAfter(String header) {
         if(header!=null) {
             try { return Math.max(1,Long.parseLong(header.trim())); } catch (RuntimeException ignored) {}
@@ -219,7 +282,7 @@ final class FinwizProviderGateway {
     }
     private boolean refused(Candidate p,JsonNode root) {
         if(root==null) return false;
-        if(p.name().equals("GEMINI")) {
+        if(p.gemini()) {
             String block=root.path("promptFeedback").path("blockReason").asText();
             if (!block.isBlank() && !"BLOCK_REASON_UNSPECIFIED".equals(block)) return true;
             for(JsonNode candidate:root.path("candidates")) {
@@ -233,8 +296,9 @@ final class FinwizProviderGateway {
         return false;
     }
     private boolean retryableIncomplete(Candidate p,JsonNode root) {
-        if(root==null) return true;
-        boolean gemini=p.name().equals("GEMINI");
+        if (root == null) return true;
+        if (root.path("error").isObject() || root.path("errors").isArray() && !root.path("errors").isEmpty()) return false;
+        boolean gemini=p.gemini();
         JsonNode choices=root.path(gemini?"candidates":"choices");
         if(!choices.isArray()||choices.isEmpty()) return true;
         for(JsonNode choice:choices) {

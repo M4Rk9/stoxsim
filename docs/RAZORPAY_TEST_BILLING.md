@@ -14,8 +14,8 @@ startup when this feature is enabled. The ordinary pricing page remains disabled
 1. In the Razorpay dashboard, switch to **Test mode** and generate test API keys.
    Keep the key secret on the server; never paste it into chat, source control or
    a `NEXT_PUBLIC_*` variable.
-2. Create two **test** plans: monthly, interval 1, INR, Plus **9900 paise (₹99)**
-   and Pro **19900 paise (₹199)**. Their IDs must be distinct. The backend checks
+2. Create two **test** plans: monthly, interval 1, INR, Plus **19900 paise (₹199)**
+   and Pro **49900 paise (₹499)**. Their IDs must be distinct. The backend checks
    currency, frequency and amount before creating a subscription.
 3. Add a test-mode webhook for
    `https://api.stoxsim.com/api/v1/billing/test/webhook` (use your API domain).

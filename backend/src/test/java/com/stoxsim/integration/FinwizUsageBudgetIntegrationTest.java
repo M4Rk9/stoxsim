@@ -21,24 +21,37 @@ import com.stoxsim.auth.repository.AppUserRepository;
 import com.stoxsim.finwiz.config.FinwizProperties;
 import com.stoxsim.finwiz.service.FinwizDepth;
 import com.stoxsim.finwiz.service.FinwizUsageBudget;
+import com.stoxsim.finwiz.service.FinwizSpendBudget;
+import tools.jackson.databind.json.JsonMapper;
 
 @Testcontainers
 @SpringBootTest(properties = {"stoxsim.finwiz.enabled=false", "stoxsim.security.rate-limit.enabled=false",
     "stoxsim.market-data.upstox.stream-enabled=false", "stoxsim.market-data.upstox.instrument-sync-on-startup=false",
-    "stoxsim.market-data.alpaca.instrument-sync-on-startup=false", "stoxsim.market-data.alpaca.polling-enabled=false"})
+    "stoxsim.market-data.alpaca.instrument-sync-on-startup=false", "stoxsim.market-data.alpaca.polling-enabled=false",
+    "stoxsim.finwiz.spend.enabled=true", "stoxsim.finwiz.spend.approved=true",
+    "stoxsim.finwiz.spend.api-key=synthetic-billing-test", "stoxsim.finwiz.spend.model=fixture-model",
+    "stoxsim.finwiz.spend.input-micros-per-million=1000000", "stoxsim.finwiz.spend.output-micros-per-million=1000000",
+    "stoxsim.finwiz.spend.reasoning-micros-per-million=1000000", "stoxsim.finwiz.spend.daily-micros=2000",
+    "stoxsim.finwiz.spend.monthly-micros=4000", "stoxsim.finwiz.spend.plus-monthly-micros=3000",
+    "stoxsim.finwiz.spend.pro-monthly-micros=3000", "stoxsim.finwiz.spend.user-daily-micros=1300",
+    "stoxsim.finwiz.spend.requests-per-minute=6", "stoxsim.finwiz.spend.tokens-per-minute=20000",
+    "stoxsim.finwiz.spend.tokens-per-day=50000", "stoxsim.finwiz.spend.daily-attempts=20"})
 class FinwizUsageBudgetIntegrationTest {
     @Container @ServiceConnection static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
     @Autowired AppUserRepository users;
     @Autowired FinwizUsageBudget budget;
+    @Autowired FinwizSpendBudget spend;
     @Autowired FinwizProperties properties;
     @Autowired JdbcTemplate db;
+    @Autowired com.stoxsim.subscription.service.SubscriptionService subscriptions;
     @Autowired org.springframework.web.context.WebApplicationContext context;
     AppUser user;
     @BeforeEach void setup() {
-        db.execute("TRUNCATE finwiz_usage_daily,finwiz_global_usage_daily,finwiz_provider_usage_daily,finwiz_request_reservation,finwiz_provider_admission");
+        db.execute("TRUNCATE finwiz_usage_daily,finwiz_global_usage_daily,finwiz_provider_usage_daily,finwiz_request_reservation,finwiz_provider_admission,finwiz_pool_usage_daily,finwiz_spend_attempt");
         user = users.saveAndFlush(new AppUser(UUID.randomUUID() + "@budget.test", "hash", "Learner"));
         properties.setBasicDailyProviderRequests(3); properties.setExpandedDailyProviderRequests(5);
         properties.setFullDailyProviderRequests(7); properties.setGlobalDailyProviderRequests(10);
+        properties.setPlusCapacityPercent(0); properties.setProCapacityPercent(0);
     }
 
     private FinwizUsageBudget.Reservation complete(UUID id, FinwizDepth depth) {
@@ -135,6 +148,7 @@ class FinwizUsageBudgetIntegrationTest {
 
     @Test void globalBudgetBoundsMultipleAccountsAndZeroDisablesProvider() {
         properties.setGlobalDailyProviderRequests(2);
+        properties.setProCapacityPercent(100);
         var other = users.saveAndFlush(new AppUser(UUID.randomUUID() + "@budget.test", "hash", "Other"));
         assertThat(complete(user.getId(), FinwizDepth.FULL)).isNotNull();
         assertThat(complete(other.getId(), FinwizDepth.FULL)).isNotNull();
@@ -142,6 +156,67 @@ class FinwizUsageBudgetIntegrationTest {
         properties.setGlobalDailyProviderRequests(100);
         properties.setFullDailyProviderRequests(0);
         assertThat(complete(user.getId(), FinwizDepth.FULL)).isNull();
+    }
+
+    @Test void freePressureCannotUsePaidProviderOrPlatformPools() throws Exception {
+        properties.setPlusCapacityPercent(25); properties.setProCapacityPercent(25);
+        properties.setGlobalDailyProviderRequests(4);
+        var free = budget.reserveRequest(user.getId(),FinwizDepth.BASIC);
+        var plusUser = users.saveAndFlush(new AppUser(UUID.randomUUID()+"@budget.test","hash","Plus"));
+        var proUser = users.saveAndFlush(new AppUser(UUID.randomUUID()+"@budget.test","hash","Pro"));
+        var plus = budget.reserveRequest(plusUser.getId(),FinwizDepth.EXPANDED);
+        var pro = budget.reserveRequest(proUser.getId(),FinwizDepth.FULL);
+        try (var executor = Executors.newFixedThreadPool(6)) {
+            var calls = IntStream.range(0,12).mapToObj(i -> (Callable<Boolean>)() ->
+                budget.reserveAttempt(free,FinwizDepth.BASIC,"GEMINI",4,4,400,400,100)!=null).toList();
+            int accepted = 0;
+            for (var future : executor.invokeAll(calls)) if (future.get()) accepted++;
+            assertThat(accepted).isEqualTo(2);
+        }
+        assertThat(budget.reserveAttempt(free,FinwizDepth.BASIC,"GEMINI_PAID",4,4,400,400,1)).isNull();
+        assertThat(budget.reserveAttempt(plus,FinwizDepth.EXPANDED,"GEMINI",4,4,400,400,100)).isNotNull();
+        assertThat(budget.reserveAttempt(pro,FinwizDepth.FULL,"GEMINI",4,4,400,400,100)).isNotNull();
+        assertThat(budget.reserveAttempt(pro,FinwizDepth.FULL,"GROQ",20,20,5000,5000,100)).isNull();
+    }
+
+    @Test void paidSpendingReservesBeforeDispatchAndKeepsUnknownCosts() throws Exception {
+        var request = budget.reserveRequest(user.getId(),FinwizDepth.EXPANDED);
+        assertThat(spend.reserve(request,FinwizDepth.BASIC,1000,100)).isNull();
+        assertThat(spend.reserve(request,FinwizDepth.EXPANDED,1000,100)).isNull();
+        subscriptions.initializeFree(user);
+        db.update("""
+            UPDATE user_subscription SET plan='PLUS', billing_provider='RAZORPAY',
+                provider_customer_reference='fixture-customer', provider_subscription_reference='fixture-subscription',
+                billing_access_until=now()+interval '1 day'
+            WHERE user_id=?
+            """,user.getId());
+        db.update("UPDATE finwiz_spend_guard SET paused=true WHERE id=1");
+        assertThat(spend.reserve(request,FinwizDepth.EXPANDED,1000,100)).isNull();
+        db.update("UPDATE finwiz_spend_guard SET paused=false WHERE id=1");
+        List<Callable<UUID>> calls = IntStream.range(0,8).mapToObj(i -> (Callable<UUID>)() ->
+            spend.reserve(request,FinwizDepth.EXPANDED,1000,100)).toList();
+        List<UUID> accepted = new java.util.ArrayList<>();
+        try (var executor = Executors.newFixedThreadPool(4)) {
+            for (var future : executor.invokeAll(calls)) {
+                UUID result = future.get();
+                if (result != null) accepted.add(result);
+            }
+        }
+        assertThat(accepted).hasSize(1);
+        var usage = JsonMapper.builder().build().readTree("""
+            {"promptTokenCount":10,"candidatesTokenCount":20,"thoughtsTokenCount":30,"totalTokenCount":60}
+            """);
+        spend.settle(accepted.getFirst(),usage);
+        spend.settle(accepted.getFirst(),usage);
+        UUID second = spend.reserve(request,FinwizDepth.EXPANDED,1000,100);
+        assertThat(second).isNotNull();
+        spend.settle(second,null);
+        assertThat(spend.reserve(request,FinwizDepth.EXPANDED,1000,100)).isNull();
+        assertThat(spend.report(request.day(),request.day())).singleElement().satisfies(line -> {
+            assertThat(line.reportedMicros()).isEqualByComparingTo("60");
+            assertThat(line.unknown()).isEqualTo(1);
+            assertThat(line.reasoningTokens()).isEqualByComparingTo("30");
+        });
     }
 
     @Test void reportedTokensAreRecordedAgainstReservedDayWithBounds() {

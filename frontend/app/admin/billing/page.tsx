@@ -5,7 +5,13 @@ import { authenticated } from "../../campus/client";
 import styles from "../../campus/campus.module.css";
 
 interface Entry { id: string; plan: string; providerId: string | null; status: string; currentPeriodEnd: string | null; paidCount: number; benefitsEnabled: boolean; benefitStatus: string; accessUntil: string | null; cancellationStatus: string; cancelAt: string | null }
-interface Overview { enabled: boolean; mode: string; keyId: string | null; entries: Entry[] }
+interface Overview {
+  enabled: boolean;
+  mode: string;
+  keyId: string | null;
+  entries: Entry[];
+  plans?: Array<{ displayName: string; monthlyPriceInr: number }>;
+}
 interface CheckoutInstance { open(): void; on(event: string, callback: () => void): void }
 declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => CheckoutInstance } }
 let checkoutScript: Promise<void> | null = null;
@@ -73,7 +79,8 @@ export default function BillingTestPage() {
     {data && !data.enabled && <section className={styles.card}><h2>Test checkout is disabled</h2><p>Complete the test billing setup before starting a checkout.</p></section>}
     {data?.enabled && <>
       <section className={styles.card}><h2>Start a test</h2>
-        <p>Monthly plans: Plus ₹99, Pro ₹199. Test subscriptions run for up to 12 billing cycles. No real money is charged.</p>
+        {data.plans?.length ? <p>{data.plans.map(plan => `${plan.displayName} ₹${plan.monthlyPriceInr}/month`).join(" · ")}</p> : null}
+        <p>Test subscriptions run for up to 12 billing cycles. No real money is charged.</p>
         <p>Subscription policy: purchases are non-refundable. Cancel renewal to keep benefits until the paid period ends. An unpaid checkout can be cancelled immediately.</p>
         <label className={styles.check}><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />I understand this is a simulated checkout and will use test payment details.</label>
         <div className={styles.actions}>{["PLUS", "PRO"].map(plan => <button key={plan} disabled={busy || !consent || openEntry} onClick={() => void act(() => create(plan))}>Test {plan === "PLUS" ? "Plus" : "Pro"}</button>)}</div>

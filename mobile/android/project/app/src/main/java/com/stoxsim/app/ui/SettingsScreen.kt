@@ -154,12 +154,17 @@ internal fun validNewPassword(value: String) = value.length in 8..72 && value.to
             ValueRow("Scenario credits", benefits.text("scenarioCredits")); ValueRow("Practice sandboxes", benefits.text("maximumSandboxPortfolios"))
             ValueRow("Analytics", benefits.text("analyticsTier")); Muted(benefits.text("finwizDescription"))
         }
-        if (plan.text("plan") == "FREE") Muted("Free — no subscription required.")
+        if (plan.text("plan") == "FREE") Muted("₹0/month")
         else if (offer != null) {
             Text(offer.price, style = MaterialTheme.typography.titleLarge); Muted(offer.renewal)
             Button({ (context as? android.app.Activity)?.let { purchase(it, offer.productId) } },
                 enabled = state.billing.available && !state.working && !hasPaidAccess) { Text("Subscribe with Google Play") }
-        } else Muted("Google Play pricing is currently unavailable. No purchase can be made.")
+        } else {
+            val catalogPrice = plan.optDouble("monthlyPriceInr")
+            if (catalogPrice.isFinite() && catalogPrice > 0)
+                ValueRow("India catalog price", "${money(catalogPrice.toBigDecimal(), "INR")}/month")
+            Muted("Google Play pricing is currently unavailable. No purchase can be made.")
+        }
     } }
     if (hasPaidAccess) Muted("You already have paid benefits. Manage the existing subscription before purchasing another plan.")
     Panel(title = "Manage purchases") {
