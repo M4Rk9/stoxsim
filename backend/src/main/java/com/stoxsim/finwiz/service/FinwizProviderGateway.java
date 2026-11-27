@@ -2,6 +2,15 @@ package com.stoxsim.finwiz.service;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.util.concurrent.Flow;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.ExecutionException;
+import tools.jackson.databind.json.JsonMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -14,10 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 import com.stoxsim.finwiz.config.FinwizProperties;
 import tools.jackson.databind.JsonNode;
 
@@ -27,10 +32,11 @@ final class FinwizProviderGateway {
     private final FinwizProperties properties;
     private final FinwizUsageBudget budget;
     private final MeterRegistry metrics;
+    private final JsonMapper json=JsonMapper.builder().build();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
     private final Map<String, Long> cooldown = new ConcurrentHashMap<>();
     private final Map<String, Semaphore> slots = new ConcurrentHashMap<>();
-    record Candidate(String name, String base, String model, String key, int dailyLimit) { @Override public String toString() { return name; } }
+    record Candidate(String name, String base, String model, String key, int dailyLimit, int rpm, int tpm, int tpd) { @Override public String toString() { return name; } }
     record Result(String answer, String provider, String model, String reason) {
         static Result failure(String reason) { return new Result(null, null, null, reason); }
     }
@@ -42,7 +48,7 @@ final class FinwizProviderGateway {
         List<Candidate> result = new ArrayList<>();
         add(result, "GROQ", properties.getGroq(), properties.getGroq().getBaseUrl());
         if (properties.hasApiKey() && properties.getGeminiDailyLimit() > 0)
-            result.add(new Candidate("GEMINI", properties.getBaseUrl(), properties.getModel(), properties.getApiKey(), properties.getGeminiDailyLimit()));
+            result.add(new Candidate("GEMINI", properties.getBaseUrl(), properties.getModel(), properties.getApiKey(), properties.getGeminiDailyLimit(), properties.getGeminiRequestsPerMinute(), properties.getGeminiTokensPerMinute(), properties.getGeminiTokensPerDay()));
         String account = properties.getCloudflareAccountId();
         if (account != null && account.matches("[A-Za-z0-9_-]{1,128}"))
             add(result, "CLOUDFLARE", properties.getCloudflare(), properties.getCloudflare().getBaseUrl() + "/accounts/" + account + "/ai/v1");
@@ -55,7 +61,7 @@ final class FinwizProviderGateway {
         return result;
     }
     private void add(List<Candidate> list, String name, FinwizProperties.Provider p, String base) {
-        if (p.configured()) list.add(new Candidate(name, base, p.getModel(), p.getApiKey(), p.getDailyLimit()));
+        if (p.configured()) list.add(new Candidate(name, base, p.getModel(), p.getApiKey(), p.getDailyLimit(), p.getRequestsPerMinute(), p.getTokensPerMinute(), p.getTokensPerDay()));
     }
     Result generate(UUID user, FinwizDepth depth, Map<String,Object> geminiBody) {
         FinwizUsageBudget.RequestReservation request;
@@ -88,8 +94,20 @@ final class FinwizProviderGateway {
             if (!slot.tryAcquire()) continue;
             try {
                 if (cooldown.getOrDefault(p.name(),0L)>System.currentTimeMillis()) continue;
+                boolean gemini=p.name().equals("GEMINI");
+                URI base=URI.create(p.base());
+                if (!"https".equals(base.getScheme()) && !("http".equals(base.getScheme()) && "127.0.0.1".equals(base.getHost()))) {
+                    LOGGER.warn("Finwiz provider configuration rejected"); cool(p.name(),300); continue;
+                }
+                if (base.getUserInfo()!=null || base.getQuery()!=null || base.getFragment()!=null || base.getHost()==null) continue;
+                if(gemini && !p.model().matches("[A-Za-z0-9._-]{1,128}")) continue;
+                byte[] payload=json.writeValueAsBytes(gemini?geminiBody:chatBody(p,geminiBody));
+                // Conservative admission estimate, not an exact tokenizer or invoice. Count UTF-8 bytes,
+                // requested completion and extra reasoning headroom. Never refund a failed attempt.
+                int output=((Number)((Map<?,?>)geminiBody.get("generationConfig")).get("maxOutputTokens")).intValue();
+                int estimate=Math.toIntExact((long)payload.length+2L*output+256);
                 FinwizUsageBudget.Reservation allowance;
-                try { allowance=budget.reserveAttempt(request,depth,p.name(),p.dailyLimit()); }
+                try { allowance=budget.reserveAttempt(request,depth,p.name(),p.dailyLimit(),p.rpm(),p.tpm(),p.tpd(),estimate); }
                 catch (org.springframework.dao.DataAccessException e) {
                     LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice");
                     return Result.failure("budget_limited");
@@ -97,23 +115,28 @@ final class FinwizProviderGateway {
                 if (allowance==null) { reason="budget_limited"; continue; }
                 remaining=deadline-System.nanoTime();
                 if (remaining<=0) break;
-                var factory=new JdkClientHttpRequestFactory(http);
-                factory.setReadTimeout(Duration.ofNanos(Math.max(1, Math.min(remaining,Duration.ofSeconds(Math.max(1,Math.min(20,properties.getAttemptTimeoutSeconds()))).toNanos()))));
-                // Only operator-configured HTTPS bases (loopback HTTP for test fixtures).
-                URI base=URI.create(p.base());
-                if (!"https".equals(base.getScheme()) && !("http".equals(base.getScheme()) && "127.0.0.1".equals(base.getHost()))) {
-                    LOGGER.warn("Finwiz provider configuration rejected");
-                    cool(p.name(),300);
+                long nanos=Math.max(1,Math.min(remaining,Duration.ofSeconds(Math.max(1,Math.min(20,properties.getAttemptTimeoutSeconds()))).toNanos()));
+                URI endpoint=URI.create(p.base().replaceAll("/+$","")+(gemini?"/v1beta/models/"+p.model()+":generateContent":"/chat/completions"));
+                var outgoing=HttpRequest.newBuilder(endpoint).timeout(Duration.ofNanos(nanos))
+                    .header("Content-Type","application/json")
+                    .header(gemini?"x-goog-api-key":"Authorization",gemini?p.key():"Bearer "+p.key())
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(payload)).build();
+                var pending=http.sendAsync(outgoing, info -> new BoundedBody());
+                HttpResponse<byte[]> reply;
+                try { reply=pending.get(nanos,TimeUnit.NANOSECONDS); }
+                catch (TimeoutException | ExecutionException e) { pending.cancel(true); throw new IllegalStateException("Provider transport incomplete"); }
+                catch (InterruptedException e) { pending.cancel(true); Thread.currentThread().interrupt(); return Result.failure("provider_error"); }
+                int status=reply.statusCode();
+                if(status<200||status>=300) {
+                    reason="provider_http_error";
+                    metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result",status==429?"rate_limited":"http_error").increment();
+                    LOGGER.warn("Finwiz provider {} request failed with HTTP {}",p.name(),status);
+                    if(status==429) cool(p.name(),retryAfter(reply.headers().firstValue("Retry-After").orElse(null)));
+                    else if(status>=500 || status==408) cool(p.name(),15);
+                    else { cool(p.name(),300); return Result.failure(reason); }
                     continue;
                 }
-                if (base.getUserInfo()!=null || base.getQuery()!=null || base.getFragment()!=null || base.getHost()==null) continue;
-                var client=RestClient.builder().requestFactory(factory).baseUrl(p.base()).build();
-                JsonNode root;
-                boolean gemini=p.name().equals("GEMINI");
-                if (gemini) root=client.post().uri("/v1beta/models/{model}:generateContent",p.model())
-                    .header("x-goog-api-key",p.key()).header("Content-Type","application/json").body(geminiBody).retrieve().body(JsonNode.class);
-                else root=client.post().uri(URI.create(p.base().replaceAll("/+$","") + "/chat/completions")).header("Authorization","Bearer "+p.key())
-                    .header("Content-Type","application/json").body(chatBody(p,geminiBody)).retrieve().body(JsonNode.class);
+                JsonNode root=json.readTree(reply.body());
                 JsonNode tokens=root==null?null:gemini?root.path("usageMetadata").path("totalTokenCount"):root.path("usage").path("total_tokens");
                 if (tokens!=null && tokens.isIntegralNumber()) {
                     try { budget.recordReportedTokens(allowance.day(),p.name(),tokens.asLong()); }
@@ -135,15 +158,7 @@ final class FinwizProviderGateway {
                 // Explicit refusals are terminal. Only known truncation or missing output can fail over.
                 if (refused(p,root) || !retryableIncomplete(p,root)) return Result.failure(reason);
                 cool(p.name(),15);
-            } catch (RestClientResponseException e) {
-                int status=e.getStatusCode().value();
-                reason="provider_http_error";
-                metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result",status==429?"rate_limited":"http_error").increment();
-                LOGGER.warn("Finwiz provider {} request failed with HTTP {}",p.name(),status);
-                if(status==429) cool(p.name(),retryAfter(e));
-                else if(status>=500 || status==408) cool(p.name(),15);
-                else { cool(p.name(),300); return Result.failure(reason); }
-            } catch (RestClientException | IllegalStateException | IllegalArgumentException e) {
+            } catch (RuntimeException e) {
                 reason="provider_error"; cool(p.name(),15);
                 metrics.counter("stoxsim.finwiz.provider.attempts","provider",p.name(),"result","error").increment();
                 LOGGER.warn("Finwiz provider {} request failed ({})",p.name(),e.getClass().getSimpleName());
@@ -154,13 +169,27 @@ final class FinwizProviderGateway {
     private void cool(String provider,long seconds) {
         cooldown.merge(provider,System.currentTimeMillis()+Math.max(1,Math.min(86400,seconds))*1000,Math::max);
     }
-    private long retryAfter(RestClientResponseException e) {
-        String header=e.getResponseHeaders()==null?null:e.getResponseHeaders().getFirst("Retry-After");
+    private long retryAfter(String header) {
         if(header!=null) {
             try { return Math.max(1,Long.parseLong(header.trim())); } catch (RuntimeException ignored) {}
             try { return Math.max(1,Duration.between(Instant.now(),ZonedDateTime.parse(header,DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()).getSeconds()); } catch (RuntimeException ignored) {}
         }
         return 60;
+    }
+    /** Limit even a hostile/incorrect upstream response; completion waits for the entire body. */
+    private static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
+        private final HttpResponse.BodySubscriber<byte[]> delegate=HttpResponse.BodySubscribers.ofByteArray();
+        private Flow.Subscription subscription;
+        private long received;
+        public CompletionStage<byte[]> getBody() { return delegate.getBody(); }
+        public void onSubscribe(Flow.Subscription s) { subscription=s; delegate.onSubscribe(s); }
+        public void onNext(List<ByteBuffer> buffers) {
+            for(ByteBuffer b:buffers) received+=b.remaining();
+            if(received>262144) { subscription.cancel(); delegate.onError(new IllegalStateException("Provider body exceeds limit")); }
+            else delegate.onNext(buffers);
+        }
+        public void onError(Throwable error) { delegate.onError(error); }
+        public void onComplete() { delegate.onComplete(); }
     }
     @SuppressWarnings("unchecked")
     private Map<String,Object> chatBody(Candidate p,Map<String,Object> original) {

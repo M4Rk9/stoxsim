@@ -38,7 +38,7 @@ class FinwizServiceTest {
         org.mockito.Mockito.lenient().when(access.depth(USER)).thenReturn(FinwizDepth.BASIC);
         var day=java.time.LocalDate.now(java.time.ZoneOffset.UTC);
         org.mockito.Mockito.lenient().when(budget.reserveRequest(org.mockito.ArgumentMatchers.eq(USER), org.mockito.ArgumentMatchers.any())).thenReturn(new FinwizUsageBudget.RequestReservation(java.util.UUID.randomUUID(),USER,day));
-        org.mockito.Mockito.lenient().when(budget.reserveAttempt(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt())).thenReturn(new FinwizUsageBudget.Reservation(day));
+        org.mockito.Mockito.lenient().when(budget.reserveAttempt(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt())).thenReturn(new FinwizUsageBudget.Reservation(day));
         org.mockito.Mockito.lenient().when(budget.finishRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(true);
     }
 

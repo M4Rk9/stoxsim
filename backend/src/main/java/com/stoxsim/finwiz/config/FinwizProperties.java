@@ -22,6 +22,15 @@ public class FinwizProperties {
     private int deadlineSeconds = 25;
     private int providerConcurrency = 4;
     private int geminiDailyLimit = 500;
+    private int geminiRequestsPerMinute = 10;
+    private int geminiTokensPerMinute = 40000;
+    private int geminiTokensPerDay = 1000000;
+    public int getGeminiRequestsPerMinute() { return geminiRequestsPerMinute; }
+    public void setGeminiRequestsPerMinute(int value) { geminiRequestsPerMinute=value; }
+    public int getGeminiTokensPerMinute() { return geminiTokensPerMinute; }
+    public void setGeminiTokensPerMinute(int value) { geminiTokensPerMinute=value; }
+    public int getGeminiTokensPerDay() { return geminiTokensPerDay; }
+    public void setGeminiTokensPerDay(int value) { geminiTokensPerDay=value; }
     private final Provider groq = new Provider("https://api.groq.com/openai/v1", "openai/gpt-oss-20b", 100);
     private final Provider cloudflare = new Provider("https://api.cloudflare.com/client/v4", "@cf/openai/gpt-oss-20b", 50);
     private final Provider openrouter = new Provider("https://openrouter.ai/api/v1", "", 30);
@@ -35,6 +44,15 @@ public class FinwizProperties {
         private String baseUrl;
         private String model;
         private int dailyLimit;
+        private int requestsPerMinute=5;
+        private int tokensPerMinute=8000;
+        private int tokensPerDay=180000;
+        public int getRequestsPerMinute() { return requestsPerMinute; }
+        public void setRequestsPerMinute(int value) { requestsPerMinute=value; }
+        public int getTokensPerMinute() { return tokensPerMinute; }
+        public void setTokensPerMinute(int value) { tokensPerMinute=value; }
+        public int getTokensPerDay() { return tokensPerDay; }
+        public void setTokensPerDay(int value) { tokensPerDay=value; }
         public Provider(String baseUrl, String model, int dailyLimit) { this.baseUrl=baseUrl; this.model=model; this.dailyLimit=dailyLimit; }
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean value) { enabled=value; }

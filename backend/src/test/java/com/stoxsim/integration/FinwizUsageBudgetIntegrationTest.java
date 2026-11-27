@@ -35,7 +35,7 @@ class FinwizUsageBudgetIntegrationTest {
     @Autowired org.springframework.web.context.WebApplicationContext context;
     AppUser user;
     @BeforeEach void setup() {
-        db.execute("TRUNCATE finwiz_usage_daily,finwiz_global_usage_daily,finwiz_provider_usage_daily,finwiz_request_reservation");
+        db.execute("TRUNCATE finwiz_usage_daily,finwiz_global_usage_daily,finwiz_provider_usage_daily,finwiz_request_reservation,finwiz_provider_admission");
         user = users.saveAndFlush(new AppUser(UUID.randomUUID() + "@budget.test", "hash", "Learner"));
         properties.setBasicDailyProviderRequests(3); properties.setExpandedDailyProviderRequests(5);
         properties.setFullDailyProviderRequests(7); properties.setGlobalDailyProviderRequests(10);
@@ -44,25 +44,38 @@ class FinwizUsageBudgetIntegrationTest {
     private FinwizUsageBudget.Reservation complete(UUID id, FinwizDepth depth) {
         var request=budget.reserveRequest(id,depth);
         if(request==null) return null;
-        var attempt=budget.reserveAttempt(request,depth,"GEMINI",500);
+        var attempt=budget.reserveAttempt(request,depth,"GEMINI",500,100,100000,1000000,100);
         budget.finishRequest(request,attempt!=null);
         return attempt;
     }
     @Test void failoverCountsTwoAttemptsButOnlyOneSuccessfulAnswer() {
         var request=budget.reserveRequest(user.getId(),FinwizDepth.BASIC);
         assertThat(request).isNotNull();
-        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",1)).isNotNull();
-        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",1)).isNull();
-        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GEMINI",5)).isNotNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",1,100,100000,1000000,100)).isNotNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",1,100,100000,1000000,100)).isNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GEMINI",5,100,100000,1000000,100)).isNotNull();
         assertThat(budget.finishRequest(request,true)).isTrue();
         assertThat(budget.finishRequest(request,true)).isFalse();
         assertThat(db.queryForObject("SELECT successful_requests FROM finwiz_usage_daily WHERE user_id=?",Integer.class,user.getId())).isEqualTo(1);
         assertThat(db.queryForObject("SELECT provider_attempts FROM finwiz_usage_daily WHERE user_id=?",Integer.class,user.getId())).isEqualTo(2);
         var failed=budget.reserveRequest(user.getId(),FinwizDepth.BASIC);
-        assertThat(budget.reserveAttempt(failed,FinwizDepth.BASIC,"GEMINI",5)).isNotNull();
+        assertThat(budget.reserveAttempt(failed,FinwizDepth.BASIC,"GEMINI",5,100,100000,1000000,100)).isNotNull();
         assertThat(budget.finishRequest(failed,false)).isTrue();
         assertThat(db.queryForObject("SELECT successful_requests FROM finwiz_usage_daily WHERE user_id=?",Integer.class,user.getId())).isEqualTo(1);
         assertThat(db.queryForObject("SELECT sum(provider_attempts) FROM finwiz_global_usage_daily",Integer.class)).isEqualTo(3);
+    }
+    @Test void rollingProviderRateAndTokenBudgetRejectWithoutConsumingAttempts() {
+        var request=budget.reserveRequest(user.getId(),FinwizDepth.BASIC);
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,500,1000,300)).isNotNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,500,1000,201)).isNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,500,1000,200)).isNotNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,500,1000,1)).isNull();
+        db.update("UPDATE finwiz_provider_admission SET admitted_at=now()-interval '61 seconds'");
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,1000,1000,501)).isNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,1000,1000,500)).isNotNull();
+        assertThat(budget.reserveAttempt(request,FinwizDepth.BASIC,"GROQ",10,2,1000,1000,1)).isNull();
+        assertThat(db.queryForObject("SELECT provider_attempts FROM finwiz_provider_usage_daily WHERE provider='GROQ'",Integer.class)).isEqualTo(3);
+        assertThat(budget.finishRequest(request,true)).isTrue();
     }
     @Test void adminUsageReportsArePrivateAndExplicitAboutIncompleteCoverage() throws Exception {
         var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(context)
