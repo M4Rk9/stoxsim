@@ -724,7 +724,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
         val messages = chat.messages + message
         mutable.update { it.copy(chats = it.chats.map { item -> if (item.id == chat.id) item.copy(
             title = if (item.messages.isEmpty()) question.trim().take(60) else item.title, messages = messages) else item }) }
-        val body = JSONObject().put("question", finwizQuestion(question, chat.messages)).put("topic", chat.topic).put("experienceLevel", chat.experience)
+        val body = JSONObject().put("requestId", message.id).put("question", finwizQuestion(question, chat.messages)).put("topic", chat.topic).put("experienceLevel", chat.experience)
             .put("marketRegion", chat.region)
         if (chat.symbol.isNotBlank()) body.put("symbol", chat.symbol).put("exchange", if (chat.region == "INDIA") "NSE" else "NASDAQ")
         try {

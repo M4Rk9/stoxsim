@@ -1,0 +1,2 @@
+# Cost model
+F1 does not activate paid inference. Provider attempt and aggregate reported token metrics are not invoice costs; missing reports remain unknown. Owner must enforce free-only provider account controls before activation. F2 target pricing Free ₹0, Plus ₹199, Pro ₹499/month. Provisional monthly AI spending targets ₹50 and ₹125 per Plus/Pro subscriber; benchmark actual workload before committing allowances. Separate subscription capacity and money budgets are F2, not delivered in F1.

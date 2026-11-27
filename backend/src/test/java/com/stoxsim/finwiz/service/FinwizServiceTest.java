@@ -36,7 +36,10 @@ class FinwizServiceTest {
     private static final java.util.UUID USER = java.util.UUID.randomUUID();
     @org.junit.jupiter.api.BeforeEach void access() {
         org.mockito.Mockito.lenient().when(access.depth(USER)).thenReturn(FinwizDepth.BASIC);
-        org.mockito.Mockito.lenient().when(budget.reserve(org.mockito.ArgumentMatchers.eq(USER), org.mockito.ArgumentMatchers.any())).thenReturn(new FinwizUsageBudget.Reservation(java.time.LocalDate.now(java.time.ZoneOffset.UTC)));
+        var day=java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+        org.mockito.Mockito.lenient().when(budget.reserveRequest(org.mockito.ArgumentMatchers.eq(USER), org.mockito.ArgumentMatchers.any())).thenReturn(new FinwizUsageBudget.RequestReservation(java.util.UUID.randomUUID(),USER,day));
+        org.mockito.Mockito.lenient().when(budget.reserveAttempt(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt())).thenReturn(new FinwizUsageBudget.Reservation(day));
+        org.mockito.Mockito.lenient().when(budget.finishRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(true);
     }
 
     private HttpServer server;
@@ -89,14 +92,14 @@ class FinwizServiceTest {
         properties.setBaseUrl("http://127.0.0.1:1");
         var request = new FinwizRequest("Explain concentration", Topic.PORTFOLIO_EDUCATION, null, null, null, null);
         when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
-        when(budget.reserve(USER, FinwizDepth.BASIC)).thenReturn(null);
+        when(budget.reserveRequest(USER, FinwizDepth.BASIC)).thenReturn(null);
         var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
         assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
         assertThat(response.answer()).contains("daily AI allowance");
-        when(budget.reserve(USER, FinwizDepth.BASIC)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("unavailable"));
+        when(budget.reserveRequest(USER, FinwizDepth.BASIC)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("unavailable"));
         var unavailable = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
         assertThat(unavailable.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
-        org.mockito.Mockito.verify(budget, org.mockito.Mockito.never()).recordReportedTokens(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong());
+        org.mockito.Mockito.verify(budget, org.mockito.Mockito.never()).recordReportedTokens(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong());
     }
 
     @Test
@@ -139,7 +142,7 @@ class FinwizServiceTest {
         assertThat(receivedKey.get()).isEqualTo("test-gemini-key");
         assertThat(receivedBody.get()).contains("\"thinkingLevel\":\"minimal\"");
         assertThat(receivedBody.get()).doesNotContain("thinkingBudget");
-        org.mockito.Mockito.verify(budget).recordReportedTokens(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(321L));
+        org.mockito.Mockito.verify(budget).recordReportedTokens(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("GEMINI"), org.mockito.ArgumentMatchers.eq(321L));
     }
 
     @Test
@@ -375,6 +378,140 @@ class FinwizServiceTest {
             logger.detachAppender(logs);
             logs.stop();
         }
+    }
+
+    private void configure(FinwizProperties.Provider provider, String base, String model) {
+        provider.setEnabled(true);
+        provider.setFreeCapacityConfirmed(true);
+        provider.setApiKey("synthetic-test-key");
+        provider.setBaseUrl(base);
+        provider.setModel(model);
+    }
+
+    private void mockReply(String path, int status, String payload, AtomicInteger calls, AtomicReference<String> body) {
+        server.createContext(path, exchange -> {
+            calls.incrementAndGet();
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            if(status==429) exchange.getResponseHeaders().set("Retry-After","120");
+            exchange.getResponseHeaders().set("Content-Type","application/json");
+            byte[] bytes=payload.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(status,bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+    }
+
+    @Test
+    void fourProviderChainUsesOneSuccessfulAllowanceAndSkipsCoolingProviders() throws IOException {
+        var groq=new AtomicInteger(); var gemini=new AtomicInteger(); var cf=new AtomicInteger(); var router=new AtomicInteger();
+        var body=new AtomicReference<String>();
+        server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        mockReply("/groq/chat/completions",429,"{}",groq,new AtomicReference<>());
+        mockReply("/v1beta/models/gemini-3.6-flash:generateContent",503,"{}",gemini,new AtomicReference<>());
+        mockReply("/accounts/test-account/ai/v1/chat/completions",503,"{}",cf,new AtomicReference<>());
+        mockReply("/router/chat/completions",200,"""
+            {"choices":[{"finish_reason":"stop","message":{"content":"Operating cash flow measures business cash movements.","reasoning":"not visible"}}],"usage":{"total_tokens":123}}
+            """,router,body);
+        server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var p=new FinwizProperties();
+        p.setApiKey("test-gemini"); p.setBaseUrl(base);
+        configure(p.getGroq(),base+"/groq","openai/gpt-oss-20b");
+        configure(p.getCloudflare(),base,"@cf/openai/gpt-oss-20b"); p.setCloudflareAccountId("test-account");
+        configure(p.getOpenrouter(),base+"/router","example/model:free"); p.setOpenrouterUpstream("independent-test");
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        var service=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget);
+        var result=service.ask(USER,req);
+        assertThat(result.provider()).isEqualTo("OPENROUTER");
+        assertThat(result.answer()).contains("cash movements").doesNotContain("not visible");
+        assertThat(body.get()).contains("max_price","independent-test","Server-selected depth: BASIC");
+        assertThat(groq.get()).isEqualTo(1); assertThat(gemini.get()).isEqualTo(1);
+        assertThat(cf.get()).isEqualTo(1); assertThat(router.get()).isEqualTo(1);
+        org.mockito.Mockito.verify(budget).finishRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(true));
+        org.mockito.Mockito.verify(budget).recordReportedTokens(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("OPENROUTER"),org.mockito.ArgumentMatchers.eq(123L));
+        assertThat(service.ask(USER,req).provider()).isEqualTo("OPENROUTER");
+        assertThat(groq.get()).isEqualTo(1); assertThat(gemini.get()).isEqualTo(1);
+        assertThat(cf.get()).isEqualTo(1); assertThat(router.get()).isEqualTo(2);
+    }
+
+    @Test
+    void safetyRefusalCannotTriggerAnotherProvider() throws IOException {
+        var first=new AtomicInteger(); var backup=new AtomicInteger();
+        server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        mockReply("/groq/chat/completions",200,"""
+            {"choices":[{"finish_reason":"content_filter","message":{"content":"Do not display this"}}]}
+            """,first,new AtomicReference<>());
+        mockReply("/v1beta/models/gemini-3.6-flash:generateContent",200,"{}",backup,new AtomicReference<>());
+        server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var p=new FinwizProperties(); p.setApiKey("test-gemini"); p.setBaseUrl(base);
+        configure(p.getGroq(),base+"/groq","openai/gpt-oss-20b");
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        var result=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req);
+        assertThat(result.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        assertThat(result.answer()).doesNotContain("Do not display this");
+        assertThat(first.get()).isEqualTo(1); assertThat(backup.get()).isZero();
+        org.mockito.Mockito.verify(budget).finishRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(false));
+    }
+
+    @Test
+    void newProviderRequiresExplicitFreeCapacityConfirmation() {
+        var p=new FinwizProperties();
+        p.getGroq().setEnabled(true); p.getGroq().setApiKey("synthetic-test-key");
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        assertThat(new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req).provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
+        org.mockito.Mockito.verify(budget,org.mockito.Mockito.never()).reserveRequest(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void slowResponseBodyTriggersBoundedFailoverRatherThanWaitingForTheBody() throws Exception {
+        var slow=new AtomicInteger(); var backup=new AtomicInteger();
+        server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        server.setExecutor(java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor());
+        server.createContext("/groq/chat/completions", exchange -> {
+            slow.incrementAndGet();
+            exchange.getRequestBody().readAllBytes();
+            exchange.getResponseHeaders().set("Content-Type","application/json");
+            exchange.sendResponseHeaders(200,0);
+            try {
+                exchange.getResponseBody().write("{".getBytes(StandardCharsets.UTF_8));
+                exchange.getResponseBody().flush();
+                Thread.sleep(6000);
+                exchange.getResponseBody().write("}".getBytes(StandardCharsets.UTF_8));
+            } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            catch (IOException ignored) { /* cancelled by gateway */ }
+            finally { exchange.close(); }
+        });
+        mockReply("/v1beta/models/gemini-3.6-flash:generateContent",200,"""
+            {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"Cash flow describes money moving through a business."}]}}]}
+            """,backup,new AtomicReference<>());
+        server.start();
+        String base="http://127.0.0.1:"+server.getAddress().getPort();
+        var p=new FinwizProperties(); p.setApiKey("test-gemini"); p.setBaseUrl(base);
+        configure(p.getGroq(),base+"/groq","openai/gpt-oss-20b");
+        p.setAttemptTimeoutSeconds(1); p.setDeadlineSeconds(4);
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        long start=System.nanoTime();
+        var answer=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req);
+        assertThat(answer.provider()).isEqualTo("GEMINI");
+        assertThat(slow.get()).isEqualTo(1); assertThat(backup.get()).isEqualTo(1);
+        assertThat(java.time.Duration.ofNanos(System.nanoTime()-start)).isLessThan(java.time.Duration.ofSeconds(5));
+    }
+
+    @Test
+    void clientRequestIdIsPassedToTheDurableReservation() {
+        var p=new FinwizProperties(); p.setApiKey("synthetic-test-key");
+        var id=java.util.UUID.randomUUID();
+        var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null,id);
+        when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
+        when(budget.reserveRequest(USER,FinwizDepth.BASIC,id)).thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"Duplicate"));
+        assertThatThrownBy(()->new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget).ask(USER,req))
+            .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        org.mockito.Mockito.verify(budget,org.mockito.Mockito.never()).reserveAttempt(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test

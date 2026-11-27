@@ -122,3 +122,6 @@ Basic, Expanded and Full behavior is selected and bounded on the backend. See [d
 ## Private reflections and provider usage budgets
 
 Optional reflection assistance requires explicit per-request consent and uses the existing Finwiz depth and fallback behavior. Shared daily PostgreSQL provider-attempt budgets and bounded provider timeouts now supplement per-minute limits. Administrator usage metrics expose measured token coverage without claiming invoice costs. See [decision reflection privacy, limits, rollout and tests](DECISION_REFLECTIONS.md).
+
+## F1 provider gateway candidate
+See [provider setup](finwiz/PROVIDER_SETUP.md) and [architecture](finwiz/ARCHITECTURE.md). The earlier Gemini-only configuration remains supported; new adapters are opt-in. Unavailable responses are transparent notices, not deterministic substitute lessons. Staging smoke accepts complete responses from any enabled provider. Production deploy checks enabled providers independently and requires at least one complete response. Gemini credentials are optional when another provider is configured.

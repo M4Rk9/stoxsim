@@ -43,6 +43,43 @@ jobs:
       FINWIZ_MAX_QUESTION_CHARACTERS: ${{ vars.FINWIZ_MAX_QUESTION_CHARACTERS || '2000' }}
       FINWIZ_MAX_OUTPUT_TOKENS: ${{ vars.FINWIZ_MAX_OUTPUT_TOKENS || '900' }}
       FINWIZ_THINKING_LEVEL: ${{ vars.FINWIZ_THINKING_LEVEL || 'minimal' }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      FINWIZ_GROQ_ENABLED: ${{ vars.FINWIZ_GROQ_ENABLED || 'false' }}
+      FINWIZ_GROQ_FREE_CAPACITY_CONFIRMED: ${{ vars.FINWIZ_GROQ_FREE_CAPACITY_CONFIRMED || 'false' }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL || 'openai/gpt-oss-20b' }}
+      FINWIZ_GROQ_DAILY_LIMIT: ${{ vars.FINWIZ_GROQ_DAILY_LIMIT || '100' }}
+      FINWIZ_CLOUDFLARE_ENABLED: ${{ vars.FINWIZ_CLOUDFLARE_ENABLED || 'false' }}
+      FINWIZ_CLOUDFLARE_FREE_CAPACITY_CONFIRMED: ${{ vars.FINWIZ_CLOUDFLARE_FREE_CAPACITY_CONFIRMED || 'false' }}
+      CLOUDFLARE_AI_MODEL: ${{ vars.CLOUDFLARE_AI_MODEL || '@cf/openai/gpt-oss-20b' }}
+      FINWIZ_CLOUDFLARE_DAILY_LIMIT: ${{ vars.FINWIZ_CLOUDFLARE_DAILY_LIMIT || '50' }}
+      FINWIZ_OPENROUTER_ENABLED: ${{ vars.FINWIZ_OPENROUTER_ENABLED || 'false' }}
+      FINWIZ_OPENROUTER_FREE_CAPACITY_CONFIRMED: ${{ vars.FINWIZ_OPENROUTER_FREE_CAPACITY_CONFIRMED || 'false' }}
+      OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+      OPENROUTER_UPSTREAM: ${{ vars.OPENROUTER_UPSTREAM }}
+      FINWIZ_OPENROUTER_DAILY_LIMIT: ${{ vars.FINWIZ_OPENROUTER_DAILY_LIMIT || '30' }}
+      FINWIZ_GEMINI_DAILY_LIMIT: ${{ vars.FINWIZ_GEMINI_DAILY_LIMIT || '500' }}
+      FINWIZ_ATTEMPT_TIMEOUT_SECONDS: ${{ vars.FINWIZ_ATTEMPT_TIMEOUT_SECONDS || '8' }}
+      FINWIZ_DEADLINE_SECONDS: ${{ vars.FINWIZ_DEADLINE_SECONDS || '25' }}
+      FINWIZ_PROVIDER_CONCURRENCY: ${{ vars.FINWIZ_PROVIDER_CONCURRENCY || '4' }}
+      FINWIZ_BASIC_DAILY_REQUESTS: ${{ vars.FINWIZ_BASIC_DAILY_REQUESTS || '10' }}
+      FINWIZ_EXPANDED_DAILY_REQUESTS: ${{ vars.FINWIZ_EXPANDED_DAILY_REQUESTS || '30' }}
+      FINWIZ_FULL_DAILY_REQUESTS: ${{ vars.FINWIZ_FULL_DAILY_REQUESTS || '60' }}
+      FINWIZ_GLOBAL_DAILY_ATTEMPTS: ${{ vars.FINWIZ_GLOBAL_DAILY_ATTEMPTS || '500' }}
+      FINWIZ_GEMINI_REQUESTS_PER_MINUTE: ${{ vars.FINWIZ_GEMINI_REQUESTS_PER_MINUTE || '10' }}
+      FINWIZ_GEMINI_TOKENS_PER_MINUTE: ${{ vars.FINWIZ_GEMINI_TOKENS_PER_MINUTE || '40000' }}
+      FINWIZ_GEMINI_TOKENS_PER_DAY: ${{ vars.FINWIZ_GEMINI_TOKENS_PER_DAY || '1000000' }}
+      FINWIZ_GROQ_REQUESTS_PER_MINUTE: ${{ vars.FINWIZ_GROQ_REQUESTS_PER_MINUTE || '5' }}
+      FINWIZ_GROQ_TOKENS_PER_MINUTE: ${{ vars.FINWIZ_GROQ_TOKENS_PER_MINUTE || '8000' }}
+      FINWIZ_GROQ_TOKENS_PER_DAY: ${{ vars.FINWIZ_GROQ_TOKENS_PER_DAY || '180000' }}
+      FINWIZ_CLOUDFLARE_REQUESTS_PER_MINUTE: ${{ vars.FINWIZ_CLOUDFLARE_REQUESTS_PER_MINUTE || '5' }}
+      FINWIZ_CLOUDFLARE_TOKENS_PER_MINUTE: ${{ vars.FINWIZ_CLOUDFLARE_TOKENS_PER_MINUTE || '8000' }}
+      FINWIZ_CLOUDFLARE_TOKENS_PER_DAY: ${{ vars.FINWIZ_CLOUDFLARE_TOKENS_PER_DAY || '180000' }}
+      FINWIZ_OPENROUTER_REQUESTS_PER_MINUTE: ${{ vars.FINWIZ_OPENROUTER_REQUESTS_PER_MINUTE || '5' }}
+      FINWIZ_OPENROUTER_TOKENS_PER_MINUTE: ${{ vars.FINWIZ_OPENROUTER_TOKENS_PER_MINUTE || '8000' }}
+      FINWIZ_OPENROUTER_TOKENS_PER_DAY: ${{ vars.FINWIZ_OPENROUTER_TOKENS_PER_DAY || '180000' }}
       ALPACA_API_KEY_ID: ${{ secrets.ALPACA_API_KEY_ID }}
       ALPACA_API_SECRET_KEY: ${{ secrets.ALPACA_API_SECRET_KEY }}
       ALPACA_DATA_FEED: ${{ vars.ALPACA_DATA_FEED || 'iex' }}
@@ -85,51 +122,11 @@ jobs:
           : "${GHCR_USER:?Set the GitHub Actions actor for GHCR authentication}"
           : "${GHCR_TOKEN:?Set the GitHub Actions token for GHCR authentication}"
           : "${PRODUCTION_SMOKE_EMAIL:?Set the PRODUCTION_SMOKE_EMAIL environment secret}"
-          : "${GEMINI_API_KEY:?Set the GEMINI_API_KEY environment secret}"
           : "${ALPACA_API_KEY_ID:?Set the ALPACA_API_KEY_ID environment secret}"
           : "${ALPACA_API_SECRET_KEY:?Set the ALPACA_API_SECRET_KEY environment secret}"
 
-      - name: Verify Gemini key and model
-        run: |
-          RESPONSE_FILE=$(mktemp)
-          trap 'rm -f "$RESPONSE_FILE"' EXIT
-          REQUEST_BODY=$(jq -nc             --arg prompt "Reply with exactly: FINWIZ_GEMINI_OK"             --argjson maxOutputTokens 64             --arg thinkingLevel "$FINWIZ_THINKING_LEVEL"             '{
-              contents: [{role: "user", parts: [{text: $prompt}]}],
-              generationConfig: {
-                maxOutputTokens: $maxOutputTokens,
-                thinkingConfig: {thinkingLevel: $thinkingLevel}
-              }
-            }')
-
-          PREFLIGHT_PASSED=false
-          LAST_HTTP_STATUS=000
-          for attempt in 1 2 3 4 5; do
-            : > "$RESPONSE_FILE"
-            HTTP_STATUS=$(curl --silent --show-error               --connect-timeout 10               --max-time 90               --output "$RESPONSE_FILE"               --write-out '%{http_code}'               --request POST               --header "x-goog-api-key: $GEMINI_API_KEY"               --header "Content-Type: application/json"               --data "$REQUEST_BODY"               "$GEMINI_BASE_URL/v1beta/models/$GEMINI_MODEL:generateContent") || HTTP_STATUS=000
-            LAST_HTTP_STATUS="$HTTP_STATUS"
-
-            if [[ "$HTTP_STATUS" =~ ^2 ]] && jq -e               '[.candidates[]?.content.parts[]? | select(.thought != true) | .text?] | any(. != null and contains("FINWIZ_GEMINI_OK"))'               "$RESPONSE_FILE" >/dev/null; then
-              PREFLIGHT_PASSED=true
-              echo "Gemini preflight passed for $GEMINI_MODEL"
-              break
-            fi
-            if [[ "$LAST_HTTP_STATUS" =~ ^(401|403|404)$ ]]; then
-              echo "::error::Gemini production preflight failed with HTTP $LAST_HTTP_STATUS"
-              # Provider responses may echo credentials; log only the HTTP status above.
-              exit 1
-            fi
-            [[ "$attempt" -lt 5 ]] && sleep $((attempt * 10))
-          done
-
-          if [[ "$PREFLIGHT_PASSED" != "true" ]]; then
-            if [[ "$LAST_HTTP_STATUS" =~ ^(000|408|429|5) ]]; then
-              echo "::warning::Gemini production preflight skipped after transient provider failures (HTTP $LAST_HTTP_STATUS); continuing deploy."
-            else
-              echo "::error::Gemini production preflight failed with HTTP $LAST_HTTP_STATUS"
-              # Provider responses may echo credentials; log only the HTTP status above.
-              exit 1
-            fi
-          fi
+      - name: Verify configured Finwiz provider availability
+        run: python3 scripts/finwiz-preflight.py
 
       - name: Verify Alpaca credentials and SPY snapshot
         run: bash scripts/alpaca-preflight.sh
@@ -186,6 +183,43 @@ jobs:
               "FINWIZ_MAX_QUESTION_CHARACTERS": os.environ["FINWIZ_MAX_QUESTION_CHARACTERS"],
               "FINWIZ_MAX_OUTPUT_TOKENS": os.environ["FINWIZ_MAX_OUTPUT_TOKENS"],
               "FINWIZ_THINKING_LEVEL": os.environ["FINWIZ_THINKING_LEVEL"],
+              "GROQ_API_KEY": os.environ["GROQ_API_KEY"],
+              "CLOUDFLARE_API_TOKEN": os.environ["CLOUDFLARE_API_TOKEN"],
+              "CLOUDFLARE_ACCOUNT_ID": os.environ["CLOUDFLARE_ACCOUNT_ID"],
+              "OPENROUTER_API_KEY": os.environ["OPENROUTER_API_KEY"],
+              "FINWIZ_GROQ_ENABLED": os.environ["FINWIZ_GROQ_ENABLED"],
+              "FINWIZ_GROQ_FREE_CAPACITY_CONFIRMED": os.environ["FINWIZ_GROQ_FREE_CAPACITY_CONFIRMED"],
+              "GROQ_MODEL": os.environ["GROQ_MODEL"],
+              "FINWIZ_GROQ_DAILY_LIMIT": os.environ["FINWIZ_GROQ_DAILY_LIMIT"],
+              "FINWIZ_CLOUDFLARE_ENABLED": os.environ["FINWIZ_CLOUDFLARE_ENABLED"],
+              "FINWIZ_CLOUDFLARE_FREE_CAPACITY_CONFIRMED": os.environ["FINWIZ_CLOUDFLARE_FREE_CAPACITY_CONFIRMED"],
+              "CLOUDFLARE_AI_MODEL": os.environ["CLOUDFLARE_AI_MODEL"],
+              "FINWIZ_CLOUDFLARE_DAILY_LIMIT": os.environ["FINWIZ_CLOUDFLARE_DAILY_LIMIT"],
+              "FINWIZ_OPENROUTER_ENABLED": os.environ["FINWIZ_OPENROUTER_ENABLED"],
+              "FINWIZ_OPENROUTER_FREE_CAPACITY_CONFIRMED": os.environ["FINWIZ_OPENROUTER_FREE_CAPACITY_CONFIRMED"],
+              "OPENROUTER_MODEL": os.environ["OPENROUTER_MODEL"],
+              "OPENROUTER_UPSTREAM": os.environ["OPENROUTER_UPSTREAM"],
+              "FINWIZ_OPENROUTER_DAILY_LIMIT": os.environ["FINWIZ_OPENROUTER_DAILY_LIMIT"],
+              "FINWIZ_GEMINI_DAILY_LIMIT": os.environ["FINWIZ_GEMINI_DAILY_LIMIT"],
+              "FINWIZ_ATTEMPT_TIMEOUT_SECONDS": os.environ["FINWIZ_ATTEMPT_TIMEOUT_SECONDS"],
+              "FINWIZ_DEADLINE_SECONDS": os.environ["FINWIZ_DEADLINE_SECONDS"],
+              "FINWIZ_PROVIDER_CONCURRENCY": os.environ["FINWIZ_PROVIDER_CONCURRENCY"],
+              "FINWIZ_BASIC_DAILY_REQUESTS": os.environ["FINWIZ_BASIC_DAILY_REQUESTS"],
+              "FINWIZ_EXPANDED_DAILY_REQUESTS": os.environ["FINWIZ_EXPANDED_DAILY_REQUESTS"],
+              "FINWIZ_FULL_DAILY_REQUESTS": os.environ["FINWIZ_FULL_DAILY_REQUESTS"],
+              "FINWIZ_GLOBAL_DAILY_ATTEMPTS": os.environ["FINWIZ_GLOBAL_DAILY_ATTEMPTS"],
+              "FINWIZ_GEMINI_REQUESTS_PER_MINUTE": os.environ["FINWIZ_GEMINI_REQUESTS_PER_MINUTE"],
+              "FINWIZ_GEMINI_TOKENS_PER_MINUTE": os.environ["FINWIZ_GEMINI_TOKENS_PER_MINUTE"],
+              "FINWIZ_GEMINI_TOKENS_PER_DAY": os.environ["FINWIZ_GEMINI_TOKENS_PER_DAY"],
+              "FINWIZ_GROQ_REQUESTS_PER_MINUTE": os.environ["FINWIZ_GROQ_REQUESTS_PER_MINUTE"],
+              "FINWIZ_GROQ_TOKENS_PER_MINUTE": os.environ["FINWIZ_GROQ_TOKENS_PER_MINUTE"],
+              "FINWIZ_GROQ_TOKENS_PER_DAY": os.environ["FINWIZ_GROQ_TOKENS_PER_DAY"],
+              "FINWIZ_CLOUDFLARE_REQUESTS_PER_MINUTE": os.environ["FINWIZ_CLOUDFLARE_REQUESTS_PER_MINUTE"],
+              "FINWIZ_CLOUDFLARE_TOKENS_PER_MINUTE": os.environ["FINWIZ_CLOUDFLARE_TOKENS_PER_MINUTE"],
+              "FINWIZ_CLOUDFLARE_TOKENS_PER_DAY": os.environ["FINWIZ_CLOUDFLARE_TOKENS_PER_DAY"],
+              "FINWIZ_OPENROUTER_REQUESTS_PER_MINUTE": os.environ["FINWIZ_OPENROUTER_REQUESTS_PER_MINUTE"],
+              "FINWIZ_OPENROUTER_TOKENS_PER_MINUTE": os.environ["FINWIZ_OPENROUTER_TOKENS_PER_MINUTE"],
+              "FINWIZ_OPENROUTER_TOKENS_PER_DAY": os.environ["FINWIZ_OPENROUTER_TOKENS_PER_DAY"],
               "ALPACA_API_KEY_ID": os.environ["ALPACA_API_KEY_ID"],
               "ALPACA_API_SECRET_KEY": os.environ["ALPACA_API_SECRET_KEY"],
               "ALPACA_DATA_FEED": os.environ["ALPACA_DATA_FEED"],

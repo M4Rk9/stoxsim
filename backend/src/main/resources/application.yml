@@ -92,6 +92,49 @@ stoxsim:
     max-question-characters: ${FINWIZ_MAX_QUESTION_CHARACTERS:2000}
     max-output-tokens: ${FINWIZ_MAX_OUTPUT_TOKENS:900}
     thinking-level: ${FINWIZ_THINKING_LEVEL:minimal}
+    basic-daily-provider-requests: ${FINWIZ_BASIC_DAILY_REQUESTS:10}
+    expanded-daily-provider-requests: ${FINWIZ_EXPANDED_DAILY_REQUESTS:30}
+    full-daily-provider-requests: ${FINWIZ_FULL_DAILY_REQUESTS:60}
+    global-daily-provider-requests: ${FINWIZ_GLOBAL_DAILY_ATTEMPTS:500}
+    attempt-timeout-seconds: ${FINWIZ_ATTEMPT_TIMEOUT_SECONDS:8}
+    deadline-seconds: ${FINWIZ_DEADLINE_SECONDS:25}
+    provider-concurrency: ${FINWIZ_PROVIDER_CONCURRENCY:4}
+    gemini-daily-limit: ${FINWIZ_GEMINI_DAILY_LIMIT:500}
+    gemini-requests-per-minute: ${FINWIZ_GEMINI_REQUESTS_PER_MINUTE:10}
+    gemini-tokens-per-minute: ${FINWIZ_GEMINI_TOKENS_PER_MINUTE:40000}
+    gemini-tokens-per-day: ${FINWIZ_GEMINI_TOKENS_PER_DAY:1000000}
+    cloudflare-account-id: ${CLOUDFLARE_ACCOUNT_ID:}
+    openrouter-upstream: ${OPENROUTER_UPSTREAM:}
+    groq:
+      enabled: ${FINWIZ_GROQ_ENABLED:false}
+      free-capacity-confirmed: ${FINWIZ_GROQ_FREE_CAPACITY_CONFIRMED:false}
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:openai/gpt-oss-20b}
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
+      daily-limit: ${FINWIZ_GROQ_DAILY_LIMIT:100}
+      requests-per-minute: ${FINWIZ_GROQ_REQUESTS_PER_MINUTE:5}
+      tokens-per-minute: ${FINWIZ_GROQ_TOKENS_PER_MINUTE:8000}
+      tokens-per-day: ${FINWIZ_GROQ_TOKENS_PER_DAY:180000}
+    cloudflare:
+      enabled: ${FINWIZ_CLOUDFLARE_ENABLED:false}
+      free-capacity-confirmed: ${FINWIZ_CLOUDFLARE_FREE_CAPACITY_CONFIRMED:false}
+      api-key: ${CLOUDFLARE_API_TOKEN:}
+      model: ${CLOUDFLARE_AI_MODEL:@cf/openai/gpt-oss-20b}
+      base-url: ${CLOUDFLARE_AI_BASE_URL:https://api.cloudflare.com/client/v4}
+      daily-limit: ${FINWIZ_CLOUDFLARE_DAILY_LIMIT:50}
+      requests-per-minute: ${FINWIZ_CLOUDFLARE_REQUESTS_PER_MINUTE:5}
+      tokens-per-minute: ${FINWIZ_CLOUDFLARE_TOKENS_PER_MINUTE:8000}
+      tokens-per-day: ${FINWIZ_CLOUDFLARE_TOKENS_PER_DAY:180000}
+    openrouter:
+      enabled: ${FINWIZ_OPENROUTER_ENABLED:false}
+      free-capacity-confirmed: ${FINWIZ_OPENROUTER_FREE_CAPACITY_CONFIRMED:false}
+      api-key: ${OPENROUTER_API_KEY:}
+      model: ${OPENROUTER_MODEL:}
+      base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
+      daily-limit: ${FINWIZ_OPENROUTER_DAILY_LIMIT:30}
+      requests-per-minute: ${FINWIZ_OPENROUTER_REQUESTS_PER_MINUTE:5}
+      tokens-per-minute: ${FINWIZ_OPENROUTER_TOKENS_PER_MINUTE:8000}
+      tokens-per-day: ${FINWIZ_OPENROUTER_TOKENS_PER_DAY:180000}
   news:
     upstox-enabled: ${UPSTOX_NEWS_ENABLED:false}
     alpaca-enabled: ${ALPACA_NEWS_ENABLED:false}

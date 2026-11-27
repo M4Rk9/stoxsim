@@ -202,6 +202,7 @@ export default function FinwizPage() {
       const response = await authorized("/api/v1/finwiz/ask", {
         method: "POST",
         body: JSON.stringify({
+          requestId: crypto.randomUUID(),
           question: nextQuestion,
           topic,
           experienceLevel,
