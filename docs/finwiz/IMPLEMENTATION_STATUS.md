@@ -18,7 +18,7 @@ Base main b8e9897. PR #206.
 | Paid inference controls | Implemented in candidate, disabled by default | Separate optional Gemini project, spend ledger, alerts, admin report, V142 | Mock usage and transactional budget tests. Pricing and ceilings await owner approval |
 | Tier-specific educational functionality | F2 context and output limits implemented | Backend entitlements and context selection | Versioned verified knowledge base and evaluation remain F3 |
 
-F2 starts from `b2e937f`. The F2 PR carries the current test evidence. Production rollout and provider, billing and price verification are pending.
+F2 starts from `b2e937f`. [PR #207](https://github.com/M4Rk9/stoxsim/pull/207) carries the current test evidence. Production rollout and provider, billing and price verification are pending.
 
 ## Later milestones (not started)
 - F3: knowledge base, cache, context and financial validation.

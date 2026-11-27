@@ -416,7 +416,7 @@ class FinwizServiceTest {
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         mockReply("/groq/chat/completions",429,"{}",groq,new AtomicReference<>());
         mockReply("/v1beta/models/gemini-3.6-flash:generateContent",503,"{}",gemini,new AtomicReference<>());
-        mockReply("/accounts/test-account/ai/v1/chat/completions",503,"{}",cf,new AtomicReference<>());
+        mockReply("/accounts/test-account/ai/v1/chat/completions",403,"{}",cf,new AtomicReference<>());
         mockReply("/router/chat/completions",200,"""
             {"choices":[{"finish_reason":"stop","message":{"content":"Operating cash flow measures business cash movements.","reasoning":"not visible"}}],"usage":{"total_tokens":123}}
             """,router,body);
@@ -429,9 +429,12 @@ class FinwizServiceTest {
         configure(p.getOpenrouter(),base+"/router","example/model:free"); p.setOpenrouterUpstream("independent-test");
         var req=new FinwizRequest("Explain cash flow.",Topic.CASH_FLOW,null,null,null,null);
         when(contexts.build(req)).thenReturn(ContextSnapshot.empty());
-        var service=new FinwizService(p,contexts,new SimpleMeterRegistry(),access,budget, spend);
+        var registry=new SimpleMeterRegistry();
+        var service=new FinwizService(p,contexts,registry,access,budget, spend);
         var result=service.ask(USER,req);
         assertThat(result.provider()).isEqualTo("OPENROUTER");
+        assertThat(registry.get("stoxsim.finwiz.provider.attempts")
+            .tags("provider","CLOUDFLARE","result","permission").counter().count()).isEqualTo(1);
         assertThat(result.answer()).contains("cash movements").doesNotContain("not visible");
         assertThat(body.get()).contains("max_price","independent-test","Server-selected depth: BASIC");
         assertThat(groq.get()).isEqualTo(1); assertThat(gemini.get()).isEqualTo(1);

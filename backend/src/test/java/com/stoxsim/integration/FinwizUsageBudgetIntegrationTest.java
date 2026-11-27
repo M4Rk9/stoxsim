@@ -184,7 +184,12 @@ class FinwizUsageBudgetIntegrationTest {
         assertThat(spend.reserve(request,FinwizDepth.BASIC,1000,100)).isNull();
         assertThat(spend.reserve(request,FinwizDepth.EXPANDED,1000,100)).isNull();
         subscriptions.initializeFree(user);
-        db.update("UPDATE user_subscription SET plan='PLUS',billing_provider='RAZORPAY',billing_access_until=now()+interval '1 day' WHERE user_id=?",user.getId());
+        db.update("""
+            UPDATE user_subscription SET plan='PLUS', billing_provider='RAZORPAY',
+                provider_customer_reference='fixture-customer', provider_subscription_reference='fixture-subscription',
+                billing_access_until=now()+interval '1 day'
+            WHERE user_id=?
+            """,user.getId());
         db.update("UPDATE finwiz_spend_guard SET paused=true WHERE id=1");
         assertThat(spend.reserve(request,FinwizDepth.EXPANDED,1000,100)).isNull();
         db.update("UPDATE finwiz_spend_guard SET paused=false WHERE id=1");
