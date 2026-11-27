@@ -30,7 +30,10 @@ test("consent gates checkout and browser success does not mark payment confirmed
   await session(page);
   let created = false;
   let requestKey = "";
-  await page.route("**/api/v1/billing/test", route => respond(route, 200, { enabled: true, mode: "TEST", keyId: "rzp_test_fixture", entries: created ? [entry] : [] }));
+  await page.route("**/api/v1/billing/test", route => respond(route, 200, {
+    enabled: true, mode: "TEST", keyId: "rzp_test_fixture", entries: created ? [entry] : [],
+    plans: [{ displayName: "Plus", monthlyPriceInr: 199 }, { displayName: "Pro", monthlyPriceInr: 499 }],
+  }));
   await page.route("**/api/v1/billing/test/subscriptions", async route => {
     if (route.request().method() === "POST") { created = true; requestKey = route.request().postDataJSON().requestKey; }
     await respond(route, 200, entry);
@@ -38,6 +41,7 @@ test("consent gates checkout and browser success does not mark payment confirmed
   await page.route("https://checkout.razorpay.com/v1/checkout.js", route => route.fulfill({ contentType: "application/javascript",
     body: 'window.Razorpay = class { constructor(options) { this.options=options; } on() {} open() { this.options.handler({razorpay_payment_id:"untrusted"}); } };' }));
   await page.goto("/admin/billing");
+  await expect(page.getByText("Plus ₹199/month · Pro ₹499/month")).toBeVisible();
   await expect(page.getByRole("button", { name: "Test Plus", exact: true })).toBeDisabled();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Test Plus", exact: true }).click();

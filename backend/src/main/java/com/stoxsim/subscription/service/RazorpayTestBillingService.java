@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import com.stoxsim.auth.repository.AppUserRepository;
+import com.stoxsim.subscription.api.PlanResponse;
+import com.stoxsim.subscription.domain.SubscriptionPlan;
 import com.stoxsim.subscription.provider.RazorpayTestClient;
 import com.stoxsim.subscription.provider.RazorpayTestConfig;
 import com.stoxsim.subscription.provider.RazorpaySignature;
@@ -25,7 +27,7 @@ import tools.jackson.databind.ObjectMapper;
 public class RazorpayTestBillingService {
     public record Entry(UUID id,String plan,String providerId,String status,Instant currentPeriodEnd,int paidCount,
         boolean benefitsEnabled,String benefitStatus,Instant accessUntil,String cancellationStatus,Instant cancelAt) {}
-    public record Overview(boolean enabled,String mode,String keyId,List<Entry> entries) {}
+    public record Overview(boolean enabled,String mode,String keyId,List<Entry> entries,List<PlanResponse> plans) {}
     private static final Set<String> STATES=Set.of("created","authenticated","active","pending","halted","cancelled","completed","expired","paused");
     private static final Set<String> EVENTS=Set.of("subscription.authenticated","subscription.activated","subscription.charged",
         "subscription.pending","subscription.halted","subscription.cancelled","subscription.completed",
@@ -54,7 +56,8 @@ public class RazorpayTestBillingService {
     public Overview overview(UUID actor) {
         admin(actor);
         return new Overview(config.enabled,"TEST",config.enabled?config.keyId:null,
-            db.query("SELECT * FROM razorpay_test_subscription WHERE user_id=? ORDER BY created_at DESC LIMIT 20",this::mapEntry,actor));
+            db.query("SELECT * FROM razorpay_test_subscription WHERE user_id=? ORDER BY created_at DESC LIMIT 20",this::mapEntry,actor),
+            List.of(PlanResponse.from(SubscriptionPlan.PLUS), PlanResponse.from(SubscriptionPlan.PRO)));
     }
     public Entry create(UUID actor,String plan,UUID key) {
         admin(actor);enabled();
