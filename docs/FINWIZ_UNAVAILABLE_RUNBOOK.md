@@ -24,3 +24,6 @@ These application messages contain only status codes, allowlisted finish reasons
 - Usage budget unavailable/reached: inspect the existing Finwiz response metrics (`budget_limited`) and database-backed request allowance. No automatic retry or refund of an ambiguous provider attempt is introduced.
 
 After correcting configuration, submit the two reported questions separately and confirm the response provider is GEMINI and each answer addresses its question. A stock answer should explain ownership; an RSI answer should explain persistent momentum and why overbought/oversold is not a reversal guarantee. Then verify a deliberate provider-failure fixture reports unavailability. Mocked integration tests cannot certify live provider credentials or answer quality.
+
+## F1 multi-provider diagnostics
+See docs/finwiz/PROVIDER_SETUP.md. Filter sanitized log lines for 'Finwiz provider', 'Finwiz request settlement', 'Finwiz usage budget' and 'Finwiz AI unavailable'. The provider gateway uses separate durable admission counters; 429 triggers cooldown rather than repeating the same provider. Duplicate client UUID returns 409. Production preflight checks enabled providers independently. Never log provider bodies or keys. A successful CI run is not proof of live free quotas or answer quality.

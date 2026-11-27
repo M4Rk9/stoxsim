@@ -40,7 +40,6 @@ def main() -> None:
     required = {
         "ALPACA_API_KEY_ID",
         "ALPACA_API_SECRET_KEY",
-        "GEMINI_API_KEY",
     }
     missing = [key for key in required if not str(payload.get(key, "")).strip()]
     if missing:
@@ -53,7 +52,7 @@ def main() -> None:
         "ALPACA_INSTRUMENT_SYNC_ON_STARTUP": str(payload.get("ALPACA_INSTRUMENT_SYNC_ON_STARTUP", "true")),
         "ALPACA_POLLING_ENABLED": str(payload.get("ALPACA_POLLING_ENABLED", "true")),
         "ALPACA_POLLING_INTERVAL_MILLIS": str(payload.get("ALPACA_POLLING_INTERVAL_MILLIS", "5000")),
-        "GEMINI_API_KEY": str(payload["GEMINI_API_KEY"]),
+        "GEMINI_API_KEY": str(payload.get("GEMINI_API_KEY", "")),
         "GEMINI_MODEL": str(payload.get("GEMINI_MODEL", "gemini-3.6-flash")),
         "GEMINI_BASE_URL": str(payload.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com")),
         "FINWIZ_AI_ENABLED": str(payload.get("FINWIZ_AI_ENABLED", "true")),
