@@ -13,9 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.stoxsim.finwiz.api.FinwizRequest;
@@ -23,7 +20,6 @@ import com.stoxsim.finwiz.api.FinwizResponse;
 import com.stoxsim.finwiz.config.FinwizProperties;
 import com.stoxsim.finwiz.service.FinwizContextService.ContextSnapshot;
 
-import tools.jackson.databind.JsonNode;
 
 @Service
 public class FinwizService {
@@ -52,7 +48,7 @@ public class FinwizService {
     private final FinwizProperties properties;
     private final FinwizContextService contexts;
     private final MeterRegistry meterRegistry;
-    private final RestClient client;
+    private final FinwizProviderGateway gateway;
     private final FinwizAccess access;
     private final FinwizUsageBudget budget;
 
@@ -68,13 +64,7 @@ public class FinwizService {
         this.properties = properties;
         this.contexts = contexts;
         this.meterRegistry = meterRegistry;
-        var requestFactory = new org.springframework.http.client.JdkClientHttpRequestFactory(
-            java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(5)).build());
-        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(20));
-        this.client = RestClient.builder()
-            .requestFactory(requestFactory)
-            .baseUrl(properties.getBaseUrl())
-            .build();
+        this.gateway = new FinwizProviderGateway(properties, budget, meterRegistry);
     }
 
     public FinwizResponse ask(UUID userId, FinwizRequest request) {
@@ -94,7 +84,7 @@ public class FinwizService {
         }
 
         ContextSnapshot context = contexts.build(request);
-        if (!properties.isEnabled() || !properties.hasApiKey()) {
+        if (!properties.isEnabled() || !gateway.configured()) {
             LOGGER.warn("Finwiz AI unavailable: {}", properties.isEnabled() ? "API_KEY_MISSING" : "DISABLED");
             meterRegistry.counter(
                 "stoxsim.finwiz.responses",
@@ -106,86 +96,21 @@ public class FinwizService {
             return fallback(request, context, question, depth);
         }
 
-        FinwizUsageBudget.Reservation allowance;
-        try { allowance = budget.reserve(userId, depth); }
-        catch (org.springframework.dao.DataAccessException exception) {
-            LOGGER.warn("Finwiz usage budget unavailable; returning an unavailable notice");
-            allowance = null;
+        var result = gateway.generate(userId, depth, requestBody(request, context, question, depth));
+        if (result.answer() != null) {
+            meterRegistry.counter("stoxsim.finwiz.responses", "provider", result.provider().toLowerCase(java.util.Locale.ROOT), "result", "success").increment();
+            return response(result.answer().trim(), result.provider(), result.model(), context, suggestions(request.topic()), depth);
         }
-        if (allowance == null) {
-            meterRegistry.counter("stoxsim.finwiz.responses", "provider", "fallback", "result", "budget_limited").increment();
+        meterRegistry.counter("stoxsim.finwiz.responses", "provider", "fallback", "result", result.reason()).increment();
+        if ("budget_limited".equals(result.reason())) {
             return fallback(request, context, question, depth,
                 "Finwiz could not answer because the daily AI allowance is unavailable or has been reached. Please try again later. You can still use the lessons in Learn.");
         }
-        try {
-            JsonNode root = client.post()
-                .uri("/v1beta/models/{model}:generateContent", properties.getModel())
-                .header("x-goog-api-key", properties.getApiKey())
-                .header("Content-Type", "application/json")
-                .body(requestBody(request, context, question, depth))
-                .retrieve()
-                .body(JsonNode.class);
-            if (root != null && root.path("usageMetadata").path("totalTokenCount").isIntegralNumber()) {
-                try { budget.recordReportedTokens(allowance.day(), root.path("usageMetadata").path("totalTokenCount").asLong()); }
-                catch (org.springframework.dao.DataAccessException exception) {
-                    LOGGER.warn("Finwiz aggregate token usage could not be recorded");
-                }
-            }
-            String answer = extractAnswer(root);
-            if (answer == null || answer.isBlank()) {
-                meterRegistry.counter(
-                    "stoxsim.finwiz.responses", "provider", "fallback", "result", "provider_incomplete"
-                ).increment();
-                JsonNode candidates = root == null ? null : root.get("candidates");
-                JsonNode first = candidates != null && candidates.isArray() && !candidates.isEmpty()
-                    ? candidates.get(0) : null;
-                LOGGER.warn("Finwiz provider returned no complete answer; finishReason={}, blockReason={}; returning an unavailable notice",
-                    diagnosticReason(first == null ? null : first.get("finishReason")),
-                    diagnosticReason(root == null ? null : root.path("promptFeedback").get("blockReason")));
-                // Do not expose partial text (including safety-stopped candidates),
-                // retry at extra cost, or pretend a cut-off answer is complete.
-                return fallback(request, context, question, depth,
-                    "Finwiz could not complete this answer. No answer was generated for your question. Try again later or ask a shorter question.");
-            }
-            meterRegistry.counter(
-                "stoxsim.finwiz.responses",
-                "provider",
-                "gemini",
-                "result",
-                "success"
-            ).increment();
-            return response(
-                answer.trim(),
-                "GEMINI",
-                properties.getModel(),
-                context,
-                suggestions(request.topic()),
-                depth
-            );
-        } catch (RestClientResponseException exception) {
-            meterRegistry.counter(
-                "stoxsim.finwiz.responses",
-                "provider",
-                "fallback",
-                "result",
-                "provider_http_error"
-            ).increment();
-            LOGGER.warn(
-                "Gemini request for Finwiz AI failed with HTTP {}; returning an unavailable notice",
-                exception.getStatusCode().value()
-            );
-            return fallback(request, context, question, depth);
-        } catch (RestClientException | IllegalStateException exception) {
-            meterRegistry.counter(
-                "stoxsim.finwiz.responses",
-                "provider",
-                "fallback",
-                "result",
-                "provider_error"
-            ).increment();
-            LOGGER.warn("Gemini request for Finwiz AI failed; returning an unavailable notice ({})", exception.getClass().getSimpleName());
-            return fallback(request, context, question, depth);
+        if ("provider_incomplete".equals(result.reason())) {
+            return fallback(request, context, question, depth,
+                "Finwiz could not complete this answer. No answer was generated for your question. Try again later or ask a shorter question.");
         }
+        return fallback(request, context, question, depth);
     }
 
     private Map<String, Object> requestBody(
@@ -227,46 +152,6 @@ public class FinwizService {
             )
         ));
         return body;
-    }
-
-    private String extractAnswer(JsonNode root) {
-        if (root == null) return null;
-        JsonNode candidates = root.get("candidates");
-        if (candidates == null || !candidates.isArray()) return null;
-
-        for (JsonNode candidate : candidates) {
-            // This is a non-streaming request: only STOP confirms a completed
-            // candidate. Missing/unknown reasons must not count as success.
-            if (!"STOP".equals(candidate.path("finishReason").asText())) continue;
-            JsonNode content = candidate.get("content");
-            if (content == null) continue;
-            JsonNode parts = content.get("parts");
-            if (parts == null || !parts.isArray()) continue;
-            StringBuilder answer = new StringBuilder();
-            for (JsonNode part : parts) {
-                if (part.path("thought").asBoolean(false)) continue;
-                String text = part.path("text").asText();
-                if (!text.isBlank()) {
-                    if (!answer.isEmpty()) answer.append('\n');
-                    answer.append(text);
-                }
-            }
-            // Candidates are alternatives, not consecutive pieces of one answer.
-            if (!answer.isEmpty()) return answer.toString();
-        }
-        return null;
-    }
-
-    private String diagnosticReason(JsonNode reason) {
-        if (reason == null || reason.isNull()) return "MISSING";
-        // Provider fields are untrusted. Log only known enums, never free text,
-        // response bodies, learner prompts, or exception messages.
-        return switch (reason.asText()) {
-            case "STOP", "MAX_TOKENS", "SAFETY", "RECITATION", "LANGUAGE", "OTHER",
-                 "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "MALFORMED_FUNCTION_CALL",
-                 "IMAGE_SAFETY", "FINISH_REASON_UNSPECIFIED", "BLOCK_REASON_UNSPECIFIED" -> reason.asText();
-            default -> "UNKNOWN";
-        };
     }
 
     private FinwizResponse fallback(

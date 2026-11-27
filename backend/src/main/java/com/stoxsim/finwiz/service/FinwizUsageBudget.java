@@ -25,13 +25,24 @@ public class FinwizUsageBudget {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
     public Reservation reserve(UUID user, FinwizDepth depth) {
+        return reserveInternal(user,depth,"GEMINI",properties.getGeminiDailyLimit());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, timeout = 5)
+    public Reservation reserve(UUID user, FinwizDepth depth, String provider, int providerLimit) {
+        if (!java.util.Set.of("GEMINI","GROQ","CLOUDFLARE","OPENROUTER").contains(provider)) throw new IllegalArgumentException("Unknown provider");
+        return reserveInternal(user,depth,provider,providerLimit);
+    }
+
+    private Reservation reserveInternal(UUID user, FinwizDepth depth, String provider, int providerLimit) {
         int userLimit = Math.max(0, Math.min(10000, switch (depth) {
             case BASIC -> properties.getBasicDailyProviderRequests();
             case EXPANDED -> properties.getExpandedDailyProviderRequests();
             case FULL -> properties.getFullDailyProviderRequests();
         }));
         int globalLimit = Math.max(0, Math.min(100000, properties.getGlobalDailyProviderRequests()));
-        if (userLimit == 0 || globalLimit == 0) return null;
+        providerLimit = Math.max(0,Math.min(100000,providerLimit));
+        if (userLimit == 0 || globalLimit == 0 || providerLimit == 0) return null;
         Date day = Date.valueOf(clock.instant().atZone(ZoneOffset.UTC).toLocalDate());
         db.update("INSERT INTO finwiz_global_usage_daily(usage_day) VALUES(?) ON CONFLICT DO NOTHING", day);
         // Every reservation acquires locks in the same order. This serializes only a short DB operation, never a provider call.
@@ -40,6 +51,10 @@ public class FinwizUsageBudget {
         db.update("INSERT INTO finwiz_usage_daily(user_id,usage_day) VALUES(?,?) ON CONFLICT DO NOTHING", user, day);
         int used = db.queryForObject("SELECT provider_attempts FROM finwiz_usage_daily WHERE user_id=? AND usage_day=? FOR UPDATE", Integer.class, user, day);
         if (used >= userLimit) return null;
+        db.update("INSERT INTO finwiz_provider_usage_daily(provider,usage_day) VALUES(?,?) ON CONFLICT DO NOTHING",provider,day);
+        int providerUsed=db.queryForObject("SELECT provider_attempts FROM finwiz_provider_usage_daily WHERE provider=? AND usage_day=? FOR UPDATE",Integer.class,provider,day);
+        if(providerUsed>=providerLimit) return null;
+        db.update("UPDATE finwiz_provider_usage_daily SET provider_attempts=provider_attempts+1 WHERE provider=? AND usage_day=?",provider,day);
         db.update("UPDATE finwiz_usage_daily SET provider_attempts=provider_attempts+1 WHERE user_id=? AND usage_day=?", user, day);
         db.update("UPDATE finwiz_global_usage_daily SET provider_attempts=provider_attempts+1 WHERE usage_day=?", day);
         return new Reservation(day.toLocalDate());
@@ -60,5 +75,6 @@ public class FinwizUsageBudget {
         Date cutoff = Date.valueOf(clock.instant().atZone(ZoneOffset.UTC).toLocalDate().minusDays(179));
         db.update("DELETE FROM finwiz_usage_daily WHERE ctid IN(SELECT ctid FROM finwiz_usage_daily WHERE usage_day<? LIMIT 5000)", cutoff);
         db.update("DELETE FROM finwiz_global_usage_daily WHERE usage_day<?", cutoff);
+        db.update("DELETE FROM finwiz_provider_usage_daily WHERE usage_day<?", cutoff);
     }
 }

@@ -36,7 +36,7 @@ class FinwizServiceTest {
     private static final java.util.UUID USER = java.util.UUID.randomUUID();
     @org.junit.jupiter.api.BeforeEach void access() {
         org.mockito.Mockito.lenient().when(access.depth(USER)).thenReturn(FinwizDepth.BASIC);
-        org.mockito.Mockito.lenient().when(budget.reserve(org.mockito.ArgumentMatchers.eq(USER), org.mockito.ArgumentMatchers.any())).thenReturn(new FinwizUsageBudget.Reservation(java.time.LocalDate.now(java.time.ZoneOffset.UTC)));
+        org.mockito.Mockito.lenient().when(budget.reserve(org.mockito.ArgumentMatchers.eq(USER), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(new FinwizUsageBudget.Reservation(java.time.LocalDate.now(java.time.ZoneOffset.UTC)));
     }
 
     private HttpServer server;
@@ -89,11 +89,11 @@ class FinwizServiceTest {
         properties.setBaseUrl("http://127.0.0.1:1");
         var request = new FinwizRequest("Explain concentration", Topic.PORTFOLIO_EDUCATION, null, null, null, null);
         when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
-        when(budget.reserve(USER, FinwizDepth.BASIC)).thenReturn(null);
+        when(budget.reserve(USER, FinwizDepth.BASIC, "GEMINI", 500)).thenReturn(null);
         var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
         assertThat(response.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
         assertThat(response.answer()).contains("daily AI allowance");
-        when(budget.reserve(USER, FinwizDepth.BASIC)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("unavailable"));
+        when(budget.reserve(USER, FinwizDepth.BASIC, "GEMINI", 500)).thenThrow(new org.springframework.dao.DataAccessResourceFailureException("unavailable"));
         var unavailable = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget).ask(USER, request);
         assertThat(unavailable.provider()).isEqualTo("STOXSIM_EDUCATIONAL_FALLBACK");
         org.mockito.Mockito.verify(budget, org.mockito.Mockito.never()).recordReportedTokens(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong());
