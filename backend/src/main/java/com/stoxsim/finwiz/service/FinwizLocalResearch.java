@@ -66,7 +66,7 @@ public class FinwizLocalResearch {
     private static boolean isPriceQuestion(FinwizRequest request, String question) {
         if (PRICE_QUESTIONS.contains(question)) return true;
         String symbol = FinwizKnowledge.normalize(request.symbol());
-        return !symbol.isEmpty() && Set.of("what is the current price of ", "current price of ", "latest quote for ")
+        return !symbol.isEmpty() && Set.of("what is the current price of ", "current price of ", "what is the latest price of ", "latest quote for ")
             .stream().anyMatch(prefix -> question.equals(prefix + symbol));
     }
 

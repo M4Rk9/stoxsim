@@ -544,4 +544,20 @@ class FinwizServiceTest {
             .isInstanceOf(ResponseStatusException.class)
             .hasMessageContaining("Question is too long");
     }
+
+    @Test
+    void policyRejectionDoesNotConsumeAnAnswerAllowance() throws IOException {
+        var calls = new AtomicInteger();
+        var properties = providerReturning("""
+            {"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"You should buy the stock."}]}}]}
+            """, calls);
+        var request = new FinwizRequest("Evaluate this hypothetical decision.", Topic.LEARN, null, null, null, null);
+        when(contexts.build(request)).thenReturn(ContextSnapshot.empty());
+        var response = new FinwizService(properties, contexts, new SimpleMeterRegistry(), access, budget, spend, knowledge, research)
+            .ask(USER, request);
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(response.answerKind()).isEqualTo("unavailable");
+        assertThat(response.answer()).doesNotContain("buy the stock");
+        org.mockito.Mockito.verify(budget).finishRequest(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(false));
+    }
 }

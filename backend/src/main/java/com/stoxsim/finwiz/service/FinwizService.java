@@ -113,14 +113,14 @@ public class FinwizService {
         if (!request.requestsStockContext()) {
             var exact = knowledge.exact(question, depth);
             if (exact.isPresent()) {
-                var lesson = lessonResponse(exact.get(), request.topic(), depth);
+                var lesson = lessonResponse(exact.get(), depth);
                 if (lesson != null) return lesson;
             }
             if (EXAMPLE_FOLLOW_UPS.contains(normalized) || FOLLOW_UP.matcher(normalized).matches()) {
                 subject = knowledge.reference(request.learningReference(), depth);
             }
             if (subject.isPresent() && "explain that again".equals(normalized)) {
-                var lesson = lessonResponse(subject.get(), request.topic(), depth);
+                var lesson = lessonResponse(subject.get(), depth);
                 if (lesson != null) return lesson;
             }
             if (COMPANY_FACTS.matcher(normalized).find()) {
@@ -157,11 +157,11 @@ public class FinwizService {
         return unavailable(notice, depth);
     }
 
-    private FinwizResponse lessonResponse(FinwizKnowledge.Lesson lesson, FinwizRequest.Topic topic, FinwizDepth depth) {
+    private FinwizResponse lessonResponse(FinwizKnowledge.Lesson lesson, FinwizDepth depth) {
         return knowledge.answer(lesson, depth).map(answer -> {
             meterRegistry.counter("stoxsim.finwiz.local", "kind", "lesson").increment();
             var source = new FinwizResponse.Source(lesson.sourceLabel(), lesson.sourceUrl(), lesson.revision(), lesson.reviewedOn());
-            return response(answer, "STOXSIM_LEARNING", "f3-v1", false, null, suggestions(topic), depth,
+            return response(answer, "STOXSIM_LEARNING", "f3-v1", false, null, List.of("Give me an example.", "What is a limitation of this concept?"), depth,
                 "lesson", lesson.slug(), List.of(source));
         }).orElse(null);
     }

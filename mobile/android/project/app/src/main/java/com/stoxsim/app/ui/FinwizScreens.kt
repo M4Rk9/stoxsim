@@ -168,7 +168,7 @@ import com.stoxsim.app.data.*
     Muted("Educational concepts and hypothetical examples. Read status is local and does not award server XP.")
 }
 
-@Composable internal fun FinwizChatScreen(state: AppState, send: (String) -> Unit, newChat: () -> Unit, stop: () -> Unit) {
+@Composable internal fun FinwizChatScreen(state: AppState, send: (String) -> Unit, newChat: () -> Unit, stop: () -> Unit = {}) {
     val chat = state.activeChat ?: return
     var draft by remember(chat.id) { mutableStateOf("") }
     val list = rememberLazyListState()
@@ -202,15 +202,20 @@ import com.stoxsim.app.data.*
                             SelectionContainer { if (message.role == "assistant") FinwizAnswer(message.text) else Text(message.text) }
                             if (message.role == "assistant") {
                                 FinwizMetadata(message)
-                                
                                 if (message.disclaimer.isNotBlank()) Muted(message.disclaimer)
                                 message.suggestions.take(4).forEach { suggestion -> TextButton({ draft = suggestion.take(2000) }, enabled = !state.working) { Text(suggestion) } }
+                            }
+                            if (message.id == chat.messages.lastOrNull()?.id &&
+                                (message.role == "error" || message.provider == "STOXSIM_EDUCATIONAL_FALLBACK")) {
+                                chat.messages.lastOrNull { it.role == "user" }?.let { question ->
+                                    TextButton({ draft = question.text }, enabled = !state.working) { Text("Retry question") }
+                                }
                             }
                         }
                     }
                 }
             }
-            if (state.finwizWaiting) item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…") } }
+            if (state.finwizWaiting) item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Muted("Finwiz is thinking…"); TextButton(stop) { Text("Stop waiting") } } }
         }
         if (chat.messages.size >= 40) Muted("This conversation is full. Start a new chat to continue.")
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -234,7 +239,7 @@ import com.stoxsim.app.data.*
     }
     val depth = message.tier.takeIf { it.isNotBlank() }?.lowercase()?.let { " · $it depth" }.orEmpty()
     Muted(label + depth)
-    message.aiAllowance?.let { Muted("${it.remaining} of ${it.dailyLimit} AI answers available today (UTC)") }
+    message.aiAllowance?.let { Muted("Daily AI allowance · ${it.remaining} of ${it.dailyLimit} remaining (UTC)") }
     if (message.dataAsOf.isNotBlank()) Muted("Data as of ${time(message.dataAsOf)}")
     message.sources.forEach { source ->
         TextButton({ uri.openUri(source.url) }) { Text(source.title) }

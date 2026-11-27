@@ -409,7 +409,7 @@ export default function FinwizPage() {
 
         <div className={styles.composerHint}>
           {loading ? <button type="button" onClick={() => activeRequest.current?.abort()}>Stop waiting</button> : <span>Enter to send · Shift + Enter for a new line</span>}
-          {current?.turns.at(-1)?.answer.aiAllowance && <span>{current.turns.at(-1)?.answer.aiAllowance?.remaining} of {current.turns.at(-1)?.answer.aiAllowance?.dailyLimit} AI answers available today (UTC)</span>}
+          {current?.turns.at(-1)?.answer.aiAllowance && <span>{current.turns.at(-1)?.answer.aiAllowance?.remaining} of {current.turns.at(-1)?.answer.aiAllowance?.dailyLimit} AI answers remaining today (UTC)</span>}
           <span>{question.length}/2000</span>
         </div>
       </form>
