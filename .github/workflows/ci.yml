@@ -216,10 +216,14 @@ jobs:
           }, indent=2)+'\n')
           PY
       - name: Bounded authenticated load and resource observations
+        env:
+          COMPOSE_FILE: docker-compose.yml:.github/finwiz-load.compose.yml
         run: |
+          trap 'docker compose rm --stop --force finwiz-fixture' EXIT
+          docker compose up --detach --wait --wait-timeout 90
           bash scripts/candidate-resources.sh &
           sampler=$!
-          trap 'kill "$sampler" 2>/dev/null || true; wait "$sampler" 2>/dev/null || true' EXIT
+          trap 'kill "$sampler" 2>/dev/null || true; wait "$sampler" 2>/dev/null || true; docker compose rm --stop --force finwiz-fixture' EXIT
           python3 scripts/candidate-load.py
       - name: Verify isolated backup restore and row equivalence
         run: bash scripts/candidate-restore.sh

@@ -400,6 +400,451 @@
           "sort": "none"
         }
       }
+    },
+    {
+      "title": "Finwiz answers",
+      "description": "Includes local lessons and calculations. Unavailable notices are counted separately.",
+      "type": "timeseries",
+      "id": 9,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (tier,kind) (increase(stoxsim_finwiz_answers_total[15m]))",
+          "legendFormat": "{{tier}} {{kind}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Finwiz p95 latency",
+      "description": "Includes quota and context handling inside the question service.",
+      "type": "timeseries",
+      "id": 10,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(stoxsim_finwiz_latency_seconds_bucket[10m])))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Finwiz provider routing",
+      "description": "Failovers count additional outbound requests after the first attempt.",
+      "type": "timeseries",
+      "id": 11,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (provider,result) (increase(stoxsim_finwiz_provider_attempts_total[15m]))",
+          "legendFormat": "{{provider}} {{result}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (provider) (increase(stoxsim_finwiz_provider_failovers_total[15m]))",
+          "legendFormat": "{{provider}} failovers",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Finwiz provider circuit",
+      "description": "0 is closed, 1 is open and 2 is probing. A series appears after the first use of a configured route.",
+      "type": "timeseries",
+      "id": 12,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 34
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_finwiz_provider_circuit",
+          "legendFormat": "{{provider}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Finwiz estimated and reported tokens",
+      "description": "Admission estimates and observed provider usage are separate series.",
+      "type": "timeseries",
+      "id": 13,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 42
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (provider,source) (increase(stoxsim_finwiz_provider_tokens_sum[15m]))",
+          "legendFormat": "{{provider}} {{source}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Finwiz average context size",
+      "description": "Characters of bounded market evidence supplied per request, by tier.",
+      "type": "timeseries",
+      "id": 14,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 42
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (tier) (rate(stoxsim_finwiz_context_characters_sum[15m])) / sum by (tier) (rate(stoxsim_finwiz_context_characters_count[15m]))",
+          "legendFormat": "{{tier}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Finwiz knowledge cache hit rate",
+      "description": "Percentage of resolved cache lookups returning verified public content.",
+      "type": "timeseries",
+      "id": 15,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 50
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(stoxsim_finwiz_knowledge_cache_total{result=\"hit\"}[15m])) / sum(rate(stoxsim_finwiz_knowledge_cache_total{result=~\"hit|miss|invalid|read_error\"}[15m]))",
+          "legendFormat": "Cache hit rate",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Paid inference spend and remaining budget",
+      "description": "INR. Estimates use reservations. Remaining budget includes unresolved liabilities.",
+      "type": "timeseries",
+      "id": 16,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 50
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyINR"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_finwiz_spend_month_micros / 1000000",
+          "legendFormat": "{{tier}} {{kind}}",
+          "refId": "A"
+        },
+        {
+          "expr": "stoxsim_finwiz_spend_remaining_micros / 1000000",
+          "legendFormat": "{{scope}} remaining",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Paid inference usage with missing data",
+      "description": "Provider responses whose usage could not be reconciled.",
+      "type": "timeseries",
+      "id": 17,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(stoxsim_finwiz_spend_unknown_total[15m]))",
+          "legendFormat": "Unknown usage",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Learners by verified subscription plan",
+      "description": "Counts ordinary accounts. The paid tiers require a current verified provider entitlement.",
+      "type": "timeseries",
+      "id": 18,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 58
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_subscription_learners",
+          "legendFormat": "{{plan}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Billing purchase states",
+      "description": "Current purchase states from the billing ledger, including cancellation and payment failures.",
+      "type": "timeseries",
+      "id": 19,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 66
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_billing_purchases",
+          "legendFormat": "{{provider}} {{plan}} {{state}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Observed Razorpay charges, last 30 days",
+      "description": "Verified charge and refund amounts in INR. Provider settlement, Play revenue, taxes and fees are outside this measurement.",
+      "type": "timeseries",
+      "id": 20,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 66
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyINR"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_billing_charges_30d_paise / 100",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Referral outcomes",
+      "description": "Current attributed registrations by status. Duplicate identities and expired referrals are shown separately.",
+      "type": "timeseries",
+      "id": 21,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 74
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_referral_attributions",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Referral conversion",
+      "description": "Percentage of retained attributions that reached reward approval.",
+      "type": "timeseries",
+      "id": 22,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 74
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(stoxsim_referral_attributions{state=\"REWARDED\"}) / sum(stoxsim_referral_attributions)",
+          "legendFormat": "Rewarded",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Referral ledger mismatches",
+      "description": "Active reward account balances and referral grants. Both series should be zero.",
+      "type": "timeseries",
+      "id": 23,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 82
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "stoxsim-prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "stoxsim_referral_ledger_mismatches",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "refresh": "30s",

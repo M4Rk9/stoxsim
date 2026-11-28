@@ -39,8 +39,10 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+        stoxsim.finwiz.latency: true
       slo:
         http.server.requests: 100ms,500ms,1s,2s,5s
+        stoxsim.finwiz.latency: 250ms,1s,2s,5s,10s,25s
 
 stoxsim:
   billing:

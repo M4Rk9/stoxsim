@@ -100,6 +100,7 @@ final class FinwizProviderGateway {
     private Result dispatch(FinwizUsageBudget.RequestReservation request, FinwizDepth depth, Map<String,Object> geminiBody) {
         long deadline = System.nanoTime() + Duration.ofSeconds(Math.max(1, Math.min(30,properties.getDeadlineSeconds()))).toNanos();
         String reason = "provider_error";
+        boolean sent = false;
         for (Candidate p : candidates(depth)) {
             long remaining = deadline-System.nanoTime();
             if (remaining <= 0) break;
@@ -161,6 +162,10 @@ final class FinwizProviderGateway {
                     .header("Content-Type","application/json")
                     .header(gemini?"x-goog-api-key":"Authorization",gemini?p.key():"Bearer "+p.key())
                     .POST(HttpRequest.BodyPublishers.ofByteArray(payload)).build();
+                if(sent) metrics.counter("stoxsim.finwiz.provider.failovers","provider",p.name()).increment();
+                sent = true;
+                metrics.summary("stoxsim.finwiz.provider.tokens","provider",p.name(),"source","estimated")
+                    .record(estimate);
                 var pending=http.sendAsync(outgoing, info -> new BoundedBody());
                 HttpResponse<byte[]> reply;
                 try { reply=pending.get(nanos,TimeUnit.NANOSECONDS); }
@@ -183,8 +188,13 @@ final class FinwizProviderGateway {
                 JsonNode root=json.readTree(reply.body());
                 if (p.paid()) paidUsage = root == null ? null : root.path("usageMetadata");
                 JsonNode tokens=root==null?null:gemini?root.path("usageMetadata").path("totalTokenCount"):root.path("usage").path("total_tokens");
-                if (tokens!=null && tokens.isIntegralNumber()) {
-                    try { budget.recordReportedTokens(allowance.day(),p.name(),tokens.asLong()); }
+                if (tokens!=null && tokens.isIntegralNumber() && tokens.canConvertToLong()
+                    && tokens.asLong()>=0 && tokens.asLong()<=1_000_000) {
+                    try {
+                        budget.recordReportedTokens(allowance.day(),p.name(),tokens.asLong());
+                        metrics.summary("stoxsim.finwiz.provider.tokens","provider",p.name(),"source","reported")
+                            .record(tokens.asLong());
+                    }
                     catch (org.springframework.dao.DataAccessException e) { LOGGER.warn("Finwiz aggregate token usage could not be recorded"); }
                 }
                 String answer=gemini?extractAnswer(root):extractChat(root);
