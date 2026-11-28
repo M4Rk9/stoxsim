@@ -48,6 +48,7 @@ public class AccountLifecycleService {
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate transactionTemplate;
     private final BillingAccountGuard billing;
+    private final com.stoxsim.rewards.ReferralService referrals;
 
     public AccountLifecycleService(
         AppUserRepository userRepository,
@@ -59,7 +60,8 @@ public class AccountLifecycleService {
         AuthProperties properties,
         JdbcTemplate jdbcTemplate,
         TransactionTemplate transactionTemplate,
-        BillingAccountGuard billing
+        BillingAccountGuard billing,
+        com.stoxsim.rewards.ReferralService referrals
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -71,6 +73,11 @@ public class AccountLifecycleService {
         this.jdbcTemplate = jdbcTemplate;
         this.transactionTemplate = transactionTemplate;
         this.billing = billing;
+        this.referrals = referrals;
+    }
+
+    public void attributeReferral(AppUser user, String googleSubject, String referralCode) {
+        if (referralCode != null) referrals.attribute(user.getId(), user.getEmail(), googleSubject, referralCode);
     }
 
     @Transactional
@@ -229,6 +236,17 @@ public class AccountLifecycleService {
         export.put("learnerProfile", jdbcTemplate.queryForList(
             "SELECT experience_level,learning_objective,preferred_market,updated_at FROM learner_profile WHERE user_id=?", userId));
         export.put("signupAttribution", jdbcTemplate.queryForList("SELECT source,device,method,recorded_at FROM signup_attribution WHERE user_id=?", userId));
+        export.put("referralCode", jdbcTemplate.queryForList("SELECT code FROM referral_code WHERE referrer_id=?", userId));
+        export.put("referrals", jdbcTemplate.queryForList("""
+            SELECT id,status,rejection,created_at,qualified_at,reviewed_at,
+                CASE WHEN referrer_id=? THEN 'INVITER' ELSE 'LEARNER' END AS role
+            FROM referral_attribution WHERE referrer_id=? OR referred_id=? ORDER BY created_at,id
+            """, userId,userId,userId));
+        export.put("virtualRewards", jdbcTemplate.queryForList("""
+            SELECT t.id,t.source,t.reverses_id,t.created_at,e.account_id,e.currency,e.amount
+            FROM virtual_reward_transaction t JOIN virtual_reward_entry e ON e.transaction_id=t.id
+            JOIN virtual_account a ON a.id=e.account_id WHERE a.user_id=? ORDER BY t.created_at,t.id,e.currency
+            """, userId));
         export.put("decisionReflections", jdbcTemplate.queryForList(
             "SELECT id,account_id,order_id,reason,assumptions,risks,expected_outcome,reflection,created_at,updated_at,strategy_exchange,strategy_symbol,horizon,target,invalidation,review_on,reviewed_at,strategy_created_at FROM decision_reflection WHERE user_id=? ORDER BY created_at,id", userId));
         export.put("finwizUsage", jdbcTemplate.queryForList(
@@ -440,6 +458,7 @@ public class AccountLifecycleService {
     public void deleteVerifiedAccount(UUID userId) {
         AppUser user = requireUserForUpdate(userId);
         billing.requireDeletionAllowed(userId);
+        referrals.rememberDeletedIdentity(userId, user.getEmail());
         audit(userId, "ACCOUNT_DELETED", "User requested permanent deletion");
         jdbcTemplate.update(
             "UPDATE account_event SET detail = NULL WHERE user_id = ?",

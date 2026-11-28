@@ -18,7 +18,7 @@ type CurrencyCode = "INR" | "USD";
 interface Account {
   id: string;
   marketRegion: MarketRegion;
-  accountKind: "STANDARD" | "SANDBOX";
+  accountKind: "STANDARD" | "SANDBOX" | "REWARD";
   sandboxPlan?: "PLUS" | "PRO";
   sandboxSlot: number;
   accountLabel: string;

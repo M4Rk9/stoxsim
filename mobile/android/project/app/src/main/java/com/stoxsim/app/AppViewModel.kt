@@ -25,7 +25,7 @@ internal data class EmailLinkPrompt(val action: EmailAction, val id: String = UU
 internal data class AppState(
     val derivatives: DerivativesState = DerivativesState(),
     val restoring: Boolean = true, val restoreFailed: Boolean = false,
-    val working: Boolean = false, val user: User? = null,
+    val working: Boolean = false, val user: User? = null, val referralCode: String? = null,
     val region: String = "INDIA", val accountId: String = "", val screen: String = "Home",
     val dark: Boolean = false, val streamStatus: String = "OFFLINE", val portfolio: Portfolio? = null,
     val instruments: List<Instrument> = emptyList(), val searched: Boolean = false,
@@ -72,6 +72,15 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     private var pendingEmailLink: EmailActionLink? = null
     private val emailAction = MutableStateFlow<EmailLinkPrompt?>(null)
     val emailLinkAction = emailAction.asStateFlow()
+
+    fun receiveReferralLink(raw: String?) {
+        if (mutable.value.user != null) return
+        val code = ReferralLink.parse(raw)
+        mutable.update {
+            if (code == null) it.copy(error = "This referral link is invalid.")
+            else it.copy(referralCode = code, error = null, notice = null)
+        }
+    }
 
     fun receiveEmailLink(raw: String?) {
         val link = EmailActionLink.parse(raw)
@@ -164,16 +173,17 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun authenticate(email: String, password: String, name: String?) = runAction {
-        signedIn(api.authenticate(email, password, name))
+        signedIn(api.authenticate(email, password, name, mutable.value.referralCode))
         if (name != null) mutable.update { it.copy(notice = "Account created. Verify your email address. " + EMAIL_GUIDANCE) }
     }
     fun googleAuthenticate(context: android.content.Context, name: String?, accepted: Boolean) = runAction {
         if (name != null && (!accepted || name.trim().length !in 2..100)) {
             throw GoogleSignInFailure("Enter a display name and accept the Terms and Privacy Notice.")
         }
+        val referralCode = mutable.value.referralCode
         val challenge = api.googleChallenge()
         val credential = GoogleCredentials.request(context, challenge)
-        signedIn(api.googleAuthenticate(credential, challenge.binding, name, accepted))
+        signedIn(api.googleAuthenticate(credential, challenge.binding, name, accepted, referralCode))
     }
     fun googleAccountAction(context: android.content.Context, newPassword: String?, confirmed: Boolean) = runAction {
         if (newPassword == null && !confirmed) throw GoogleSignInFailure("Confirm permanent account deletion first.")
@@ -220,7 +230,7 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
     }
     fun openScreen(screen: String) {
         if (screen !in listOf("Home", "Learn", "Learner profile", "Notifications", "Reflections", "Markets", "F&O", "Stock", "Watchlist", "Portfolio", "Orders", "Explore", "Scenario Lab",
-                "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Portfolio analysis")) return
+                "Learning path", "Competitions", "Campus", "Finwiz", "Finwiz lesson", "Finwiz chat", "Account", "Profile & security", "Subscriptions", "Wallet", "Rewards", "Weekly reports", "Portfolio analysis")) return
         cancelSearch()
         mutable.update { it.copy(screen = screen, error = null, notice = null) }
         if (mutable.value.working) pagePending = true else refresh()
@@ -443,10 +453,13 @@ internal class AppViewModel(application: Application) : AndroidViewModel(applica
             "Account" -> { readAccounts(); read("subscription", "subscription") }
             "Profile & security" -> { readAccounts(); list("sessions", "auth/sessions"); list("events", "auth/events") }
             "Subscriptions" -> { readAccounts(); read("subscription", "subscription"); read("billingHistory", "billing"); connectBilling() }
+            "Rewards" -> read("rewards", "rewards")
             "Wallet" -> { readAccounts(); portfolio(); mutable.value.accountId.takeIf { it.isNotBlank() }?.let { account -> list("ledger", "accounts/$account/ledger") } }
             "Weekly reports" -> { read("reportPreference", "reports/weekly/preferences"); list("reports", "reports/weekly") }
         }
     }
+    fun createReferralCode() = runAction { putData("rewards", api.mutate("rewards/code")) }
+
     private fun updateDerivatives(change: (DerivativesState) -> DerivativesState) {
         mutable.update { it.copy(derivatives = change(it.derivatives)) }
     }

@@ -30,6 +30,7 @@ import com.stoxsim.app.data.*
         ChoiceRow(listOf("light" to "Light", "dark" to "Dark"), if (state.dark) "dark" else "light") { dark(it == "dark") }
     }
     AccountLink("Wallet", "Virtual cash, reserves and account activity", navigate)
+    AccountLink("Rewards", "Invite learners and view referral rewards", navigate)
     AccountLink("Subscriptions", state.data["subscription"]?.let { "${it.text("plan")} · ${it.text("status")} · Manage your benefits" } ?: "Manage your plan and benefits", navigate)
     AccountLink("Learner profile", "Optional learning goals and preferred market", navigate)
     AccountLink("Notifications", "Your updates and communication preferences", navigate)

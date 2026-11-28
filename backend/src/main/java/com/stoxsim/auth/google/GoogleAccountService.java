@@ -78,6 +78,12 @@ public class GoogleAccountService {
 
     @Transactional
     public AuthResponse register(GoogleIdentityVerifier.Identity identity, String displayName, boolean termsAccepted, String userAgent, String signupSource) {
+        return register(identity, displayName, termsAccepted, userAgent, signupSource, null);
+    }
+
+    @Transactional
+    public AuthResponse register(GoogleIdentityVerifier.Identity identity, String displayName, boolean termsAccepted,
+            String userAgent, String signupSource, String referralCode) {
         release.requirePublicRegistration();
         if (!termsAccepted) throw new IllegalArgumentException("You must accept the Terms and Privacy Notice");
         if (displayName == null || displayName.trim().length() < 2 || displayName.trim().length() > 100) {
@@ -99,6 +105,7 @@ public class GoogleAccountService {
         try {
             user = users.saveAndFlush(user);
             accounts.createDefaultAccounts(user);
+            lifecycle.attributeReferral(user, identity.subject(), referralCode);
             lifecycle.recordSignup(user.getId(), "GOOGLE", signupSource, userAgent);
             subscriptions.initializeFree(user);
             db.update("INSERT INTO google_identity(subject, user_id) VALUES (?, ?)", identity.subject(), user.getId());

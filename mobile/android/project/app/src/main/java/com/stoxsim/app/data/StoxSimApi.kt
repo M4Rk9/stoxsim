@@ -60,9 +60,9 @@ internal class StoxSimApi(
         parseUser(JSONObject(authorizedGet("api/v1/auth/me")))
     }
 
-    suspend fun authenticate(email: String, password: String, name: String? = null): User = serialized {
+    suspend fun authenticate(email: String, password: String, name: String? = null, referralCode: String? = null): User = serialized {
         val body = JSONObject().put("email", email.trim()).put("password", password)
-        if (name != null) body.put("displayName", name.trim()).put("termsAccepted", true)
+        if (name != null) body.put("displayName", name.trim()).put("termsAccepted", true).put("referralCode", referralCode)
         request("api/v1/auth/" + if (name == null) "login" else "register", body).use { response ->
             if (!response.isSuccessful) {
                 if (response.code == 401) throw IOException("Email or password is incorrect.")
@@ -81,9 +81,9 @@ internal class StoxSimApi(
         GoogleChallenge(config.getString("clientId"), challenge.getString("binding"), challenge.getString("nonce"))
     }
 
-    suspend fun googleAuthenticate(credential: String, binding: String, name: String?, accepted: Boolean): User = serialized {
+    suspend fun googleAuthenticate(credential: String, binding: String, name: String?, accepted: Boolean, referralCode: String? = null): User = serialized {
         val body = JSONObject().put("credential", credential).put("binding", binding)
-        if (name != null) body.put("displayName", name.trim()).put("termsAccepted", accepted)
+        if (name != null) body.put("displayName", name.trim()).put("termsAccepted", accepted).put("referralCode", referralCode)
         request("api/v1/auth/google/native/" + if (name == null) "login" else "register", body).use {
             if (!it.isSuccessful) throw failure(it)
             acceptSession(it)

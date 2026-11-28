@@ -24,7 +24,10 @@ F2 starts from `b2e937f`. [PR #207](https://github.com/M4Rk9/stoxsim/pull/207) c
 
 The candidate adds the source-checked lesson catalog (V143), deterministic research routes, tiered public-only Redis caching, bounded follow-up context, financial output checks and web/Android answer metadata. [Evaluation](F3_EVALUATION.md) records coverage and remaining benchmark work.
 
-## Later milestones (not started)
-- F4: referrals, ₹100000 INR and $1000 USD virtual capital ledger.
+## F4 — Referral rewards
+
+Web and Android registration can attribute a referral to a shareable invite. Qualified referrals require administrator approval. Each approval writes an atomic, auditable two-currency contribution to separate practice accounts. [Referral rewards](../REFERRAL_REWARDS.md) documents accounting, rollout and reconciliation. The feature starts disabled pending owner approval.
+
+## Later milestones
 - F5: monitoring, billing, Google Play candidate.
 - F6: post-publication advertising only; each qualifying ad earns same virtual rewards. No ad SDK before launch.

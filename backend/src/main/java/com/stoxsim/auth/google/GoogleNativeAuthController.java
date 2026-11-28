@@ -54,7 +54,7 @@ public class GoogleNativeAuthController {
             @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin,
             @RequestHeader(name = HttpHeaders.USER_AGENT, required = false) String userAgent) {
         requireNative(origin);
-        return session(accounts.register(identity(request.credential(), request.binding()), request.displayName(), request.termsAccepted(), userAgent), HttpStatus.CREATED);
+        return session(accounts.register(identity(request.credential(), request.binding()), request.displayName(), request.termsAccepted(), userAgent, null, request.referralCode()), HttpStatus.CREATED);
     }
     @PostMapping(value = "/password", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> password(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody InitialPassword request,
@@ -84,7 +84,7 @@ public class GoogleNativeAuthController {
     public record Credential(@NotBlank @Size(max = 16384) String credential, @NotBlank @Size(min = 43, max = 43) String binding) {}
     public record Registration(@NotBlank @Size(max = 16384) String credential, @NotBlank @Size(min = 43, max = 43) String binding,
         @NotBlank @Size(min = 2, max = 100) String displayName,
-        @AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted) {}
+        @AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted, @Size(max = 32) String referralCode) {}
     public record InitialPassword(@NotBlank @Size(max = 16384) String credential, @NotBlank @Size(min = 43, max = 43) String binding,
         @NotBlank @Size(min = 8, max = 72) @Utf8Password String newPassword) {}
     public record Deletion(@NotBlank @Size(max = 16384) String credential, @NotBlank @Size(min = 43, max = 43) String binding,

@@ -80,6 +80,7 @@ public class AuthenticationService {
         List<VirtualAccount> accounts = accountService.createDefaultAccounts(user);
         subscriptionService.initializeFree(user);
         userRepository.flush();
+        lifecycleService.attributeReferral(user, null, request.referralCode());
         lifecycleService.recordSignup(user.getId(), "EMAIL", request.signupSource(), userAgent);
         lifecycleService.audit(
             user.getId(),

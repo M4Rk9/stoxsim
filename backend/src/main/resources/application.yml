@@ -51,6 +51,13 @@ stoxsim:
       webhook-secret: ${STOXSIM_BILLING_TEST_WEBHOOK_SECRET:}
       plus-plan: ${STOXSIM_BILLING_TEST_PLUS_PLAN:}
       pro-plan: ${STOXSIM_BILLING_TEST_PRO_PLAN:}
+  rewards:
+    enabled: ${STOXSIM_REWARDS_ENABLED:false}
+    identity-key: ${STOXSIM_REWARDS_IDENTITY_KEY:}
+    minimum-age-hours: ${STOXSIM_REFERRAL_MINIMUM_AGE_HOURS:24}
+    qualification-days: ${STOXSIM_REFERRAL_QUALIFICATION_DAYS:90}
+    daily-attribution-limit: ${STOXSIM_REFERRAL_DAILY_ATTRIBUTION_LIMIT:20}
+    weekly-reward-limit: ${STOXSIM_REFERRAL_WEEKLY_REWARD_LIMIT:5}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   release:
     public-registration-enabled: ${STOXSIM_PUBLIC_REGISTRATION_ENABLED:true}
