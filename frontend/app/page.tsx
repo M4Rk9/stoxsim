@@ -524,6 +524,7 @@ export default function Home() {
   );
   const bseOrderBlocked = selected?.exchange === "BSE" && (!bseAvailable || quote?.pricingSource !== "EXTERNAL");
   const standardAccount = activeAccount?.accountKind === "STANDARD";
+  const rewardAccount = activeAccount?.accountKind === "REWARD";
   const marketName = marketRegion === "INDIA" ? "India" : "USA";
   const displayMoney = (value?: number) => money(value, activeCurrency);
   const displayMoneyOrDash = (value?: number) => moneyOrDash(value, activeCurrency);
@@ -1459,16 +1460,16 @@ export default function Home() {
       </div>}
 
       <section className="dashboardHeading">
-        <div><span className="eyebrow">{activeAccount?.accountKind === "REWARD" ? "REFERRAL PRACTICE" : activeAccount?.accountKind === "SANDBOX" ? "EXTRA PRACTICE" : "YOUR PRACTICE"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
+        <div><span className="eyebrow">{rewardAccount ? "REFERRAL PRACTICE" : activeAccount?.accountKind === "SANDBOX" ? "EXTRA PRACTICE" : "YOUR PRACTICE"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
       {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
       <section className="metricGrid" aria-label="Portfolio overview" aria-busy={loading}>
-        <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
+        <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`${rewardAccount ? "Net contributions" : "Started with"} ${displayMoney(portfolio?.startingCapital)}`} />
         <Metric label="Available cash" value={displayMoney(portfolio?.availableCash)} sub={`${displayMoney(portfolio?.blockedCash)} blocked`} />
         <Metric label="Unrealized P/L" value={displayMoney(portfolio?.unrealizedProfitLoss)} tone={(portfolio?.unrealizedProfitLoss ?? 0) >= 0 ? "positive" : "negative"} sub="Across current holdings" />
-        <Metric label="Total return" value={`${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${displayMoney(portfolio?.totalProfitLoss)} all time`} />
+        <Metric label={rewardAccount ? "P/L as % of contributions" : "Total return"} value={rewardAccount && !portfolio?.startingCapital ? "—" : `${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${displayMoney(portfolio?.totalProfitLoss)} all time`} />
       </section>
 
 
