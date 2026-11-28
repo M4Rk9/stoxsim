@@ -19,6 +19,8 @@ The synthetic candidate uses 10% daily activity as a planning assumption, 2, 4 a
 
 The [F3 evaluation](F3_EVALUATION.md), `FinwizUsageBudgetIntegrationTest`, `LiveBillingIntegrationTest` and `ReferralIntegrationTest` record the automated fault and concurrency coverage. Measure sustained CPU, memory, connection-pool use, Redis health and provider quotas under the planned production envelope before claiming sustainable capacity.
 
+On 28 November 2026 the isolated local API, PostgreSQL 17.12 and Redis 7.2 run answered all 304 sampled questions. Mock-provider p95 latency was 284 ms, 283 ms and 399 ms for 2, 4 and 8 active sessions. The 300 backend unit tests and 39 targeted PostgreSQL integration tests passed. The web production build and secret artifact scan also passed. See the pull request's checks for the candidate Compose and browser results.
+
 ## Security and privacy review
 
 | Area | Controls reviewed | Remaining release verification |
