@@ -108,9 +108,11 @@ async function enabledGoogle(page: Page) {
 
 test("Google signup requires explicit consent without requesting a password", async ({ page }) => {
   await enabledGoogle(page);
+  await page.goto("/invite?ref=ABCDEFGHIJKLMNOP");
+  await expect(page.getByText("Invite code applied.")).toBeVisible();
   let registered = false;
   await mock(page, `${API}/api/v1/auth/google/register`, async route => {
-    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", displayName: "New Learner", termsAccepted: true, signupSource: "DIRECT" });
+    expect(route.request().postDataJSON()).toEqual({ credential: "test-credential", displayName: "New Learner", termsAccepted: true, signupSource: "DIRECT", referralCode: "ABCDEFGHIJKLMNOP" });
     registered = true;
     await respond(route, { status: 201, json: { accessToken: "new-access", expiresInSeconds: 900, user: { ...user, passwordLoginEnabled: false } } });
   });

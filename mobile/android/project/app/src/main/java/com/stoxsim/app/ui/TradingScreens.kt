@@ -50,11 +50,16 @@ import java.math.RoundingMode
 
 @Composable internal fun PortfolioMetrics(state: AppState) {
     val p = state.portfolio
+    val rewardAccount = state.account?.kind == "REWARD"
     Panel(kicker = "${regionLabel(state.region)} · PRACTICE PORTFOLIO") {
         Muted("Portfolio value")
         Text(money(p?.total, state.currency), style = MaterialTheme.typography.headlineLarge.copy(fontFamily = FinancialFont))
-        p?.returnPercent?.let { Text(percent(it), color = tone(it)) }
-        Muted("Started with ${money(p?.capital ?: state.account?.capital, state.currency)}")
+        if (p != null && (!rewardAccount || p.capital.signum() > 0)) {
+            val returnLabel = percent(p.returnPercent) + if (rewardAccount) " of net contributions" else ""
+            Text(returnLabel, color = tone(p.returnPercent))
+        }
+        val capitalLabel = if (rewardAccount) "Net contributions" else "Started with"
+        Muted("$capitalLabel ${money(p?.capital ?: state.account?.capital, state.currency)}")
         val history = state.data["homeHistory"]
         val points = history?.objects("points").orEmpty()
         if (points.any { it.decimal("equity") != null }) {

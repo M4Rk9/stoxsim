@@ -18,7 +18,7 @@ type CurrencyCode = "INR" | "USD";
 interface Account {
   id: string;
   marketRegion: MarketRegion;
-  accountKind: "STANDARD" | "SANDBOX";
+  accountKind: "STANDARD" | "SANDBOX" | "REWARD";
   sandboxPlan?: "PLUS" | "PRO";
   sandboxSlot: number;
   accountLabel: string;
@@ -248,6 +248,7 @@ export default function PortfolioPage() {
     [portfolios, activeAccountId],
   );
   const account = selected?.account;
+  const rewardAccount = account?.accountKind === "REWARD";
   const portfolio = selected?.portfolio;
   const insights = selected?.insights;
 
@@ -302,10 +303,12 @@ export default function PortfolioPage() {
       <PortfolioPricingNotice holdings={portfolio.holdings} />
 
       <section className={styles.metrics} id="portfolio-overview" aria-label="Portfolio balances">
-        <article><span>Account value</span><strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong><small>Started with {money(portfolio.startingCapital, portfolio.currency)}</small></article>
+        <article><span>Account value</span><strong>{money(portfolio.totalAccountValue, portfolio.currency)}</strong><small>{rewardAccount ? "Net contributions" : "Started with"} {money(portfolio.startingCapital, portfolio.currency)}</small></article>
         <article><span>Available cash</span><strong>{money(portfolio.availableCash, portfolio.currency)}</strong><small>{money(portfolio.blockedCash, portfolio.currency)} blocked</small></article>
         <article><span>Invested value</span><strong>{money(portfolio.investedValue, portfolio.currency)}</strong><small>Market value {money(portfolio.marketValue, portfolio.currency)}</small></article>
-        <article><span>Total P/L</span><strong className={portfolio.totalProfitLoss >= 0 ? styles.positive : styles.negative}>{money(portfolio.totalProfitLoss, portfolio.currency)}</strong><small>{portfolio.totalReturnPercent.toFixed(2)}% total return</small></article>
+        <article><span>Total P/L</span><strong className={portfolio.totalProfitLoss >= 0 ? styles.positive : styles.negative}>{money(portfolio.totalProfitLoss, portfolio.currency)}</strong><small>{rewardAccount && portfolio.startingCapital === 0
+          ? "No net contributions"
+          : `${portfolio.totalReturnPercent.toFixed(2)}% ${rewardAccount ? "of net contributions" : "total return"}`}</small></article>
       </section>
 
       <nav className={styles.sectionNav} aria-label="Portfolio sections"><a href="#portfolio-overview">Balances</a>{account && <a href="#portfolio-history">Performance and risk</a>}{insights && <a href="#portfolio-analytics-title">Allocation</a>}<a href="#portfolio-holdings">Holdings</a><a href="#portfolio-transactions">Transaction history</a></nav>

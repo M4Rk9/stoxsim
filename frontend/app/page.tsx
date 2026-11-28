@@ -1,5 +1,6 @@
 "use client";
 import { signupSource } from "./lib/signup-source";
+import { normalizeReferralCode, savedReferralCode, saveReferralCode } from "./lib/referral-code";
 
 import Brand from "./components/Brand";
 import SocialLinks from "./components/SocialLinks";
@@ -66,7 +67,7 @@ type OrderType = "MARKET" | "LIMIT";
 type MarketDataStatus = "LIVE" | "CLOSED" | "STALE" | "UNAVAILABLE";
 import { chartRanges, rangeLabel, chartQuery, intervalLabel, visibleCandles, type ChartRange } from "./lib/chart-ranges";
 type FinancialPeriod = "quarterly" | "yearly";
-type AccountKind = "STANDARD" | "SANDBOX";
+type AccountKind = "STANDARD" | "SANDBOX" | "REWARD";
 type SubscriptionPlan = "FREE" | "PLUS" | "PRO";
 
 interface Account {
@@ -446,7 +447,18 @@ export default function Home() {
   const [session, setSession] = useState<AuthResponse | null>(null);
   const sessionRef = useRef<AuthResponse | null>(null);
   const refreshPromiseRef = useRef<Promise<AuthResponse> | null>(null);
-  useEffect(() => { signupSource(); }, []);
+  const [referralCode, setReferralCode] = useState<string>();
+  useEffect(() => {
+    signupSource();
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("ref")) {
+      const code = normalizeReferralCode(url.searchParams.get("ref"));
+      if (code && !sessionStorage.getItem("stoxsim-session")) saveReferralCode(code);
+      url.searchParams.delete("ref");
+      window.history.replaceState(window.history.state, "", url);
+    }
+    setReferralCode(savedReferralCode());
+  }, []);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [authForm, setAuthForm] = useState({
     displayName: "",
@@ -511,7 +523,8 @@ export default function Home() {
     [accounts, activeAccountId],
   );
   const bseOrderBlocked = selected?.exchange === "BSE" && (!bseAvailable || quote?.pricingSource !== "EXTERNAL");
-  const standardAccount = activeAccount?.accountKind !== "SANDBOX";
+  const standardAccount = activeAccount?.accountKind === "STANDARD";
+  const rewardAccount = activeAccount?.accountKind === "REWARD";
   const marketName = marketRegion === "INDIA" ? "India" : "USA";
   const displayMoney = (value?: number) => money(value, activeCurrency);
   const displayMoneyOrDash = (value?: number) => moneyOrDash(value, activeCurrency);
@@ -721,6 +734,8 @@ export default function Home() {
     sessionRef.current = next;
     setSession(next);
     if (next) {
+      saveReferralCode();
+      setReferralCode(undefined);
       window.sessionStorage.setItem("stoxsim-session", JSON.stringify(next));
     } else {
       window.sessionStorage.removeItem("stoxsim-session");
@@ -917,7 +932,7 @@ export default function Home() {
     setError("");
     try {
       const path = authMode === "register" ? "/api/v1/auth/register" : "/api/v1/auth/login";
-      const body = authMode === "register" ? { ...authForm, signupSource: signupSource() } : { email: authForm.email, password: authForm.password };
+      const body = authMode === "register" ? { ...authForm, signupSource: signupSource(), referralCode } : { email: authForm.email, password: authForm.password };
       const authenticated = await rawRequest<AuthResponse>(path, {
         method: "POST",
         body: JSON.stringify(body),
@@ -1308,6 +1323,7 @@ export default function Home() {
             {authMode === "register" && (
               <label>Display name<input required minLength={2} value={authForm.displayName} onChange={(event) => setAuthForm({ ...authForm, displayName: event.target.value })} placeholder="Market learner" /></label>
             )}
+            {authMode === "register" && referralCode && <p>Invite code applied. <button type="button" className="authHelpLink" onClick={() => { saveReferralCode(); setReferralCode(undefined); }}>Remove invite</button></p>}
             <label>Email<input required autoComplete="email" type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} placeholder="you@example.com" /></label>
             <label>Password<input required autoComplete={authMode === "register" ? "new-password" : "current-password"} minLength={8} type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} placeholder="At least 8 characters" /></label>
             {authMode === "register" && (
@@ -1444,16 +1460,16 @@ export default function Home() {
       </div>}
 
       <section className="dashboardHeading">
-        <div><span className="eyebrow">{activeAccount?.accountKind === "SANDBOX" ? "EXTRA PRACTICE" : "YOUR PRACTICE"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
+        <div><span className="eyebrow">{rewardAccount ? "REFERRAL PRACTICE" : activeAccount?.accountKind === "SANDBOX" ? "EXTRA PRACTICE" : "YOUR PRACTICE"} · {marketName.toUpperCase()} PORTFOLIO</span><h1>Good day, {session.user.displayName.split(" ")[0]}.</h1></div>
         <div className={`dataBadge ${marketDataStatus.toLowerCase()}`}><span />{marketDataStatus}</div>
       </section>
 
       {portfolio && <PortfolioPricingNotice holdings={portfolio.holdings} />}
       <section className="metricGrid" aria-label="Portfolio overview" aria-busy={loading}>
-        <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`Started with ${displayMoney(portfolio?.startingCapital)}`} />
+        <Metric label="Account value" value={displayMoney(portfolio?.totalAccountValue)} sub={`${rewardAccount ? "Net contributions" : "Started with"} ${displayMoney(portfolio?.startingCapital)}`} />
         <Metric label="Available cash" value={displayMoney(portfolio?.availableCash)} sub={`${displayMoney(portfolio?.blockedCash)} blocked`} />
         <Metric label="Unrealized P/L" value={displayMoney(portfolio?.unrealizedProfitLoss)} tone={(portfolio?.unrealizedProfitLoss ?? 0) >= 0 ? "positive" : "negative"} sub="Across current holdings" />
-        <Metric label="Total return" value={`${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${displayMoney(portfolio?.totalProfitLoss)} all time`} />
+        <Metric label={rewardAccount ? "P/L as % of contributions" : "Total return"} value={rewardAccount && !portfolio?.startingCapital ? "—" : `${number(portfolio?.totalReturnPercent)}%`} tone={(portfolio?.totalReturnPercent ?? 0) >= 0 ? "positive" : "negative"} sub={`${displayMoney(portfolio?.totalProfitLoss)} all time`} />
       </section>
 
 

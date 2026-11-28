@@ -56,7 +56,7 @@ interface Entitlements {
 }
 
 interface SubscriptionAccount extends Account {
-  accountKind: "STANDARD" | "SANDBOX";
+  accountKind: "STANDARD" | "SANDBOX" | "REWARD";
   sandboxPlan?: SubscriptionPlan;
   sandboxSlot: number;
   accountLabel: string;
@@ -557,7 +557,7 @@ export default function SettingsPage() {
       <nav className={styles.quickLinks} aria-label="Account settings sections">
         <a href="#profile">Profile</a><a href="#plan">Plan</a>
         <a href="#learning-preferences">Learning preferences</a><a href="#notifications">Notifications</a>
-        <a href="#reports">Reports</a><a href="#security">Security</a>
+        <a href="#reports">Reports</a><a href="#security">Security</a><a href="/rewards">Referral rewards</a>
         {session.user.platformAdmin && <a href="/admin/analytics">Owner analytics</a>}
         {session.user.platformAdmin && <a href="/admin/billing">Test subscriptions</a>}
       </nav>

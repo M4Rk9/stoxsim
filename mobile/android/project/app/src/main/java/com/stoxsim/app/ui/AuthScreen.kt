@@ -39,6 +39,7 @@ import java.util.Locale
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var accepted by remember { mutableStateOf(false) }
+    LaunchedEffect(state.referralCode) { if (state.referralCode != null) mode = "register" }
     val uri = LocalUriHandler.current
     val register = mode == "register"
     val recovering = mode == "forgot"
@@ -47,6 +48,7 @@ import java.util.Locale
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     Text("Research markets, practise with virtual money, and review what you learn.", style = MaterialTheme.typography.bodyLarge)
     Message(state.error, state.notice)
+    if (register && state.referralCode != null) Text("Invite code applied.")
     if (register) OutlinedTextField(name, { name = it }, label = { Text("Display name") },
         singleLine = true, enabled = !state.working, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(email, { email = it }, label = { Text("Email address") },

@@ -21,6 +21,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="stoxsim.com" android:path="/verify-email" />
                 <data android:scheme="https" android:host="stoxsim.com" android:path="/reset-password" />
+                <data android:scheme="https" android:host="stoxsim.com" android:path="/invite" />
             </intent-filter>
         </activity>
     </application>

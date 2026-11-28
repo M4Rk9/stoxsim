@@ -126,6 +126,7 @@ import com.stoxsim.app.R
                 "Account" -> AccountHub(state, model::openScreen, model::changeRegion, model::selectAccount, model::setDark, model::logout)
                 "Profile & security" -> SettingsScreen(state, model)
                 "Subscriptions" -> SubscriptionScreen(state, model::createSandbox, model::purchase, model::restorePurchases)
+                "Rewards" -> RewardsScreen(state, model::createReferralCode, model::openScreen)
                 "Wallet" -> WalletScreen(state, model::selectAccount, model::openScreen)
                 "Weekly reports" -> ReportsScreen(state, model)
             }
@@ -146,14 +147,14 @@ internal fun parentScreen(screen: String) = when (screen) {
     "F&O", "Stock", "Watchlist" -> "Markets"
     "Orders" -> "Portfolio"
     "Campus" -> "Competitions"
-    "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
+    "Profile & security", "Subscriptions", "Wallet", "Rewards", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 internal fun productTab(screen: String) = when (screen) {
     "Markets", "F&O", "Stock", "Watchlist" -> "Markets"
     "Portfolio", "Orders", "Portfolio analysis" -> "Portfolio"
     "Finwiz", "Finwiz chat" -> "Finwiz"
-    "Learn", "Finwiz lesson", "Learning path", "Scenario Lab", "Reflections", "Explore", "Competitions", "Campus", "Account", "Profile & security", "Subscriptions", "Wallet", "Weekly reports", "Learner profile", "Notifications" -> "Account"
+    "Learn", "Finwiz lesson", "Learning path", "Scenario Lab", "Reflections", "Explore", "Competitions", "Campus", "Account", "Profile & security", "Subscriptions", "Wallet", "Rewards", "Weekly reports", "Learner profile", "Notifications" -> "Account"
     else -> "Home"
 }
 

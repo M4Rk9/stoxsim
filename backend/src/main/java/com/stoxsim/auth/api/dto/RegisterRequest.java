@@ -11,9 +11,10 @@ public record RegisterRequest(
     @NotBlank @Size(min = 8, max = 72) @Utf8Password String password,
     @NotBlank @Size(min = 2, max = 100) String displayName,
     @AssertTrue(message = "You must accept the Terms and Privacy Notice") boolean termsAccepted,
-    @Size(max = 24) String signupSource
+    @Size(max = 24) String signupSource,
+    @Size(max = 32) String referralCode
 ) {
     public RegisterRequest(String email, String password, String displayName, boolean termsAccepted) {
-        this(email, password, displayName, termsAccepted, null);
+        this(email, password, displayName, termsAccepted, null, null);
     }
 }

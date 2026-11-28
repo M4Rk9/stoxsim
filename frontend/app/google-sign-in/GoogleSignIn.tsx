@@ -1,5 +1,6 @@
 "use client";
 import { signupSource } from "../lib/signup-source";
+import { savedReferralCode, saveReferralCode } from "../lib/referral-code";
 
 import Script from "next/script";
 import Brand from "../components/Brand";
@@ -98,8 +99,9 @@ export default function GoogleSignIn({ scriptNonce, manage = false, register = f
       } else {
         const value = details.current;
         const session = register
-          ? await post("register", { credential, displayName: value.displayName.trim(), termsAccepted: value.accepted, signupSource: signupSource() })
+          ? await post("register", { credential, displayName: value.displayName.trim(), termsAccepted: value.accepted, signupSource: signupSource(), referralCode: savedReferralCode() })
           : await post("login", { credential });
+        saveReferralCode();
         window.sessionStorage.setItem("stoxsim-session", JSON.stringify(session));
         window.location.assign("/");
       }

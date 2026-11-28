@@ -34,6 +34,7 @@ export default function PrivacyPage() {
           <li>Communication preferences: whether weekly reports are enabled and the delivery timezone you select.</li>
           <li>Product activity: your account ID, UTC day, first occurrence time and category of signed-in activity, stock research, watchlist additions, standard paper-order submissions/executions, successful Finwiz answers, completed Scenario Lab runs, Learning Path or Competitions visits, saved strategies and completed written reviews. We keep one marker per category per day. These activity markers contain no stock symbols, search text, Finwiz prompts, order payloads or session replay.</li>
           <li>Signup categories: broad referral source (direct, search, social, other referral or unknown), device category and email/Google registration method. These categories help compare research and return cohorts. We do not store referring URLs, campaign text or raw user-agent strings in this analytics record.</li>
+          <li>Referral rewards record the invite code, qualification status and virtual credits. We use keyed identifiers derived from email and, when available, the Google account identifier to detect repeated referral claims. Inviting learners can see referral statuses and credits. Account identities are available to administrators who review claims.</li>
           <li>Technical data: service logs, request timing, IP-derived security signals and error diagnostics.</li>
           <li>Communications you send to our support or privacy addresses.</li>
         </ul>
@@ -80,6 +81,7 @@ export default function PrivacyPage() {
         <p>
           Signup categories remain with your account, are included in your export and are deleted with your account. Product activity covers the latest 180 UTC dates and is removed in scheduled batches after expiry. It is included in your account export and deleted with your account.
           Campus requests and entries are included in your export and removed when you delete your account. You can cancel pending requests, leave your institution or withdraw from a competition; withdrawal is final for that competition. Withdrawn entry baselines remain stored while your account exists to prevent re-entry resets. Campus moderation actions remain with account references cleared on deletion.
+          Referral fraud-prevention identifiers expire after 180 days. Deleting an account clears its referral code and account links. Opaque transaction and account references, timestamps and signed reward amounts are retained for ledger reconciliation.
           Account and simulator data is kept while your account is active. Security and backup
           records may remain for a limited period after deletion to protect the service and meet
           legal requirements. Passwords are stored as hashes, refresh tokens are hashed and rotated,

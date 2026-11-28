@@ -36,9 +36,10 @@ class MainActivity : ComponentActivity() {
         }
         if (incoming.action != Intent.ACTION_VIEW) return
         val raw = incoming.dataString
+        val isInvite = incoming.data?.path == "/invite"
         // Do not leave the secret URL on the activity's reusable launch intent.
         incoming.data = null
         incoming.action = Intent.ACTION_MAIN
-        model.receiveEmailLink(raw)
+        if (isInvite) model.receiveReferralLink(raw) else model.receiveEmailLink(raw)
     }
 }
