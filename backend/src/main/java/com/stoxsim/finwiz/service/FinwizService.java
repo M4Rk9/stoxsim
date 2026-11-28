@@ -81,7 +81,9 @@ public class FinwizService {
         var depth = access.depth(userId);
         return meterRegistry.timer("stoxsim.finwiz.latency").record(() -> {
             var answer = askObserved(userId, request, depth);
-            return answer.withAllowance(properties.isEnabled() ? budget.allowance(userId, depth) : null);
+            var response = answer.withAllowance(properties.isEnabled() ? budget.allowance(userId, depth) : null);
+            meterRegistry.counter("stoxsim.finwiz.answers", "tier", depth.name(), "kind", response.answerKind()).increment();
+            return response;
         });
     }
 
@@ -139,6 +141,7 @@ public class FinwizService {
         }
 
         String evidence = depth.boundContext(context.text());
+        meterRegistry.summary("stoxsim.finwiz.context.characters", "tier", depth.name()).record(evidence.length());
         var result = gateway.generate(userId, depth, request.requestId(),
             requestBody(request, context.symbol(), evidence, question, depth, subject.map(FinwizKnowledge.Lesson::title).orElse(null)),
             answer -> FinwizOutputPolicy.allows(answer, context.grounded() ? evidence : null));

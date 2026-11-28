@@ -54,6 +54,8 @@ class LiveBillingIntegrationTest {
  @Container @ServiceConnection static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres:17-alpine");
  @Autowired JdbcTemplate db;@Autowired AppUserRepository users;@Autowired SubscriptionService subscriptions;@Autowired UserSubscriptionRepository entitlementRows;@Autowired VirtualAccountRepository accounts;
  @Autowired LiveBillingService billing;@Autowired BillingAccountGuard guard;@Autowired PurchaseTokenVault vault;@Autowired ObjectMapper json;@Autowired WebApplicationContext context;
+ @Autowired com.stoxsim.common.monitoring.ReleaseMetrics releaseMetrics;
+ @Autowired io.micrometer.core.instrument.MeterRegistry meters;
  @MockitoBean RazorpayLiveClient razorpay;@MockitoBean GooglePlayClient play;@MockitoBean PlayNotificationVerifier notifications;
  UUID actor,other;ObjectNode remote,payment;Instant end;
  @BeforeEach void setup(){db.execute("TRUNCATE app_user RESTART IDENTITY CASCADE");actor=user("buyer");other=user("other");end=Instant.now().plus(Duration.ofDays(30)).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);when(razorpay.create(anyString(),any())).thenAnswer(c->{remote=razor(c.getArgument(1),"created",0);return remote;});when(razorpay.fetch(anyString())).thenAnswer(c->remote);when(razorpay.invoices(anyString())).thenAnswer(c->json.readTree("{\"items\":[]}"));}
@@ -91,7 +93,46 @@ class LiveBillingIntegrationTest {
  }
  @Test void refundRevokesButDoesNotClaimRenewalStopped(){var entry=billing.create(actor,"PLUS",UUID.randomUUID());paid(entry);billing.refresh(actor,entry.id());payment.put("amount_refunded",19900).put("status","refunded");assertThat(billing.refresh(actor,entry.id()).status()).isEqualTo("REVOKED");assertThat(entitlementRows.findByUserId(actor).orElseThrow().effectivePlan()).isEqualTo(SubscriptionPlan.FREE);expectStatus(409,()->guard.requireDeletionAllowed(actor));when(razorpay.cancel("sub_fixture",true)).thenReturn(remote);billing.cancel(actor,entry.id());guard.requireDeletionAllowed(actor);}
  @Test void signedWebhookDeduplicatesAndFetchesCurrentState()throws Exception{var entry=billing.create(actor,"PLUS",UUID.randomUUID());paid(entry);billing.refresh(actor,entry.id());byte[] raw=json.writeValueAsBytes(Map.of("event","subscription.activated","payload",Map.of("subscription",Map.of("entity",remote))));expectStatus(401,()->billing.razorpayWebhook(raw,"bad","evt_1"));remote.put("status","halted");billing.razorpayWebhook(raw,sign(raw),"evt_1");assertThat(entitlementRows.findByUserId(actor).orElseThrow().effectivePlan()).isEqualTo(SubscriptionPlan.FREE);clearInvocations(razorpay);billing.razorpayWebhook(raw,sign(raw),"evt_1");verify(razorpay,never()).fetch(anyString());}
- @Test void playAcknowledgesEncryptsAndRejectsCrossAccountRestore(){var pending=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_PENDING");var ack=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");when(play.fetch("opaque-token")).thenReturn(pending,ack);var entry=billing.verifyPlay(actor,"opaque-token","plus");verify(play).acknowledge("plus","opaque-token");assertThat(entry.accessUntil()).isEqualTo(end);assertThat(entry.providerReference()).isNull();String encrypted=db.queryForObject("SELECT encrypted_token FROM billing_purchase WHERE id=?",String.class,entry.id());assertThat(encrypted).doesNotContain("opaque-token");assertThat(vault.decrypt(encrypted)).isEqualTo("opaque-token");expectStatus(403,()->billing.verifyPlay(other,"opaque-token","plus"));assertThat(guard.export(actor).toString()).doesNotContain(encrypted);}
+ @Test void playAcknowledgesEncryptsAndRejectsCrossAccountRestore(){var pending=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_PENDING");var ack=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");when(play.fetch("opaque-token")).thenReturn(pending,pending,ack);var entry=billing.verifyPlay(actor,"opaque-token","plus");verify(play).acknowledge("plus","opaque-token");assertThat(entry.accessUntil()).isEqualTo(end);assertThat(entry.providerReference()).isNull();String encrypted=db.queryForObject("SELECT encrypted_token FROM billing_purchase WHERE id=?",String.class,entry.id());assertThat(encrypted).doesNotContain("opaque-token");assertThat(vault.decrypt(encrypted)).isEqualTo("opaque-token");expectStatus(403,()->billing.verifyPlay(other,"opaque-token","plus"));assertThat(guard.export(actor).toString()).doesNotContain(encrypted);}
+ @Test void failedPlayAcknowledgmentIsRetriedByReconciliationWithoutTheApp(){
+  var purchase=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_PENDING");
+  when(play.fetch("retry-token")).thenReturn(purchase);
+  doThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY,"Timeout"))
+      .doAnswer(call->{purchase.put("acknowledgementState","ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");return null;})
+      .when(play).acknowledge("plus","retry-token");
+
+  expectStatus(502,()->billing.verifyPlay(actor,"retry-token","plus"));
+  var pending=billing.overview(actor).entries().getFirst();
+  assertThat(pending.status()).isEqualTo("PENDING");
+  assertThat(pending.accessUntil()).isNull();
+  assertThat(entitlementRows.findByUserId(actor).orElseThrow().effectivePlan()).isEqualTo(SubscriptionPlan.FREE);
+  expectStatus(409,()->billing.create(actor,"PLUS",UUID.randomUUID()));
+
+  billing.reconcileDue();
+  billing.reconcileDue();
+  var active=billing.overview(actor).entries().getFirst();
+  assertThat(active.id()).isEqualTo(pending.id());
+  assertThat(active.accessUntil()).isEqualTo(end);
+  assertThat(entitlementRows.findByUserId(actor).orElseThrow().effectivePlan()).isEqualTo(SubscriptionPlan.PLUS);
+  verify(play,times(2)).acknowledge("plus","retry-token");
+ }
+ @Test void releaseMetricsUseVerifiedAccessAndExposeOnlyAggregateBillingData(){
+  var purchase=billing.create(actor,"PLUS",UUID.randomUUID());
+  paid(purchase);
+  billing.refresh(actor,purchase.id());
+
+  releaseMetrics.collect();
+  assertThat(meters.get("stoxsim.subscription.learners").tag("plan","PLUS").gauge().value()).isEqualTo(1);
+  assertThat(meters.get("stoxsim.subscription.learners").tag("plan","FREE").gauge().value()).isEqualTo(1);
+  assertThat(meters.get("stoxsim.billing.charges.30d.paise").tag("kind","captured").gauge().value()).isEqualTo(19900);
+  assertThat(meters.get("stoxsim.referral.ledger.mismatches").tag("kind","account").gauge().value()).isZero();
+
+  db.update("UPDATE billing_purchase SET access_until=now()-interval '1 second' WHERE id=?",purchase.id());
+  db.update("UPDATE user_subscription SET billing_access_until=now()-interval '1 second' WHERE user_id=?",actor);
+  releaseMetrics.collect();
+  assertThat(meters.get("stoxsim.subscription.learners").tag("plan","PLUS").gauge().value()).isZero();
+  assertThat(meters.get("stoxsim.billing.purchases").tags("provider","RAZORPAY","plan","PLUS","state","NO_ACCESS").gauge().value()).isEqualTo(1);
+ }
  @Test void playPendingAndExpiredNeverGrantAccess(){var remote=playResource(actor,"SUBSCRIPTION_STATE_PENDING","ACKNOWLEDGEMENT_STATE_PENDING");when(play.fetch("pending-token")).thenAnswer(c->remote);var entry=billing.verifyPlay(actor,"pending-token","plus");assertThat(entry.accessUntil()).isNull();verify(play,never()).acknowledge(anyString(),anyString());remote.put("subscriptionState","SUBSCRIPTION_STATE_ACTIVE").put("acknowledgementState","ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");assertThat(billing.refresh(actor,entry.id()).accessUntil()).isEqualTo(end);remote.put("subscriptionState","SUBSCRIPTION_STATE_EXPIRED");assertThat(billing.refresh(actor,entry.id()).accessUntil()).isNull();}
  @Test void testPurchasesAndIncorrectBasePlansCannotGrantProductionBenefits(){var remote=playResource(actor,"SUBSCRIPTION_STATE_ACTIVE","ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED");remote.putObject("testPurchase");when(play.fetch(anyString())).thenReturn(remote);expectStatus(409,()->billing.verifyPlay(actor,"test-token","plus"));remote.remove("testPurchase");((ObjectNode)remote.path("lineItems").get(0).path("offerDetails")).put("basePlanId","wrong");expectStatus(409,()->billing.verifyPlay(actor,"wrong-product","plus"));assertThat(db.queryForObject("SELECT count(*) FROM billing_purchase",Integer.class)).isZero();}
  @Test void localDeadlineProtectsAccountsWithoutReconciliation(){var entry=billing.create(actor,"PLUS",UUID.randomUUID());paid(entry);billing.refresh(actor,entry.id());db.update("UPDATE user_subscription SET billing_access_until=now()-interval '1 second' WHERE user_id=?",actor);db.update("UPDATE virtual_account SET billing_access_until=now()-interval '1 second' WHERE user_id=?",actor);assertThat(entitlementRows.findByUserId(actor).orElseThrow().effectivePlan()).isEqualTo(SubscriptionPlan.FREE);assertThat(accounts.findSandboxesByUserId(actor)).allMatch(a->!a.isActive());expectStatus(403,()->billing.revenue(actor));}

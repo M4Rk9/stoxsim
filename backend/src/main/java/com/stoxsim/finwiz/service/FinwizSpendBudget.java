@@ -156,6 +156,7 @@ public class FinwizSpendBudget {
     @Scheduled(fixedDelay = 3600000, initialDelay = 3600000)
     @Transactional(timeout = 10)
     public void expireUnresolved() {
-        db.update("UPDATE finwiz_spend_attempt SET state='UNKNOWN' WHERE state='PENDING' AND created_at < now()-interval '10 minutes'");
+        int expired = db.update("UPDATE finwiz_spend_attempt SET state='UNKNOWN' WHERE state='PENDING' AND created_at < now()-interval '10 minutes'");
+        if (expired > 0) metrics.counter("stoxsim.finwiz.spend.unknown").increment(expired);
     }
 }

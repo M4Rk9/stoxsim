@@ -2,10 +2,18 @@ name: Android native
 
 on:
   pull_request:
-    paths: ['mobile/android/project/**', '.github/workflows/android.yml', '.github/scripts/android-device-check.sh']
+    paths:
+      - 'mobile/android/project/**'
+      - '.github/workflows/android.yml'
+      - '.github/scripts/android-device-check.sh'
+      - 'backend/src/main/java/com/stoxsim/billing/**'
   push:
     branches: [main]
-    paths: ['mobile/android/project/**', '.github/workflows/android.yml', '.github/scripts/android-device-check.sh']
+    paths:
+      - 'mobile/android/project/**'
+      - '.github/workflows/android.yml'
+      - '.github/scripts/android-device-check.sh'
+      - 'backend/src/main/java/com/stoxsim/billing/**'
   workflow_dispatch:
 
 permissions:

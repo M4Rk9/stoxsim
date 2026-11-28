@@ -116,6 +116,24 @@ groups:
           summary: "Finwiz paid inference exceeded a reservation"
           description: "Review reported usage and provider pricing before enabling further paid requests."
 
+      - alert: ReleaseMetricsStale
+        expr: time() - stoxsim_release_metrics_last_success_seconds > 1200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "StoxSim billing and referral metrics are stale"
+          description: "The API has not refreshed aggregate release metrics. Check database connectivity and collection errors."
+
+      - alert: ReferralLedgerMismatch
+        expr: (stoxsim_referral_ledger_mismatches > 0) and ignoring(kind) (time() - stoxsim_release_metrics_last_success_seconds < 1200)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Virtual reward ledger is out of balance"
+          description: "Review {{ $labels.kind }} mismatches in Rewards reconciliation before further approvals."
+
   - name: stoxsim-host
     rules:
       - alert: HostDiskSpaceLow

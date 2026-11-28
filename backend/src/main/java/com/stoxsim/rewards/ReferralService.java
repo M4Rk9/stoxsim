@@ -57,7 +57,7 @@ public class ReferralService {
                     VirtualRewardLedger.Totals earned, List<Referral> referrals, List<VirtualRewardLedger.Entry> history) { }
     record Review(UUID id, UUID referrerId, UUID referredId, Instant createdAt, Instant qualifiedAt) { }
     record Outcome(String status, UUID transactionId) { }
-    record Reconciliation(long unbalancedAccounts, long unmatchedReferrals) { }
+    public record Reconciliation(long unbalancedAccounts, long unmatchedReferrals) { }
     private record Owners(UUID referrer, UUID referred) { }
 
     @Transactional(readOnly = true)
@@ -183,6 +183,11 @@ public class ReferralService {
     @Transactional(readOnly = true)
     public Reconciliation reconcile(UUID reviewer) {
         requireReviewer(reviewer);
+        return ledgerHealth();
+    }
+
+    @Transactional(readOnly = true, timeout = 5)
+    public Reconciliation ledgerHealth() {
         return db.queryForObject("""
             SELECT (
                 SELECT count(*) FROM virtual_account a

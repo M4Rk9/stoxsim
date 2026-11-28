@@ -6,9 +6,50 @@ import math
 import os
 import secrets
 import time
+import uuid
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+
+def finwiz_profiles(fixtures):
+    def ask(fixture, count):
+        results = []
+        for index in range(count):
+            start = time.monotonic()
+            local = index % 2 == 0
+            status, raw, latency = request("finwiz/ask", fixture[0], {
+                "question": "What is cash flow?" if local else "How can retained profits affect working capital?",
+                "topic": "LEARN",
+                "requestId": str(uuid.uuid4()),
+            })
+            response = json.loads(raw) if status == 200 else {}
+            success = response.get("answerKind") == "lesson" if local else (
+                response.get("answerKind") == "analysis" and response.get("model") == "ci-finwiz-fixture"
+            )
+            results.append(("lesson" if local else "mock_provider", success, latency))
+            time.sleep(max(0, 1 - (time.monotonic() - start)))
+        return results
+
+    # Workload hypotheses. Registration totals do not correspond to load-generator clients.
+    for registrations, sessions in [(1000, 2), (10000, 4), (100000, 8)]:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=sessions) as executor:
+            count = 100 // sessions + (100 % sessions > 0)
+            completed = [executor.submit(ask, fixture, count) for fixture in fixtures[:sessions]]
+            samples = [sample for future in completed for sample in future.result()]
+        results = {}
+        for surface in ("lesson", "mock_provider"):
+            selected = [(ok, latency) for kind, ok, latency in samples if kind == surface]
+            durations = [latency for _, latency in selected]
+            results[surface] = {
+                "requests": len(selected), "answers": sum(ok for ok, _ in selected),
+                "p50_ms": percentile(durations, .50), "p95_ms": percentile(durations, .95),
+                "p99_ms": percentile(durations, .99),
+            }
+        success = sum(ok for _, ok, _ in samples) / len(samples)
+        yield {"modeled_registered": registrations, "assumed_dau": registrations // 10,
+               "active_finwiz_sessions": sessions, "max_requests_per_session_second": 1,
+               "mock_provider_latency_ms": 150, "surfaces": results, "successful_answer_ratio": success}
 
 
 def percentile(values, fraction):
@@ -38,7 +79,7 @@ def main():
     fixtures, samples, cleanup = [], [], []
     report = {"candidate_sha": os.environ["CANDIDATE_SHA"], "profile": "4 authenticated cash-only users, one request per user per second, 60 seconds", "production_capacity_claim": False}
     try:
-        for _ in range(4):
+        for _ in range(8):
             password = "M7-fixture-" + secrets.token_hex(12)
             status, raw, _ = request("auth/register", body={"displayName": "CI capacity fixture", "email": "m7-" + secrets.token_hex(12) + "@stoxsim.test", "password": password, "termsAccepted": True})
             if status != 201:
@@ -63,14 +104,17 @@ def main():
                 time.sleep(max(0, 1 - (time.monotonic() - began)))
             return rows
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            for rows in executor.map(worker, fixtures):
+            for rows in executor.map(worker, fixtures[:4]):
                 samples.extend(rows)
         surfaces = {}
         for name in sorted({r["surface"] for r in samples}):
             rows = [r for r in samples if r["surface"] == name]
             surfaces[name] = {"requests": len(rows), "errors": sum(r["status"] != 200 for r in rows), "p50_ms": percentile([r["ms"] for r in rows], .5), "p95_ms": percentile([r["ms"] for r in rows], .95)}
         report["surfaces"] = surfaces
-        report["passed"] = len(samples) >= 200 and all(s["errors"] == 0 and s["p95_ms"] < 2000 for s in surfaces.values())
+        report["finwiz_profiles"] = list(finwiz_profiles(fixtures))
+        report["passed"] = len(samples) >= 200 and all(
+            s["errors"] == 0 and s["p95_ms"] < 2000 for s in surfaces.values()
+        ) and all(profile["successful_answer_ratio"] >= .99 for profile in report["finwiz_profiles"])
     finally:
         for token, password in fixtures:
             status, _, _ = request("auth/me", token, {"password": password}, "DELETE")

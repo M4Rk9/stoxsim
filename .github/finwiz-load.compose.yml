@@ -1,0 +1,31 @@
+services:
+  backend:
+    environment:
+      GEMINI_API_KEY: ci-mock-only
+      GEMINI_BASE_URL: http://127.0.0.1:18081
+      GEMINI_MODEL: ci-finwiz-fixture
+      FINWIZ_GEMINI_FREE_CAPACITY_CONFIRMED: "true"
+      FINWIZ_GEMINI_DAILY_LIMIT: 2000
+      FINWIZ_GEMINI_REQUESTS_PER_MINUTE: 1000
+      FINWIZ_GEMINI_TOKENS_PER_MINUTE: 4000000
+      FINWIZ_GEMINI_TOKENS_PER_DAY: 12000000
+      FINWIZ_GLOBAL_DAILY_ATTEMPTS: 2000
+      FINWIZ_BASIC_DAILY_REQUESTS: 400
+      FINWIZ_PROVIDER_CONCURRENCY: 32
+      RATE_LIMIT_AUTH_PER_MINUTE: 120
+      RATE_LIMIT_FINWIZ_PER_MINUTE: 120
+      FINWIZ_GROQ_ENABLED: "false"
+      FINWIZ_CLOUDFLARE_ENABLED: "false"
+      FINWIZ_OPENROUTER_ENABLED: "false"
+      FINWIZ_PAID_ENABLED: "false"
+  finwiz-fixture:
+    image: python:3.13-alpine
+    network_mode: service:backend
+    volumes:
+      - ./scripts/finwiz-load-fixture.py:/fixture.py:ro
+    command: ["python", "/fixture.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18081/healthz', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 10

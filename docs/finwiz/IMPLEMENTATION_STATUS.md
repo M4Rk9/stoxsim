@@ -28,6 +28,10 @@ The candidate adds the source-checked lesson catalog (V143), deterministic resea
 
 Web and Android registration can attribute a referral to a shareable invite. Qualified referrals require administrator approval. Each approval writes an atomic, auditable two-currency contribution to separate practice accounts. [Referral rewards](../REFERRAL_REWARDS.md) documents accounting, rollout and reconciliation. The feature starts disabled pending owner approval.
 
-## Later milestones
-- F5: monitoring, billing, Google Play candidate.
-- F6: post-publication advertising only; each qualifying ad earns same virtual rewards. No ad SDK before launch.
+## F5 — Billing, monitoring and Google Play
+
+[F5 release evidence](F5_RELEASE_EVIDENCE.md) records the billing retry recovery, aggregate monitoring, mock workload, signed-build checklist and production dependencies.
+
+## F6 — Post-publication advertising
+
+Each qualifying rewarded ad earns the same virtual practice capital as a qualifying referral. Start advertising work after publication and owner authorization.
